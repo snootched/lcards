@@ -163,7 +163,7 @@ objects:
 
 **`face: <point id>` keeps an object turned toward a point, wherever it is (another star system, across the galaxy), as either moves.**
 
-- Most objects turn their +z to the point, top up. Objects round an axis (a grid other than a plane, a ring, a belt, a galaxy) point their axis at it instead, so a ring lies face-on to it.
+- Most objects turn their +z to the point, top up. Objects round an axis (a grid other than a plane, a ring, a belt, a galaxy, a whirlpool nebula) point their axis at it instead, so a ring lies face-on to it.
 - A [well](./objects/surfaces#wells-and-wormholes)'s narrow end leads to the point it faces, and a wormhole is two wells facing each other.
 
 ```yaml live

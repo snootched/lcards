@@ -12,7 +12,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STARTERS } from '../../src/core/astrometrics/starters/index.js';
 import { starterPicture, typePicture, shapePicture, TYPE_GROUPS, starterParamSchema, starterParamChoices, starterParamValues, starterAdds, PICTURE_BASE } from '../../src/editor/dialogs/astro-studio/starter-gallery.js';
-import { fieldKind } from '../../src/editor/dialogs/astro-studio/schema-fields.js';
+import { fieldKind, bindingBranch } from '../../src/editor/dialogs/astro-studio/schema-fields.js';
 import { OBJECT_TYPES, GRID_SHAPES, VOLUME_SHAPES, IMAGE_SHAPES, NEBULA_SHAPES } from '../../src/core/astrometrics/names.js';
 import { TYPE_SAMPLES, SHAPE_SAMPLES } from '../../src/core/astrometrics/object-samples.js';
 import { getSchemaEntries } from '../../scripts/lib/card-schemas.js';
@@ -63,16 +63,19 @@ test('every starter has a one-line summary for its tile', () => {
   }
 });
 
-test('starter params become form fields: numbers, point pickers, dropdowns and text', () => {
+test('starter params become form fields: numbers, point pickers, dropdowns, text and settings that follow entities', () => {
   for (const s of STARTERS) {
     const schema = starterParamSchema(s);
     for (const p of s.params) {
       const kind = fieldKind(schema[p.key], p.key);
-      const want = p.type === 'number' ? 'number' : p.type === 'point' ? 'pointRef' : p.options?.length && !p.custom ? 'enum' : 'text';
+      const want = p.type === 'number' || p.type === 'setting' ? 'number' : p.type === 'point' ? 'pointRef' : p.options?.length && !p.custom ? 'enum' : 'text';
       assert.equal(kind, want, `${s.id}.${p.key}`);
       assert.equal(schema[p.key]['x-ui-hints'].label, p.label);
+      // a setting: the "Follow an entity" button, and a panel with the entity, attribute and input (no output: the starter writes it)
+      if (p.type === 'setting') assert.deepEqual(Object.keys(bindingBranch(schema[p.key]).properties), ['entity', 'attribute', 'input'], `${s.id}.${p.key}`);
     }
   }
+  assert.ok(STARTERS.filter((s) => s.params.some((p) => p.key === 'power' && p.type === 'setting')).length === 2, 'both wormhole starters take a power setting');
   const planet = STARTERS.find((s) => s.id === 'planet');
   assert.ok(planet);
   assert.ok(starterParamChoices(planet).look.includes('gas_giant'));

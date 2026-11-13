@@ -73,6 +73,19 @@ test('mapping (map_range words): input from min / max, else 0 to 100; clamped un
   assert.equal(mapNumber(null, ' 7 '), 7, 'a template result');
   assert.equal(mapNumber(null, true), null);
   assert.equal(mapNumber({ output: [10, 20] }, 50), 15, 'output with the default 0 to 100 input');
+  // default: the setting's value while the entity has no number (a light that is off has no brightness)
+  const lamp = { entity: 'light.desk', attribute: 'brightness', input: [0, 255], output: [2, 40], default: 2 };
+  assert.equal(mapEntity(lamp, { state: 'off', attributes: {} }), 2, 'off: no brightness');
+  assert.equal(mapEntity(lamp, { state: 'on', attributes: { brightness: 255 } }), 40);
+  // no attribute: off and on are the ends of input
+  assert.equal(mapEntity({ ...lamp, attribute: undefined }, { state: 'on', attributes: {} }), 40, 'on: the high end');
+  assert.equal(mapEntity({ ...lamp, attribute: undefined }, { state: 'off', attributes: {} }), 2, 'off: the low end');
+  assert.equal(mapEntity({ entity: 'input_boolean.x' }, { state: 'on', attributes: {} }), 100, 'no output: the high end of input as it is');
+  assert.equal(mapEntity({ entity: 'input_boolean.x', output: [0, 1] }, { state: 'on', attributes: { min: 0, max: 100 } }), 1);
+  assert.equal(mapEntity({ ...lamp, attribute: undefined }, { state: 'playing', attributes: {} }), 2, 'another word: default');
+  assert.equal(mapEntity({ ...lamp, attribute: undefined }, { state: 'unavailable', attributes: {} }), 2, 'unavailable: default');
+  assert.equal(mapEntity(lamp, undefined), 2, 'no entity');
+  assert.equal(mapEntity({ ...lamp, default: 'x' }, { state: 'off', attributes: {} }), null, 'a default that is not a number is none');
   // the old R4b words (never released) are not read: the setting gets the entity's number as it is
   assert.equal(mapNumber({ to: [10, 20], range: [0, 200] }, 50), 50);
 });

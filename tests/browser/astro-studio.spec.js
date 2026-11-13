@@ -327,6 +327,36 @@ test('studio: starters: a part round a card point (it orbits), clashes refused, 
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });
 
+test('studio: a starter setting that follows an entity (the wormhole power) and the mouth-only wormhole', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await openStudio(page);
+    const dialog = page.locator('lcards-astrometrics-studio-dialog');
+    const detail = dialog.locator('[data-starter-detail="wormhole"]');
+    await page.evaluate(() => { window.__studio._activeTab = 'starters'; window.__studio._openStarter = 'wormhole'; });
+    // a number with the "Follow an entity" button, as on an object's settings
+    await expect(detail.locator('[data-key="power-bind"]')).toBeVisible();
+    await detail.locator('[data-key="power-bind"]').click();
+    // its panel: entity, attribute and the entity's low and high; no output (the starter writes each one)
+    const panel = detail.locator('lcards-form-section.binding[data-key="power"]');
+    await expect(panel).toBeVisible();
+    await expect(panel.locator('[data-key="power~entity"]')).toHaveCount(1);
+    await expect(panel.locator('[data-key="power~input0"]')).toHaveCount(1);
+    expect(await panel.locator('[data-key="power~output0"]').count()).toBe(0);
+    // a light's brightness, 0 to 255: on every setting the starter writes
+    await page.evaluate(() => { window.__studio._starterParams = { wormhole: { power: { entity: 'light.demo', attribute: 'brightness', input: [0, 255] } } }; });
+    await expect(dialog.locator('pre.starter-yaml')).toContainText('attribute: brightness');
+    const yaml = await dialog.locator('pre.starter-yaml').textContent();
+    expect(yaml).toContain('input: [0, 255]');
+    expect(yaml).not.toContain('[[[');
+    await detail.screenshot({ path: process.env.CARD_SHOT ?? 'tmp/studio-wormhole-power.png' });
+    // the mouth only: no inside
+    await page.evaluate(() => { window.__studio._starterParams = { wormhole: { inside: 'none' } }; });
+    await expect(dialog.locator('pre.starter-yaml')).not.toContainText('wormhole_strand_1');
+    await expect(dialog.locator('pre.starter-yaml')).toContainText('wormhole_gas');
+    expect(await cardErrors(page)).toEqual([]);
+});
+
 test('studio U1: a Units field on the Scene tab, units beside length fields, a part sized to fit a scene in scene units, real in named units', async ({ page }) => {
     // the whole Solar system scene in the preview: slow under a full run's load
     test.setTimeout(90_000);

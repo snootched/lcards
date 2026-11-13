@@ -12,8 +12,10 @@
  * [low, high] of the entity, `output` [low, high] of the setting. `input`
  * defaults to the entity's `min` / `max` attributes, else 0 to 100; without
  * `output` the value is the entity's number as it is. Values outside `input`
- * hold at the ends of `output` unless `clamp: false`. A missing or
- * non-numeric value leaves the key at its default.
+ * hold at the ends of `output` unless `clamp: false`. A state of `off` or
+ * `on` (no `attribute`) reads as the low or high end of `input`. A missing or
+ * non-numeric value (a light that is off has no brightness) gives `default`,
+ * the setting's value then, else leaves the key at its own default.
  *
  * Colours on an object (`color` at any depth, each item of `colors`, and
  * fill.effect's colour keys) can follow an entity or a template too:
@@ -197,15 +199,18 @@ export const bindingKey = (b) => `${b.scope}:${b.id}:${b.path.join('.')}`;
 
 /**
  * The number a mapping gives for an entity now: the state (or `attribute`),
- * mapped from `range` to `to` and clamped; null when it is missing or not a
- * number.
+ * mapped from `input` to `output` and clamped; a state of `off` or `on` (a
+ * light, a switch: no attribute named) reads as the low or high end of
+ * `input`; `default`, else null, when there is no number.
  * @param {Record<string, any>} spec
  * @param {any} entity - a Home Assistant state object
  * @returns {number | null}
  */
 export function mapEntity(spec, entity) {
-  if (!entity) return null;
-  const raw = typeof spec.attribute === 'string' && spec.attribute ? entity.attributes?.[spec.attribute] : entity.state;
+  if (!entity) return missing(spec);
+  const named = typeof spec.attribute === 'string' && spec.attribute;
+  const raw = named ? entity.attributes?.[spec.attribute] : entity.state;
+  if (!named && (raw === 'on' || raw === 'off')) return mapNumber(spec, inputOf(spec, entity.attributes)[raw === 'on' ? 1 : 0], entity.attributes);
   return mapNumber(spec, raw, entity.attributes);
 }
 
@@ -217,17 +222,37 @@ export function mapEntity(spec, entity) {
  * @returns {number | null}
  */
 export function mapNumber(spec, raw, attributes = {}) {
-  if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') return null;
+  if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') return missing(spec);
   const n = Number(raw);
-  if (!Number.isFinite(n)) return null;
+  if (!Number.isFinite(n)) return missing(spec);
   const output = pairOf(spec?.output);
   if (!output) return n;
-  const input = pairOf(spec?.input) ?? (Number.isFinite(Number(attributes?.min)) && Number.isFinite(Number(attributes?.max)) && Number(attributes.max) !== Number(attributes.min)
-    ? [Number(attributes.min), Number(attributes.max)] : [0, 100]);
+  const input = inputOf(spec, attributes);
   const span = input[1] - input[0];
   const t0 = span === 0 ? 0 : (n - input[0]) / span;
   const t = spec?.clamp === false ? t0 : Math.min(1, Math.max(0, t0));
   return output[0] + t * (output[1] - output[0]);
+}
+
+/**
+ * A mapping's input range: its own, else the entity's `min` and `max` (an input_number), else 0 to 100
+ * @param {Record<string, any> | null} spec
+ * @param {Record<string, any>} [attributes]
+ * @returns {[number, number]}
+ */
+function inputOf(spec, attributes = {}) {
+  return pairOf(spec?.input) ?? (Number.isFinite(Number(attributes?.min)) && Number.isFinite(Number(attributes?.max)) && Number(attributes.max) !== Number(attributes.min)
+    ? [Number(attributes.min), Number(attributes.max)] : [0, 100]);
+}
+
+/**
+ * A mapping's value while the entity has no number: its `default` (the setting's value), else null
+ * @param {Record<string, any> | null} spec
+ * @returns {number | null}
+ */
+function missing(spec) {
+  const d = spec?.default;
+  return typeof d === 'number' && Number.isFinite(d) ? d : null;
 }
 
 /** @param {any} v @returns {[number, number] | null} */

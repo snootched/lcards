@@ -1,4 +1,5 @@
-# Astrometrics F2: a wormhole that opens and closes (well.to + well.morph, depth in place),
+# Astrometrics F2: a wormhole that opens and closes (well.to + well.morph, depth in place,
+# a whirlpool nebula blooming over it),
 # thick model edges (edges.width), and cards on points opened from other cards
 # (point-card, fly-to point_card), with a fixed height and a leader.
 title: Astrometrics wells and cards
@@ -51,6 +52,19 @@ sections:
             deform:
               - { type: twist, angle: 80, anchor: top, period: 6 }
             color: var(--lcars-blue)
+          # the gas of the mouth: a whirlpool nebula that blooms open with APERTURE
+          - type: nebula
+            id: mouth_gas
+            render: volume
+            shape: whirlpool
+            at: mouth
+            radius: { entity: input_number.lcards_test_power, input: [ 0, 100 ], output: [ 4, 50 ], smooth: 700 }
+            opacity: { entity: input_number.lcards_test_power, input: [ 0, 100 ], output: [ 0, 1 ], smooth: 500 }
+            arms: { count: 3, pitch: 18 }
+            thickness: 0.1
+            colors: [ var(--lcards-moonlight), var(--lcars-violet), var(--lcards-blue-medium), var(--lcards-blue-dark) ]
+            core: { color: var(--lcards-orange-lightest) }
+            spin: 15
           - type: glow
             at: mouth
             color: var(--lcards-orange-lightest)

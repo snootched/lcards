@@ -118,6 +118,7 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
 }`;
 
+
 const FRAG = /* glsl */ `
 precision highp float;
 precision highp sampler3D;
@@ -170,6 +171,8 @@ uniform vec4 uRibbon;
 uniform vec3 uWake;
 uniform vec3 uRibbonGlow;
 uniform vec3 uRibbonCore;
+// whirlpool: arm count, how fast they wind (1 / tan pitch), the disc's half-thickness (of the radius)
+uniform vec3 uSwirl;
 
 vec2 enterLeave( vec3 ro, vec3 rd ) {
   if ( uBall > 0.5 ) {
@@ -222,6 +225,9 @@ const vec3 STREAK = vec3( 0.25, 1.6, 0.6 );
 #elif SHAPE == 6
 // wake: streaked out from the ribbon (the direction it streams)
 const vec3 STREAK = vec3( 0.9, 0.45, 0.9 );
+#elif SHAPE == 7
+// whirlpool: flatter across the disc (the winding stretches it round)
+const vec3 STREAK = vec3( 1.0, 1.8, 1.0 );
 #else
 const vec3 STREAK = vec3( 1.0 );
 #endif
@@ -250,6 +256,17 @@ float envelope( vec3 q ) {
   float h = length( q - CAVITY );
   float cup = smoothstep( HOLLOW - 0.05, HOLLOW + 0.06, h ) * ( 1.0 - smoothstep( HOLLOW + 0.2, HOLLOW + 0.45, h ) );
   return max( cup, 0.06 * ( 1.0 - smoothstep( 0.0, HOLLOW, h ) ) ) * ( 1.0 - smoothstep( 0.75, 1.0, r ) );
+#elif SHAPE == 7
+  // whirlpool: a thin disc in the xz plane, swelling at the middle, its gas wound into
+  // spiral arms (a log spiral: the arms cross every radius at the pitch angle)
+  float rr = length( q.xz );
+  float th = uSwirl.z * ( 1.0 + 0.7 * ( 1.0 - smoothstep( 0.0, 0.3, rr ) ) );
+  float disc = exp( -pow( q.y / max( th, 0.01 ), 2.0 ) );
+  float phase = uSwirl.x * ( atan( q.z, q.x ) + log( max( rr, 0.02 ) ) * uSwirl.y );
+  float arm = pow( 0.5 + 0.5 * cos( phase ), 1.6 );
+  // the arms merge into one bright swirl at the middle
+  float armed = mix( 0.12 + 0.88 * arm, 1.0, 1.0 - smoothstep( 0.05, 0.3, rr ) );
+  return disc * armed * ( 1.0 - smoothstep( 0.7, 1.0, rr ) );
 #else
   return 1.0;
 #endif
@@ -365,8 +382,8 @@ vec3 wakeField( vec3 q ) {
 }
 #endif
 
-#if SHAPE == 5 || SHAPE == 6
-// colour stops through a sheet's depth (0: its surface)
+#if SHAPE == 5 || SHAPE == 6 || SHAPE == 7
+// colour stops through a sheet's depth (0: its surface; a whirlpool's: its middle)
 vec4 layerTint( float d ) {
   if ( uStopCount < 2 ) return uStops[ 0 ];
   float x = d * float( uStopCount - 1 );
@@ -543,6 +560,14 @@ void main() {
     tw = 1.0;
     // the ribbon lights the gas round it
     boost = 1.4 + 4.0 * wk.z;
+#elif SHAPE == 7
+    // the clouds give clumps in the arms; the colours run from the middle out
+    float env = envelope( p / uHalf );
+    field = env * ( 0.55 + 0.45 * min( field, 1.0 ) ) * 1.3;
+    // dust lies in the disc too
+    dark *= env;
+    tint = layerTint( clamp( length( p.xz / uHalf.xz ), 0.0, 1.0 ) );
+    tw = 1.0;
 #elif SHAPE != 0 && SHAPE != 3
     // the shape gives the form, the clouds the clumps in it
     field = envelope( p / uHalf ) * ( 0.35 + 0.65 * min( field, 1.0 ) ) * 1.15;
@@ -560,7 +585,17 @@ void main() {
 #elif SHAPE != 5
     tint.rgb = mix( tint.rgb, uCore.rgb, uCore.a * coreAt );
 #endif
+#if SHAPE == 7
+    // the noise wound along the arms: unwinding the spiral turns each radius by its own
+    // angle, so round features shear into wisps that follow the swirl
+    vec2 qw = p.xz / uHalf.xz;
+    float wind = log( max( length( qw ), 0.02 ) ) * uSwirl.y;
+    float cw = cos( wind ), sw = sin( wind );
+    vec3 pw = vec3( p.x * cw - p.z * sw, p.y, p.x * sw + p.z * cw );
+    vec3 pn = pw * STREAK;
+#else
     vec3 pn = p * STREAK;
+#endif
     float n1 = texture( uNoise, pn * uFreq + uWarpOff ).r;
     // wisps: finer, and pushed about by the coarse field (curls, not blobs)
     // (turned against the texture's axes: its repeat and grid do not line up with the coarse field's)
@@ -762,6 +797,12 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
     uRibbonCore: { value: new Vector3(ribColor[0], ribColor[1], ribColor[2]) },
     uRibbonGlow: { value: new Vector3(ribGlowColor[0], ribGlowColor[1], ribGlowColor[2]) },
     uVeins: { value: shape === 5 ? Math.max(0, Math.min(1, num(cfg.veins, 0))) : 0 },
+    // whirlpool: the galaxy's arm words (count, pitch in degrees) and its thickness (of the radius)
+    uSwirl: { value: new Vector3(
+      Math.max(1, Math.round(num(sub(cfg.arms).count, 3))),
+      1 / Math.tan(Math.min(60, Math.max(5, num(sub(cfg.arms).pitch, 20))) * Math.PI / 180),
+      Math.max(0.01, Math.min(0.5, num(cfg.thickness, 0.12)))
+    ) },
     uColCount: { value: cols && cols.kind !== 'lightning' ? Math.min(MAX_CLOUDS, Math.max(0, Math.round(num(cols.count, 4)))) : 0 },
     uColColor: { value: (() => { const c = cols ? ctx.color(cols.color, DEFAULT_COLORS.glow) : [1, 1, 1, 1]; return new Vector4(c[0], c[1], c[2], c[3] ?? 1); })() }
   };

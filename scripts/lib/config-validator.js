@@ -615,6 +615,10 @@ export function astrometricsIssues(node) {
           if (o[k] !== undefined && o[k] !== false) warn(`${at}.${k}`, `${k} applies only with shape: layers`);
         }
       }
+      // the whirlpool's parts
+      if (n.shape !== 'whirlpool') {
+        for (const k of ['arms', 'thickness']) if (o[k] !== undefined) warn(`${at}.${k}`, `${k} applies only with shape: whirlpool`);
+      }
       // the wake's parts
       if (n.render === 'volume' && n.shape !== 'wake') {
         for (const k of ['ribbon', 'wake']) {

@@ -215,12 +215,13 @@ objects:
 - **`cavity`:** a thick cup round a hollow that opens on the object's +z side: a bright bowl seen from there, a crescent from the side (a blister, as in Orion).
 - **`layers`:** a floor and a ceiling of gas across a box with a gap between: see [the Badlands](#the-badlands-layers-columns-and-lightning).
 - **`wake`:** a bright ribbon waving along the object's x axis and a sheet of gas trailing it: see [the Nexus](#the-nexus-a-ribbon-and-its-wake).
+- **`whirlpool`:** a flat disc of gas wound into spiral arms round the object's y axis: see [Whirlpools](#whirlpools-a-wormhole-s-mouth).
 - **Hand-placed clouds** take `size` and `rotation` instead of `stretch`: see [Dust lanes](#dust-lanes).
 :::
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `shape` | string | `clouds` | `render: volume`: the form of the gas: `clouds`, `shell`, `bipolar`, `filaments`, `cavity`, `layers` or `wake` |
+| `shape` | string | `clouds` | `render: volume`: the form of the gas: `clouds`, `shell`, `bipolar`, `filaments`, `cavity`, `layers`, `wake` or `whirlpool` |
 | `stretch` | number | `0` | How drawn out each seeded cloud is, `0` (round) to `1` (long and flat) |
 | `core.color` | colour | - | A colour deep in the gas, running out to the cloud colours at the edges. Left out: the cloud colours throughout |
 
@@ -484,6 +485,52 @@ objects:
 | Key | Type | Default | Description |
 |---|---|---|---|
 | [Keys every object takes](./objects#keys-every-object-takes) | | | `at`, `face` and `rotation`; see [Facing the way it goes](./objects#facing-the-way-it-goes) |
+
+### Whirlpools: a wormhole's mouth
+
+**`shape: whirlpool` winds the gas into a flat swirling disc with spiral arms, brightest at its middle: the mouth of the Bajoran wormhole, a maelstrom, an accretion disc.** The arms are clouds of gas you can fly into, not a flat picture, and `spin` turns them.
+
+- The disc lies round the object's y axis and swells a little at its middle; `thickness` sets how thin it is. Tilt it with `rotation`.
+- `colors` run from the middle out (up to four), and `core.color` lights the very middle.
+- `arms.count` and `arms.pitch` are the [galaxy's](./objects/space#galaxy) words: how many arms, and how tightly they wind.
+- `radius` and `opacity` follow an entity smoothly, so a wormhole can bloom open: put a [well](./objects/surfaces#opening-and-closing) under it for the throat.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  views:
+    v:
+      target: [0, 0, 0]
+      yaw: 15
+      tilt: 25
+      distance: 140
+objects:
+  - type: nebula
+    render: volume
+    shape: whirlpool
+    radius: 50
+    arms:
+      count: 3
+      pitch: 20
+    colors: [var(--lcards-moonlight), var(--lcars-violet), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+    core:
+      color: var(--lcards-orange-lightest)
+    spin: 20
+```
+
+::: details More about whirlpools
+- **The wisps follow the arms:** the gas's own noise is wound along the same spiral, so its clumps stretch into streaks round the disc.
+- **Dust** lies in the disc too: `dust.count` puts dark lanes among the arms.
+- **Cost:** a whirlpool is gas you can fly into, about as heavy as the Badlands: fine on tablets and computers.
+:::
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `shape` | string | `clouds` | `whirlpool` |
+| `arms.count` | number | `3` | How many spiral arms, `1` to `8` |
+| `arms.pitch` | number | `20` | How tightly the arms wind, degrees (`5` to `60`; smaller winds them tighter) |
+| `thickness` | number | `0.12` | The disc's thickness as a fraction of the radius, `0.01` to `0.5` |
 
 ## Scan bands
 

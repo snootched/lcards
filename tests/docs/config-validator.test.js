@@ -523,3 +523,11 @@ test('grid-template-areas: an area that is not one rectangle is an error (the br
     const card = { type: 'custom:lcards-layout-card', layout: { 'grid-template-areas': '"x y x"' }, cards: [] };
     assert.match(messages(check(card).filter(i => i.code === 'grid-areas'))[0], /area "x" is not a rectangle/);
 });
+
+test('astrometrics whirlpool: arms and thickness only with shape: whirlpool (F2)', () => {
+    const astro = (o) => ({ type: 'custom:lcards-astrometrics-card', objects: [o] });
+    assert.deepEqual(messages(check(astro({ type: 'nebula', render: 'volume', shape: 'whirlpool', radius: 50, arms: { count: 3, pitch: 20 }, thickness: 0.1, spin: 20 }))), []);
+    const out = messages(check(astro({ type: 'nebula', render: 'volume', shape: 'shell', arms: { count: 2 }, thickness: 0.1 })));
+    assert.ok(out.includes('warning objects[0].arms: arms applies only with shape: whirlpool'), out.join('\n'));
+    assert.ok(out.includes('warning objects[0].thickness: thickness applies only with shape: whirlpool'), out.join('\n'));
+});

@@ -28,7 +28,9 @@ function section(s) {
   }
   if (params.length) {
     lines.push('| Setting | Default | Notes |', '|---|---|---|');
-    for (const p of params) lines.push(`| ${p.label} | \`${shown(p.default)}\` | ${p.helper ?? ''} |`);
+    // a list's values and what each does, after the helper
+    const choices = (/** @type {any} */ p) => (p.options?.length ? p.options.map((/** @type {any} */ o) => `\`${o.value}\`: ${o.label}`).join('; ') : '');
+    for (const p of params) lines.push(`| ${p.label} | \`${shown(p.default)}\` | ${p.helper ?? choices(p)} |`);
     lines.push('');
   }
   lines.push('```yaml live collapsed', starterYaml(out.config).trimEnd(), '```', '');

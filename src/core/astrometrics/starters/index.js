@@ -52,7 +52,8 @@ import crystallineEntity from './part-crystalline-entity.js';
  * @typedef {Object} StarterParam
  * @property {string} key
  * @property {string} label
- * @property {'text' | 'number' | 'point'} type - point: a point id or [x, y, z]
+ * @property {'text' | 'number' | 'point' | 'setting'} type - point: a point id or [x, y, z]; setting: a number
+ *   that can follow an entity instead (`{ entity, attribute?, input? }`, the binding words), as the Studio's object settings do
  * @property {any} default
  * @property {string} [helper]
  * @property {{ value: string, label: string }[]} [options] - text: a dropdown of these

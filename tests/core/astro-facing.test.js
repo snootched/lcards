@@ -179,3 +179,10 @@ test('face: a point id turns a model toward it, and a well down its axis, its th
   near(w.places.get('throat'), new Vector3(4, 0, 0), 1e-9);
   w.dispose();
 });
+
+test('a whirlpool nebula faces down its axis (F2); other nebulae turn their +z', async () => {
+  const { axisFacing } = await import('../../src/core/astrometrics/facing.js');
+  assert.ok(axisFacing({ type: 'nebula', shape: 'whirlpool' }));
+  assert.equal(axisFacing({ type: 'nebula', shape: 'shell' }), null);
+  assert.ok(axisFacing({ type: 'galaxy' }));
+});

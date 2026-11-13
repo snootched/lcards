@@ -339,6 +339,9 @@ export function buildGrid(cfg, ctx) {
       if (u?.uDepth) u.uDepth.value = extent ? -extent[0] : 0;
       // the deform on the new shape (its bases are the rewritten surface)
       if (deforming) deformTick = deformTicker(cfg, shape, out, extent, warpGeos, warpLines);
+      // its size changes: bounds are measured afresh each frame from now on (the depth
+      // passes and fades would otherwise keep the size it was built at, and clip the rest)
+      out.dynamic = true;
       return true;
     };
   }

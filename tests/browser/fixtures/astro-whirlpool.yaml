@@ -1,0 +1,18 @@
+# F2 whirlpool: a volume nebula wound into spiral arms (shape: whirlpool), colours from
+# the middle out, turning (astro-whirlpool.spec.js).
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 15, tilt: 25, distance: 150 }
+objects:
+  - type: nebula
+    id: swirl
+    render: volume
+    shape: whirlpool
+    radius: 50
+    arms: { count: 3, pitch: 20 }
+    thickness: 0.12
+    colors: [var(--lcards-moonlight), var(--lcars-violet), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+    core: { color: var(--lcards-orange-lightest) }
+    spin: 20

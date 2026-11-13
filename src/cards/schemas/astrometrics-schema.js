@@ -43,13 +43,14 @@ const settingBinding = {
     type: 'object',
     required: ['entity'],
     additionalProperties: false,
-    description: 'Follow an entity: its state (or attribute) mapped from input to output (the map_range keys used across LCARdS), held at the ends. A missing or non-numeric value leaves the default.',
+    description: 'Follow an entity: its state (or attribute) mapped from input to output (the map_range keys used across LCARdS), held at the ends. A missing or non-numeric value gives default, else the key\'s own default.',
     properties: {
         entity: { type: 'string', pattern: '^[a-z_]+\\.[a-z0-9_]+$', description: 'The entity to follow.' },
-        attribute: { type: 'string', description: 'Read this attribute instead of the state.' },
+        attribute: { type: 'string', description: 'Read this attribute instead of the state. Without one, a state of off or on (a light, a switch) reads as the low or high end of input.' },
         input: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[low, high] of the entity\'s value. Default the entity\'s min and max attributes (an input_number), else 0 to 100.' },
         output: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[low, high] of the setting the input maps to. Leave out to use the entity\'s number as it is.' },
         clamp: { type: 'boolean', default: true, description: 'false: a value outside input carries on past the ends of output (default true: held at the ends).' },
+        default: { type: 'number', description: 'The setting\'s value while the entity has no number (unavailable, or a light that is off has no brightness). Left out: the key\'s own default.' },
         smooth: { type: 'number', minimum: 0, description: 'opacity, radius, size and spin ease to a new value over this many ms (default 600; 0 steps). Other keys step.' }
     }
 };
@@ -671,7 +672,7 @@ const objectCommon = {
         type: 'string',
         pointWords: ['motion'],
         examples: ['motion'],
-        description: 'motion: an object at a moving point turns its +z (a built-in model\'s bow) toward where the point is going, upright. Before the point first moves (and under reduced motion) a point on a spinning object faces along the spin. A point id: the object turns toward that point, wherever it is in the scene: its +z, or for an object round an axis (a grid other than a plane, a ring, a belt, a galaxy) down its axis, so a well\'s throat leads to it. rotation applies on top. Default: the object keeps its rotation.'
+        description: 'motion: an object at a moving point turns its +z (a built-in model\'s bow) toward where the point is going, upright. Before the point first moves (and under reduced motion) a point on a spinning object faces along the spin. A point id: the object turns toward that point, wherever it is in the scene: its +z, or for an object round an axis (a grid other than a plane, a ring, a belt, a galaxy, a whirlpool nebula) down its axis, so a well\'s throat leads to it. rotation applies on top. Default: the object keeps its rotation.'
     },
     visible: { type: 'boolean', default: true, description: 'false hides the object (its points still work).' },
     hide_in_systems: hideInSystems('Hide it while the camera is inside a star system (a system object: within a few times its size, the camera works in its units): galaxy-scale lines and volumes then step aside instead of crossing the close-ups. Outside every system it shows as usual.'),
@@ -1385,10 +1386,15 @@ const nebulaObject = {
             enum: [...NEBULA_SHAPES],
             'x-ui-hints': { widget: 'shape' },
             default: 'clouds',
-            enumDescriptions: { clouds: 'Clouds', shell: 'A hollow sphere', bipolar: 'An hourglass', filaments: 'Thin strands', cavity: 'A hollow open on one side', layers: 'A floor and a ceiling with a gap', wake: 'A ribbon trailing a sheet of gas' },
+            enumDescriptions: { clouds: 'Clouds', shell: 'A hollow sphere', bipolar: 'An hourglass', filaments: 'Thin strands', cavity: 'A hollow open on one side', layers: 'A floor and a ceiling with a gap', wake: 'A ribbon trailing a sheet of gas', whirlpool: 'A swirling disc wound into spiral arms' },
             description: 'render: volume only: the form of the gas. clouds (default): the clouds themselves. shell: a thin hollow sphere (the Ring nebula). bipolar: an hourglass along the object\'s y axis, two hollow lobes joined at a narrow waist (the Butterfly). filaments: long thin strands running along the object\'s x axis (the Veil). cavity: a thick cup round a hollow that opens on the object\'s +z side (a blister, as in Orion). layers: a floor and a ceiling of gas across the region with a gap between (the Badlands): colors run from each sheet\'s surface into its depth; gap, veins, band and columns shape it. wake: a bright ribbon waving along the object\'s x axis near the bottom of the region and a sheet of gas trailing it upward (the Nexus): colors run from the ribbon out; ribbon and wake shape it. In every shape but clouds the clouds give the clumps and colours inside the form; turn it with rotation.'
         },
-        gap: setting('shape: layers only: how much of the height is open between the floor and the ceiling, 0 (they touch) to 0.9.', { minimum: 0, maximum: 0.9, default: 0.56 }),
+        arms: part('shape: whirlpool only: the spiral arms the gas is wound into.', {
+            count: wholeSetting('How many arms.', { minimum: 1, maximum: 8, default: 3 }),
+            pitch: setting('How tightly the arms wind, degrees (smaller winds them tighter).', { minimum: 5, maximum: 60, default: 20 })
+        }, { group: 'main' }),
+        thickness: setting('shape: whirlpool only: the disc\'s thickness as a fraction of the radius (it swells at the middle).', { minimum: 0.01, maximum: 0.5, default: 0.12 }),
+        gap: setting('shape: layers only: how much of the height is open between the floor and the ceiling, 0 (they touch) to 0.9. whirlpool: a flat disc of gas round the object\'s y axis wound into spiral arms (arms, thickness), brightest at its middle, its colours running from the middle out (the Bajoran wormhole\'s mouth); spin turns it.', { minimum: 0, maximum: 0.9, default: 0.56 }),
         veins: setting('shape: layers only: bright fine veins in the sheets\' surfaces with darker gas between (liquid fire), 0 (none) to 1.', { minimum: 0, maximum: 1, default: 0 }),
         band: part('shape: layers only: a band of light glowing in the gap, brightest in a thin sheet at its middle: true, false (default), or { brightness, width, color }.', {
             brightness: setting('How bright, 0 to 3.', { minimum: 0, maximum: 3, default: 1 }),

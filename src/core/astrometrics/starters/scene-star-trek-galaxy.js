@@ -153,6 +153,7 @@ export const SWIRL_COLORS = Object.freeze([
  * @property {string} heart - the heart and the shaft of light
  * @property {[string, string]} wisps - the gas round the rim
  * @property {[string, string]} haze - the wisps drifting out along the light
+ * @property {readonly string[]} [gas] - the whirlpool gas's colours, middle out (default: from the swirl's)
  */
 /** A mouth's colours by default (the Bajoran end) @type {MouthPalette} */
 export const MOUTH_PALETTE = Object.freeze({
@@ -173,35 +174,82 @@ const SHAFT = Array.from({ length: 16 }, (_, i) => {
 const r3 = (/** @type {number} */ v) => Math.round(v * 1000) / 1000;
 
 /**
+ * @typedef {string | number | { entity: string, attribute?: string, input?: number[], clamp?: boolean } | null | undefined} WormholePower
+ * How open a wormhole is, 0 (closed) to 100 (open): a number, an entity id, or an entity
+ * mapping (`entity`, `attribute`, `input`, `clamp`: the words every astrometrics setting
+ * that follows an entity uses; `input` defaults to the entity's min and max, else 0 to 100).
+ */
+
+/**
+ * A wormhole's power as what its settings are made from: `bind`, the mapping keys each
+ * setting that follows it gets (its own `output` added); `fixed`, a number from 0 to 100.
+ * Neither: fully open.
+ * @param {WormholePower} power
+ * @returns {{ bind: Record<string, any> | null, fixed: number | null }}
+ */
+export function wormholePower(power) {
+  if (typeof power === 'string' && power.trim()) return { bind: { entity: power.trim() }, fixed: null };
+  if (power && typeof power === 'object' && typeof power.entity === 'string' && power.entity.trim()) {
+    /** @type {Record<string, any>} */
+    const bind = { entity: power.entity.trim() };
+    if (typeof power.attribute === 'string' && power.attribute.trim()) bind.attribute = power.attribute.trim();
+    if (Array.isArray(power.input) && power.input.length === 2 && power.input.every(Number.isFinite)) bind.input = [...power.input];
+    if (power.clamp === false) bind.clamp = false;
+    return { bind, fixed: null };
+  }
+  const n = typeof power === 'number' ? power : Number.NaN;
+  return { bind: null, fixed: Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : null };
+}
+
+/**
  * One mouth of a wormhole: a funnel narrowing to its throat, facing `aim` (where the link
  * leaves it), so the link reads as the throat stretched thin across the galaxy. Two looks
  * (the card's `look`): the diagram is a wireframe funnel, twisting and wobbling, with a
  * spinning dashed ring and a blue glow; the realistic mouth is a swirl of blue and violet
  * gas spiralling into the funnel (the swirl fill, wobbling with the diagram's funnel) round
- * a warm rippled heart, sparkling stars in the gas, a soft shaft of warm light out of the
+ * a warm rippled heart, a whirlpool of 3D gas wound into spiral arms round the opening
+ * (a volume nebula), faint sparkling stars in it, a soft shaft of warm light out of the
  * opening, and wisps of gas trailing off the rim and drifting out along the light. The
  * throat tube (from the heart to where the link leaves, so the link always comes out of the
  * mouth, however thin the funnel's end) shows in both.
  *
- * Everything is sized from the rim's radius. With `power` (an entity, 0 to 100) the mouth
- * opens with it: the rim from 15 % to its full radius, and the glows, wisps and spins with it.
+ * Everything is sized from the rim's radius. With `power` (0 to 100: a number, or an entity
+ * to follow, see WormholePower) the mouth opens with it: the diagram's rim from 15 % to its full radius; the realistic funnel
+ * morphs out of a needle at the centre while its tunnel deepens (faster than the mouth
+ * widens), the gas, the sparkle and the shaft of light grow out of a dot at the centre,
+ * and the glows, wisps and spins follow.
  *
  * Points: `<prefix>_throat` (the link's end), `<prefix>_out` (where the light shines to) and
  * `<prefix>_haze` (the wisps drifting out). Objects: `<prefix>_mouth` (the diagram funnel),
- * `_ring`, `_glow`, `_vortex` (the sparkle), `_funnel` (the swirl), `_heart`, `_light_1` to
+ * `_ring`, `_glow`, `_vortex` (the sparkle), `_gas` (the whirlpool), `_funnel` (the swirl), `_heart`, `_light_1` to
  * `_light_16` (the shaft, at points `_shaft_1` to `_shaft_16`), `_wisps`, `_wisps_out`, `_throat_tube`.
- * @param {{ prefix: string, at: string, aim: string, radius: number, depth: number, power?: string, extra?: Record<string, any>, stars?: number, glow?: number, palette?: Partial<MouthPalette>, turn?: 1 | -1 }} o -
+ * @param {{ prefix: string, at: string, aim: string, radius: number, depth: number, power?: WormholePower, extra?: Record<string, any>, stars?: number, glow?: number, palette?: Partial<MouthPalette>, turn?: 1 | -1 }} o -
  *   `extra` goes on every object (a distance range); `glow` the diagram glow's size when open, in rims (default 5);
  *   `palette` the colours (default MOUTH_PALETTE, blue and violet round a warm heart); `turn` -1 twists and spins it the other way
  * @returns {{ points: any[], objects: any[] }}
  */
 export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, extra = {}, stars = 4000, glow = 5, palette = {}, turn = 1 }) {
   const c = { ...MOUTH_PALETTE, ...palette };
-  /** @param {number} lo @param {number} hi @param {number} [smooth] */
-  const opens = (lo, hi, smooth) => (power ? { entity: power, output: [r3(lo), r3(hi)], ...(smooth ? { smooth } : {}) } : r3(hi));
+  const { bind, fixed } = wormholePower(power);
+  /** How open, 0 to 1, when it does not follow an entity */
+  const t = fixed === null ? 1 : fixed / 100;
+  /**
+   * A setting from closed (lo) to open (hi): following the entity (closed while it has no number:
+   * a light that is off has no brightness), or where the fixed power puts it
+   * @param {number} lo @param {number} hi @param {number} [smooth]
+   */
+  const opens = (lo, hi, smooth) =>
+    (bind ? { ...bind, output: [r3(lo), r3(hi)], default: r3(lo), ...(smooth ? { smooth } : {}) } : r3(lo + (hi - lo) * t));
+  /** Whether it is ever less than open: then the funnel gets its closed shape */
+  const closes = !!bind || t < 1;
+  /** A shaft glow's opacity: none below `f` of the power, `a` when open */
+  const shaftOpacity = (/** @type {number} */ a, /** @type {number} */ f) => (bind
+    ? { ...bind, output: [r3(-a * f / (1 - f)) || 0, r3(a)], default: 0, smooth: 1500 }
+    : r3(Math.max(0, a * (t - f) / (1 - f))));
   const mouth = `${prefix}_mouth`;
   const shape = { shape: 'well', well: { shape: 'trumpet', throat: 0.1 }, at, face: aim, radius: opens(0.15 * R, R, 1500), depth: D };
-  const wobbleAmp = power ? `[[[ return Number(states['${power}']?.state ?? 0) / 1000 ]]]` : 0.06;
+  // the funnel wobbles more as it opens
+  const wobbleAmp = bind ? { ...bind, output: [0, 0.1], default: 0 } : r3(0.06 * t);
   const wobble = { type: 'wobble', lobes: 0, waves: 2, period: 3, amplitude: wobbleAmp };
   // the swirl reaches past the diagram's rim, as the gas does round the mouth
   const S = 1.5 * R;
@@ -221,12 +269,23 @@ export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, ext
       { type: 'ring', id: `${prefix}_ring`, at, face: aim, radius: 1.75 * R, dash: { pattern: [6, 10], speed: 40 }, width: 2, spin: opens(0, 90 * turn), look: 'diagram', ...(palette.diagram ? { color: c.diagram } : {}), ...extra },
       { type: 'glow', id: `${prefix}_glow`, at, color: c.diagram, size: opens(0.5 * R, glow * R), look: 'diagram', ...extra },
       {
-        type: 'grid', id: `${prefix}_funnel`, ...shape, well: { ...shape.well, throat: 0.07 }, radius: opens(0.15 * S, S, 1500), line_width: 0, edges: false, look: 'realistic',
+        // opening: the mouth morphs out of a needle at the centre and the tunnel deepens, faster
+        type: 'grid', id: `${prefix}_funnel`, ...shape, radius: S, line_width: 0, edges: false, look: 'realistic',
+        well: { ...shape.well, throat: 0.07, ...(closes ? { to: { profile: [0.02, 0.02] }, morph: opens(1, 0, 1200) } : {}) },
+        depth: opens(0.02 * D, D, 700),
         fill: { effect: { type: 'swirl', colors: [...c.swirl], speed: 0.2 * S * turn, turbulence: 0.8, num_octaves: 5 } },
         deform: [{ type: 'twist', angle: 80 * turn, anchor: 'top', period: 6 }, wobble], ...extra
       },
       {
-        type: 'galaxy', id: `${prefix}_vortex`, at, face: aim, look: 'realistic', radius: opens(0.15 * S, S, 1500),
+        // the whirlpool: 3D gas wound into spiral arms round the opening
+        type: 'nebula', id: `${prefix}_gas`, render: 'volume', shape: 'whirlpool', at, face: aim, look: 'realistic',
+        radius: opens(0.15 * 1.05 * S, 1.05 * S, 1500), opacity: opens(0, 1), arms: { count: 3, pitch: 18 }, thickness: 0.1, turbulence: 0.6, seed: 4,
+        colors: [...(c.gas ?? [c.swirl[0], c.swirl[2], c.swirl[3], c.swirl[c.swirl.length - 1]])], core: { color: c.heart },
+        spin: opens(4 * turn, 15 * turn), ...extra
+      },
+      {
+        // faint sparkle in the gas
+        type: 'galaxy', id: `${prefix}_vortex`, at, face: aim, look: 'realistic', radius: opens(0.02 * S, S, 1500), opacity: opens(0, 0.45, 1500),
         arms: { count: 4, pitch: 20, color: c.arms }, bar: { length: 0 }, thickness: 0.02, stars: { count: stars }, seed: 4, glow: 0, dust: { amount: 0 },
         core: { color: 'var(--lcards-moonlight)' }, spin: opens(5 * turn, 25 * turn), ...extra
       },
@@ -234,8 +293,11 @@ export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, ext
       // the shaft: soft glows up the axis, wider and fainter as they go (scene-sized, so it
       // scales with the mouth at any distance, where a beam is px wide)
       ...SHAFT.map(([h, size, a], i) => ({
-        type: 'glow', id: `${prefix}_light_${i + 1}`, at: `${prefix}_shaft_${i + 1}`, size: r3(size * R), color: c.heart,
-        opacity: opens(0.15 * a, a), look: 'realistic', ...extra
+        type: 'glow', id: `${prefix}_light_${i + 1}`, at: `${prefix}_shaft_${i + 1}`, size: opens(0.02 * size * R, size * R, 1500), color: c.heart,
+        // the far glows go out first, so the beam draws back into the mouth as it closes: each is
+        // out below its share `f` of the power (the output starts below 0; the card holds opacity at 0)
+        opacity: shaftOpacity(a, 0.6 * i / 15),
+        look: 'realistic', ...extra
       })),
       {
         type: 'nebula', id: `${prefix}_wisps`, at, radius: 1.2 * S, count: 6, seed: 7, drift: 0.6, brightness: [0.15, 0.35],

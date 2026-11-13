@@ -418,6 +418,7 @@ export class LCARdSAstroSchemaForm extends LitElement {
       ${numeric && takes.input ? pair('input', ['Entity low', 'Entity high'], ['Default: its min (else 0)', 'Default: its max (else 100)']) : nothing}
       ${numeric && takes.output ? pair('output', [`${label} at entity low`, `${label} at entity high`],
         ['Both empty: the entity\'s own number', 'Held at the ends outside the entity range']) : nothing}
+      ${numeric && takes.default ? this._selector(`${key}~default`, { number: { mode: 'box', step: 'any' } }, value.default, `${label} with no value`, 'While the entity has no number (unavailable, a light that is off). Empty: the setting\'s own default.', '', (v) => set({ default: num(v) })) : nothing}
       ${numeric && takes.clamp ? this._selector(`${key}~clamp`, { boolean: {} }, value.clamp !== false, 'Clamp', 'Off: values past the entity range carry on past the ends.', '', (v) => set({ clamp: v ? undefined : false })) : nothing}
       ${numeric && takes.smooth ? this._selector(`${key}~smooth`, { number: { mode: 'box', min: 0, step: 50 } }, value.smooth, 'Smooth (ms)', 'opacity, radius, size and spin ease over this; default 600, 0 steps.', '', (v) => set({ smooth: num(v) })) : nothing}`, put);
   }

@@ -14,7 +14,7 @@
  *
  * @module core/astrometrics/starters/wormhole
  */
-import { wormholeMouth, THROAT_LINE } from './scene-star-trek-galaxy.js';
+import { wormholeMouth, wormholePower, THROAT_LINE } from './scene-star-trek-galaxy.js';
 
 const BLUE = 'var(--lcars-blue)';
 const WHITE = 'var(--lcards-moonlight)';
@@ -58,12 +58,13 @@ export function pipelineStrand(twist, k) {
 
 /**
  * The whole wormhole: the mouth and the diagram of its inside.
- * @param {{ prefix: string, at: string, size?: number, power?: string, extra?: Record<string, any>, stars?: number, labels?: boolean }} o -
- *   `size` the length of the layout (default 70); `power` an entity (0 to 100) the mouth opens with and the lobes wobble with;
- *   `extra` goes on every object (a distance range)
+ * @param {{ prefix: string, at: string, size?: number, power?: import('./scene-star-trek-galaxy.js').WormholePower, extra?: Record<string, any>, stars?: number, labels?: boolean, inside?: boolean }} o -
+ *   `size` the length of the layout (default 70); `power` how open, 0 to 100 (a number, or an entity to follow: see wormholePower), the mouth opens with and the lobes wobble with;
+ *   `extra` goes on every object (a distance range); `inside` false leaves out the diagram of the inside (the mouth and
+ *   its entrance disc only, as the showcase draws it)
  * @returns {{ points: any[], objects: any[] }}
  */
-export function bajoranWormhole({ prefix, at, size = 70, power, extra = {}, stars = 6000, labels = true }) {
+export function bajoranWormhole({ prefix, at, size = 70, power, extra = {}, stars = 6000, labels = true, inside = true }) {
   const k = size / 70;
   const id = (/** @type {string} */ name) => `${prefix}_${name}`;
   /** A point at an offset from the mouth, in layout units */
@@ -71,13 +72,24 @@ export function bajoranWormhole({ prefix, at, size = 70, power, extra = {}, star
   // a tap flies to the label
   const label = (/** @type {string} */ name, /** @type {number[]} */ off, /** @type {string} */ text) =>
     pt(name, off, { label: text, style: 'minor', look: 'diagram', tap_action: { action: 'fly-to' } });
-  const wobbleAmp = power ? `[[[ return Number(states['${power}']?.state ?? 0) / 2000 ]]]` : 0.03;
+  // the regions wobble more as the mouth opens
+  const { bind, fixed } = wormholePower(power);
+  const wobbleAmp = bind ? { ...bind, output: [0, 0.05], default: 0 } : Math.round(30 * (fixed === null ? 1 : fixed / 100)) / 1000;
   const wobble = [{ type: 'wobble', lobes: 0, waves: 2, period: 4, amplitude: wobbleAmp }];
   const lobe = (/** @type {string} */ name, /** @type {string} */ where, /** @type {number[]} */ profile, /** @type {number} */ radius, /** @type {number} */ depth, /** @type {number} */ opacity) => ({
     type: 'grid', id: id(name), shape: 'well', well: { profile }, at: where, face: id('east'), radius: radius * k, depth: depth * k,
     pattern: 'polar', spoke_count: 16, line_spacing: 2.4 * k, color: BLUE, opacity, look: 'diagram', deform: wobble, ...extra
   });
   const mouth = wormholeMouth({ prefix, at, aim: id('down'), radius: 9 * k, depth: 7 * k, power, extra, stars, glow: 2 });
+  // the entrance: the flat disc the funnel drops from
+  const entrance = { type: 'grid', id: id('entrance'), shape: 'disc', at, radius: 9 * k, pattern: 'polar', line_spacing_deg: 20, color: BLUE, opacity: 0.8, look: 'diagram', ...extra };
+  if (!inside) {
+    // the mouth only: no throat tube (it leads into the pipeline)
+    return {
+      points: [...mouth.points, pt('down', [0, -1000, 0])],
+      objects: [...mouth.objects.filter((o) => o.id !== id('throat_tube')), entrance]
+    };
+  }
   return {
     points: [
       ...mouth.points,
@@ -108,8 +120,7 @@ export function bajoranWormhole({ prefix, at, size = 70, power, extra = {}, star
       // the throat tube leads into the pipeline, so it shows with it (diagram only); the
       // showcase keeps it in both looks, where it joins the link across the galaxy
       ...mouth.objects.map((o) => (o.id === id('throat_tube') ? { ...o, look: 'diagram' } : o)),
-      // the entrance: the flat disc the funnel drops from
-      { type: 'grid', id: id('entrance'), shape: 'disc', at, radius: 9 * k, pattern: 'polar', line_spacing_deg: 20, color: BLUE, opacity: 0.8, look: 'diagram', ...extra },
+      entrance,
       // the pipeline: three strands twisted round each other, shaded pipes with light running down them
       ...[0, 2.1, 4.2].map((twist, i) => ({
         type: 'path', id: id(`strand_${i + 1}`), at, points: pipelineStrand(twist, k), ...THROAT_LINE, width: 4, glow: 2, look: 'diagram', ...extra

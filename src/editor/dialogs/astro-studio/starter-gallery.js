@@ -53,6 +53,20 @@ export const TYPE_GROUPS = /** @type {const} */ ([
   { id: 'systems', header: 'Systems', icon: 'mdi:folder-outline', types: ['system'] }
 ]);
 
+/**
+ * A starter setting that follows an entity: entity, attribute and input (the starter
+ * writes each output itself, so the panel shows no output, clamp or smooth)
+ */
+const SETTING_BINDING = {
+  type: 'object',
+  required: ['entity'],
+  properties: {
+    entity: { type: 'string' },
+    attribute: { type: 'string' },
+    input: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }
+  }
+};
+
 /** A point id or [x, y, z]: the schema shape the form shows as a point picker */
 const POINT_SCHEMA = { oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 }] };
 
@@ -72,6 +86,8 @@ export function starterParamSchema(starter) {
       : p.fit ? 'In scene units; it starts at a size that fits the scene.' : undefined;
     const description = [p.helper, sizeNote].filter(Boolean).join(' ') || undefined;
     if (p.type === 'number') out[p.key] = { type: 'number', description, ...hints };
+    // a number or an entity to follow: the object settings' "Follow an entity" button and panel
+    else if (p.type === 'setting') out[p.key] = { anyOf: [{ type: 'number' }, SETTING_BINDING], description, ...hints };
     else if (p.type === 'point') out[p.key] = { ...POINT_SCHEMA, description, ...hints };
     // a fixed list: a dropdown with each option's name (a list that takes other values too is a text field with choices)
     else if (p.options?.length && !p.custom) {

@@ -1,0 +1,295 @@
+# The wormhole part, mouth only, its power a light's brightness (0 to 255): an off light has
+# no brightness, so every setting takes its default (closed), not the object's own (generated from part-wormhole.js)
+type: custom:lcards-astrometrics-card
+height: 500
+look: realistic
+camera:
+  views:
+    mouth: {target: [0, 0, 0], yaw: 20, tilt: 40, distance: 40}
+points:
+  - id: centre
+    xyz: [0, 0, 0]
+  - id: wormhole_throat
+    object: wormhole_mouth
+    xyz: [0, -7, 0]
+  - id: wormhole_out
+    object: wormhole_mouth
+    xyz: [0, 54, 0]
+  - id: wormhole_haze
+    object: wormhole_mouth
+    xyz: [0, 14.4, 0]
+  - id: wormhole_shaft_1
+    object: wormhole_mouth
+    xyz: [0, 1.35, 0]
+  - id: wormhole_shaft_2
+    object: wormhole_mouth
+    xyz: [0, 4.35, 0]
+  - id: wormhole_shaft_3
+    object: wormhole_mouth
+    xyz: [0, 7.35, 0]
+  - id: wormhole_shaft_4
+    object: wormhole_mouth
+    xyz: [0, 10.35, 0]
+  - id: wormhole_shaft_5
+    object: wormhole_mouth
+    xyz: [0, 13.35, 0]
+  - id: wormhole_shaft_6
+    object: wormhole_mouth
+    xyz: [0, 16.35, 0]
+  - id: wormhole_shaft_7
+    object: wormhole_mouth
+    xyz: [0, 19.35, 0]
+  - id: wormhole_shaft_8
+    object: wormhole_mouth
+    xyz: [0, 22.35, 0]
+  - id: wormhole_shaft_9
+    object: wormhole_mouth
+    xyz: [0, 25.35, 0]
+  - id: wormhole_shaft_10
+    object: wormhole_mouth
+    xyz: [0, 28.35, 0]
+  - id: wormhole_shaft_11
+    object: wormhole_mouth
+    xyz: [0, 31.35, 0]
+  - id: wormhole_shaft_12
+    object: wormhole_mouth
+    xyz: [0, 34.35, 0]
+  - id: wormhole_shaft_13
+    object: wormhole_mouth
+    xyz: [0, 37.35, 0]
+  - id: wormhole_shaft_14
+    object: wormhole_mouth
+    xyz: [0, 40.35, 0]
+  - id: wormhole_shaft_15
+    object: wormhole_mouth
+    xyz: [0, 43.35, 0]
+  - id: wormhole_shaft_16
+    object: wormhole_mouth
+    xyz: [0, 46.35, 0]
+  - id: wormhole_down
+    at: centre
+    offset: [0, -1000, 0]
+objects:
+  - type: grid
+    id: wormhole_mouth
+    shape: well
+    well: {shape: trumpet, throat: 0.1}
+    at: centre
+    face: wormhole_down
+    radius: {entity: light.demo, attribute: brightness, input: &ref_0 [0, 255], output: [1.35, 9], default: 1.35, smooth: 1500}
+    depth: 7
+    line_spacing_deg: 20
+    color: var(--lcars-blue)
+    scan: {period: 4}
+    look: diagram
+    deform: [{type: twist, angle: 60, anchor: top}, &ref_1 {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0, 0.1], default: 0}}]
+  - type: ring
+    id: wormhole_ring
+    at: centre
+    face: wormhole_down
+    radius: 15.75
+    dash: {pattern: [6, 10], speed: 40}
+    width: 2
+    spin: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0, 90], default: 0}
+    look: diagram
+  - type: glow
+    id: wormhole_glow
+    at: centre
+    color: var(--lcars-blue)
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [4.5, 18], default: 4.5}
+    look: diagram
+  - type: grid
+    id: wormhole_funnel
+    shape: well
+    well: {shape: trumpet, throat: 0.07, to: {profile: [0.02, 0.02]}, morph: {entity: light.demo, attribute: brightness, input: *ref_0, output: [1, 0], default: 1, smooth: 1200}}
+    at: centre
+    face: wormhole_down
+    radius: 13.5
+    depth: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.14, 7], default: 0.14, smooth: 700}
+    line_width: 0
+    edges: false
+    look: realistic
+    fill: {effect: {type: swirl, colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)], speed: 2.7, turbulence: 0.8, num_octaves: 5}}
+    deform: [{type: twist, angle: 80, anchor: top, period: 6}, *ref_1]
+  - type: nebula
+    id: wormhole_gas
+    render: volume
+    shape: whirlpool
+    at: centre
+    face: wormhole_down
+    look: realistic
+    radius: {entity: light.demo, attribute: brightness, input: *ref_0, output: [2.126, 14.175], default: 2.126, smooth: 1500}
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0, 1], default: 0}
+    arms: {count: 3, pitch: 18}
+    thickness: 0.1
+    turbulence: 0.6
+    seed: 4
+    colors: [var(--lcards-moonlight), var(--lcars-violet), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+    core: {color: var(--lcards-orange-lightest)}
+    spin: {entity: light.demo, attribute: brightness, input: *ref_0, output: [4, 15], default: 4}
+  - type: galaxy
+    id: wormhole_vortex
+    at: centre
+    face: wormhole_down
+    look: realistic
+    radius: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.27, 13.5], default: 0.27, smooth: 1500}
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0, 0.45], default: 0, smooth: 1500}
+    arms: {count: 4, pitch: 20, color: var(--lcards-blue-light)}
+    bar: {length: 0}
+    thickness: 0.02
+    stars: {count: 6000}
+    seed: 4
+    glow: 0
+    dust: {amount: 0}
+    core: {color: var(--lcards-moonlight)}
+    spin: {entity: light.demo, attribute: brightness, input: *ref_0, output: [5, 25], default: 5}
+  - type: glow
+    id: wormhole_heart
+    at: centre
+    color: var(--lcards-orange-lightest)
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [1.8, 7.2], default: 1.8}
+    look: realistic
+  - type: glow
+    id: wormhole_light_1
+    at: wormhole_shaft_1
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.126, 6.3], default: 0.126, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0, 0.69], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_2
+    at: wormhole_shaft_2
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.148, 7.38], default: 0.148, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.026, 0.626], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_3
+    at: wormhole_shaft_3
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.169, 8.46], default: 0.169, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.049, 0.564], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_4
+    at: wormhole_shaft_4
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.191, 9.54], default: 0.191, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.069, 0.505], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_5
+    at: wormhole_shaft_5
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.212, 10.62], default: 0.212, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.085, 0.448], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_6
+    at: wormhole_shaft_6
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.234, 11.7], default: 0.234, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.098, 0.394], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_7
+    at: wormhole_shaft_7
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.256, 12.78], default: 0.256, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.108, 0.342], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_8
+    at: wormhole_shaft_8
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.277, 13.86], default: 0.277, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.114, 0.293], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_9
+    at: wormhole_shaft_9
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.299, 14.94], default: 0.299, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.116, 0.247], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_10
+    at: wormhole_shaft_10
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.32, 16.02], default: 0.32, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.115, 0.204], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_11
+    at: wormhole_shaft_11
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.342, 17.1], default: 0.342, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.11, 0.165], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_12
+    at: wormhole_shaft_12
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.364, 18.18], default: 0.364, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.102, 0.13], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_13
+    at: wormhole_shaft_13
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.385, 19.26], default: 0.385, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.091, 0.098], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_14
+    at: wormhole_shaft_14
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.407, 20.34], default: 0.407, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.078, 0.072], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_15
+    at: wormhole_shaft_15
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.428, 21.42], default: 0.428, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.065, 0.051], default: 0, smooth: 1500}
+    look: realistic
+  - type: glow
+    id: wormhole_light_16
+    at: wormhole_shaft_16
+    size: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.45, 22.5], default: 0.45, smooth: 1500}
+    color: var(--lcards-orange-lightest)
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [-0.06, 0.04], default: 0, smooth: 1500}
+    look: realistic
+  - type: nebula
+    id: wormhole_wisps
+    at: centre
+    radius: 16.2
+    count: 6
+    seed: 7
+    drift: 0.6
+    brightness: [0.15, 0.35]
+    colors: [var(--lcars-violet), var(--lcards-blue-medium)]
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0.1, 1], default: 0.1}
+    look: realistic
+  - type: nebula
+    id: wormhole_wisps_out
+    at: wormhole_haze
+    radius: 6.075
+    count: 3
+    seed: 3
+    drift: 1
+    brightness: [0.1, 0.25]
+    colors: [var(--lcards-orange-lightest), var(--lcards-blue-light)]
+    opacity: {entity: light.demo, attribute: brightness, input: *ref_0, output: [0, 1], default: 0}
+    look: realistic
+  - type: grid
+    id: wormhole_entrance
+    shape: disc
+    at: centre
+    radius: 9
+    pattern: polar
+    line_spacing_deg: 20
+    color: var(--lcars-blue)
+    opacity: 0.8
+    look: diagram

@@ -123,7 +123,9 @@ export async function showcaseCard() {
     { id: 'dock_3', at: 'yards', offset: [-3, 0, 0] },
     { id: 'ship_in_dock', object: 'drydock_1', part: 'berth' },
     // a ship on patrol round Earth, facing the way it goes, its trail behind it
-    { id: 'patrol', polar: [12000, 0], object: 'patrol_orbit', marker: 'ship', label: 'USS ENTERPRISE', style: 'tiny', max_distance: 400000 }
+    { id: 'patrol', polar: [12000, 0], object: 'patrol_orbit', marker: 'ship', label: 'USS ENTERPRISE', style: 'tiny', max_distance: 400000 },
+    // the ISS where it is now (orbits shipped with LCARdS), at its real height: it skims the surface
+    { id: 'iss', satellite: 'iss', object: 'earth_body', marker: 'dot', label: 'ISS', style: 'tiny', color: 'var(--lcars-orange)', max_distance: 400000 }
   );
   sol.objects.push(
     { type: 'model', id: 'spacedock_model', at: 'spacedock', src: 'builtin:earth_spacedock', size: 5.48, material: 'original' },
@@ -133,7 +135,12 @@ export async function showcaseCard() {
     { type: 'model', id: 'ship_building', at: 'ship_in_dock', src: 'builtin:galaxy_class', size: 0.6425, material: 'original' },
     { type: 'ring', id: 'patrol_orbit', at: 'earth', radius: 12000, inclination: 28, spin: 20, width: 1, opacity: 0.35, color: 'var(--lcars-blue)', tags: ['orbits'] },
     { type: 'model', id: 'patrol_ship', at: 'patrol', src: 'builtin:constitution_class_refit', size: 0.305, face: 'motion', material: 'original' },
-    { type: 'trail', point: 'patrol', length: 8, width: 2, color: 'var(--lcars-blue)' }
+    { type: 'trail', point: 'patrol', length: 8, width: 2, color: 'var(--lcars-blue)' },
+    // real Earth satellites at real heights: the ISS's orbit, the GPS constellation and the
+    // geostationary weather satellites, Spacedock just past them
+    { type: 'ring', id: 'iss_orbit', satellite: 'iss', width: 1.5, color: 'var(--lcars-orange)', max_distance: 400000, tags: ['orbits'] },
+    { type: 'satellites', id: 'gps', group: 'gps', object: 'earth_body', color: 'var(--lcars-yellow)', orbits: { width: 0.75, opacity: 0.35 }, max_distance: 600000 },
+    { type: 'satellites', id: 'weather', group: 'geostationary', object: 'earth_body', color: 'var(--lcars-blue)', label: true, orbits: { width: 1, opacity: 0.5 }, max_distance: 600000 }
   );
 
   // ── Bajor (km) ──

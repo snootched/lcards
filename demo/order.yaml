@@ -95,7 +95,7 @@ releases:
     views:
       - file: astro-wells-cards
         summary: "Astrometrics: a wormhole that opens and closes, thick model edges, cards opened from other cards"
-        description: "APERTURE opens the wormhole and closes it into a point at its centre (well.morph toward a needle, eased in place), DEPTH sinks it; the twist and swirl follow the new shape. Two ships: edges as hairlines and at edges.width 2.5. Cards on points: OPEN and CLOSE RELAY run point-card actions, FLY TO OUTPOST flies there and opens its card (fly-to point_card); both cards draw a leader to their point, the outpost's has a fixed height."
+        description: "APERTURE opens the wormhole and closes it into a point at its centre (well.morph toward a needle, eased in place) while its gas (a whirlpool nebula: 3D clouds wound into spiral arms) blooms out and draws back in; DEPTH sinks it; the twist and swirl follow the new shape. Two ships: edges as hairlines and at edges.width 2.5. Cards on points: OPEN and CLOSE RELAY run point-card actions, FLY TO OUTPOST flies there and opens its card (fly-to point_card); both cards draw a leader to their point, the outpost's has a fixed height."
         session: "F2 astrometrics leftovers"
         docs: /cards/astrometrics/objects/surfaces#opening-and-closing
         public: true

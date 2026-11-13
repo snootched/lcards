@@ -97,7 +97,7 @@ export const SHAPE_SAMPLES = {
   nebula: Object.fromEntries(NEBULA_SHAPES.map((shape) => [shape, {
     objects: [{ type: 'nebula', id: 'shape', render: 'volume', shape, radius: 50, count: 8, seed: 4, ...nebulaLook(shape) }],
     // the cavity opens toward +z: look into it
-    camera: { target: [0, 0, 0], yaw: shape === 'cavity' ? 0 : 20, tilt: shape === 'cavity' ? 8 : 15, distance: 150 }
+    camera: { target: [0, 0, 0], yaw: shape === 'cavity' ? 0 : 20, tilt: shape === 'cavity' ? 8 : shape === 'whirlpool' ? 30 : 15, distance: shape === 'whirlpool' ? 120 : 150 }
   }]))
 };
 
@@ -113,6 +113,8 @@ function nebulaLook(shape) {
     case 'layers': return { size: [110, 40, 110], colors: ['var(--lcards-yellow-medium)', 'var(--lcards-orange-medium)', 'var(--lcards-orange-dark)'], veins: 0.8, band: { color: 'var(--lcards-orange-medium)', brightness: 1.5 } };
     // a ribbon across a long box, the wake trailing up
     case 'wake': return { size: [140, 50, 50], colors: ['var(--lcards-orange-lightest)', 'var(--lcards-orange-dark)', 'var(--lcards-gray-dark)'], ribbon: { width: 3, color: 'var(--lcards-moonlight)', glow: { color: 'var(--lcards-orange-lightest)' } } };
+    // a swirling disc: colours from the middle out
+    case 'whirlpool': return { colors: ['var(--lcards-moonlight)', 'var(--lcards-blue-light)', 'var(--lcards-blue-medium)', 'var(--lcards-blue-dark)'], core: { color: 'var(--lcards-orange-lightest)' }, arms: { count: 3, pitch: 20 } };
     default: return { colors: ['var(--lcards-blue-medium)', 'var(--lcards-orange-medium)'] };
   }
 }

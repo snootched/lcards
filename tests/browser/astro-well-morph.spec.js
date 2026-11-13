@@ -20,7 +20,7 @@ const funnel = (page) => page.evaluate(() => {
     let lineR = 0;
     const seg = line.segmentPositions();
     for (let i = 0; i < seg.length; i += 3) lineR = Math.max(lineR, Math.hypot(seg[i], seg[i + 2]));
-    return { builds: s.objectBuilds, node: b.node.uuid, rim, depth: -minY, lineR };
+    return { builds: s.objectBuilds, node: b.node.uuid, rim, depth: -minY, lineR, dynamic: !!b.dynamic };
 });
 
 test('a well closes into a needle and sinks as its entities change, in place', async ({ page }) => {
@@ -44,7 +44,9 @@ test('a well closes into a needle and sinks as its entities change, in place', a
     await page.evaluate(() => window.__setState('input_number.lcards_test_shields', '100'));
     await expect.poll(async () => (await funnel(page)).depth, { timeout: 5_000 }).toBeCloseTo(60, 0);
     const last = /** @type {any} */ (await funnel(page));
-    // all in place: the same object, no rebuild
+    // all in place: the same object, no rebuild; its bounds measured afresh from now on
+    // (cached at the built size, the depth passes clipped the deeper funnel)
+    expect(last.dynamic).toBe(true);
     expect(last.node).toBe(open.node);
     expect(last.builds).toBe(open.builds);
     await page.locator('#mount').screenshot({ path: process.env.WELL_SHOT ?? 'tmp/astro-well-morph.png' });

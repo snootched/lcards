@@ -60,13 +60,14 @@ const DOWN = new Vector3(0, -1, 0);
 /**
  * The object's own direction that `face: <point id>` turns toward the
  * point: down the axis (-y) for an object round an axis (a grid other than
- * a plane, a ring, a belt, a galaxy), so a well's throat leads to it and a
+ * a plane, a ring, a belt, a galaxy, a whirlpool nebula), so a well's throat leads to it and a
  * disc lies across the way to it; null (+z, upright) for the rest.
  * @param {any} config
  * @returns {Vector3 | null}
  */
 export function axisFacing(config) {
-  const round = ['ring', 'belt', 'galaxy'].includes(config?.type) || (config?.type === 'grid' && (config.shape ?? 'plane') !== 'plane');
+  const round = ['ring', 'belt', 'galaxy'].includes(config?.type) || (config?.type === 'grid' && (config.shape ?? 'plane') !== 'plane')
+    || (config?.type === 'nebula' && config.shape === 'whirlpool');
   return round ? DOWN : null;
 }
 

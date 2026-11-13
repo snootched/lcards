@@ -511,11 +511,12 @@ backdrop: { stars: { count: 2500 } }
 
 ### Bajoran wormhole
 
-The Bajoran wormhole as the station displays draw it: the mouth (a swirl of gas round a warm heart in the realistic look, an entrance disc and funnel in the diagram) and, diagram only, its inside: the pipeline, the negative CTL region, the ring singularity, the positive CTL region, the point singularity and the verteron membrane. Switch the card's look to see one or the other. Tap a name to fly to it. With a power entity (0 to 100) the mouth opens and the regions wobble with it.
+The Bajoran wormhole as the station displays draw it: the mouth (a whirlpool of 3D gas wound into spiral arms round a warm heart and a funnel in the realistic look, an entrance disc and funnel in the diagram) and, diagram only, its inside: the pipeline, the negative CTL region, the ring singularity, the positive CTL region, the point singularity and the verteron membrane. Switch the card's look to see one or the other, or leave the inside out for the mouth alone. Tap a name to fly to it. Its power (0 to 100, or an entity to follow) opens the mouth and wobbles the regions.
 
 | Setting | Default | Notes |
 |---|---|---|
-| Power entity (optional) | `` | A number from 0 to 100: the mouth opens with it. |
+| Inside | `diagram` | `diagram`: The mouth and the diagram of its inside; `none`: The mouth only |
+| Power | `100` | How open, 0 (closed) to 100, or an entity to follow (the link button). A light or switch opens it when on; its brightness attribute (0 to 255) opens it by steps. Low and high left empty: the entity's min and max, else 0 and 100. |
 
 ```yaml live collapsed
 type: custom:lcards-astrometrics-card
@@ -646,12 +647,29 @@ objects:
         turbulence: 0.8
         num_octaves: 5
     deform: [{ type: twist, angle: 80, anchor: top, period: 6 }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
+  - type: nebula
+    id: wormhole_gas
+    render: volume
+    shape: whirlpool
+    at: mouth
+    face: wormhole_down
+    look: realistic
+    radius: 14.175
+    opacity: 1
+    arms: { count: 3, pitch: 18 }
+    thickness: 0.1
+    turbulence: 0.6
+    seed: 4
+    colors: [var(--lcards-moonlight), var(--lcars-violet), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+    core: { color: var(--lcards-orange-lightest) }
+    spin: 15
   - type: galaxy
     id: wormhole_vortex
     at: mouth
     face: wormhole_down
     look: realistic
     radius: 13.5
+    opacity: 0.45
     arms: { count: 4, pitch: 20, color: var(--lcards-blue-light) }
     bar: { length: 0 }
     thickness: 0.02
@@ -2079,7 +2097,7 @@ The Earth turning as it really does, with the ISS, Tiangong and Hubble, the GPS 
 
 | Setting | Default | Notes |
 |---|---|---|
-| Heights | `diagram` |  |
+| Heights | `diagram` | `diagram`: Diagram (low orbits lifted, high ones brought in); `real`: Real (to scale) |
 
 ```yaml live collapsed
 type: custom:lcards-astrometrics-card
@@ -2581,7 +2599,7 @@ objects:
     well: { shape: trumpet, throat: 0.07 }
     at: wormhole_alpha
     face: wormhole_aim_gamma
-    radius: 0.9
+    radius: 0.8999999999999999
     depth: 1.6
     line_width: 0
     edges: false
@@ -2596,12 +2614,31 @@ objects:
     deform: [{ type: twist, angle: 80, anchor: top, period: 6 }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
     max_distance: 200
     hide_in_systems: true
+  - type: nebula
+    id: wormhole_alpha_gas
+    render: volume
+    shape: whirlpool
+    at: wormhole_alpha
+    face: wormhole_aim_gamma
+    look: realistic
+    radius: 0.945
+    opacity: 1
+    arms: { count: 3, pitch: 18 }
+    thickness: 0.1
+    turbulence: 0.6
+    seed: 4
+    colors: [var(--lcards-moonlight), var(--lcars-violet), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+    core: { color: var(--lcards-orange-lightest) }
+    spin: 15
+    max_distance: 200
+    hide_in_systems: true
   - type: galaxy
     id: wormhole_alpha_vortex
     at: wormhole_alpha
     face: wormhole_aim_gamma
     look: realistic
     radius: 0.9
+    opacity: 0.45
     arms: { count: 4, pitch: 20, color: var(--lcards-blue-light) }
     bar: { length: 0 }
     thickness: 0.02
@@ -2842,7 +2879,7 @@ objects:
     well: { shape: trumpet, throat: 0.07 }
     at: wormhole_gamma
     face: wormhole_aim_alpha
-    radius: 0.9
+    radius: 0.8999999999999999
     depth: 1.6
     line_width: 0
     edges: false
@@ -2857,12 +2894,31 @@ objects:
     deform: [{ type: twist, angle: 80, anchor: top, period: 6 }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
     max_distance: 200
     hide_in_systems: true
+  - type: nebula
+    id: wormhole_gamma_gas
+    render: volume
+    shape: whirlpool
+    at: wormhole_gamma
+    face: wormhole_aim_alpha
+    look: realistic
+    radius: 0.945
+    opacity: 1
+    arms: { count: 3, pitch: 18 }
+    thickness: 0.1
+    turbulence: 0.6
+    seed: 4
+    colors: [var(--lcards-moonlight), var(--lcars-violet), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+    core: { color: var(--lcards-orange-lightest) }
+    spin: 15
+    max_distance: 200
+    hide_in_systems: true
   - type: galaxy
     id: wormhole_gamma_vortex
     at: wormhole_gamma
     face: wormhole_aim_alpha
     look: realistic
     radius: 0.9
+    opacity: 0.45
     arms: { count: 4, pitch: 20, color: var(--lcards-blue-light) }
     bar: { length: 0 }
     thickness: 0.02
@@ -3337,7 +3393,7 @@ Its ids start with its name (default `nexus_`).
 | Label | `NEXUS` |  |
 | Centre | `0, 0, 0` | A point id or x, y, z. |
 | Length | `2000` |  |
-| Travel | `still` |  |
+| Travel | `still` | `still`: Still (its waves still run); `orbit`: Round the centre on a wide orbit |
 
 ```yaml live collapsed
 type: custom:lcards-astrometrics-card
@@ -3357,7 +3413,7 @@ Its ids start with its name (default `entity_`).
 | Label | `CRYSTALLINE ENTITY` |  |
 | Centre | `0, 0, 0` | A point id or x, y, z. |
 | Height | `3000` |  |
-| Ship for scale | `beam` |  |
+| Ship for scale | `beam` | `beam`: A ship, and the entity's beam on it; `ship`: A ship; `none`: No ship |
 
 ```yaml live collapsed
 type: custom:lcards-astrometrics-card
@@ -3375,7 +3431,7 @@ objects:
 
 ### Wormhole
 
-The Bajoran wormhole as the station displays draw it. Its mouth is a swirl of gas round a warm heart in the realistic look, an entrance disc and funnel in the diagram. Past it, diagram only, the inside runs along +x: a pipeline of twisted strands, the negative CTL region, the ring singularity, the positive CTL region and the point singularity opening into the verteron membrane. With a power entity (0 to 100) the mouth opens and the regions wobble with it.
+The Bajoran wormhole as the station displays draw it. Its mouth is a whirlpool of 3D gas wound into spiral arms round a warm heart and a funnel in the realistic look, an entrance disc and funnel in the diagram. Past it, diagram only, the inside runs along +x (leave it out for the mouth alone): a pipeline of twisted strands, the negative CTL region, the ring singularity, the positive CTL region and the point singularity opening into the verteron membrane. Its power (0 to 100, or an entity to follow) opens the mouth and wobbles the regions.
 
 Its ids start with its name (default `bajoran_`).
 
@@ -3383,7 +3439,8 @@ Its ids start with its name (default `bajoran_`).
 |---|---|---|
 | Mouth | `0, 0, 0` | A point id or x, y, z. The inside runs along +x from here. |
 | Length | `70` |  |
-| Power entity (optional) | `` | A number from 0 to 100: the mouth opens with it. |
+| Inside | `diagram` | `diagram`: The mouth and the diagram of its inside; `none`: The mouth only |
+| Power | `100` | How open, 0 (closed) to 100, or an entity to follow (the link button). A light or switch opens it when on; its brightness attribute (0 to 255) opens it by steps. Low and high left empty: the entity's min and max, else 0 and 100. |
 
 ```yaml live collapsed
 type: custom:lcards-astrometrics-card
@@ -3508,12 +3565,29 @@ objects:
         turbulence: 0.8
         num_octaves: 5
     deform: [{ type: twist, angle: 80, anchor: top, period: 6 }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
+  - type: nebula
+    id: bajoran_wormhole_gas
+    render: volume
+    shape: whirlpool
+    at: bajoran_centre
+    face: bajoran_wormhole_down
+    look: realistic
+    radius: 14.175
+    opacity: 1
+    arms: { count: 3, pitch: 18 }
+    thickness: 0.1
+    turbulence: 0.6
+    seed: 4
+    colors: [var(--lcards-moonlight), var(--lcars-violet), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+    core: { color: var(--lcards-orange-lightest) }
+    spin: 15
   - type: galaxy
     id: bajoran_wormhole_vortex
     at: bajoran_centre
     face: bajoran_wormhole_down
     look: realistic
     radius: 13.5
+    opacity: 0.45
     arms: { count: 4, pitch: 20, color: var(--lcards-blue-light) }
     bar: { length: 0 }
     thickness: 0.02

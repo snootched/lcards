@@ -175,7 +175,8 @@ objects:
 
 **Any number on a point or object can follow an entity instead of holding still: a shield bubble's opacity follows the shields, a glow's size follows the power.** Write the key as `entity` with an `input` range and an `output` range, the same words as `map_range` in [animations](/core/animations) and the rules' `map_range_cond`.
 
-- A value outside `input` stays at the end of `output`, unless `clamp: false`. No value (unavailable, not a number) gives the key's default.
+- A light or a switch followed by its state (no `attribute`) reads `off` as the low end of `input` and `on` as the high end, so it opens or closes a setting fully; follow `brightness` for the steps in between.
+- A value outside `input` stays at the end of `output`, unless `clamp: false`. No value (unavailable, not a number, a light's brightness while it is off) gives `default`, else the key's own default.
 - Templates work too: `spin: "[[[ return states['input_number.lcards_test_power'].state / 10 ]]]"`, or `{{ }}` and `{entity.state}`.
 - An object's `opacity`, `radius`, `size` and `spin` ease to their new value without rebuilding anything; most other keys rebuild that one object or point, at most four times a second, and step.
 
@@ -204,11 +205,13 @@ objects:
     id: core
     at: [40, 0, 0]
     color: var(--lcars-orange)
-    # power 0 to 100 % gives a glow 10 to 60 across, easing over 1 s
+    # power 0 to 100 % gives a glow 10 to 60 across, easing over 1 s;
+    # 10 while the helper is unavailable
     size:
       entity: input_number.lcards_test_power
       input: [0, 100]
       output: [10, 60]
+      default: 10
       smooth: 1000
 ```
 
@@ -224,10 +227,11 @@ objects:
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `entity` | string | required | The entity to follow |
-| `attribute` | string | - | Read this attribute instead of the state |
+| `attribute` | string | - | Read this attribute instead of the state. Without one, a state of `off` or `on` reads as the low or high end of `input` |
 | `input` | `[low, high]` | the entity's `min` and `max`, else `[0, 100]` | The range of the entity's value. `min` and `max` are an `input_number`'s attributes |
 | `output` | `[low, high]` | - | The range of the setting the input maps to. Left out: the entity's number as it is |
 | `clamp` | boolean | `true` | `false`: a value outside `input` carries on past the ends of `output` |
+| `default` | number | the key's own default | The setting's value while the entity has no number: unavailable, or a light that is off (it has no `brightness`) |
 | `smooth` | number | `600` | How long a change eases, ms, for a key that changes in place. `0` steps |
 
 ### Colours from entities
