@@ -246,6 +246,7 @@ export function orbitLook(b) {
  */
 export function buildRing(cfg, ctx) {
   if (cfg.orbit !== undefined && cfg.orbit !== null && cfg.orbit !== '') return buildOrbit(cfg, ctx);
+  if (cfg.satellite !== undefined && cfg.satellite !== null && cfg.satellite !== '') return buildSatelliteOrbit(cfg, ctx);
   const node = new Group();
   node.name = `ring:${cfg.id ?? ''}`;
   const out = built(cfg, node);
@@ -350,6 +351,42 @@ function buildOrbit(cfg, ctx) {
     last = ms;
     draw(ms);
   };
+  return out;
+}
+
+/**
+ * `type: ring, satellite: <point>`: that satellite point's orbit round its Earth
+ * sphere (placements.js satelliteOrbit), drawn in world space every frame: the
+ * orbit stays put while the Earth turns under it, and follows a live orbit as
+ * its fixes come in. `radius`, the ellipse keys, `at` and `image` do not apply.
+ * @param {any} cfg
+ * @param {import('./common.js').BuildContext} ctx
+ * @returns {import('./common.js').BuiltObject}
+ */
+function buildSatelliteOrbit(cfg, ctx) {
+  const node = new Group();
+  node.name = `ring:${cfg.id ?? ''}`;
+  const out = built(cfg, node);
+  const style = lineStyle(cfg, ctx, DEFAULT_COLORS.line);
+  const lines = addLine(out, cfg, style);
+  const pulse = addPulse(out, cfg, ctx, style.width ?? 1.5);
+  if (pulse) lines.push(pulse);
+  out.tick = flowTicker(cfg, lines);
+  const id = String(cfg.satellite);
+  out.update = () => {
+    const pts = ctx.places?.satelliteOrbit(id) ?? null;
+    if (!pts?.length) {
+      for (const l of lines) l.setRuns([]);
+      return;
+    }
+    /** @type {number[]} */
+    const run = [];
+    for (const p of [...pts, pts[0]]) run.push(p.x, p.y, p.z);
+    const runs = anchoredRuns(node, [run]);
+    for (const l of lines) l.setRuns(runs);
+  };
+  out.repin = repinner(node, out.update);
+  out.dynamic = true;
   return out;
 }
 

@@ -59,6 +59,14 @@ export const TYPE_SAMPLES = {
   // held columns: a strike would be gone before the picture is taken
   crystalline: { objects: [{ type: 'crystalline', id: 'entity', size: 100, seed: 7 }], camera: { target: [0, 0, 0], yaw: 30, tilt: 10, distance: 120 } },
   lightning: { objects: [FLOOR, { type: 'lightning', id: 'bolts', mode: 'column', count: 3, size: [90, 50, 90], width: 2.5, glow: { color: 'var(--lcards-blue-light)' } }], camera: VIEW },
+  satellites: {
+    objects: [
+      { type: 'sphere', id: 'earth', radius: 14, body: 'earth', image: 'builtin:earth_blue_marble' },
+      { type: 'satellites', id: 'gps', group: 'gps', object: 'earth', heights: 'diagram', color: 'var(--lcards-orange-medium)', orbits: { width: 0.75, opacity: 0.5 } },
+      { type: 'satellites', id: 'geo', group: 'geostationary', object: 'earth', heights: 'diagram', color: 'var(--lcards-blue-light)', orbits: { width: 1 } }
+    ],
+    camera: { target: [0, 0, 0], yaw: 30, tilt: 30, distance: 150 }
+  },
   system: {
     objects: [
       { type: 'grid', id: 'map', shape: 'disc', radius: 55, pattern: 'polar', line_spacing: 10, opacity: 0.4 },

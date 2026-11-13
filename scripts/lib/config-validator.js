@@ -29,7 +29,7 @@ import { migrateDataGridConfig } from '../../src/data-grid/data-grid-config-migr
 import { classifyThemePath } from './theme-token-rules.js';
 import { parseAreasString } from '../../src/views/layout-grid-utils.js';
 import { CARD_PLUMBING_KEYS as PLUMBING_KEYS } from '../../src/cards/schemas/card-plumbing.js';
-import { PLACEMENT_FORMS, LABEL_STYLE_NAMES, UNIT_NAMES } from '../../src/core/astrometrics/names.js';
+import { PLACEMENT_FORMS, LABEL_STYLE_NAMES, UNIT_NAMES, SATELLITE_NAMES } from '../../src/core/astrometrics/names.js';
 import { withNebulaPreset } from '../../src/core/astrometrics/nebula-presets.js';
 import { missingPresetParams } from '../../src/cards/schemas/animation-preset-params-schemas.js';
 import { actionSchema } from '../../src/cards/schemas/common-schemas.js';
@@ -247,6 +247,18 @@ export function registryIssues(node, tag, reg) {
       if (o?.type === 'image') check(`${at}.src`, builtinOnly(o.src), images, 'built-in image');
       if (o?.type === 'sphere' || o?.type === 'ring') check(`${at}.image`, builtinOnly(o.image), images, 'built-in image');
     });
+    // A NORAD id the snapshot does not have: it needs a live entity (a group member can have none)
+    const shipped = reg.astrometrics.satellite_ids;
+    if (Array.isArray(shipped)) {
+      const noOrbit = (path, ref, hint) => {
+        if (!(typeof ref === 'number' || (typeof ref === 'string' && /^\d+$/.test(ref.trim())))) return;
+        if (!shipped.includes(Number(ref))) out.push({ path, message: `LCARdS ships no orbit for satellite ${ref}${hint}` });
+      };
+      items.points.forEach(({ p, at }) => {
+        if (!(typeof p?.entity === 'string' && p.entity !== '')) noOrbit(`${at}.satellite`, p?.satellite, ': give the point an entity with its latitude and longitude');
+      });
+      items.objects.forEach(({ o, at }) => { if (o?.type === 'satellites' && Array.isArray(o.satellites)) o.satellites.forEach((r, i) => noOrbit(`${at}.satellites[${i}]`, r, ' (a point with satellite: and an entity can follow it live)')); });
+    }
     // A part on a built-in model must be one of its parts
     items.points.forEach(({ p, at }) => {
       if (!isLiteral(p?.part) || !isLiteral(p?.object)) return;
@@ -496,7 +508,10 @@ export function astrometricsIssues(node) {
     pointIds.add(id);
   });
   const generated = /^(.+)\.(ring|col|row)\.[\d.]+$/;
-  const isPoint = (ref) => pointIds.has(ref) || (generated.test(ref) && objectIds.has(generated.exec(ref)[1]));
+  // a satellites group's points: <group id>.<NORAD id>
+  const groupPoint = /^(.+)\.(\d+)$/;
+  const isGroupPoint = (ref) => groupPoint.test(ref) && objectIds.get(groupPoint.exec(ref)[1])?.type === 'satellites';
+  const isPoint = (ref) => pointIds.has(ref) || (generated.test(ref) && objectIds.has(generated.exec(ref)[1])) || isGroupPoint(ref);
   const nearPoint = (ref) => suggest(ref, [...pointIds]);
   /** A point reference: an id that must exist, or [x, y, z] */
   /** hide_in_systems: a list names systems that exist */
@@ -507,6 +522,11 @@ export function astrometricsIssues(node) {
   };
   const pointRef = (path, ref) => {
     if (isLiteral(ref) && !isPoint(ref)) err(path, `no point "${ref}"${nearPoint(ref)}`);
+  };
+  /** A satellite by name: a built-in one, or digits (a NORAD id; registryIssues checks the snapshot has it) */
+  const satelliteName = (path, ref) => {
+    if (typeof ref !== 'string' || /^\d+$/.test(ref.trim())) return;
+    if (!SATELLITE_NAMES.includes(/** @type {any} */ (ref.trim().toLowerCase()))) err(path, `no built-in satellite "${ref}" (built-in: ${SATELLITE_NAMES.join(', ')}; or a NORAD number)${suggest(ref, [...SATELLITE_NAMES])}`);
   };
   const viewRef = (path, ref) => {
     if (isLiteral(ref) && !Object.prototype.hasOwnProperty.call(views, ref)) err(path, `no view "${ref}" in camera.views${suggest(ref, Object.keys(views))}`);
@@ -551,14 +571,16 @@ export function astrometricsIssues(node) {
     if (p.object !== undefined && isLiteral(p.object)) {
       const host = objectIds.get(p.object);
       if (!host) err(`${at}.object`, `no object "${p.object}"${suggest(p.object, [...objectIds.keys()])}`);
-      else if (p.latlon !== undefined && !isGlobe(host)) warn(`${at}.object`, `latlon stands on a sphere; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+      else if ((p.latlon !== undefined || p.satellite !== undefined) && !isGlobe(host)) warn(`${at}.object`, `${p.satellite !== undefined ? 'satellite' : 'latlon'} stands on a sphere; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
       else if ((p.altaz !== undefined || p.sky !== undefined) && !isDome(host)) warn(`${at}.object`, `${p.sky !== undefined ? 'sky' : 'altaz'} stands on a dome grid; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
       else if (p.part !== undefined && host.type !== 'model') err(`${at}.part`, `part needs a model object; "${p.object}" is a ${host.type}`);
       else if (p.cell !== undefined && !(host.type === 'grid' && (host.shape ?? 'plane') === 'plane')) err(`${at}.object`, `cell needs a plane grid; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
-    } else if (p.cell !== undefined || p.latlon !== undefined || p.altaz !== undefined || p.sky !== undefined || p.part !== undefined) {
-      const form = ['cell', 'latlon', 'altaz', 'sky', 'part'].find(f => p[f] !== undefined);
+    } else if (p.cell !== undefined || p.latlon !== undefined || p.altaz !== undefined || p.sky !== undefined || p.part !== undefined || p.satellite !== undefined) {
+      const form = ['cell', 'latlon', 'altaz', 'sky', 'part', 'satellite'].find(f => p[f] !== undefined);
       err(at, `${form} needs object: (the object it stands on)`);
     }
+    satelliteName(`${at}.satellite`, p.satellite);
+    if (p.heights !== undefined && p.satellite === undefined) warn(`${at}.heights`, 'heights is for a satellite point (satellite:)');
     rangeIssues(at, p);
     actionViews(at, p);
   });
@@ -611,6 +633,21 @@ export function astrometricsIssues(node) {
       if (mode === 'column') for (const k of ['rate', 'flash']) if (o[k] !== undefined) warn(`${at}.${k}`, `${k} times strikes (mode: column holds its bolts)`);
       if (mode === 'strike' && o.count !== undefined) warn(`${at}.count`, 'count is how many columns (mode: column); strikes come one at a time');
       if (mode === 'strike' && o.speed !== undefined) warn(`${at}.speed`, 'speed sets how fast held columns crawl (mode: column); strikes are timed by rate and flash');
+    }
+    if (o.type === 'ring' && isLiteral(o.satellite)) {
+      const ref = String(o.satellite);
+      const sp = points.find(({ p }) => p && String(p.id) === ref)?.p;
+      if (!isPoint(ref)) err(`${at}.satellite`, `no point "${ref}"${nearPoint(ref)}`);
+      else if (sp && sp.satellite === undefined) err(`${at}.satellite`, `point "${ref}" is not a satellite (give it satellite:)`);
+    }
+    if (o.type === 'satellites') {
+      if (o.group === undefined && !(Array.isArray(o.satellites) && o.satellites.length)) err(at, 'satellites draws a group or a list: give it group: or satellites:');
+      if (Array.isArray(o.satellites)) o.satellites.forEach((ref, i) => satelliteName(`${at}.satellites[${i}]`, ref));
+      if (isLiteral(o.object)) {
+        const host = objectIds.get(o.object);
+        if (!host) err(`${at}.object`, `no object "${o.object}"${suggest(o.object, [...objectIds.keys()])}`);
+        else if (!isGlobe(host)) warn(`${at}.object`, `satellites go round a sphere; "${o.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+      }
     }
     if (o.type === 'system') {
       if (system !== undefined) err(at, `a system cannot hold another system (one level: "${system.id ?? 'system'}" holds "${o.id ?? 'system'}")`);

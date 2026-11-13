@@ -469,6 +469,143 @@ objects:
 | `clock.date` | string | `now` | The date the scene starts at: `now`, or an ISO date or date and time (`2026-10-30`, `1969-07-20T20:17:00Z`; a date alone is midnight UTC) |
 | `clock.rate` | number / string | `live` | How fast the date runs: `live`, days per second, or with a unit (`1 h/s`) |
 
+## Earth satellites
+
+**A point with `satellite: iss` sits where that satellite is at the scene date, over the right place on an Earth sphere; a ring with `satellite:` draws its orbit.** The orbits ship with LCARdS, so it all works offline, and it follows the [scene clock](#the-scene-clock).
+
+- **On an Earth:** `object` names the sphere the satellite goes round. Give that sphere `body: earth` so it turns as Earth really does, and the satellites sit over the right places. Heights are measured in the sphere's radii (an Earth of 6371 km), so it works at any size and in any units.
+- **Which satellites:** built-in names (`iss`, `tiangong`, `hubble` and the geostationary weather satellites `goes_east`, `goes_west`, `meteosat`, `meteosat_iodc`, `himawari`, `geo_kompsat`, `insat`, `fengyun_4a`), or the NORAD number of a GPS or Galileo satellite.
+- **Heights:** at `heights: real` the ISS skims the surface and geostationary satellites are almost six Earth radii out. `heights: diagram` lifts low orbits clear of the surface and brings high ones in, keeping their order; give the orbit ring the same point and it matches.
+- **A whole constellation:** the [satellites object](#the-satellites-object) draws GPS, Galileo, the geostationary satellites or the space stations in one go.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 380
+clock:
+  date: now
+  rate: 2 min/s
+camera:
+  buttons: true
+  views:
+    v:
+      target: earth
+      yaw: 20
+      tilt: 20
+      distance: 75
+points:
+  - id: earth
+    xyz: [0, 0, 0]
+  # a low orbit, lifted clear of the surface
+  - id: iss
+    satellite: iss
+    object: globe
+    heights: diagram
+    marker: dot
+    label: ISS
+  # geostationary: it stays over the same place as the Earth turns
+  - id: goes
+    satellite: goes_east
+    object: globe
+    heights: diagram
+    marker: dot
+    label: GOES EAST
+objects:
+  - type: sphere
+    id: globe
+    at: earth
+    radius: 10
+    body: earth
+    image: builtin:earth_blue_marble
+  - type: ring
+    satellite: iss
+    width: 1
+    color: var(--lcars-orange)
+  - type: ring
+    satellite: goes
+    width: 1
+    color: var(--lcars-blue)
+```
+
+::: details More about Earth satellites
+- **The data:** mean orbital elements from CelesTrak, refreshed for each LCARdS release; LCARdS downloads nothing. High orbits (GPS, Galileo, geostationary) stay right for months. A low one such as the ISS keeps its orbit for weeks, but drag and reboosts move it along that orbit, so its dot drifts as the data ages.
+- **Live positions:** give a satellite point an `entity` whose attributes hold its `latitude` and `longitude` (or `lat` and `long`), from a satellite tracker integration. The dot eases onto each new position and moves on along its orbit between them, and a satellite LCARdS does not ship gets its orbit from two positions.
+- **Accuracy:** Keplerian orbits with the Earth's flattening (the drift of the orbit's plane), without the short-period wobbles of full tracking: within a few tens of km of the data. Good for a picture, not for pointing an antenna.
+- **The orbit ring** stays still while the Earth turns under it, as an orbit does, and follows a live orbit as its positions come in. Its `radius`, `inclination`, `node`, `arc`, `at` and `band` do not apply.
+:::
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `satellite` (point) | string / number | - | A built-in name or a NORAD number: place the point where that satellite is, round the sphere in `object` |
+| `heights` (point) | string | `real` | `real` to scale, or `diagram`: low orbits lifted, high ones brought in |
+| `entity` (point) | string | - | With `satellite`: an entity whose `latitude` and `longitude` (or `lat` and `long`) are live positions |
+| `satellite` (ring) | string | - | A satellite point's id: draw that satellite's orbit, at the point's heights |
+
+### The satellites object
+
+**`type: satellites` draws a whole group of real satellites round an Earth sphere: a dot for each, and their orbits with `orbits`.** Use it for GPS, Galileo or the geostationary belt without a point for each.
+
+- Its satellites are points named `<id>.<NORAD number>` (`gps.39166`), so views and fly-to can name them; their orbits are rings named `<id>.<NORAD number>.orbit`.
+- `satellites:` adds names or numbers to the group, or lists them on their own without a group. For one satellite with a label of your own, a live entity or a card, use a point with `satellite` instead.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 380
+clock:
+  date: now
+  rate: 10 min/s
+camera:
+  buttons: true
+  views:
+    v:
+      target: [0, 0, 0]
+      yaw: 30
+      tilt: 35
+      distance: 115
+objects:
+  - type: sphere
+    id: globe
+    radius: 10
+    body: earth
+    image: builtin:earth_blue_marble
+  # GPS: six orbit planes, half a day round
+  - type: satellites
+    id: gps
+    group: gps
+    object: globe
+    heights: diagram
+    color: var(--lcars-yellow)
+    orbits:
+      width: 0.75
+      opacity: 0.4
+  # the geostationary weather satellites, named
+  - type: satellites
+    id: geo
+    group: geostationary
+    object: globe
+    heights: diagram
+    color: var(--lcars-blue)
+    label: true
+```
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `object` | string | required | The Earth sphere they go round (give it `body: earth`) |
+| `group` | string | - | `gps`, `galileo`, `geostationary` or `stations` (the ISS and Tiangong) |
+| `satellites` | list | - | Built-in names or NORAD numbers, added to the group's |
+| `heights` | string | `real` | `real` to scale, or `diagram`: low orbits lifted, high ones brought in |
+| `marker` | string | `dot` | The marker at each satellite, as a [point's](./points#markers) |
+| `color` | colour | the theme text colour | The markers' colour, and the orbits' unless `orbits.color` is set |
+| `label` | boolean | `false` | `true` labels each satellite with its name (tiny style) |
+| `orbits` | boolean / object | `false` | `true` draws each orbit; an object sets their look |
+| `orbits.width` | number | `1.5` | Line width, px |
+| `orbits.color` | colour | the satellites' `color`, else `theme:colors.ui.secondary` | Line colour |
+| `orbits.opacity` | number | `1` | Opacity of the lines, `0` to `1` |
+| `orbits.dash` | list / object | - | A dash pattern, as on any [line](./objects/lines#line-keys) |
+| `id` | string | `satellites#n` | Name of the group, the start of its points' and rings' ids |
+| `visible` | boolean | `true` | `false` hides the satellites and their orbits |
+| `look` | string | every look | `diagram` or `realistic`: which [look](./scene#looks-diagram-and-realistic) shows them |
+| `opacity` | number | `1` | Opacity of the markers and labels, `0` to `1` |
+
 ## Distances
 
 **Every distance is in the units of what it belongs to.** An object's distance is to its nearest edge.

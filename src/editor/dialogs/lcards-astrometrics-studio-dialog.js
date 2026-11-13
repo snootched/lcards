@@ -1625,8 +1625,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._addingObject = false;
     const scene = await this._previewCard?.studioScene?.().catch(() => null);
     const system = this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : undefined;
-    /** @type {{ scale?: number, at?: string | number[], real?: boolean }} */
+    /** @type {{ scale?: number, at?: string | number[], real?: boolean, sphere?: string }} */
     const place = { real: !!this._units };
+    const sphere = this._objects.find((o) => o?.type === 'sphere' && typeof o.id === 'string');
+    if (sphere) place.sphere = sphere.id;
     if (scene?.viewIn) {
       const view = scene.viewIn(system);
       place.scale = viewScale(view.distance);

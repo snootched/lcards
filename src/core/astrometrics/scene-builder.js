@@ -25,6 +25,7 @@ import { Placements } from './placements.js';
 import { labelItem } from './label-layer.js';
 import { resolveLabel, plainColor, selectedColor, fieldCss } from './label-text.js';
 import { TemplateDetector } from '../templates/TemplateDetector.js';
+import { expandSatelliteGroups } from './satellites.js';
 import { MARKERS, OBJECT_TYPES, flattenSystems, systemScale, kmPerUnit, objectIds } from './names.js';
 import { Frames, ROOT } from './frames.js';
 import { pointCard } from './card-layer.js';
@@ -196,6 +197,8 @@ export function makeLabelItem(def, labelsCfg, cssColor) {
  */
 export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } = {}) {
   config = flattenSystems(config);
+  // a satellites group: its satellite points and orbit rings, drawn as any others
+  config = expandSatelliteGroups(config, (m) => lcardsLog.warn(`[Astrometrics] ${m}`));
   const scene = new Scene();
   const frames = new Frames();
   /** @type {any[]} systems, parents first (config order) */
@@ -282,7 +285,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
       const models = ctx.models;
       if (models) add(cfg, (c, x = ctx) => models.buildModel(c, x));
       else lcardsLog.warn('[Astrometrics] model skipped: the model chunk is not loaded');
-    } else if (cfg.type !== 'system' && !OBJECT_TYPES.includes(cfg.type)) lcardsLog.warn(`[Astrometrics] unknown object type '${cfg.type}'`);
+    } else if (cfg.type !== 'system' && cfg.type !== 'satellites' && !OBJECT_TYPES.includes(cfg.type)) lcardsLog.warn(`[Astrometrics] unknown object type '${cfg.type}'`);
   }
 
   /** @type {Map<string, import('./placements.js').PlacementHost>} */

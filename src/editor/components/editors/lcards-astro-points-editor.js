@@ -24,7 +24,7 @@
 
 import { LitElement, html, css, nothing } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
-import { MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, PLACEMENT_FORMS } from '../../../core/astrometrics/names.js';
+import { MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, PLACEMENT_FORMS, SATELLITE_NAMES, SATELLITE_HEIGHTS } from '../../../core/astrometrics/names.js';
 import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
 import { showInfoDialog } from '../../../views/layout-edit-dialogs.js';
 import '../shared/lcards-form-section.js';
@@ -43,6 +43,7 @@ const FORMS = {
   altaz: { label: 'Azimuth and altitude (a dome)', inputs: ['Azimuth (°)', 'Altitude (°)'], host: 'dome', pick: true, value: [0, 30] },
   sky: { label: 'Sun or moon (a dome)', host: 'dome', value: 'sun' },
   body: { label: 'A real Solar System body (scene date)', value: 'earth' },
+  satellite: { label: 'A real Earth satellite (an Earth sphere)', host: 'sphere', value: 'iss' },
   at: { label: 'At another point', value: '' },
   cell: { label: 'Sector map cell (a plane grid)', host: 'plane', pick: true, value: '' },
   part: { label: 'A part of a model', host: 'model', value: '' }
@@ -93,8 +94,9 @@ export const withForm = (point, form) => {
   const next = { ...point };
   for (const f of PLACEMENT_FORMS) delete next[f];
   delete next.part;
-  // center goes with body
+  // center goes with body, heights with satellite
   delete next.center;
+  delete next.heights;
   next[form] = structuredClone(FORMS[form]?.value ?? null);
   return next;
 };
@@ -435,6 +437,12 @@ export class LCARdSAstroPointsEditor extends LitElement {
           ${this._select('Measured from', point.center ?? '', [{ value: '', label: '(The Sun)' }, ...BODY_NAMES.filter((b) => b !== 'sun').map((b) => ({ value: b, label: bodyLabel(b) }))],
             (v) => this._patch(index, { center: v || undefined }))}
           <div class="full hint">Where it is at the scene date (the card's clock), in the scene's or system's units (set units: km or au).</div>` : nothing}
+        ${form === 'satellite' ? html`
+          ${this._select('Satellite', String(value ?? ''), SATELLITE_NAMES.map((n) => ({ value: n, label: n })),
+            (v) => v && this._patch(index, { satellite: /^\d+$/.test(v) ? Number(v) : v }), { custom_value: true })}
+          ${this._select('Heights', point.heights ?? 'real', SATELLITE_HEIGHTS.map((h) => ({ value: h, label: h === 'real' ? 'Real (to scale)' : 'Diagram (low orbits lifted)' })),
+            (v) => this._patch(index, { heights: v === 'real' ? undefined : v }))}
+          <div class="full hint">Where it is at the scene date, round an Earth sphere (body: earth turns it as Earth turns). A built-in name or a NORAD number; give the point an entity with latitude and longitude for live fixes.</div>` : nothing}
         ${form === 'at' ? this._select('Point', value, this._points.filter((p) => p !== point && p?.id !== undefined).map((p) => ({ value: String(p.id), label: String(p.id) })), (v) => this._patch(index, { at: v })) : nothing}
         ${form === 'cell' ? this._text('Cell', value, (v) => this._patch(index, { cell: v }), 'Such as AF3') : nothing}
         ${form === 'part' ? this._renderPart(point, index) : nothing}

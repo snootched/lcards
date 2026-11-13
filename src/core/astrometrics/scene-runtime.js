@@ -969,8 +969,8 @@ export function createAstroScene(host, config, options = {}) {
     // The sky clock runs for sky points and paths, and for label templates that read sky.*
     usesSky = (Array.isArray(cfg.points) && cfg.points.some((p) => p?.sky || /\bsky\./.test(JSON.stringify(p?.text ?? p?.label ?? ''))))
       || (Array.isArray(cfg.objects) && cfg.objects.some((o) => o?.sky));
-    usesClock = (Array.isArray(cfg.points) && cfg.points.some((p) => p?.body !== undefined))
-      || (Array.isArray(cfg.objects) && cfg.objects.some((o) => o?.body !== undefined || o?.orbit !== undefined))
+    usesClock = (Array.isArray(cfg.points) && cfg.points.some((p) => p?.body !== undefined || p?.satellite !== undefined))
+      || (Array.isArray(cfg.objects) && cfg.objects.some((o) => o?.body !== undefined || o?.orbit !== undefined || o?.type === 'satellites'))
       || (usesSky && !!cfg.clock);
     applyClock();
     applyModelScale();
@@ -2056,7 +2056,8 @@ export function createAstroScene(host, config, options = {}) {
     for (const [id, forms] of Object.entries(values ?? {})) {
       const keep = { ...(boundValues.get(id) ?? {}) };
       for (const [form, value] of Object.entries(forms ?? {})) {
-        if (!BINDABLE_FORMS.includes(/** @type {any} */ (form))) continue;
+        // `fix`: a satellite point's live fix [lat, lon, ms] (point-data.js satelliteFix)
+        if (form !== 'fix' && !BINDABLE_FORMS.includes(/** @type {any} */ (form))) continue;
         keep[form] = value;
         world?.places.setPosition(id, /** @type {any} */ (form), value);
       }

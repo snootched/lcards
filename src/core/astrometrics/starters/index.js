@@ -25,6 +25,7 @@ import utopiaPlanitia from './scene-utopia-planitia.js';
 import borgEncounter from './scene-borg-encounter.js';
 import trueScaleSolarSystem from './scene-true-scale-solar-system.js';
 import trueScaleDive from './scene-true-scale-dive.js';
+import earthOrbit from './scene-earth-orbit.js';
 import starTrekGalaxy from './scene-star-trek-galaxy.js';
 import stMinorPowers from './part-st-minor-powers.js';
 import stDeltaPowers from './part-st-delta-powers.js';
@@ -97,7 +98,7 @@ import crystallineEntity from './part-crystalline-entity.js';
  */
 
 /** @type {Starter[]} */
-export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, bajoranWormhole, utopiaPlanitia, borgEncounter, trueScaleSolarSystem, trueScaleDive, starTrekGalaxy, planet, asteroidBelt, asteroid, comet, nebulaField, badlands, badlandsVoyager, nexus, crystallineEntity, wormhole, sectorVolumes, starbase, stMinorPowers, stDeltaPowers, stTranswarp];
+export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, bajoranWormhole, utopiaPlanitia, borgEncounter, trueScaleSolarSystem, trueScaleDive, earthOrbit, starTrekGalaxy, planet, asteroidBelt, asteroid, comet, nebulaField, badlands, badlandsVoyager, nexus, crystallineEntity, wormhole, sectorVolumes, starbase, stMinorPowers, stDeltaPowers, stTranswarp];
 
 /** Keys whose string values (or list entries) name a point, object or view */
 const REF_KEYS = new Set(['id', 'at', 'object', 'target', 'from', 'to', 'points', 'view', 'light', 'face', 'point']);

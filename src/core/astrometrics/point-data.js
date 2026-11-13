@@ -26,6 +26,7 @@ export const BINDING_DEFAULTS = /** @type {const} */ ({
  * @returns {string | null}
  */
 export function bindingEntity(point) {
+  if (isSatelliteFix(point)) return point.entity;
   const b = pointBinding(point);
   if (!b) return null;
   const id = b.binding.entity ?? point?.entity;
@@ -50,9 +51,11 @@ export function bindingAttributes(form, binding) {
  * missing or not a number (the point then has no position).
  * @param {any} point
  * @param {any} entity - a Home Assistant state object
- * @returns {{ form: 'xyz' | 'polar' | 'latlon' | 'altaz', value: number[] | null } | null} null: the point has no binding
+ * A satellite point with an entity gives a live fix: form `fix`, [latitude, longitude, ms].
+ * @returns {{ form: 'xyz' | 'polar' | 'latlon' | 'altaz' | 'fix', value: number[] | null } | null} null: the point has no binding
  */
 export function bindingValue(point, entity) {
+  if (isSatelliteFix(point)) return { form: 'fix', value: satelliteFix(entity) };
   const b = pointBinding(point);
   if (!b) return null;
   if (!entity) return { form: b.form, value: null };
@@ -152,4 +155,31 @@ export function fieldNeedsUpdate(deps, change) {
     for (const e of deps.entities) if (change.entities.has(e)) return true;
   }
   return false;
+}
+
+/**
+ * A satellite point with an entity: the entity's position is a live fix
+ * (Home Assistant's ISS integration, a satellite tracker's device tracker).
+ * @param {any} point
+ */
+function isSatelliteFix(point) {
+  const sat = point?.satellite;
+  return sat !== undefined && sat !== null && sat !== '' && typeof point.entity === 'string' && point.entity !== '';
+}
+
+/**
+ * A live fix from an entity: [latitude, longitude, ms]. Reads `latitude` /
+ * `longitude`, else `lat` / `long` (the ISS integration without "show on map");
+ * the time is when the entity last changed.
+ * @param {any} entity
+ * @returns {number[] | null}
+ */
+export function satelliteFix(entity) {
+  const a = entity?.attributes ?? {};
+  const num = (/** @type {any} */ v) => (typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN);
+  const lat = num(a.latitude ?? a.lat);
+  const lon = num(a.longitude ?? a.long ?? a.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const t = Date.parse(entity?.last_updated ?? '');
+  return [lat, lon, Number.isFinite(t) ? t : Date.now()];
 }

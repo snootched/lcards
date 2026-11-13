@@ -90,6 +90,7 @@ objects:
   ['borg_encounter', 'Borg encounter', 'scene units'],
   ['true_scale_solar_system', 'Solar system (real positions)', 'km'],
   ['true_scale_dive', 'Galaxy to station at true scale', 'ly, a system in km'],
+  ['earth_orbit', 'Earth orbit: real satellites', 'scene units'],
   ['star_trek_galaxy', 'Star Trek galaxy', 'ly'],
 ]" />
 

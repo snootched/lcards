@@ -607,7 +607,7 @@ const SIZES = {
 };
 
 /** Types placed by their ends or a point, not by `at` */
-const UNPLACED = new Set(['path', 'beam', 'trail']);
+const UNPLACED = new Set(['path', 'beam', 'trail', 'satellites']);
 
 /**
  * How much larger than the builders' defaults a new object should be to fill
@@ -630,11 +630,12 @@ export function viewScale(distance) {
  * A new object of a type, with what it needs to show at once: sized `scale`
  * times the default and placed `at` (a point id or a position), so it shows
  * where the camera looks. With `real` (the scope has units) a model has no
- * size: it is drawn at its real size.
+ * size: it is drawn at its real size. Satellites go round `sphere` (the scope's
+ * first sphere; `earth` when there is none, for the user to add).
  * @param {string} type
  * @param {string[]} objectIds
  * @param {string[]} pointIds
- * @param {{ scale?: number, at?: string | number[], real?: boolean }} [place]
+ * @param {{ scale?: number, at?: string | number[], real?: boolean, sphere?: string }} [place]
  * @returns {Record<string, any>}
  */
 export function newObject(type, objectIds, pointIds, place = {}) {
@@ -663,6 +664,12 @@ export function newObject(type, objectIds, pointIds, place = {}) {
       break;
     // a galaxy at the scale of a scene built to fit (the schema default is 50,000 ly)
     case 'galaxy': obj.radius = round(100 * k); break;
+    case 'satellites':
+      obj.object = place.sphere ?? 'earth';
+      obj.group = 'gps';
+      obj.heights = 'diagram';
+      obj.orbits = true;
+      break;
     default: break;
   }
   if (k !== 1 && SIZES[type] && !(type === 'model' && place.real)) {

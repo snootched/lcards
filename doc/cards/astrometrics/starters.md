@@ -2073,6 +2073,72 @@ units: ly
 clock: { date: now, rate: 1 h/s }
 ```
 
+### Earth orbit: real satellites
+
+The Earth turning as it really does, with the ISS, Tiangong and Hubble, the GPS and Galileo constellations and the geostationary weather satellites where they are now, from orbits shipped with LCARdS. Diagram heights lift the low orbits clear of the surface; real heights show them to scale.
+
+| Setting | Default | Notes |
+|---|---|---|
+| Heights | `diagram` |  |
+
+```yaml live collapsed
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: iss, satellite: iss, object: earth, heights: diagram, marker: dot, label: ISS, style: tiny, color: var(--lcars-orange) }
+  - id: tiangong
+    satellite: tiangong
+    object: earth
+    heights: diagram
+    marker: dot
+    label: TIANGONG
+    style: tiny
+    color: var(--lcars-orange)
+  - id: hubble
+    satellite: hubble
+    object: earth
+    heights: diagram
+    marker: dot
+    label: HUBBLE
+    style: tiny
+    color: var(--lcars-orange)
+objects:
+  - { type: sphere, id: earth, radius: 20, body: earth, image: builtin:earth_blue_marble }
+  - { type: ring, id: iss_orbit, satellite: iss, width: 1.5, color: var(--lcars-orange) }
+  - { type: ring, id: tiangong_orbit, satellite: tiangong, width: 1, opacity: 0.6, color: var(--lcars-orange) }
+  - { type: ring, id: hubble_orbit, satellite: hubble, width: 1, opacity: 0.6, color: var(--lcars-orange) }
+  - type: satellites
+    id: gps
+    group: gps
+    object: earth
+    heights: diagram
+    color: var(--lcars-yellow)
+    orbits: { width: 0.75, opacity: 0.35 }
+  - type: satellites
+    id: galileo
+    group: galileo
+    object: earth
+    heights: diagram
+    color: var(--lcars-violet)
+    orbits: { width: 0.75, opacity: 0.35 }
+  - type: satellites
+    id: weather
+    group: geostationary
+    object: earth
+    heights: diagram
+    color: var(--lcars-blue)
+    label: true
+    orbits: { width: 1, opacity: 0.5 }
+camera:
+  view: orbits
+  views:
+    orbits: { target: [0, 0, 0], yaw: 30, tilt: 30, distance: 192 }
+    earth: { target: [0, 0, 0], yaw: 30, tilt: 15, distance: 84 }
+    pole: { target: [0, 0, 0], tilt: 90, distance: 207 }
+backdrop: { stars: { count: 1500 } }
+clock: { date: now, rate: live }
+```
+
 ### Star Trek galaxy
 
 The Milky Way in light years cut into the four quadrants (the Alpha/Beta line runs from Sol to the core), with the Federation, the Klingon, Romulan and Cardassian empires, the Dominion and the Borg, the Bajoran wormhole to the Gamma Quadrant, Voyager's route home from Ocampa and the Great Barrier. Fly in to Sol for Federation space: Vulcan, Andoria and Tellar at their real stars (40 Eridani, Procyon, 61 Cygni), the Klingon, Romulan and Cardassian capitals at the distances the reference charts give. The galaxy view sizes the empires to be seen, so the two scales do not overlay exactly.

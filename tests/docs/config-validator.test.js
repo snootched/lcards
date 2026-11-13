@@ -325,6 +325,43 @@ test('astrometrics face: motion needs an object at a point (M3)', () => {
     assert.deepEqual(messages(check(astro({ points: [{ id: 'far', xyz: [10, 0, 0] }], objects: [{ type: 'grid', shape: 'well', face: 'far' }] }))), []);
 });
 
+test('astrometrics satellites: names, a sphere to go round, orbits of satellite points, shipped NORAD ids (F1)', () => {
+    const astro = (extra) => ({ type: 'custom:lcards-astrometrics-card', ...extra });
+    const earth = { type: 'sphere', id: 'earth', radius: 100, body: 'earth' };
+    // a working Earth: a built-in, a shipped GPS satellite, a tracker's entity, a group and orbits
+    assert.deepEqual(messages(check(astro({
+        points: [
+            { id: 'iss', satellite: 'iss', object: 'earth', heights: 'diagram', marker: 'dot' },
+            { id: 'live', satellite: 99999, object: 'earth', entity: 'device_tracker.my_sat', marker: 'dot' }
+        ],
+        objects: [earth,
+            { type: 'ring', satellite: 'iss' },
+            { type: 'satellites', id: 'gps', group: 'gps', object: 'earth', orbits: true },
+            { type: 'ring', satellite: 'gps.39166' }]
+    }))), []);
+    const out = messages(check(astro({
+        points: [
+            { id: 'a', satellite: 'iis', object: 'earth' },
+            { id: 'b', satellite: 'hubble' },
+            { id: 'c', satellite: 12345, object: 'earth' },
+            { id: 'd', latlon: [0, 0], object: 'earth', heights: 'real' }
+        ],
+        objects: [earth,
+            { type: 'ring', satellite: 'd' },
+            { type: 'satellites', object: 'grid#1', satellites: ['hubbel'] },
+            { type: 'grid' },
+            { type: 'satellites', object: 'earth' }]
+    })));
+    assert.ok(out.some((m) => m.startsWith('error points[0].satellite: no built-in satellite "iis"') && m.includes('did you mean "iss"')), out.join('\n'));
+    assert.ok(out.includes('error points[1]: satellite needs object: (the object it stands on)'), out.join('\n'));
+    assert.ok(out.some((m) => m.startsWith('warning points[2].satellite: LCARdS ships no orbit for satellite 12345: give the point an entity')), out.join('\n'));
+    assert.ok(out.includes('warning points[3].heights: heights is for a satellite point (satellite:)'), out.join('\n'));
+    assert.ok(out.includes('error objects[1].satellite: point "d" is not a satellite (give it satellite:)'), out.join('\n'));
+    assert.ok(out.some((m) => m.startsWith('error objects[2].satellites[0]: no built-in satellite "hubbel"')), out.join('\n'));
+    assert.ok(out.some((m) => m.startsWith('warning objects[2].object: satellites go round a sphere')), out.join('\n'));
+    assert.ok(out.includes('error objects[4]: satellites draws a group or a list: give it group: or satellites:'), out.join('\n'));
+});
+
 test('astrometrics nebula: shapes and dust only with render: volume (NB1)', () => {
     const astro = (extra) => ({ type: 'custom:lcards-astrometrics-card', ...extra });
     const neb = { type: 'nebula', shape: 'shell', stretch: 0.5, dust: { count: 2 }, core: { color: 'var(--lcars-ice)' }, clouds: [{ xyz: [0, 0, 0], size: [40, 10, 20], rotation: [0, 30, 0] }, { radius: 5, dust: true }] };

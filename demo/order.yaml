@@ -38,7 +38,7 @@ topics:
     title: Astrometrics
     groups:
       - title: Start here
-        views: [astro-showcase, astro-starters, astro-star-trek, astro-real-sol, astro-solar-orbits]
+        views: [astro-showcase, astro-starters, astro-star-trek, astro-real-sol, astro-solar-orbits, astro-satellites]
       - title: Objects
         views: [astro-objects, astro-planets, astro-belt, astro-asteroid, astro-comet, astro-galaxy, astro-crystalline, astro-cube, astro-wormhole, astro-deformed-grids]
       - title: Ships and starbases
@@ -93,6 +93,12 @@ topics:
 releases:
   - version: "2026.11.0"
     views:
+      - file: astro-satellites
+        summary: "Astrometrics satellites: the ISS, GPS, Galileo and the weather satellites where they are now"
+        description: "Real Earth satellites round an Earth turned as it really does, from orbits shipped with LCARdS (nothing is downloaded). Top: the Earth orbit starter at diagram heights: the ISS, Tiangong and Hubble with their orbits, the GPS and Galileo constellations and the named geostationary weather satellites. ORBITS, EARTH and ISS fly the camera; LIVE runs the clock in real time, 2 MIN / S speeds it up. Bottom: the same at real heights, the ISS skimming the surface and the weather satellites almost six Earth radii out."
+        session: "F1 Earth satellites"
+        docs: /cards/astrometrics/scale#earth-satellites
+        public: true
       - file: msd-leader-lines
         summary: "MSD leader lines: side exits, sweeps, tight bends, brackets and angled runs"
         description: "Labels joined to their parts the canon way, one leader style per MSD. Before: lines dropping from the middle of wide label boxes with square corners. Picard: every label leaves from its side with a tight bend (the fault only takes the accent). Picard bracket style: a thin bar on every label, its line leaving the bar's top corner. Classic: a column of labels whose lines sweep round into their parts and nest. Last: the variants side by side (sweep and tight, bracket corners, route: angled)."

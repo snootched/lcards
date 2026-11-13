@@ -50,9 +50,9 @@ objects:
 
 ## Placement forms
 
-**Each point takes exactly one placement form: scene coordinates, a bearing on the plane, a place on a globe or a dome, the sun or moon, a real planet, a sector map cell, another point, or a part of a model.** `offset: [x, y, z]` then moves any of them by scene units.
+**Each point takes exactly one placement form: scene coordinates, a bearing on the plane, a place on a globe or a dome, the sun or moon, a real planet, an Earth satellite, a sector map cell, another point, or a part of a model.** `offset: [x, y, z]` then moves any of them by scene units.
 
-- `object` names the object the point stands on. `latlon`, `altaz`, `sky`, `cell` and `part` need it; with `xyz` or `polar` it is optional, and the point then moves and spins with that object.
+- `object` names the object the point stands on. `latlon`, `altaz`, `sky`, `satellite`, `cell` and `part` need it; with `xyz` or `polar` it is optional, and the point then moves and spins with that object.
 - A point can sit on a point that sits on an object that sits on a point: the planet orbits the star, the away team stands on the planet. A reference that loops back on itself is refused (and logged).
 - `xyz`, `polar`, `latlon` and `altaz` can also read their numbers from an entity: see [Positions from entities](./data#positions-from-entities).
 
@@ -108,6 +108,7 @@ objects:
 - **Longitude 0** on a sphere faces the default camera, with east to the right. A `latlon` point turns with the sphere's `spin`.
 - **The sun and moon** with `sky` are placed from the time and your Home Assistant location (`sun.sun` when it exists), updated every minute; with a [clock](./scale#the-scene-clock) on the card, at the scene date instead of now.
 - **Real bodies** with `body` sit where that Sun, planet, dwarf planet or moon is at the scene date, in the scene's or system's units. See [The real Solar System](./scale#the-real-solar-system).
+- **Earth satellites** with `satellite` sit over the right place on an Earth sphere at the scene date. See [Earth satellites](./scale#earth-satellites).
 - **A model part** with `part`: the point follows the part as it moves, and `xyz` is then an offset in the part's coordinates. See [model](./objects/ships#model).
 :::
 
@@ -121,6 +122,8 @@ objects:
 | `sky` | string | - | `sun` or `moon`: that body on the dome in `object`, now or at the scene date |
 | `body` | string | - | A real Sun, planet, dwarf planet or moon (`mars`), at the scene date |
 | `center` | string | - | With `body`: measure from this body instead of the Sun (`jupiter`) |
+| `satellite` | string / number | - | A real Earth satellite (`iss`, or a NORAD number) round the sphere in `object`, at the scene date |
+| `heights` | string | `real` | With `satellite`: `real` to scale, or `diagram` (low orbits lifted, high ones brought in) |
 | `cell` | string | - | The centre of a sector map cell (`AF3`) on the plane grid in `object`, which needs `axis_labels` |
 | `at` | string | - | At another point, by id |
 | `part` | string | - | On a named part of the [model](./objects/ships#model) in `object`; it follows the part |

@@ -1,0 +1,25 @@
+# F1 Earth satellites: shipped orbits round an Earth sphere turned as it really is, at a fixed
+# date (rate 0): the ISS, GOES-East over 75 W, a GPS satellite, their orbit rings, and the
+# Galileo group with orbits at diagram heights on a second Earth (astro-satellites.spec.js).
+type: custom:lcards-astrometrics-card
+id: astro_sat
+height: 400
+clock: { date: '2026-11-13T12:00:00Z', rate: 0 }
+camera:
+  buttons: { hide: never }
+  view: wide
+  views:
+    wide: { target: earth, yaw: 20, tilt: 25, distance: 1500 }
+points:
+  - { id: earth, xyz: [0, 0, 0] }
+  - { id: earth2, xyz: [0, 0, 3000] }
+  - { id: iss, satellite: iss, object: earth_body, marker: dot, label: ISS }
+  - { id: goes, satellite: goes_east, object: earth_body, marker: dot, label: GOES EAST }
+  - { id: gps, satellite: 39166, object: earth_body, marker: dot, label: GPS }
+objects:
+  - { type: sphere, id: earth_body, at: earth, radius: 100, body: earth, image: builtin:earth_blue_marble }
+  - { type: ring, id: iss_orbit, satellite: iss, width: 1, color: var(--lcars-orange) }
+  - { type: ring, id: goes_orbit, satellite: goes, width: 1, color: var(--lcars-blue) }
+  - { type: ring, id: gps_orbit, satellite: gps, width: 1, color: var(--lcars-yellow) }
+  - { type: sphere, id: earth2_body, at: earth2, radius: 100, body: earth }
+  - { type: satellites, id: galileo, group: galileo, object: earth2_body, heights: diagram, color: var(--lcars-ice), orbits: { width: 1 } }

@@ -19,6 +19,10 @@
  *                                               (or center) at the frame's origin, in its units
  *   at: <point>                                 another point
  *   cell: AF3, object: <grid>                   the centre of a lettered grid cell
+ *   satellite: iss, object: <earth sphere>      a real Earth satellite at the scene clock's
+ *                                               date (satellites.js: shipped elements, or live
+ *                                               fixes from the point's entity), its height in
+ *                                               the sphere's radii (`heights: real | diagram`)
  *
  * `part: <node name>` with `object: <model>` puts the point on that part of
  * a model (its origin, `xyz` an offset in the part's own space), so it
@@ -41,8 +45,30 @@ import { Vector3 } from 'three';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { position, toScene, BODIES, AU_KM } from './ephemeris.js';
 import { kmPerUnit } from './names.js';
+import {
+  satelliteData, prepareOrbit, positionAt, orbitAt, toEarthFixed, fromEarthFixed, drawnHeight,
+  orbitFromFixes, anomalyShiftTo, EARTH_RADIUS,
+} from './satellites.js';
+
+/** How long a satellite's dot takes to ease onto a new live fix, ms */
+const FIX_EASE_MS = 2000;
+/** Height assumed for a live satellite with no shipped data until its second fix, km */
+const LIVE_GUESS_KM = 400;
 
 const DEG = Math.PI / 180;
+
+/** @param {unknown} v */
+const isSet = (v) => v !== undefined && v !== null && v !== '';
+
+/**
+ * @typedef {Object} SatelliteState
+ * @property {string} key - the point's `satellite` value
+ * @property {import('./satellites.js').Orbit | null} base - from the shipped elements
+ * @property {import('./satellites.js').Orbit | null} live - from the last two live fixes (no shipped data)
+ * @property {{ p: [number, number, number], ms: number }[]} fixes - the last two, inertial
+ * @property {{ from: number, to: number, wall: number }} shift - eased shift along the orbit, radians
+ * @property {{ lat: number, lon: number } | null} lastFix
+ */
 
 /**
  * A bearing and a horizontal distance as x, z (north = -z, clockwise).
@@ -138,6 +164,9 @@ export function parseCell(code) {
  * @property {'sun' | 'moon'} [sky]
  * @property {string} [body] - a real body (ephemeris.js BODY_NAMES)
  * @property {string} [center] - with body: measured from this body, not the Sun
+ * @property {string | number} [satellite] - a real Earth satellite (satellites.js): a built-in name or NORAD id
+ * @property {'real' | 'diagram'} [heights] - satellite: its height at real scale, or lifted for a diagram
+ * @property {string} [entity] - satellite: live fixes from this entity
  * @property {string} [at]
  * @property {string} [cell]
  * @property {string} [object]
@@ -191,6 +220,8 @@ export class Placements {
     this._warned = new Set();
     /** @type {Map<string, PointDef>} the configs as given (bound forms included) */
     this.configs = new Map(this.defs);
+    /** @type {Map<string, SatelliteState>} satellite points: their orbit and live fixes */
+    this._sats = new Map();
   }
 
   /**
@@ -202,6 +233,7 @@ export class Placements {
   replaceDef(id, def) {
     this.defs.set(id, { ...def, id });
     this.configs.set(id, { ...def, id });
+    this._sats.delete(id);
     this._cache.clear();
   }
 
@@ -217,6 +249,10 @@ export class Placements {
   setPosition(id, form, value) {
     const d = this.defs.get(id);
     if (!d) return false;
+    if (/** @type {string} */ (form) === 'fix') {
+      if (value) this._fix(d, value);
+      return true;
+    }
     this.defs.set(id, { ...d, [form]: value ?? undefined, _bound: true });
     this._cache.clear();
     return true;
@@ -265,7 +301,7 @@ export class Placements {
     const d = this.defs.get(ref);
     if (!d || seen.has(ref)) return false;
     seen.add(ref);
-    if (d.sky || d.body || pointBinding(this.configs.get(ref) ?? d) || d._bound) return true;
+    if (d.sky || d.body || isSet(d.satellite) || pointBinding(this.configs.get(ref) ?? d) || d._bound) return true;
     if (d.object && this.hosts.get(d.object)?.moving) return true;
     return d.at ? this.isDynamic(d.at, seen) : false;
   }
@@ -339,6 +375,14 @@ export class Placements {
       const local = this._body(d);
       return local ? world(local) : null;
     }
+    if (isSet(d.satellite)) {
+      if (!host) {
+        this._warn(d.id, `point '${d.id}': a satellite needs object (an Earth sphere)`);
+        return null;
+      }
+      const local = this._satelliteLocal(d, host);
+      return local ? world(local) : null;
+    }
     if (d.cell) {
       const local = host?.cellPoint?.(d.cell) ?? null;
       if (!local) this._warn(d.id, `point '${d.id}': no cell '${d.cell}'${d.object ? ` on '${d.object}'` : ''}`);
@@ -350,8 +394,122 @@ export class Placements {
     }
     // An entity-bound form waits for its first numbers (no warning)
     if (d._bound || pointBinding(d)) return null;
-    this._warn(d.id, `point '${d.id}' has no position (xyz, polar, latlon, altaz, sky, body, at or cell)`);
+    this._warn(d.id, `point '${d.id}' has no position (xyz, polar, latlon, altaz, sky, body, satellite, at or cell)`);
     return null;
+  }
+
+  /**
+   * A satellite point's state: its shipped orbit (null when the snapshot does
+   * not have it), an orbit from live fixes, and the eased shift along the orbit.
+   * @param {PointDef} d
+   * @returns {SatelliteState}
+   * @private
+   */
+  _sat(d) {
+    const key = String(d.satellite);
+    let st = this._sats.get(String(d.id));
+    if (!st || st.key !== key) {
+      const data = satelliteData(key);
+      st = { key, base: data ? prepareOrbit(data.elements) : null, live: null, fixes: [], shift: { from: 0, to: 0, wall: 0 }, lastFix: null };
+      this._sats.set(String(d.id), st);
+      if (!data && !(typeof d.entity === 'string' && d.entity)) this._warn(d.id, `point '${d.id}': no shipped data for satellite '${key}' (give it an entity for live positions)`);
+    }
+    return st;
+  }
+
+  /**
+   * The eased shift along the orbit now, radians.
+   * @param {SatelliteState} st
+   * @private
+   */
+  _shiftNow(st) {
+    const k = Math.min(1, Math.max(0, (performance.now() - st.shift.wall) / FIX_EASE_MS));
+    const e = k * k * (3 - 2 * k);
+    return st.shift.from + (st.shift.to - st.shift.from) * e;
+  }
+
+  /**
+   * A live fix [latitude, longitude, ms] from the point's entity.
+   * @param {PointDef} d
+   * @param {number[]} fix
+   * @private
+   */
+  _fix(d, fix) {
+    const [lat, lon, ms] = fix;
+    if (![lat, lon, ms].every(Number.isFinite)) return;
+    const st = this._sat(d);
+    const prev = st.fixes[st.fixes.length - 1];
+    if (prev && prev.ms === ms) return;
+    const ref = st.base ?? st.live;
+    const r = st.base ? Math.hypot(...positionAt(st.base, ms)) : st.live ? st.live.a : EARTH_RADIUS + LIVE_GUESS_KM;
+    const p = fromEarthFixed(lat, lon, r, ms);
+    const wall = performance.now();
+    const now = this.date();
+    const current = this._shiftNow(st);
+    if (st.base) {
+      // the plane is known: only the place along it moves (the short way round)
+      const target = anomalyShiftTo(st.base, p, ms);
+      const d2 = ((((target - current) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI;
+      st.shift = { from: current, to: current + d2, wall };
+    } else if (prev && ms - prev.ms > 0 && ms - prev.ms < 40 * 60000) {
+      const live = orbitFromFixes(prev.p, prev.ms, p, ms, { radiusFromRate: true });
+      if (live) {
+        // start where the dot is drawn now, then ease onto the new orbit's own place
+        const from = ref ? anomalyShiftTo(live, positionAt(ref, now, current), now) : 0;
+        st.live = live;
+        st.shift = { from, to: 0, wall };
+      }
+    }
+    st.fixes = [...(prev ? [prev] : []), { p, ms }];
+    st.lastFix = { lat, lon };
+    this._cache.clear();
+  }
+
+  /**
+   * Where a satellite point is on its sphere now, local to the sphere.
+   * @param {PointDef} d
+   * @param {PlacementHost} host
+   * @returns {Vector3 | null}
+   * @private
+   */
+  _satelliteLocal(d, host) {
+    const st = this._sat(d);
+    const R = host.radius ?? 1;
+    const heights = d.heights === 'diagram' ? 'diagram' : 'real';
+    const orbit = st.live ?? st.base;
+    if (!orbit) {
+      // one live fix and no shipped data: the fix itself, at a guessed height
+      if (!st.lastFix) return null;
+      return latlonToLocal(st.lastFix.lat, st.lastFix.lon, R * (1 + drawnHeight(LIVE_GUESS_KM, heights)));
+    }
+    const ms = this.date();
+    const f = toEarthFixed(positionAt(orbit, ms, this._shiftNow(st)), ms);
+    return latlonToLocal(f.lat, f.lon, R * (1 + drawnHeight(f.height, heights)));
+  }
+
+  /**
+   * A satellite point's whole orbit now, world positions (an orbit ring:
+   * `type: ring, satellite: <point>`); null until it has one.
+   * @param {string} id - the satellite point
+   * @param {number} [steps]
+   * @returns {Vector3[] | null}
+   */
+  satelliteOrbit(id, steps = 128) {
+    const d = this.defs.get(id);
+    if (!d || !isSet(d.satellite)) return null;
+    const host = d.object ? this.hosts.get(d.object) : undefined;
+    if (!host || (host.ready && !host.ready())) return null;
+    const st = this._sat(d);
+    const orbit = st.live ?? st.base;
+    if (!orbit) return null;
+    const R = host.radius ?? 1;
+    const heights = d.heights === 'diagram' ? 'diagram' : 'real';
+    const ms = this.date();
+    host.node.updateWorldMatrix(true, false);
+    return orbitAt(orbit, ms, steps).map((p) => {
+      const f = toEarthFixed(p, ms);
+      return latlonToLocal(f.lat, f.lon, R * (1 + drawnHeight(f.height, heights))).applyMatrix4(host.node.matrixWorld);
+    });
   }
 
   /**

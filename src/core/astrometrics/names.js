@@ -13,7 +13,7 @@
  * they build second. `system` draws nothing itself: it holds points and
  * objects in units of their own (a star system in km inside a galaxy in ly).
  */
-export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'asteroid', 'comet', 'galaxy', 'trail', 'cube', 'lightning', 'crystalline', 'system']);
+export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'asteroid', 'comet', 'galaxy', 'trail', 'cube', 'lightning', 'crystalline', 'satellites', 'system']);
 
 /**
  * Which type for what: the objects docs page's table (doc/cards/astrometrics/objects.md,
@@ -40,6 +40,7 @@ export const TYPE_GUIDE = [
   { type: 'cube', use: 'A Borg cube (or a plain shaded box)', icon: 'mdi:cube' },
   { type: 'crystalline', use: 'The Crystalline Entity (a glowing crystal spine and branches round a starburst core)', icon: 'mdi:snowflake' },
   { type: 'lightning', use: 'Lightning: bolts that flash and go, or held flickering columns (lights the gas of a volume nebula it strikes in)', icon: 'mdi:lightning-bolt' },
+  { type: 'satellites', use: 'Real Earth satellites round an Earth sphere: GPS, Galileo, the geostationary weather satellites, the space stations (a dot each, orbits too)', icon: 'mdi:satellite-variant' },
   { type: 'system', use: 'A star system at true scale inside a larger scene (its own points and objects, in units of its own)', icon: 'mdi:white-balance-sunny' }
 ];
 
@@ -313,7 +314,17 @@ export const BODY_NAMES = /** @type {const} */ ([
 ]);
 
 /** The keys that place a point; a point takes exactly one */
-export const PLACEMENT_FORMS = /** @type {const} */ (['xyz', 'polar', 'latlon', 'altaz', 'sky', 'body', 'at', 'cell']);
+export const PLACEMENT_FORMS = /** @type {const} */ (['xyz', 'polar', 'latlon', 'altaz', 'sky', 'body', 'satellite', 'at', 'cell']);
+
+/**
+ * Built-in Earth satellite names and groups (their orbits ship in satellite-data.json,
+ * read by satellites.js in the runtime chunk). Listed here so the schema and the
+ * editor need not carry the data; tests/core/astro-satellites.test.js keeps them equal.
+ */
+export const SATELLITE_NAMES = /** @type {const} */ (['iss', 'tiangong', 'hubble', 'goes_east', 'goes_west', 'meteosat', 'meteosat_iodc', 'himawari', 'geo_kompsat', 'insat', 'fengyun_4a']);
+export const SATELLITE_GROUPS = /** @type {const} */ (['gps', 'galileo', 'geostationary', 'stations']);
+/** Satellite heights: to scale, or low orbits lifted and high ones brought in */
+export const SATELLITE_HEIGHTS = /** @type {const} */ (['real', 'diagram']);
 
 /**
  * Whether a config needs the effects chunk (its noise shaders): a nebula,

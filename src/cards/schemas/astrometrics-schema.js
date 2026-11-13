@@ -24,7 +24,7 @@ import {
     stateClassificationSchema, triggersUpdateSchema, dataSourcesSchema
 } from './common-schemas.js';
 import {
-    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, NEBULA_SHAPES, NEBULA_PRESETS, COLUMN_KINDS, LIGHTNING_MODES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
+    SATELLITE_NAMES, SATELLITE_GROUPS, SATELLITE_HEIGHTS, OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, NEBULA_SHAPES, NEBULA_PRESETS, COLUMN_KINDS, LIGHTNING_MODES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
     WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS, UNIT_NAMES, FILE_UNIT_NAMES, COMET_ACTIVITY, CUBE_SHAPES
 } from '../../core/astrometrics/names.js';
 import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
@@ -613,6 +613,17 @@ const pointSchema = {
         sky: { type: 'string', enum: [...SKY_BODIES], description: 'Follow the sun or moon on the dome named in object, from the time and the Home Assistant location (sun.sun when it exists). Updated every minute. With a clock, the scene date instead of now.' },
         body: { type: 'string', enum: [...BODY_NAMES], description: 'Where a real Sun, planet, dwarf planet or moon is at the scene clock\'s date (clock; JPL elements), on its tilted, elliptical orbit. The Sun sits at the origin of the point\'s frame (the scene, or its system), in that frame\'s units: name them (units: km or au) or au is assumed. A moon is placed from the Sun too (its planet plus its own orbit).' },
         center: { type: 'string', enum: [...BODY_NAMES], description: 'body only: measure from this body instead of the Sun, so it sits at the origin (a Jupiter-centred scene of its moons).' },
+        satellite: {
+            type: ['string', 'integer'],
+            examples: ['iss', 'tiangong', 'hubble', 'goes_east', 'goes_west', 'meteosat', 'himawari', 25544],
+            description: `A real Earth satellite, round the Earth sphere named in object, at the scene clock's date: a built-in name (${SATELLITE_NAMES.join(', ')}) or a NORAD catalogue number. Built-in names, GPS and Galileo satellites come with orbits shipped in LCARdS (high orbits stay right for months; a low one such as the ISS keeps its orbit but not its place along it, so give it an entity). With entity, its latitude and longitude (or lat and long) are live fixes: the dot eases onto each one and moves on along the orbit between them, and a satellite LCARdS does not ship gets its orbit from two fixes. Satellite tracker integrations give such entities. Its height is measured in the sphere's radii (an Earth of 6371 km), so it works in any units.`
+        },
+        heights: {
+            type: 'string',
+            enum: [...SATELLITE_HEIGHTS],
+            enumDescriptions: { real: 'Real heights over the sphere', diagram: 'Low orbits lifted clear of the surface, high ones brought in' },
+            description: 'satellite only: real draws its height to scale (the ISS just over the surface, geostationary almost six Earth radii out); diagram lifts low orbits clear of the surface and brings high ones in, keeping their order. Default real. Give its orbit ring the same point, so they match.'
+        },
         at: { type: 'string', description: 'Place it at another point (by id); add offset to move it from there.' },
         cell: { type: 'string', description: 'The centre of a sector map cell, such as AF3, on the grid named in object (a plane grid; its axis_labels say how cells are named).' },
         object: { type: 'string', description: 'The object the point stands on (an object id). Needed by latlon (a sphere), altaz and sky (a dome grid), cell (a plane grid) and part (a model); with xyz or polar the point moves and spins with the object (on a model: in the file\'s coordinates).' },
@@ -1035,6 +1046,7 @@ const ringObject = {
             color: objectColor('A colour the texture is multiplied by (a tint). Default none (the image\'s own colours).')
         }),
         body: { type: 'string', enum: [...BODY_NAMES], description: 'Lay the ring in this real body\'s equator at the scene clock\'s date (Saturn\'s rings: body: saturn on a ring at Saturn). inclination and node tilt it from there; rotation does not apply.' },
+        satellite: { type: 'string', description: 'Draw the orbit of this satellite point (a point id with satellite) round its Earth sphere, at the scene clock\'s date, with the point\'s heights: it stays put while the Earth turns under it, and follows a live orbit as its fixes come in. radius, inclination, node, arc, at and band do not apply.' },
         orbit: { type: 'string', enum: BODY_NAMES.filter((b) => b !== 'sun'), description: 'Draw this real body\'s orbit at the scene clock\'s date (JPL elements): an ellipse with its parent at a focus, tilted and turned as it really is, in the frame\'s units. Put the ring at the parent\'s point (at: jupiter for Io; nothing for a planet, the Sun sits at the origin). radius, inclination, node, arc and band do not apply.' },
         ...lineCommon,
         color: objectColor('Line colour. Default theme:colors.ui.secondary.')
@@ -1486,7 +1498,46 @@ const modelObject = {
     }
 };
 
-const OBJECT_SCHEMAS = { lightning: lightningObject, model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, asteroid: asteroidObject, comet: cometObject, galaxy: galaxyObject, crystalline: crystallineObject, trail: trailObject, cube: cubeObject };
+const satellitesObject = {
+    type: 'object',
+    title: 'satellites',
+    required: ['type', 'object'],
+    allOf: [objectCommonSchema],
+    description: 'Real Earth satellites round the Earth sphere named in object, at the scene clock\'s date, from orbits shipped in LCARdS: a dot for each, and their orbits with orbits. For one satellite with a label, a live entity or a card, use a point with satellite. Its satellites are points named <id>.<NORAD id> (views and fly-to can name them), their orbits rings named <id>.<NORAD id>.orbit. visible, look, opacity, fade, min_distance, max_distance, hide_in_systems and the actions apply to each satellite (and visible, look and the distances to the orbits); at, rotation, spin and face do not apply.',
+    properties: {
+        type: { type: 'string', const: 'satellites', description: 'satellites: real Earth satellites round an Earth sphere.' },
+        object: { type: 'string', description: 'The Earth sphere they go round (a sphere id; body: earth turns it as Earth really turns, so they sit over the right places).' },
+        group: {
+            type: 'string',
+            enum: [...SATELLITE_GROUPS],
+            enumDescriptions: { gps: 'The GPS constellation (about 31, half a day round, 20,200 km up)', galileo: 'The Galileo constellation (about 30, 23,200 km up)', geostationary: 'Weather satellites over the equator (GOES East and West, Meteosat, Himawari and others)', stations: 'The ISS and Tiangong' },
+            description: 'A built-in group of satellites. The shipped orbits of high ones (GPS, Galileo, geostationary) stay right for months; the stations keep their orbits but drift along them as the data ages.'
+        },
+        satellites: {
+            type: 'array',
+            items: { type: ['string', 'integer'] },
+            examples: [['iss', 'hubble', 25544]],
+            description: `Satellites to add (to the group's, or on their own): built-in names (${SATELLITE_NAMES.join(', ')}) or NORAD catalogue numbers of GPS and Galileo satellites.`
+        },
+        heights: {
+            type: 'string',
+            enum: [...SATELLITE_HEIGHTS],
+            enumDescriptions: { real: 'Real heights over the sphere', diagram: 'Low orbits lifted clear of the surface, high ones brought in' },
+            description: 'real draws heights to scale (geostationary almost six Earth radii out); diagram lifts low orbits clear of the surface and brings high ones in, keeping their order. Default real.'
+        },
+        marker: { type: 'string', enum: [...MARKERS], default: 'dot', description: 'The marker drawn at each satellite (as a point\'s marker). Default dot.' },
+        color: color('The markers\' colour, and the orbits\' unless orbits sets its own. Default the theme text colour.'),
+        label: { type: 'boolean', default: false, description: 'true labels each satellite with its name (tiny style).' },
+        orbits: part('Draw each satellite\'s orbit: true, or the lines\' look { width, color, opacity, dash }. Default false.', {
+            width: lineCommon.width,
+            color: objectColor('Line colour. Default the satellites\' color, else theme:colors.ui.secondary.'),
+            opacity: setting('Opacity of the lines, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
+            dash: dashKey.dash
+        }, { toggle: true })
+    }
+};
+
+const OBJECT_SCHEMAS = { lightning: lightningObject, model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, asteroid: asteroidObject, comet: cometObject, galaxy: galaxyObject, crystalline: crystallineObject, trail: trailObject, cube: cubeObject, satellites: satellitesObject };
 
 /** Object types a system can hold: every type but another system (one level) */
 const DRAWN_TYPES = OBJECT_TYPES.filter((t) => t !== 'system');

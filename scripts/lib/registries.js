@@ -106,6 +106,10 @@ export async function buildRegistries() {
       // `builtin:<key>` images (sphere maps, ring bands, image objects)
       builtin_images: sorted(Object.keys(LCARDS_IMAGES_PACK.image_assets ?? {}).map(k => `builtin:${k}`)),
       fill_presets: [...astro.FILL_PRESETS],
+      // Earth satellites: built-in names, groups, and every NORAD id with a shipped orbit
+      satellite_names: [...astro.SATELLITE_NAMES],
+      satellite_groups: [...astro.SATELLITE_GROUPS],
+      satellite_ids: Object.keys(JSON.parse(readFileSync(new URL('../../src/core/astrometrics/satellite-data.json', import.meta.url), 'utf8')).satellites).map(Number),
       // `builtin:<key>` models and their named parts (what `part:` takes)
       builtin_models: Object.fromEntries(Object.entries(LCARDS_IMAGES_PACK.model_assets ?? {}).map(([k, m]) => [`builtin:${k}`, [...(m.parts ?? [])]])),
     },

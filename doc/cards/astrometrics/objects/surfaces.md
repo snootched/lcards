@@ -663,7 +663,7 @@ objects:
 
 - `at` is its centre. With a point id the ring follows that point.
 - `inclination` tilts the ring about its line of nodes, and `node` turns that line: the bearing where an inclined ring crosses the plane.
-- `orbit: mars` draws a [real body's](../scale#the-real-solar-system) orbit at the scene date instead of a circle you size yourself.
+- `orbit: mars` draws a [real body's](../scale#the-real-solar-system) orbit at the scene date instead of a circle you size yourself, and `satellite: iss` an [Earth satellite's](../scale#earth-satellites).
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -717,6 +717,7 @@ objects:
 | `node` | number | `0` | Bearing of the line of nodes, degrees |
 | `arc` | `[from, to]` | whole ring | Only part of the ring, degrees round it |
 | `orbit` | string | - | A real body's name: draw its orbit at the scene date |
+| `satellite` | string | - | A satellite point's id: draw that [Earth satellite's](../scale#earth-satellites) orbit |
 | `body` | string | - | A real body's name: lay the ring in its equator |
 | `band` | object | - | A flat band with a picture, see [Ring band](#ring-band) |
 | `color` | colour | `theme:colors.ui.secondary` | Line colour |

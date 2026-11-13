@@ -42,6 +42,7 @@ description: "Astrometrics card objects: which object type to use for a planet, 
 | A Borg cube (or a plain shaded box) | [`cube`](./objects/ships#cube) |
 | The Crystalline Entity (a glowing crystal spine and branches round a starburst core) | [`crystalline`](./objects/space#crystalline) |
 | Lightning: bolts that flash and go, or held flickering columns (lights the gas of a volume nebula it strikes in) | [`lightning`](./objects/lines#lightning) |
+| Real Earth satellites round an Earth sphere: GPS, Galileo, the geostationary weather satellites, the space stations (a dot each, orbits too) | [`satellites`](./scale#the-satellites-object) |
 | A star system at true scale inside a larger scene (its own points and objects, in units of its own) | [`system`](./scale#the-system-object) |
 
 ## Keys every object takes
