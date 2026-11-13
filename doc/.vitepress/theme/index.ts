@@ -12,6 +12,7 @@ import DataGridDemo from './DataGridDemo.vue'
 import CardDemo from './CardDemo.vue'
 import CardGallery from './CardGallery.vue'
 import DemoBoard from './DemoBoard.vue'
+import GalleryYaml from './GalleryYaml.vue'
 import ProcessorLab from './ProcessorLab.vue'
 import ReleaseList from './ReleaseList.vue'
 import ReleaseMeta from './ReleaseMeta.vue'
@@ -21,6 +22,7 @@ import VersionBanner from './VersionBanner.vue'
 import HowItWorks from './HowItWorks.vue'
 import AstroScaleDiagram from './AstroScaleDiagram.vue'
 import AstroStarterTiles from './AstroStarterTiles.vue'
+import { keepAnchorInView, stopKeepingAnchor } from './anchor-keeper'
 import './style.css'
 
 // ── Mermaid SVG lightbox ───────────────────────────────────────────────────
@@ -39,6 +41,13 @@ function getLightbox(): HTMLDialogElement {
   lightboxEl.addEventListener('click', (e) => {
     if (e.target === lightboxEl) lightboxEl!.close()
   })
+  // A video stops when the lightbox closes (Esc or the backdrop), and the next image
+  // or diagram gets the normal width back
+  lightboxEl.addEventListener('close', () => {
+    lightboxEl!.classList.remove('is-video')
+    lightboxEl!.querySelector('video')?.pause()
+    lightboxEl!.querySelector('.mz-svg-inner')!.innerHTML = ''
+  })
   return lightboxEl
 }
 
@@ -56,6 +65,28 @@ function openImageLightbox(img: HTMLImageElement) {
   lb.showModal()
 }
 const zoomable = (img: HTMLImageElement) => !img.closest('a') && img.naturalWidth >= 480
+
+// Gallery and docs recordings (<video class="doc-video">): click to watch them large,
+// with the browser's controls (fullscreen, pause, seek), from the frame they were on.
+function openVideoLightbox(video: HTMLVideoElement) {
+  const lb    = getLightbox()
+  const inner = lb.querySelector('.mz-svg-inner')!
+  const clone = document.createElement('video')
+  clone.src = video.currentSrc || video.src
+  if (video.poster) clone.poster = video.poster
+  clone.muted = true
+  clone.loop = true
+  clone.playsInline = true
+  clone.controls = true
+  clone.autoplay = true
+  clone.title = video.title
+  clone.style.cssText = 'display:block;max-width:100%;max-height:85vh;margin:auto;'
+  clone.addEventListener('loadedmetadata', () => { clone.currentTime = video.currentTime }, { once: true })
+  inner.innerHTML = ''
+  inner.appendChild(clone)
+  lb.classList.add('is-video')
+  lb.showModal()
+}
 
 function openSvgLightbox(svgEl: SVGSVGElement) {
   const lb    = getLightbox()
@@ -107,6 +138,8 @@ export default {
     app.component('CardGallery', CardGallery)
     // The public demo board of this release, live: <DemoBoard /> (getting-started/live-demo.md).
     app.component('DemoBoard', DemoBoard)
+    // A gallery dashboard's YAML as links (open, download, copy): <GalleryYaml name="bridge" />.
+    app.component('GalleryYaml', GalleryYaml)
     // ```yaml lab blocks on the processor reference page.
     app.component('ProcessorLab', ProcessorLab)
     // Releases section: the index cards and the line under each release page's title.
@@ -161,6 +194,11 @@ export default {
     }
     watch(() => [router.route.path, frontmatter.value.moved_anchors], () => nextTick(followMovedAnchor), { immediate: true })
 
+    // A link to a heading keeps it in view while live examples above it mount and grow
+    // (anchor-keeper.ts). After VitePress's own scroll: a frame after the route renders.
+    const keepAnchor = () => { if (typeof window !== 'undefined') requestAnimationFrame(() => keepAnchorInView()) }
+    watch(() => router.route.path, () => nextTick(keepAnchor))
+
     // Delegated click for mermaid diagrams: no timing issues
     const handleMermaidClick = (e: MouseEvent) => {
       const mermaidDiv = (e.target as Element).closest?.('.vp-doc .mermaid')
@@ -173,6 +211,10 @@ export default {
       const img = (e.target as Element).closest?.('.vp-doc img') as HTMLImageElement | null
       if (img && zoomable(img)) openImageLightbox(img)
     }
+    const handleVideoClick = (e: MouseEvent) => {
+      const video = (e.target as Element).closest?.('.vp-doc video.doc-video') as HTMLVideoElement | null
+      if (video) openVideoLightbox(video)
+    }
     // A zoom-in cursor on the images the lightbox opens.
     const markZoomable = (e: Event) => {
       const img = e.target as HTMLImageElement
@@ -182,15 +224,21 @@ export default {
     onMounted(() => {
       document.addEventListener('click', handleMermaidClick)
       document.addEventListener('click', handleImageClick)
+      document.addEventListener('click', handleVideoClick)
       document.addEventListener('load', markZoomable, true)
       window.addEventListener('hashchange', followMovedAnchor)
+      window.addEventListener('hashchange', keepAnchor)
+      keepAnchor()
       document.querySelectorAll<HTMLImageElement>('.vp-doc img').forEach(img => img.complete && markZoomable({ target: img } as unknown as Event))
     })
     onUnmounted(() => {
       document.removeEventListener('click', handleMermaidClick)
       document.removeEventListener('click', handleImageClick)
+      document.removeEventListener('click', handleVideoClick)
       document.removeEventListener('load', markZoomable, true)
       window.removeEventListener('hashchange', followMovedAnchor)
+      window.removeEventListener('hashchange', keepAnchor)
+      stopKeepingAnchor()
     })
   },
 }

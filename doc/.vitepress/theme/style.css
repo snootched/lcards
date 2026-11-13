@@ -147,6 +147,12 @@ dialog.mz-svg-lightbox {
   z-index: 10000;
 }
 
+/* Recordings are 1600 px wide: give them more room than images and diagrams */
+dialog.mz-svg-lightbox.is-video {
+  width: min(96vw, 1800px);
+  max-height: 96vh;
+}
+
 dialog.mz-svg-lightbox::backdrop {
   background: rgba(0, 0, 0, 0.78);
   backdrop-filter: blur(4px);
@@ -458,6 +464,7 @@ dialog.mz-svg-lightbox .mz-svg-inner {
 
 /* Looping recordings (gallery dashboards, card pages): sized like a picture */
 .vp-doc .doc-video {
+  cursor: zoom-in;
   display: block;
   width: 100%;
   height: auto;

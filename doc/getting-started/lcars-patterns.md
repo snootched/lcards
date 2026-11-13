@@ -4,14 +4,18 @@ description: "LCARS patterns to compose a screen from, each a live LCARdS card o
 
 # LCARS Patterns
 
-**Building blocks to compose an LCARS screen from: each one is a card or a [layout card](../cards/layout-card/) you can drop into an area of a layout view, with every colour taken from a theme role.** Change the numbers, labels and entities to yours. [Designing LCARS Screens](lcars-design) explains what makes a screen read as LCARS, and its [archetypes](lcars-design#screen-archetypes) give the overall shapes to put these in.
+**Building blocks to help compose LCARS screens.
+
+Each one is a card or a [layout card](../cards/layout-card/) you can drop into an area of a layout view, with every colour taken from a theme role.
+
+Change the numbers, labels and entities to yours. [Designing LCARS Screens](lcars-design) explains what makes a screen read as LCARS, and its [archetypes](lcars-design#screen-archetypes) give the overall shapes to put these in.
 
 - **Patterns are modules with slots.** A slot holds a decorative part or a control of the same size: a code block can toggle a light, a gauge can follow a real sensor, a number in a cascade can be a reading. Swap them freely; the module keeps its shape.
 - **Small parts keep a fixed size.** The examples use the sizes measured on the reference screens (blocks about 64 x 24 px, letters about half the block height, `font_size` 13 to 14) on px tracks, so they keep that size on a full screen; only a main display takes `minmax(0, 1fr)`. See [Scale and density](lcars-design#scale-and-density).
 - **Give the layout card's rows a size** (`grid-template-rows` or `grid-auto-rows` in px or `minmax(0, 1fr)`): rows left to size themselves squash the cards.
 - **Keep a button's row at least as tall as the button:** 56 px by default. Small pills and blocks set a lower `min_height`, and bar labels size their text to it.
 - Patterns marked *(classic)* come from TNG, DS9 and Voyager screens, and most of the others from the *Picard* references. The theme sets the colours, so most work in either look.
-- The examples pick every colour by hand to show the look. Before you copy them onto controls bound to your entities, read [Colours by state or by hand](lcars-design#colours-by-state-or-by-hand).
+- The examples pick every colour by hand to show the look. Before you copy them onto controls bound to your entities, read [Setting the Colours](lcars-design#setting-the-colours).
 
 | For | Patterns |
 |---|---|

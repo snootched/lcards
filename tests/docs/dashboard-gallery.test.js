@@ -43,7 +43,9 @@ for (const file of dashboards) {
         }
         assert.ok(existsSync(join(ROOT, `doc/gallery/motion/${file}`)), `no motion file doc/gallery/motion/${file}`);
         assert.ok(page.includes(`src="/gallery/${name}.webm" poster="/gallery/${name}.webp"`), `page has no video for ${name}`);
-        assert.ok(page.includes(`<<< @/gallery/dashboards/${file}`), `page does not include ${file}`);
+        // linked, not inlined: 17 whole screens inline made a 7.6 MB page (GalleryYaml.vue)
+        assert.ok(page.includes(`<GalleryYaml name="${name}" />`), `page has no YAML link for ${name}`);
+        assert.ok(!page.includes(`<<< @/gallery/dashboards/${file}`), `page inlines ${file}: link it with <GalleryYaml name="${name}" />`);
     });
 }
 

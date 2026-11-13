@@ -64,6 +64,10 @@ export function cleanMarkdown(text) {
       const lang = rel.split('.').pop() === 'yml' ? 'yaml' : rel.split('.').pop();
       return '```' + lang + '\n' + readFileSync(file, 'utf8').trimEnd() + '\n```';
     })
+    // A gallery dashboard's YAML links (<GalleryYaml name="x" />): the same pointer
+    .replace(/^[ \t]*<GalleryYaml name="([\w-]+)"[^>]*\/>[ \t]*$/gm, (line, name) =>
+      `The YAML is \`${name}.yaml\`: in the LCARdS skill \`references/gallery/${name}.yaml\`, `
+      + `in the repository https://github.com/snootched/lcards/blob/main/doc/gallery/dashboards/${name}.yaml`)
     .replace(/^[ \t]*<[A-Z][A-Za-z]+\b[^>]*\/>[ \t]*$/gm, '')
     .replace(/^(#{1,6} .*?)[ \t]*\{#[^}]+\}[ \t]*$/gm, '$1')
     .replace(/\n{3,}/g, '\n\n')

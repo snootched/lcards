@@ -4,16 +4,11 @@ description: "Guidelines for making a Home Assistant dashboard look like LCARS: 
 
 # Designing LCARS Screens
 
-**What makes a screen read as LCARS, written down as guidelines you can pick from.** They come from an automated analysis of hundreds of recognizable LCARS screens: the *Star Trek: Picard* season 3 consoles (as rebuilt by meWho's Titan.DS and LCARSlad London) and production panels from *The Next Generation*, *Deep Space Nine* and *Voyager*.
+**What makes a screen read and feel like LCARS - written down as guidelines you can pick from.** They come from an automated analysis of hundreds of recognizable LCARS screen samples.  They include production panels from *The Next Generation*, *Deep Space Nine* and *Voyager*, and fan-made panels (like meWho's Titan.DS and LCARSlad London.)  Images were generalized into themes and structures to build guidelines (not to reproduce those works.)
 
 - A dashboard that follows just a few of these guidelines already looks more like LCARS than one that follows none: pick the ones that suit your screen and taste.
 - [Building a Dashboard](building-dashboards) covers the mechanics (which card for which job, the layout view); this guide is about the look.
-- The [Dashboard Gallery](dashboard-gallery#built-from-the-design-guide) has complete screens built from these guidelines.
-
-| Page | Covers |
-|---|---|
-| This page | The two looks, colour roles, structure, scale and density (with a checklist), motion and alerts, and the screen archetypes to start from |
-| [LCARS Patterns](lcars-patterns) | Over twenty building blocks, rendered live: code-block columns, sweeps and frames, pill grids, gauges, lists, tiles |
+- The [Dashboard Gallery](dashboard-gallery#generated-from-the-design-guide) has complete screens built from these guidelines.
 
 ## Two looks
 
@@ -29,9 +24,9 @@ description: "Guidelines for making a Home Assistant dashboard look like LCARS: 
 | Main display | Line-drawn schematic inside an open sweep | Content inside a bracket or sweep frame |
 | Themes that suit it | `LCARS Picard [LCARdS Red/Blue Accent]`, `LCARS Picard I/II`, `LCARS 25C` | `LCARS Default`, `LCARS TNG`, `LCARS Classic`, `LCARS Nemesis Blue` |
 
-## Colour comes from your theme
+## The Colours
 
-**Don't pick colours for an LCARS screen; pick roles, and let the theme supply the colour.** Then the screen follows when you switch themes, into light or dark mode, and into alert mode.
+Colours can be set in many ways, but generally should come from your theme.
 
 - **Prefer the `theme:` tokens.** They resolve to your [HA-LCARS](https://github.com/th3jesta/ha-lcars) theme's variable when it's installed and fall back to the LCARdS palette when it isn't, so the card always has a colour. A bare `var(--lcars-...)` is empty without HA-LCARS: give it a fallback, as in the table.
 - **Keep accent colour sparse.** In the Picard references only about a tenth of the screen is accent colour; the rest is black and structure tones. A block stays a structure colour unless it means something.
@@ -113,9 +108,9 @@ cards:
 | Alert | Alert states | | `var(--lcars-alert-color, var(--lcards-orange-dark))` |
 | Text on a role | Labels on a coloured block | | the role's text partner: `--lcars-ui-primary-text`, `--lcars-card-top-text`, ... |
 
-## Colours by state or by hand
+## Setting the Colours
 
-**Decide before you build whether a control's colour follows its entity's state or is picked by hand, because changing your mind later means editing every card.** The [gallery](dashboard-gallery) and the [patterns](lcars-patterns) pick by hand; a working dashboard usually shouldn't.
+Note: The [gallery](dashboard-gallery) and the [patterns](lcars-patterns) are picked by hand for documentation/demo purposes.  It's recommended that a real dashboard shouldn't unless needed.
 
 - **By state (the usual choice for your own dashboard):** leave the colour unset on a button bound to an entity, and its preset takes the theme's colours for on, off and unavailable. Every switch reads the same way, your theme and alert mode recolour it, and there is nothing to keep in step. Add a [state map](../core/colours/state-maps) only where one entity needs colours of its own.
 - **By hand:** each control gets its own role for on and off (`active` and `inactive`), which gives the many-coloured canon look. Every bound card then carries its own colours, so moving to state colours later means cleaning up each one.
@@ -368,4 +363,4 @@ cards:
 
 **A screen is a [layout view](../cards/layout-view/) shaped by one of the archetypes, with [patterns](lcars-patterns) in its areas.** For example: a facing-sweeps header across the top, a code-block column and utility pills down the left, a display sweep round an MSD or chart in the centre, and a toggle tab strip along the bottom. Or a portrait panel: a header bar with a title, a gauge bank, a selector strip.
 
-The [Dashboard Gallery](dashboard-gallery#built-from-the-design-guide) has seven complete screens built this way, four in the Picard look and three classic, each laid out differently.
+The [Dashboard Gallery](dashboard-gallery#generated-from-the-design-guide) has ten complete screens built this way, five in the Picard look and five classic, each laid out differently.

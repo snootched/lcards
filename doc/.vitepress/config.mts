@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
-import { readFileSync, existsSync, statSync, createReadStream } from 'node:fs'
+import { readFileSync, existsSync, statSync, createReadStream, mkdirSync, readdirSync, copyFileSync } from 'node:fs'
 import { resolve, extname, sep } from 'node:path'
 import { listReleases } from '../../scripts/release-lib.mjs'
 import { buildLlmsTxt, buildLlmsFull } from '../../scripts/lib/llms-txt.js'
@@ -141,6 +141,7 @@ function vPreBracesRule(md: any) {
 // new chunk names (Vite's view of public/ can miss files after the copy recreates
 // the folder). no-cache: the stub keeps its name across builds, its chunks don't.
 const BUNDLE_DIR = resolve(new URL('../../custom_components/lcards', import.meta.url).pathname)
+const GALLERY_YAML_DIR = resolve(new URL('../gallery/dashboards', import.meta.url).pathname)
 const MIME: Record<string, string> = {
   '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
   '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.mp3': 'audio/mpeg',
@@ -155,6 +156,16 @@ function devBundlePlugin() {
         const file = resolve(BUNDLE_DIR, '.' + path)
         if (!file.startsWith(BUNDLE_DIR + sep) || !existsSync(file) || !statSync(file).isFile()) return next()
         res.setHeader('Content-Type', MIME[extname(file)] ?? 'application/octet-stream')
+        res.setHeader('Cache-Control', 'no-cache')
+        createReadStream(file).pipe(res)
+      })
+      // The gallery dashboards' YAML (GalleryYaml.vue links it): straight from
+      // doc/gallery/dashboards/ here; docs:build copies it (buildEnd below).
+      server.middlewares.use(`${BASE}gallery/yaml`, (req, res, next) => {
+        const name = decodeURIComponent((req.url ?? '/').split('?')[0]).replace(/^\//, '')
+        const file = resolve(GALLERY_YAML_DIR, name)
+        if (!/^[\w-]+\.yaml$/.test(name) || !existsSync(file)) return next()
+        res.setHeader('Content-Type', 'text/yaml; charset=utf-8')
         res.setHeader('Cache-Control', 'no-cache')
         createReadStream(file).pipe(res)
       })
@@ -328,6 +339,15 @@ export default withMermaid(defineConfig({
       `
     ]
   ],
+
+  // The gallery dashboards' YAML next to the built site (GalleryYaml.vue links it).
+  buildEnd(siteConfig) {
+    const dir = resolve(siteConfig.outDir, 'gallery/yaml')
+    mkdirSync(dir, { recursive: true })
+    for (const name of readdirSync(GALLERY_YAML_DIR).filter(f => f.endsWith('.yaml'))) {
+      copyFileSync(resolve(GALLERY_YAML_DIR, name), resolve(dir, name))
+    }
+  },
 
   // Release pages take their description from the summary; the home page gets a
   // "What's new" hero action for the newest released version.

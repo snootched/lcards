@@ -4,10 +4,13 @@ description: "How to compose an LCARS dashboard from LCARdS cards: which card fo
 
 # Building a Dashboard
 
-**Go from single cards to a whole LCARS screen: pick the cards for each job, then lay them out on a layout view.** The [Dashboard Gallery](dashboard-gallery) shows what can be built.
+**Go from single cards to a whole LCARS screen: pick the cards for each job, then lay them out on a layout view.**
 
-- For the look (colour roles, frames, screen shapes and ready-made patterns) see [Designing LCARS Screens](lcars-design). The [AI skill](ai-assistance) follows the same guide.
-- Before saving, paste the dashboard into [Check Your Config](config-checker).
+Feeling stuck?  Don't know where to start:
+- The [Dashboard Gallery](dashboard-gallery) has examples of what can be built to help inspire you.
+- For some core LCARS principles around the look (colour roles, frames, screen shapes and ready-made patterns) see [Designing LCARS Screens](lcars-design).
+- Chat with an LLM that can use the [LCARdS AI skill](ai-assistance) - it follows the same guide and can help you write YAML or even generate really cool dashboard layouts for you.
+
 
 ## Pick the cards
 
@@ -18,7 +21,7 @@ description: "How to compose an LCARS dashboard from LCARdS cards: which card fo
 | The LCARS frame: corners, bars, headers | [Elbow](../cards/elbow/) | `header-left`/`footer-left` corners, `frame` for a full border; text labels sit on the bars |
 | Buttons, labels, status pills | [Button](../cards/button/) | Presets for the classic shapes; `component: dpad` or `alert` for the D-pad and the alert symbol |
 | A value you can set or read at a glance | [Slider](../cards/slider-card/) | Pills, gauges, shaped and Picard styles; read-only on sensors |
-| Pick one of several options | [Select Menu](../cards/select-menu/) | One button per `input_select` option |
+| Pick one of several options | [Select Menu](../cards/select-menu/) | One button per `input_select \| select` option |
 | Rows of readings | [Data Grid](../cards/data-grid/) | Entities, templates and data sources in a table; decorative mode for LCARS number blocks |
 | History | [Chart](../cards/chart/) | Entity history, statistics or data sources |
 | A ship or floor plan with live controls | [MSD](../cards/msd/) | Cards placed on an SVG, wired with routed lines |
@@ -230,6 +233,4 @@ type: custom:lcards-alert-overlay
 
 ## Check it
 
-**Before saving a dashboard, paste it into [Check Your Config](config-checker).** It reports keys LCARdS doesn't have and names that don't exist (a misspelt preset, animation or theme token), each at its path in the YAML.
-
-Want help writing it? [Getting AI Help](ai-assistance) shows how to have Claude or another assistant write the YAML for you.
+**Something not working? You can check your config by pasting it into [Check Your Config](config-checker).** It will show you invalid keys and configuration values against LCARdS schema.
