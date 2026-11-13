@@ -42,6 +42,13 @@ const mountEl = document.getElementById('mount');
 if (params.get('width')) mountEl.style.width = `${params.get('width')}px`;
 // A definite height, like an HA sections grid cell (cards that size to 100% need it).
 if (params.get('height')) mountEl.style.height = `${params.get('height')}px`;
+// ?vars=<json> themes the mount before the card mounts, the way Home Assistant themes a
+// view or section (inline variables, recorded in __themes), e.g. {"--lcars-ui-tertiary":"#cc6666"}.
+if (params.get('vars')) {
+    const vars = JSON.parse(params.get('vars'));
+    for (const [name, value] of Object.entries(vars)) mountEl.style.setProperty(name, value);
+    /** @type {any} */ (mountEl).__themes = { cacheKey: 'Harness Theme', keys: Object.fromEntries(Object.keys(vars).map(n => [n, ''])) };
+}
 
 defineHaStubs();
 

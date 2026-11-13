@@ -112,6 +112,7 @@ highlight_changes: true
 
 ::: details More about the card options
 - **Masonry views:** the card reports its height from a pixel `height`, or else from the number of rows: each row 1.5 times the grid's `font_size` (`24px` by default) plus the row gap (`8px` by default), in units of 50 px.
+- **In a short space:** rows never shrink below one line. A row is at least 1.5 times `font_size` plus the cell padding (4 px above and below by default), with the row gap between rows; rows that do not fit are clipped. Two 14 px rows need 66 px with the defaults, or 44 px with `grid.gap: 2px` and `style.padding: 0`.
 - **Rules:** the [rules engine](../../core/rules/) finds the grid by `id` and `tags`. A rule's `style` patch applies to the grid-wide `style`.
 - **Older keys:** a config with keys from earlier versions still works; see [Upgrading](./upgrading).
 :::

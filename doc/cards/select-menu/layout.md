@@ -90,7 +90,7 @@ options:
 **`grid.height` lets a menu inside a layout size its parent's row, or fill a row the parent sizes.** Leave it out and the option grid is as tall as its rows, and the card flows like normal content.
 
 - `fit` gives the card a fixed pixel height worked out from the config (rows × row height + gaps, the same count as [Sizing in a Dashboard](#sizing-in-a-dashboard)), so a parent row sized to its content (`auto` or `minmax(0, max-content)`) can follow it exactly. Measuring the menu through Home Assistant's card wrapper is unreliable; a definite height always works. It needs a pixel `grid-auto-rows` (`Npx` or `minmax(Apx, Bpx)`, which counts the larger value).
-- `100%` makes the option grid fill the height its container gives it. With a pixel `grid-auto-rows`, the card measures the container and shares it between the rows (not the options: 4 options in 2 columns are 2 rows), within the bounds; with a flexible maximum such as `minmax(40px, 1fr)`, CSS shares the height out.
+- `100%` makes the option grid fill the height its container gives it. The card measures the container and shares it between the rows (not the options: 4 options in 2 columns are 2 rows). Without `grid-auto-rows` the rows take whatever share that is (down to 20 px), so a strip of tabs fits a 30 px row; with a pixel `grid-auto-rows` they stay within its bounds; with a flexible maximum such as `minmax(40px, 1fr)`, CSS shares the height out.
 - For a fixed card height with scrolling, use the card's own `height` and `overflow_y` instead.
 
 This sidebar is the pattern the shell strategy uses: the menu's row hugs the menu, and a filler panel takes the rest.
@@ -131,4 +131,4 @@ cards:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `grid.height` | string | - | Unset: as tall as the rows. `fit`: a fixed pixel height from the config. `100%`: fill the container |
-| `grid.grid-auto-rows` | string | `56px` | Must be `Npx` or `minmax(Apx, Bpx)` for `fit`, and for `100%` to pick the row height itself |
+| `grid.grid-auto-rows` | string | `56px` | Must be `Npx` or `minmax(Apx, Bpx)` for `fit`. With `100%`: unset, the rows share the container (20 px at least); a pixel value bounds them |

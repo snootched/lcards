@@ -1211,7 +1211,8 @@ export class LCARdSMSDCard extends LCARdSCard {
                 mount,
                 this.hass,
                 this._msdInstanceGuid,
-                this._isStudioPreview
+                this._isStudioPreview,
+                this  // the first render resolves colours against the card (view and section themes)
             );
 
             if (!pipelineResult || !pipelineResult.enabled) {

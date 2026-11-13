@@ -185,7 +185,7 @@ for (const shot of shots) {
                 await page.waitForTimeout(shot.duration ?? 4000);
             });
             const webm = join(outDir, `${shot.name}.webm`);
-            encodeFrames(frames, webm, clip);
+            await encodeFrames(frames, webm, clip);
             if (wantGif) webmToGif(webm, join(outDir, `${shot.name}.gif`));
             console.log(`${shot.name}.webm${wantGif ? ' + .gif' : ''}  ${clip.width}x${clip.height}, ${frames.length} frames`);
         }

@@ -16,7 +16,8 @@
  */
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 
 export async function runSteps(page, client, steps = [], marks = null) {
@@ -122,14 +123,16 @@ export async function restoreStates(client) {
 export async function recordScreencast(page, clip, during) {
     const cdp = await page.context().newCDPSession(page);
     const frames = [];
+    let recording = true;
     cdp.on('Page.screencastFrame', (f) => {
-        frames.push({ data: f.data, t: f.metadata.timestamp });
+        if (recording) frames.push({ data: f.data, t: f.metadata.timestamp });  // frames still in flight after the stop are dropped
         cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
     });
     // JPEG, not PNG: a 1080p PNG per frame is slow enough to drop frames under load.
     await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, everyNthFrame: 1 });
     const start = Date.now() / 1000;
     await during();
+    recording = false;
     await cdp.send('Page.stopScreencast');
     // A last frame at the end so the final state holds for its time.
     if (frames.length) frames.push({ data: frames.at(-1).data, t: Date.now() / 1000 });
@@ -143,8 +146,11 @@ export const VIDEO_COLOUR = ['-color_range', 'tv', '-colorspace', 'bt709', '-col
 /**
  * Frames (with timestamps) -> cropped video at their real timing: VP9 WebM, or H.264
  * MP4 when `out` ends in .mp4. `maxWidth` caps the output width (default 1600).
+ * Asynchronous on purpose: a busy clip (the Borg effect) takes minutes to encode, and a
+ * blocked event loop cannot answer Home Assistant's websocket pings, so the connection
+ * was dropped and every later service call waited forever.
  */
-export function encodeFrames(frames, out, clip, { maxWidth = 1600 } = {}) {
+export async function encodeFrames(frames, out, clip, { maxWidth = 1600 } = {}) {
     if (frames.length < 2) throw new Error('no screencast frames');
     const dir = join(tmpdir(), `lcards-frames-${process.pid}-${Date.now()}`);
     mkdirSync(dir, { recursive: true });
@@ -157,15 +163,16 @@ export function encodeFrames(frames, out, clip, { maxWidth = 1600 } = {}) {
     });
     writeFileSync(join(dir, 'list.txt'), list.join('\n') + '\n');
     const crop = `crop=${clip.width - (clip.width % 2)}:${clip.height - (clip.height % 2)}:${clip.x}:${clip.y}`;
-    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', join(dir, 'list.txt'),
+    await promisify(execFile)('ffmpeg', ['-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', join(dir, 'list.txt'),
         // Standard (TV) range BT.709: JPEG frames are full range, which Chrome's
         // hardware decoders show as a black, stalled video.
         '-vf', `${crop},fps=30,scale='trunc(min(${maxWidth},iw)/2)*2':-2:out_range=tv:out_color_matrix=bt709,format=yuv420p`,
         ...VIDEO_COLOUR,
         ...(out.endsWith('.mp4')
             ? ['-c:v', 'libx264', '-crf', '18', '-preset', 'slow', '-movflags', '+faststart']
-            : ['-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '34']),
-        '-pix_fmt', 'yuv420p', '-an', out]);
+            // row-mt + cpu-used 4: several times faster than libvpx's slowest default
+            : ['-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '34', '-row-mt', '1', '-cpu-used', '4']),
+        '-pix_fmt', 'yuv420p', '-an', out], { maxBuffer: 16 * 1024 * 1024 });
     rmSync(dir, { recursive: true, force: true });
 }
 

@@ -134,7 +134,8 @@ async function recordMotion(motionFile, viewPath, name) {
             await page.waitForTimeout(motion.tail ?? 1500);
         });
         const out = join(outDir, `${name}.${args.includes('--mp4') ? 'mp4' : 'webm'}`);
-        encodeFrames(frames, out, clip, { maxWidth: Number(opt('max-width', '1600')) });
+        console.log(`${name}: encoding ${frames.length} frames...`);
+        await encodeFrames(frames, out, clip, { maxWidth: Number(opt('max-width', '1600')) });
         if (marks.list.length) writeFileSync(join(outDir, `${name}.marks.json`), JSON.stringify(marks.list, null, 2) + '\n');
         console.log(`${name}: ${out.startsWith(ROOT) ? out.slice(ROOT.length + 1) : out} (${frames.length} frames)`);
     } finally {

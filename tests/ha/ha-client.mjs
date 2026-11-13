@@ -53,6 +53,11 @@ export class HAClient {
                 else this._dispatch(msg);
             });
         });
+        // A dropped connection fails every waiting call instead of leaving it pending forever.
+        ws.addEventListener('close', () => {
+            for (const { reject } of this._pending.values()) reject(new Error('Home Assistant websocket closed'));
+            this._pending.clear();
+        });
     }
 
     _dispatch(msg) {
@@ -71,6 +76,10 @@ export class HAClient {
     call(message) {
         const id = ++this._id;
         return new Promise((res, rej) => {
+            if (this._ws.readyState !== WebSocket.OPEN) {
+                rej(new Error('Home Assistant websocket closed'));
+                return;
+            }
             this._pending.set(id, { resolve: res, reject: rej });
             this._ws.send(JSON.stringify({ id, ...message }));
         });

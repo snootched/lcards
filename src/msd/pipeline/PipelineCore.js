@@ -29,9 +29,12 @@ import { lcardsCore } from '../../core/lcards-core.js';
  *   Studio editor dialog (#387) — forwarded to MsdControlsRenderer so its
  *   hui-card-wrapped controls keep Studio's live preview "always show"
  *   behavior instead of honoring `visibility:` at design time.
+ * @param {any} [cardInstance=null] - The MSD card. The first render resolves line and
+ *   shape colours against it (a view or section theme sets its CSS variables), so it
+ *   must be known before that render, not only after (setCardInstance()).
  * @returns {Promise<Object>} Pipeline API
  */
-export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass = null, cardGuid = null, isEditMode = false) {
+export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass = null, cardGuid = null, isEditMode = false, cardInstance = null) {
   // AnimationManager is one shared singleton: its scopes for this card's base SVG and
   // overlay group need ids of their own, or a second MSD card on the view tears the
   // first card's animations down (it re-registers the same id)
@@ -66,6 +69,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   // Initialize MsdCardCoordinator with theme loading BEFORE any overlay processing
   lcardsLog.trace('[PipelineCore] 🔧 Initializing MsdCardCoordinator and loading pack defaults');
   const coordinator = /** @type {any} */ (new MsdCardCoordinator());
+  if (cardInstance) coordinator.cardInstance = cardInstance;
 
   // CRITICAL: Initialize systems with pack defaults loading before overlay processing
   try {

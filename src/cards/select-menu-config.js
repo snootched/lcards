@@ -8,6 +8,8 @@ import { spreadBorderShorthands } from './button-config.js';
 
 /** Row height the card assumes when `grid-auto-rows` is not a pixel value. */
 export const DEFAULT_ROW_PX = 56;
+/** grid.height '100%' with no grid-auto-rows: the smallest row before the menu scrolls instead. */
+export const MIN_FILL_ROW_PX = 20;
 
 /** An option's card-level keys that go to that option's button. */
 export const OPTION_CARD_KEYS = ['rules', 'sounds', 'variables', 'zones', 'debug_zones'];
@@ -166,7 +168,11 @@ export function gridLayout(grid = {}, n = 0, containerHeight = 0) {
     let overflowY = null;
     /** @type {number | null} */
     let hostHeight = null;
-    const bounds = trackPx(autoRows);
+    // '100%' with no row size of the user's: rows share the container whatever its height
+    // (the 56px default would overflow a 30px row), down to MIN_FILL_ROW_PX.
+    const bounds = grid.height === '100%' && !grid['grid-auto-rows']
+        ? { min: MIN_FILL_ROW_PX, max: Infinity }
+        : trackPx(autoRows);
 
     if (grid.height === 'fit' && n > 0 && bounds) hostHeight = naturalHeightPx(grid, n);
 

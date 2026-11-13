@@ -60,6 +60,13 @@ test('grid CSS: rows, justify-items and align-items reach the grid; fit counts c
     assert.match(gridLayout({ columns: 2, 'grid-auto-rows': 'minmax(40px, 200px)', height: '100%' }, 4, 300).style, /grid-auto-rows: 148px/);
     // explicit rows take the shared height too
     assert.match(gridLayout({ columns: 2, rows: 3, 'grid-auto-rows': 'minmax(40px, 200px)', height: '100%' }, 4, 300).style, /grid-template-rows: repeat\(3, 97px\)/);
+    // no grid-auto-rows: the rows share the container (a 30px strip row, not the 56px default)
+    const strip = gridLayout({ columns: 4, gap: '6px', height: '100%' }, 4, 30).style;
+    assert.match(strip, /grid-auto-rows: 30px/);
+    assert.doesNotMatch(strip, /overflow-y/);
+    assert.match(gridLayout({ columns: 2, height: '100%' }, 4, 300).style, /grid-auto-rows: 148px/);
+    // below the floor it scrolls at the floor
+    assert.match(gridLayout({ columns: 1, height: '100%' }, 4, 30).style, /grid-auto-rows: 20px; .*overflow-y: auto/);
 });
 
 test('style layers merge key by key (a later group no longer replaces the whole earlier one)', () => {
