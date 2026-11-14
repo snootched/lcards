@@ -287,6 +287,44 @@ export function getChartSchema(options = {}) {
                 }
             },
 
+            state_bands: {
+                type: 'array',
+                description: 'An entity\'s states shaded behind the series, a band for each stretch of time it held one (a thermostat heating behind its temperature). Time charts only (line, area, column, scatter, rangeArea, rangeBar, candlestick, boxPlot).',
+                items: {
+                    type: 'object',
+                    properties: {
+                        entity: {
+                            type: 'string',
+                            format: 'entity',
+                            pattern: '^[a-z_]+\\.[a-z0-9_]+$',
+                            description: 'The entity whose states are shaded (its history is fetched from Home Assistant)'
+                        },
+                        attribute: { type: 'string', description: 'Shade this attribute\'s values instead of the state (hvac_action: heating, cooling)' },
+                        states: {
+                            type: 'array',
+                            items: { type: 'string' },
+                            default: ['active'],
+                            description: 'The states to shade: exact states (heat, playing) and the words active, inactive and unavailable (unknown too), as Home Assistant splits an entity\'s states. Default: active, so an off thermostat leaves no band.',
+                            examples: [['heat', 'cool'], ['active', 'unavailable']]
+                        },
+                        min_duration: {
+                            type: 'string',
+                            pattern: DURATION_PATTERN,
+                            description: 'A state that lasts less than this joins the run before it (hides a few seconds of flicker), e.g. 30s, 5min.',
+                            examples: ['30s', '5min']
+                        },
+                        color: {
+                            ...stateColorSchema,
+                            description: 'Band colour: one colour, or a colour per state (an exact state such as heat, then active, inactive, unavailable, then default). States it leaves out take the theme\'s state colours, as Home Assistant\'s history does.'
+                        },
+                        opacity: { type: 'number', minimum: 0, maximum: 1, default: 0.2, description: 'How strongly the bands are shaded (0 to 1)' },
+                        label: { type: 'boolean', default: false, description: 'true writes the state at the top of each band' }
+                    },
+                    required: ['entity'],
+                    additionalProperties: false
+                },
+                examples: [[{ entity: 'climate.hall', states: ['heat', 'cool'], label: true }]]
+            },
             graph_span: {
                 type: 'string',
                 pattern: '^\\d+(\\.\\d+)?\\s*(s|sec|m|min|h|hour|d|day|w|week|mo|month|y|year)s?$',

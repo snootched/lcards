@@ -13,9 +13,9 @@ import {
     STATE_COLORED_DOMAIN, TIMESTAMP_STATE_DOMAINS, FIXED_DOMAIN_STATES
 } from '../../src/utils/ha-state-color.js';
 import { stateRuns, mergeShortRuns, stateMatches, visibleRuns } from '../../src/charts/chart-state-runs.js';
-import { buildTimelineSeries, defaultTimelineContext, timelineColor, formatRunDuration } from '../../src/charts/chart-timeline.js';
+import { buildTimelineSeries, buildBandAnnotations, defaultTimelineContext, timelineColor, formatRunDuration, STATE_BAND_OPACITY } from '../../src/charts/chart-timeline.js';
 import { historyStatesToPoints } from '../../src/core/data-sources/ha-history-utils.js';
-import { normalizeChartSources, arrayChartProblem } from '../../src/charts/chart-sources.js';
+import { normalizeChartSources, normalizeStateBands, arrayChartProblem } from '../../src/charts/chart-sources.js';
 import { windowPoints } from '../../src/charts/chart-series-fetcher.js';
 
 // CSS variables resolve to their fallback in node (as chart-options-builder.test.js)
@@ -166,7 +166,7 @@ test('timelineColor: one colour, a state map (exact, class, default), else Home 
 test('buildTimelineSeries: a row per source, a bar per run with state, label and colour', () => {
     const ctx = defaultTimelineContext({
         readVar: (name) => ({ '--state-climate-heat-color': '#f90', '--state-inactive-color': '#444' })[name] ?? '',
-        stateObjFor: () => climate,
+        stateObjFor: (id) => (id === 'climate.hall' ? climate : null),
         formatState: (_o, s) => s.toUpperCase()
     });
     const [row] = buildTimelineSeries({
@@ -230,4 +230,52 @@ test('rangeBar sources: history kept as text; statistics, data sources and group
     // the open run reaches now; group_by never averages text
     const points = windowPoints({ kind: 'history', keepState: true, group_by: { duration: '1h' } }, pts([0, 'off'], [500, 'heat']), { start: 100, end: 2000 }, 1000);
     assert.deepEqual(points, pts([100, 'off'], [500, 'heat'], [1000, 'heat']));
+});
+
+// ── State bands (E1.1) ───────────────────────────────────────────────────────
+
+test('normalizeStateBands: history kept as text, active by default, only on time charts', () => {
+    const config = { chart_type: 'line', state_bands: [{ entity: 'climate.hall' }, { entity: 'climate.attic', states: ['heat'] }, { states: ['on'] }] };
+    const bands = normalizeStateBands(config);
+    assert.equal(bands.length, 2, 'a band without an entity is dropped');
+    assert.deepEqual(bands.map((b) => [b.kind, b.keepState, b.band, b.states]), [
+        ['history', true, true, ['active']],
+        ['history', true, true, ['heat']]
+    ]);
+    assert.equal(normalizeStateBands({ ...config, chart_type: 'pie' }).length, 0);
+    assert.equal(normalizeStateBands({ ...config, chart_type: 'bar' }).length, 0, 'horizontal bars put time on the other axis');
+    assert.equal(normalizeStateBands({ chart_type: 'line' }).length, 0);
+});
+
+test('buildBandAnnotations: active runs as x ranges in their colours; labels; transparent states skipped', () => {
+    const vars = { '--state-climate-heat-color': '#f90', '--state-climate-cool-color': '#45f', '--state-inactive-color': '#444', '--history-unavailable-color': 'transparent' };
+    const ctx = defaultTimelineContext({ readVar: (n) => vars[n] ?? '', stateObjFor: (id) => (id === 'climate.hall' ? climate : null), formatState: (_o, st) => st.toUpperCase() });
+    const points = [pts([0, 'off'], [10, 'heat'], [20, 'cool'], [30, 'off'], [40, 'unavailable'], [50, 'unavailable'])];
+    const [band] = normalizeStateBands({ state_bands: [{ entity: 'climate.hall' }] });
+    const plain = buildBandAnnotations({ bands: [band], points, ctx });
+    assert.deepEqual(plain.map((a) => [a.x, a.x2, a.fillColor, a.opacity]), [[10, 20, '#f90', STATE_BAND_OPACITY], [20, 30, '#45f', STATE_BAND_OPACITY]]);
+    assert.equal(plain[0].label.text, '', 'no label unless asked');
+    assert.equal(plain[0].borderColor, 'transparent');
+    // every state, labelled, own opacity: the unavailable run is transparent and draws nothing
+    const all = buildBandAnnotations({ bands: [{ ...band, states: ['active', 'inactive', 'unavailable'], label: true, opacity: 0.5 }], points, ctx });
+    assert.deepEqual(all.map((a) => a.label.text), ['OFF', 'HEAT', 'COOL', 'OFF']);
+    assert.equal(all[0].opacity, 0.5);
+    assert.equal(all[1].label.style.background, '#f90');
+    assert.equal(all[1].label.style.color, '#000000', 'dark label text, concrete');
+});
+
+test('buildChartOptions: state bands join the threshold annotations behind a line', () => {
+    const options = buildChartOptions({
+        config: { chart_type: 'line' },
+        style: { thresholds: [{ value: 20 }] },
+        series: [{ name: 'Temp' }],
+        points: [pts([0, 19], [7_200_000, 21])],
+        span: { start: 0, end: 7_200_000 },
+        timeline: defaultTimelineContext({ readVar: (n) => (n === '--state-climate-heat-color' ? '#f90' : ''), stateObjFor: () => climate }),
+        bands: normalizeStateBands({ state_bands: [{ entity: 'climate.hall' }] }),
+        bandPoints: [pts([0, 'off'], [3_600_000, 'heat'], [7_200_000, 'heat'])]
+    });
+    assert.equal(options.annotations.yaxis.length, 1, 'the threshold stays');
+    assert.deepEqual(options.annotations.xaxis.map((a) => [a.x, a.x2, a.fillColor]), [[3_600_000, 7_200_000, '#f90']]);
+    assert.equal(options.series.length, 1, 'bands are not series');
 });

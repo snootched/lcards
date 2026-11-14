@@ -1,5 +1,5 @@
 ---
-description: "Chart card series: where the data comes from (entity history, long-term statistics, LCARdS data sources), series options, the time window, grouping into time buckets, and several Y axes."
+description: "Chart card series: where the data comes from (entity history, long-term statistics, LCARdS data sources), series options, the time window, grouping into time buckets, state bands behind the series, and several Y axes."
 moved_anchors:
   range-charts: /cards/chart/types#range-charts
   mixing-chart-types: /cards/chart/types#mixing-chart-types
@@ -368,6 +368,50 @@ sources:
 | `group_by.duration` | string | required | Bucket length, such as `10min`, `1h` or `1d` |
 | `group_by.func` | string | `avg` | How each bucket is combined: see the table above |
 | `group_by.fill` | string | `last` | Buckets with no readings: `last` (repeat the last value), `null` (leave a gap) or `zero` |
+
+## State bands
+
+**`state_bands` shades an entity's states behind the series, a band for each stretch of time it held one: a thermostat heating behind its temperature, a window open behind the humidity.**
+
+- Each band is an entity's history, drawn state by state on the chart's time axis. Bands work on time charts: `line`, `area`, `column`, `scatter`, `rangeArea`, `rangeBar`, `candlestick` and `boxPlot`.
+- Only active states are shaded unless `states` says otherwise, so an `off` thermostat leaves the chart clear. `states` takes exact states and the words `active`, `inactive` and `unavailable`, as on a [timeline](./types#timelines).
+- Bands take the theme's state colours, as Home Assistant's history does: HA-LCARS shades heating orange and cooling blue. `color` sets one colour or a colour per state, with the same keys as the other cards' state colours.
+- `label: true` writes the state at the top of each band.
+
+```yaml live
+# when the thermostat heated and cooled, behind the room's temperature
+type: custom:lcards-chart
+chart_type: line
+graph_span: 24h
+sources:
+  - entity: sensor.demo_temperature
+    name: Hall
+state_bands:
+  - entity: climate.demo_hall
+    states:
+      - heat
+      - cool
+    min_duration: 10min
+    label: true
+```
+
+::: details More about state bands
+- **Several bands** overlap where their states do; give each its own `color` and a lower `opacity` to tell them apart.
+- **An attribute** can be shaded instead of the state: `attribute: hvac_action` shades `heating` and `cooling`, what the thermostat is really doing rather than its mode.
+- **The last band** runs to now and grows while the state holds.
+- **Colours follow the alert mode**, like the rest of the chart.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `state_bands` | list | - | The bands, each with the keys below |
+| `entity` | string | required | The entity whose states are shaded |
+| `attribute` | string | - | Shade this attribute's values instead of the state |
+| `states` | list | `[active]` | The states to shade: exact states and `active`, `inactive`, `unavailable` |
+| `min_duration` | string | - | A state shorter than this joins the one before it (`30s`, `10min`) |
+| `color` | colour / map | the theme's state colours | One colour, or a colour per state (`heat`, `active`, `inactive`, `unavailable`, `default`) |
+| `opacity` | number | `0.2` | How strongly the bands are shaded (0 to 1) |
+| `label` | boolean | `false` | Write the state at the top of each band |
 
 ## Y axes
 

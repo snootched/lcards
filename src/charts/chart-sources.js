@@ -9,6 +9,9 @@
 import { migrateChartConfig } from './chart-config-migration.js';
 import { ARRAY_FUNCS } from './chart-group-by.js';
 
+/** Chart types state bands draw on: a time x-axis (not horizontal bars, heatmaps or one-value charts). */
+export const STATE_BAND_CHART_TYPES = new Set(['line', 'area', 'column', 'scatter', 'rangeArea', 'rangeBar', 'candlestick', 'boxPlot']);
+
 /** Chart types whose points are arrays rather than single values. */
 export const ARRAY_CHART_TYPES = new Set(['rangeArea', 'rangeBar', 'boxPlot', 'candlestick']);
 
@@ -92,4 +95,19 @@ export function arrayChartProblem(series, chartType) {
   return series.group_by?.func === need
     ? null
     : `${chartType} needs group_by with func: ${need}`;
+}
+
+/**
+ * A chart's `state_bands` as history series the fetcher loads (text states),
+ * after the plotted series. Bands draw their active runs unless `states` says
+ * otherwise. None on chart types without a time x-axis.
+ * @param {Object} config - Chart card config
+ * @returns {Array<Object>}
+ */
+export function normalizeStateBands(config) {
+  const bands = Array.isArray(config?.state_bands) ? config.state_bands : [];
+  if (!STATE_BAND_CHART_TYPES.has(config?.chart_type || 'line')) return [];
+  return bands
+    .filter(band => band && typeof band === 'object' && typeof band.entity === 'string' && band.entity)
+    .map(band => ({ ...band, kind: 'history', keepState: true, band: true, states: band.states ?? ['active'] }));
 }

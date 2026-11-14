@@ -79,3 +79,22 @@ test('rangeBar timeline: state runs as bars in their colours; a state change ope
     expect(lastEnd).toBeGreaterThan(0);
 });
 
+
+test('state bands: a thermostat\'s heat and cool runs shaded behind the line; a state change adds a band (E1.1)', async ({ page }) => {
+    const card = await mountCase(page, 'chart-bands', { width: '600', height: '300' });
+    const bands = () => card.evaluate(el => [...el.shadowRoot.querySelectorAll('.apexcharts-xaxis-annotations rect')]
+        .filter(r => Number(r.getAttribute('width')) > 0).map(r => r.getAttribute('fill')));
+    await expect.poll(async () => (await bands()).length).toBeGreaterThan(0);
+    expect((await bands()).every(f => ['#ff7700', '#4455ff'].includes(f ?? ''))).toBe(true);
+    // the line is still the only series
+    expect(await card.evaluate(el => /** @type {any} */ (el)._chart.w.config.series.length)).toBe(1);
+    const annotations = () => card.evaluate(el => /** @type {any} */ (el)._chart.w.config.annotations.xaxis.length);
+    await page.evaluate(() => window.__setState('climate.demo_hall', 'off'));
+    await page.waitForTimeout(1200);
+    const before = await annotations();
+    await page.evaluate(() => window.__setState('climate.demo_hall', 'heat'));
+    // the new heat run opens a band only once it has length: wait for the next update
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => window.__setState('climate.demo_hall', 'cool'));
+    await expect.poll(annotations, { timeout: 5000 }).toBeGreaterThan(before);
+});

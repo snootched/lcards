@@ -18,7 +18,7 @@ import {
   tooltipTimeFormatter,
   useAmPm
 } from './chart-time-labels.js';
-import { buildTimelineSeries, defaultTimelineContext, formatRunDuration } from './chart-timeline.js';
+import { buildTimelineSeries, buildBandAnnotations, defaultTimelineContext, formatRunDuration } from './chart-timeline.js';
 
 /**
  * Behaviour defaults the chart card registers with CoreConfigManager, which
@@ -162,10 +162,12 @@ export function timeAxisData({ config, span = null, points, hass }) {
  * @param {Object} [args.hass] - For locale-aware formatting
  * @param {(style: Object) => Object} [args.resolveStyle] - Theme token resolution
  * @param {Element|null} [args.element] - The chart card: CSS variables in colours resolve against it
- * @param {import('./chart-timeline.js').TimelineContext} [args.timeline] - rangeBar: entity states, colours, state text
+ * @param {import('./chart-timeline.js').TimelineContext} [args.timeline] - rangeBar and state bands: entity states, colours, state text
+ * @param {Array<Object>} [args.bands] - From normalizeStateBands()
+ * @param {Array<Array<{t: number, v: any}>|undefined>} [args.bandPoints] - Text points per band
  * @returns {Object} ApexCharts options
  */
-export function buildChartOptions({ config, style, series, points, span = null, size = [400, 200], hass, resolveStyle, element = null, timeline }) {
+export function buildChartOptions({ config, style, series, points, span = null, size = [400, 200], hass, resolveStyle, element = null, timeline, bands = [], bandPoints = [] }) {
   const chartType = config.chart_type || 'line';
   let enhancedStyle = { chart_type: chartType, ...style };
 
@@ -220,6 +222,17 @@ export function buildChartOptions({ config, style, series, points, span = null, 
   }
 
   if (chartType === 'rangeBar') applyTimelineLabels(options, { style: enhancedStyle, hass, span, wallClock });
+
+  // State bands behind the series, on the same wall clock as the points
+  if (bands.length) {
+    const bandAnnotations = buildBandAnnotations({
+      bands,
+      points: timeAxisData({ config, span, points: bandPoints, hass }).points,
+      ctx: timeline ?? defaultTimelineContext(),
+      font: { fontFamily: options.chart?.fontFamily, fontSize: options.dataLabels?.style?.fontSize }
+    });
+    options.annotations = { ...options.annotations, xaxis: [...(options.annotations?.xaxis ?? []), ...bandAnnotations] };
+  }
 
   return { ...options, series: buildApexSeries({ series, points, chartType, timeline }) };
 }

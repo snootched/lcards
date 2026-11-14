@@ -44,7 +44,7 @@ import {
   CHART_CARD_DEFAULTS
 } from '../charts/chart-options-builder.js';
 import { ChartSeriesFetcher } from '../charts/chart-series-fetcher.js';
-import { normalizeChartSources, arrayChartProblem } from '../charts/chart-sources.js';
+import { normalizeChartSources, normalizeStateBands, arrayChartProblem } from '../charts/chart-sources.js';
 import { createTimelineColorer } from '../utils/ha-state-color.js';
 import { resolveColor } from '../core/themes/resolve-color.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
@@ -198,6 +198,10 @@ export class LCARdSChart extends LCARdSCard {
     this._chartGeneration = 0; // Bumped on every init/teardown so a stale async init is dropped
     /** @type {import('../charts/chart-sources.js').ChartSeries[]} */
     this._series = [];
+    /** @type {Array<any>} state_bands as history series (normalizeStateBands) */
+    this._bands = [];
+    /** @type {Array<Array<{t: number, v: any}>|undefined>} text points per state band */
+    this._bandPoints = [];
     /** @type {((state: string, stateObj?: any) => string)|null} rangeBar: Home Assistant's timeline colours, one per config */
     this._stateColorer = null;
     /** @type {Set<number>} series indexes that have delivered data (reset in _showPlaceholder) */
@@ -257,7 +261,9 @@ export class LCARdSChart extends LCARdSCard {
     // so every series was subscribed twice and every update drawn twice.
     const run = (this._loadRun = (this._loadRun ?? 0) + 1);
     this._series = normalizeChartSources(this.config);
+    this._bands = normalizeStateBands(this.config);
     this._seriesPoints = [];
+    this._bandPoints = [];
     this._seriesLoaded = new Set();
     this._firstDataWaitOver = false;
     this._dataArrived = false;
@@ -280,7 +286,8 @@ export class LCARdSChart extends LCARdSCard {
       onUpdate: (index, points) => this._onSeriesUpdate(index, points),
       logId: this.config?.id || this._cardGuid
     });
-    this._fetcher.start(this._series, { graph_span: this.config.graph_span, span: this.config.span });
+    // State bands load after the series (their indexes follow the series')
+    this._fetcher.start([...this._series, ...this._bands], { graph_span: this.config.graph_span, span: this.config.span });
     // Draw once every series has its first data, or after FIRST_DATA_WAIT_MS with
     // whatever has arrived (a series with no data must not hold the chart back).
     this._firstDataTimer = setTimeout(() => {
@@ -315,6 +322,10 @@ export class LCARdSChart extends LCARdSCard {
    * @param {Array<{t: number, v: any}>} points
    */
   _onSeriesUpdate(index, points) {
+    if (index >= this._series.length) {
+      this._onBandUpdate(index - this._series.length, points);
+      return;
+    }
     this._seriesPoints[index] = points;
     if (!this._dataArrived) {
       // Drawing with the first series alone and adding the rest as they arrive
@@ -329,6 +340,23 @@ export class LCARdSChart extends LCARdSCard {
       this._chart.updateSeries(this._buildApexSeries(), false);
     } catch (error) {
       lcardsLog.error('[LCARdSChart] Error updating chart data:', error);
+    }
+  }
+
+  /**
+   * New text points for one state band: redraw the annotations (bands never
+   * hold the first draw back).
+   * @private
+   * @param {number} index - Band index
+   * @param {Array<{t: number, v: any}>} points
+   */
+  _onBandUpdate(index, points) {
+    this._bandPoints[index] = points;
+    if (!this._chart || !this._chartReady) return;
+    try {
+      this._chart.updateOptions({ annotations: this._buildChartOptions().annotations }, false, false);
+    } catch (error) {
+      lcardsLog.error('[LCARdSChart] Error updating state bands:', error);
     }
   }
 
@@ -467,10 +495,7 @@ export class LCARdSChart extends LCARdSCard {
     // One colourer per config keeps each free-text state on the same graph colour
     this._stateColorer ??= createTimelineColorer((name) => getComputedStyle(this).getPropertyValue(name));
     return {
-      stateObjFor: (index) => {
-        const entity = this._series[index]?.entity;
-        return entity ? (this.getEntityState(entity) ?? { entity_id: entity, attributes: {} }) : null;
-      },
+      stateObjFor: (entityId) => this.getEntityState(entityId) ?? null,
       colorer: this._stateColorer,
       resolve: (value) => /** @type {string} */ (resolveColor(value, { concrete: true, element: this })),
       formatState: (stateObj, state) => (stateObj?.state !== undefined && this.hass?.formatEntityState?.(stateObj, state)) || state
@@ -583,7 +608,9 @@ export class LCARdSChart extends LCARdSCard {
       resolveStyle: tm ? (st) => resolveThemeTokensRecursive(st, tm) : undefined,
       // a theme on the chart's view or section sets the CSS variables its colours read
       element: this,
-      timeline: this._timelineContext()
+      timeline: this._timelineContext(),
+      bands: this._bands,
+      bandPoints: this._bandPoints
     });
   }
 
@@ -654,7 +681,9 @@ export class LCARdSChart extends LCARdSCard {
         dataLabels: newOptions.dataLabels,
         tooltip: newOptions.tooltip,
         xaxis: newOptions.xaxis,
-        yaxis: newOptions.yaxis
+        yaxis: newOptions.yaxis,
+        // thresholds and state bands (their colours follow the alert mode)
+        annotations: newOptions.annotations
       }, false, false);
     } catch (error) {
       lcardsLog.error(`[LCARdSChart] Error updating chart options:`, error);

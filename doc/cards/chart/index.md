@@ -138,6 +138,7 @@ sources:
 | `type` | string | required | `custom:lcards-chart` |
 | `sources` | list | - | The series: see [Series and Time](./series#where-the-data-comes-from) and [Series options](./series#series-options) |
 | `chart_type` | string | `line` | How the series are drawn: see [Chart types](#chart-types) |
+| `state_bands` | list | - | An entity's states shaded behind the series: see [State bands](./series#state-bands) |
 | `graph_span` | string | `24h` | How much time the chart shows: see [Time window](./series#time-window) |
 | `span` | object | - | Line the window up with the calendar, or move it back: see [Time window](./series#time-window) |
 | `yaxis` | list | one shared axis | Several Y axes: see [Y axes](./series#y-axes) |

@@ -193,7 +193,7 @@ function seriesPoints(series, config, span, now) {
 
 function render() {
   if (!mods || !chartEl.value) return
-  const { yaml, migrateChartConfig, normalizeChartSources, arrayChartProblem, computeSpan,
+  const { yaml, migrateChartConfig, normalizeChartSources, normalizeStateBands, arrayChartProblem, computeSpan,
     buildChartOptions, chartStyleDefaults, deepMerge, validator, schema, ApexCharts, getToken } = mods
   const out = []
   fatal.value = ''
@@ -245,6 +245,8 @@ function render() {
     return { ...s, name: s.name ?? info.name, unit: s.unit ?? (s.attribute ? undefined : info.unit) }
   })
   const points = series.map(s => seriesPoints(s, canonical, span, now))
+  const bands = normalizeStateBands(canonical)
+  const bandPoints = bands.map(b => seriesPoints(b, canonical, span, now))
   const width = chartEl.value.clientWidth || 600
 
   try {
@@ -254,7 +256,9 @@ function render() {
       series: display,
       points,
       span,
-      size: [width, props.height]
+      size: [width, props.height],
+      bands,
+      bandPoints
     })
     options.chart = { ...options.chart, width: '100%', height: props.height }
     chart?.destroy()
@@ -308,6 +312,7 @@ onMounted(async () => {
     yaml: yamlMod.default ?? yamlMod,
     migrateChartConfig: migration.migrateChartConfig,
     normalizeChartSources: sources.normalizeChartSources,
+    normalizeStateBands: sources.normalizeStateBands,
     arrayChartProblem: sources.arrayChartProblem,
     computeSpan: span.computeSpan,
     parseDuration: span.parseDuration,

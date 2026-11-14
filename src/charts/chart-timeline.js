@@ -16,7 +16,7 @@ import { stateKeyFor } from '../utils/state-color-resolver.js';
 
 /**
  * @typedef {Object} TimelineContext
- * @property {(index: number) => (import('../utils/ha-state-color.js').StateObj|null)} stateObjFor - The source's entity now
+ * @property {(entityId: string) => (import('../utils/ha-state-color.js').StateObj|null)} stateObjFor - An entity's state object now
  * @property {(state: string, stateObj?: import('../utils/ha-state-color.js').StateObj|null) => string} colorer - Home Assistant's timeline colours
  * @property {(value: string) => string} resolve - A configured colour made concrete (SVG fill)
  * @property {(stateObj: any, state: string) => string} formatState - State text for labels and the tooltip
@@ -42,6 +42,18 @@ export function defaultTimelineContext(overrides = {}) {
 }
 
 /**
+ * An entity's state object from the context, or a bare one (its domain still
+ * picks Home Assistant's colours) when the entity is not loaded.
+ * @param {string|undefined} entityId
+ * @param {TimelineContext} ctx
+ * @returns {import('../utils/ha-state-color.js').StateObj|null}
+ */
+function entityStateObj(entityId, ctx) {
+  if (!entityId) return null;
+  return ctx.stateObjFor(entityId) ?? { entity_id: entityId, attributes: {} };
+}
+
+/**
  * The bar colour for one state of a source.
  * @param {Object} series - Normalised series (its `color`: a colour or a state map)
  * @param {string} state
@@ -56,8 +68,7 @@ export function timelineColor(series, state, stateObj, ctx) {
     const key = stateKeyFor({ actualState: state, classifiedState: stateClass(stateObj, state), colorConfig: configured });
     if (key !== null) return ctx.resolve(configured[key]);
   }
-  // A source with no entity (should not happen for history) still gets a palette colour
-  return ctx.colorer(state, stateObj ?? (series.entity ? { entity_id: series.entity, attributes: {} } : null));
+  return ctx.colorer(state, stateObj);
 }
 
 /**
@@ -72,7 +83,7 @@ export function timelineColor(series, state, stateObj, ctx) {
  */
 export function buildTimelineSeries({ series, points, ctx }) {
   return series.map((s, index) => {
-    const stateObj = ctx.stateObjFor(index);
+    const stateObj = entityStateObj(s.entity, ctx);
     const runs = visibleRuns(points[index] ?? [], s, stateObj);
     return {
       name: s.name,
@@ -110,4 +121,49 @@ export function formatRunDuration(ms) {
   if (m && !d) parts.push(`${m} min`);
   if (s && !d && !h) parts.push(`${s} s`);
   return parts.join(' ') || '0 s';
+}
+
+/** Band opacity when a band sets none. */
+export const STATE_BAND_OPACITY = 0.2;
+
+/**
+ * State bands: each band's runs (active ones by default) as x-axis range
+ * annotations behind every series, coloured as timeline bars are, optionally
+ * labelled with the state at the top (dark text on the band colour, like
+ * threshold labels). Fully transparent states draw nothing.
+ * @param {Object} args
+ * @param {Array<Object>} args.bands - From normalizeStateBands()
+ * @param {Array<Array<{t: number, v: any}>|undefined>} args.points - Text points per band (wall clock already applied)
+ * @param {TimelineContext} args.ctx
+ * @param {{fontFamily?: string, fontSize?: string}} [args.font]
+ * @returns {Array<Object>} ApexCharts xaxis annotations
+ */
+export function buildBandAnnotations({ bands, points, ctx, font = {} }) {
+  // SVG text fills can't read var(): the theme's dark text colour made concrete
+  const dark = ctx.resolve('var(--lcars-text-dark, #000000)');
+  const labelText = dark && !dark.includes('var(') ? dark : '#000000';
+  return bands.flatMap((band, index) => {
+    const stateObj = entityStateObj(band.entity, ctx);
+    return visibleRuns(points[index] ?? [], band, stateObj).flatMap((run) => {
+      const color = timelineColor(band, run.state, stateObj, ctx);
+      if (!color || color === 'transparent') return [];
+      return [{
+        x: run.start,
+        x2: run.end,
+        fillColor: color,
+        opacity: band.opacity ?? STATE_BAND_OPACITY,
+        borderColor: 'transparent',
+        strokeDashArray: 0,
+        label: band.label ? {
+          text: ctx.formatState(stateObj, run.state) || run.state,
+          borderColor: 'transparent',
+          orientation: 'horizontal',
+          position: 'top',
+          textAnchor: 'start',
+          offsetY: -4,
+          style: { background: color, color: labelText, ...font }
+        } : { text: '' }
+      }];
+    });
+  });
 }

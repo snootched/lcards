@@ -1,0 +1,15 @@
+# State bands (E1.1): a thermostat's heat and cool runs shaded behind a temperature
+# (chart-sizing.spec.js: bands drawn as x-axis annotations, a state change adds one)
+type: custom:lcards-chart
+chart_type: line
+graph_span: 12h
+sources:
+  - entity: sensor.demo_temperature
+    name: Hall
+state_bands:
+  - entity: climate.demo_hall
+    states: [heat, cool]
+    color:
+      heat: '#ff7700'
+      cool: '#4455ff'
+    label: true

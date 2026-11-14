@@ -1,7 +1,9 @@
-# Timelines (E1.2): chart_type rangeBar draws each helper's states as bars on a
-# row. LIGHTS, DOORS and the MODE selector change them: the open bar on the
+# Timelines (E1.2) and state bands (E1.1): chart_type rangeBar draws each
+# helper's states as bars on a row; state_bands shades them behind a line.
+# LIGHTS, DOORS, the MODE selector and VALUE change them: the open bar on the
 # right grows, a change starts a new one. Top: the theme's state colours, as
-# Home Assistant's history draws them. Bottom: colours by state, active only.
+# Home Assistant's history draws them. Middle: colours by state, active only.
+# Bottom: VALUE as a line with the lights and doors shaded behind it.
 title: Timelines
 path: chart-timeline
 type: sections
@@ -29,6 +31,13 @@ sections:
       - type: custom:lcards-select-menu
         entity: input_select.lcards_test_mode
         grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: VALUE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
   - type: grid
     column_span: 4
     cards:
@@ -59,3 +68,18 @@ sections:
               beta: var(--lcards-yellow)
               gamma: var(--lcards-moonlight)
         grid_options: { columns: 24, rows: 3 }
+      # State bands: the lights and doors shaded behind VALUE, labelled
+      - type: custom:lcards-chart
+        chart_type: line
+        graph_span: 2h
+        sources:
+          - { entity: input_number.lcards_test_value, name: Value, curve: stepline }
+        state_bands:
+          - entity: input_boolean.lcards_test_lights
+            color: var(--lcards-orange)
+            label: true
+          - entity: input_boolean.lcards_test_doors
+            color: var(--lcards-blue)
+            opacity: 0.3
+            label: true
+        grid_options: { columns: 24, rows: 4 }
