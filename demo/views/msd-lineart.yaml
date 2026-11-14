@@ -1,0 +1,498 @@
+# MSD line art (C2, 2026-11-14): builtin:galaxy-class-lineart, drawn from the built-in
+# Galaxy class model by scripts/make-msd-lineart.mjs. The drawing alone, then labels made
+# with the MSD Studio Quick label rules (size XS, for a full-width card) joined to its
+# named anchors in two leader styles.
+title: MSD line art
+path: msd-lineart
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: 'THE DRAWING: OUTLINE, DECKS, WARP CORE, NACELLE COILS'
+            show: true
+            position: center-left
+            font_size: 16
+            color: theme:colors.ui.primary
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:galaxy-class-lineart
+        grid_options:
+          columns: full
+          rows: 6
+      - type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: 'PICARD TIGHT LABELS ON ITS NAMED PARTS (QUICK LABEL SIZE XS: A FULL-WIDTH CARD)'
+            show: true
+            position: center-left
+            font_size: 16
+            color: theme:colors.ui.primary
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:galaxy-class-lineart
+          overlays:
+            - id: lbl_1
+              type: control
+              attachment: right
+              position:
+                - 470
+                - 90
+              size:
+                - 185
+                - 37.7
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: MAIN BRIDGE
+                    show: true
+                    position: center-right
+                    font_size: 26
+                    color: theme:colors.ui.secondary
+            - id: ln_1
+              type: line
+              anchor: lbl_1
+              attach_to: bridge
+              anchor_side: right
+              route: manhattan
+              style:
+                color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+                width: 5
+              attach_side: center
+              anchor_gap: 12
+              corner_radius: 20
+            - id: lbl_2
+              type: control
+              attachment: right
+              position:
+                - 330
+                - 430
+              size:
+                - 224
+                - 37.7
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: SAUCER SECTION
+                    show: true
+                    position: center-right
+                    font_size: 26
+                    color: theme:colors.ui.secondary
+            - id: ln_2
+              type: line
+              anchor: lbl_2
+              attach_to: saucer
+              anchor_side: right
+              route: manhattan
+              style:
+                color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+                width: 5
+              attach_side: center
+              anchor_gap: 12
+              corner_radius: 20
+            - id: lbl_3
+              type: control
+              attachment: right
+              position:
+                - 650
+                - 640
+              size:
+                - 224
+                - 37.7
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: MAIN DEFLECTOR
+                    show: true
+                    position: center-right
+                    font_size: 26
+                    color: theme:colors.ui.secondary
+            - id: ln_3
+              type: line
+              anchor: lbl_3
+              attach_to: deflector
+              anchor_side: right
+              route: manhattan
+              style:
+                color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+                width: 5
+              attach_side: center
+              anchor_gap: 12
+              corner_radius: 20
+            - id: lbl_4
+              type: control
+              attachment: right
+              position:
+                - 1060
+                - 670
+              size:
+                - 159
+                - 37.7
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: WARP CORE
+                    show: true
+                    position: center-right
+                    font_size: 26
+                    color: theme:colors.ui.secondary
+            - id: ln_4
+              type: line
+              anchor: lbl_4
+              attach_to: warp_core
+              anchor_side: right
+              route: manhattan
+              style:
+                color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+                width: 5
+              attach_side: center
+              anchor_gap: 12
+              corner_radius: 20
+            - id: lbl_5
+              type: control
+              attachment: left
+              position:
+                - 1290
+                - 150
+              size:
+                - 237
+                - 37.7
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: MAIN SHUTTLEBAY
+                    show: true
+                    position: center-left
+                    font_size: 26
+                    color: theme:colors.ui.secondary
+            - id: ln_5
+              type: line
+              anchor: lbl_5
+              attach_to: shuttle_bay
+              anchor_side: left
+              route: manhattan
+              style:
+                color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+                width: 5
+              attach_side: center
+              anchor_gap: 12
+              corner_radius: 20
+            - id: lbl_6
+              type: control
+              attachment: right
+              position:
+                - 1100
+                - 110
+              size:
+                - 263
+                - 37.7
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: BUSSARD COLLECTOR
+                    show: true
+                    position: center-right
+                    font_size: 26
+                    color: theme:colors.ui.secondary
+            - id: ln_6
+              type: line
+              anchor: lbl_6
+              attach_to: bussard
+              anchor_side: right
+              route: manhattan
+              style:
+                color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+                width: 5
+              attach_side: center
+              anchor_gap: 12
+              corner_radius: 20
+            - id: lbl_7
+              type: control
+              attachment: left
+              position:
+                - 1560
+                - 650
+              size:
+                - 185
+                - 37.7
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: ENGINEERING
+                    show: true
+                    position: center-left
+                    font_size: 26
+                    color: theme:colors.ui.secondary
+            - id: ln_7
+              type: line
+              anchor: lbl_7
+              attach_to: engineering
+              anchor_side: left
+              route: manhattan
+              style:
+                color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+                width: 5
+              attach_side: center
+              anchor_gap: 12
+              corner_radius: 20
+        grid_options:
+          columns: full
+          rows: 6
+      - type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: PICARD BRACKET, ANGLED
+            show: true
+            position: center-left
+            font_size: 16
+            color: theme:colors.ui.primary
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:galaxy-class-lineart
+          overlays:
+            - id: lbl_1
+              type: control
+              attachment: right
+              position:
+                - 470
+                - 90
+              size:
+                - 200.2
+                - 37.7
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: MAIN BRIDGE
+                    show: true
+                    position: center-right
+                    font_size: 26
+                    color: theme:colors.ui.secondary
+                    padding:
+                      right: 15.6
+                style:
+                  border:
+                    width:
+                      right: 12
+                    color: theme:colors.ui.secondary
+            - id: ln_1
+              type: line
+              anchor: lbl_1
+              attach_to: bridge
+              anchor_side: bottom-right
+              route: angled
+              style:
+                color: theme:colors.ui.secondary
+                width: 5
+              attach_side: center
+              route_hint: xy
+              corner_style: miter
+              stub_length: 128
+            - id: lbl_2
+              type: control
+              attachment: right
+              position:
+                - 700
+                - 570
+              size:
+                - 265.2
+                - 37.7
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: TORPEDO LAUNCHER
+                    show: true
+                    position: center-right
+                    font_size: 26
+                    color: theme:colors.ui.secondary
+                    padding:
+                      right: 15.6
+                style:
+                  border:
+                    width:
+                      right: 12
+                    color: theme:colors.ui.secondary
+            - id: ln_2
+              type: line
+              anchor: lbl_2
+              attach_to: torpedo
+              anchor_side: top-right
+              route: angled
+              style:
+                color: theme:colors.ui.secondary
+                width: 5
+              attach_side: center
+              route_hint: xy
+              corner_style: miter
+              stub_length: 128
+            - id: lbl_3
+              type: control
+              attachment: right
+              position:
+                - 960
+                - 670
+              size:
+                - 174.2
+                - 37.7
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: WARP CORE
+                    show: true
+                    position: center-right
+                    font_size: 26
+                    color: theme:colors.ui.secondary
+                    padding:
+                      right: 15.6
+                style:
+                  border:
+                    width:
+                      right: 12
+                    color: theme:colors.ui.secondary
+            - id: ln_3
+              type: line
+              anchor: lbl_3
+              attach_to: warp_core
+              anchor_side: top-right
+              route: angled
+              style:
+                color: theme:colors.ui.secondary
+                width: 5
+              attach_side: center
+              route_hint: xy
+              corner_style: miter
+              stub_length: 128
+            - id: lbl_4
+              type: control
+              attachment: right
+              position:
+                - 1500
+                - 150
+              size:
+                - 213.2
+                - 37.7
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: WARP NACELLE
+                    show: true
+                    position: center-right
+                    font_size: 26
+                    color: theme:colors.ui.secondary
+                    padding:
+                      right: 15.6
+                style:
+                  border:
+                    width:
+                      right: 12
+                    color: theme:colors.ui.secondary
+            - id: ln_4
+              type: line
+              anchor: lbl_4
+              attach_to: nacelle
+              anchor_side: bottom-right
+              route: angled
+              style:
+                color: theme:colors.ui.secondary
+                width: 5
+              attach_side: center
+              route_hint: xy
+              corner_style: miter
+              stub_length: 128
+            - id: lbl_5
+              type: control
+              attachment: right
+              position:
+                - 1500
+                - 660
+              size:
+                - 226.2
+                - 37.7
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: NACELLE PYLON
+                    show: true
+                    position: center-right
+                    font_size: 26
+                    color: theme:colors.ui.secondary
+                    padding:
+                      right: 15.6
+                style:
+                  border:
+                    width:
+                      right: 12
+                    color: theme:colors.ui.secondary
+            - id: ln_5
+              type: line
+              anchor: lbl_5
+              attach_to: pylon
+              anchor_side: top-right
+              route: angled
+              style:
+                color: theme:colors.ui.secondary
+                width: 5
+              attach_side: center
+              route_hint: xy
+              corner_style: miter
+              stub_length: 128
+        grid_options:
+          columns: full
+          rows: 6

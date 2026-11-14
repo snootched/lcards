@@ -33,7 +33,7 @@ topics:
         views: [d2-batch1-fixes, d2-batch4-msd-fixes, d2-batch5-core-fixes, b1-banners-red, b1-banners-blue]
   - id: msd
     title: MSD
-    views: [msd-basics, msd-routing, msd-shapes, msd-leader-lines]
+    views: [msd-basics, msd-routing, msd-shapes, msd-leader-lines, msd-lineart]
   - id: astrometrics
     title: Astrometrics
     groups:
@@ -129,6 +129,12 @@ releases:
         session: "MSD leader lines"
         docs: /getting-started/lcars-patterns#labelled-schematic
         public: false
+      - file: msd-lineart
+        summary: "MSD line art: a Galaxy class blueprint drawn in your theme's colour, with named parts"
+        description: "builtin:galaxy-class-lineart: a Galaxy class from the side in line art, drawn from the built-in model (outline and panel lines) with a cutaway inside (decks, the warp core, nacelle coils). Its anchors name the main parts (bridge, saucer, deflector, warp_core, shuttle_bay, bussard, nacelle, pylon...), so labels join them by name. Top: the drawing alone. Middle: Picard tight labels. Bottom: Picard bracket labels, angled."
+        session: "C2 MSD line art"
+        docs: /cards/msd/background#built-in-blueprints
+        public: true
       - file: gallery/picard-tiles
         title: "Picard tile wall"
         summary: "Picard tile wall: nine framed section tiles, readings, slots and controls"

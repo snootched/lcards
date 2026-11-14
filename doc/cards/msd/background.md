@@ -98,7 +98,79 @@ msd:
 | `builtin:ncc-1701-a` | USS Enterprise NCC-1701-A (Constitution class refit), the master systems display |
 | `builtin:ncc-1701-a-blue` | The same ship in blue, with markers for the bridge (`br`), warp core (`wc`) and shuttle bay (`sb`) |
 | `builtin:ncc-1701-kelvin` | USS Enterprise NCC-1701 of the Kelvin timeline films |
+| `builtin:galaxy-class-lineart` | A Galaxy class starship from the side in line art, drawn in your theme's colour, with anchors for its main parts: `bridge`, `saucer`, `neck`, `engineering`, `warp_core`, `impulse`, `shuttle_bay`, `deflector`, `torpedo`, `nacelle`, `bussard`, `pylon` |
 | `builtin:enterprise-d-shuttlecraft15-anomaly` | Shuttlecraft 15, a type-6 shuttle of the Enterprise-D, with anomaly markers |
+
+- The line-art Galaxy class suits a [labelled schematic](../../getting-started/lcars-patterns#labelled-schematic): its lines take your theme's colour, and labels join its parts by anchor name (`attach_to: warp_core`). The MSD Studio's Quick label tool snaps to them.
+- Its outline comes from the Galaxy class model the Astrometrics card shows; the decks, the warp core and the nacelle coils are drawn inside it.
+
+```yaml live
+# The line-art Galaxy class with two labels joined to its parts by name
+type: custom:lcards-msd-card
+grid_options:
+  columns: full
+  rows: 5
+msd:
+  base_svg:
+    source: builtin:galaxy-class-lineart
+  overlays:
+    - id: lbl_1
+      type: control
+      attachment: right
+      position: [430, 90]
+      size: [354, 75.4]
+      card:
+        type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: MAIN BRIDGE
+            show: true
+            position: center-right
+            font_size: 52
+            color: theme:colors.ui.secondary
+    - id: ln_1
+      type: line
+      anchor: lbl_1
+      anchor_side: right
+      anchor_gap: 24
+      attach_to: bridge
+      attach_side: center
+      route: manhattan
+      corner_radius: 40
+      style:
+        color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+        width: 10
+    - id: lbl_2
+      type: control
+      attachment: right
+      position: [760, 640]
+      size: [302, 75.4]
+      card:
+        type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: WARP CORE
+            show: true
+            position: center-right
+            font_size: 52
+            color: theme:colors.ui.secondary
+    - id: ln_2
+      type: line
+      anchor: lbl_2
+      anchor_side: right
+      anchor_gap: 24
+      attach_to: warp_core
+      attach_side: center
+      route: manhattan
+      corner_radius: 40
+      style:
+        color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+        width: 10
+```
 
 ## view_box
 

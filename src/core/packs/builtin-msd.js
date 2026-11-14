@@ -65,6 +65,19 @@ export const BUILTIN_MSD_SVG_PACK = {
       },
     },
 
+    'galaxy-class-lineart': {
+      url: '/lcards/msd/galaxy-class-lineart.svg',
+      metadata: {
+        ship: 'Galaxy class starship',
+        class: 'Galaxy class',
+        era: 'TNG (2360s-2370s)',
+        description: 'Galaxy class side elevation in line art: outline, decks, warp core and nacelle coils in the theme colour, with named anchors for the main parts',
+        author: 'LCARdS (drawn from the built-in galaxy-class model by scripts/make-msd-lineart.mjs)',
+        source: 'https://github.com/snootched/lcards',
+        license: 'MIT'
+      }
+    },
+
     'ncc-1701-kelvin': {
       url: '/lcards/msd/ncc-1701-kelvin.svg',
       metadata: {
