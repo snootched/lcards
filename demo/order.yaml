@@ -74,7 +74,7 @@ topics:
       - title: Layouts
         views: [layouts]
       - title: Chart
-        views: [chart-sources, chart-types, chart-styling]
+        views: [chart-sources, chart-types, chart-styling, chart-timeline]
       - title: Data grid
         views: [datagrid-data, datagrid-decorative]
   - id: data
@@ -93,6 +93,12 @@ topics:
 releases:
   - version: "2026.11.0"
     views:
+      - file: chart-timeline
+        summary: "Chart timelines: each state as a bar on its row"
+        description: "chart_type: rangeBar. Toggle LIGHTS and DOORS or pick a MODE: the bar on the right grows while a state holds and a change starts a new one; hover a bar for its state, times and how long it lasted. Top: the theme's state colours, as Home Assistant's history draws them. Bottom: your own colours by state, only the lights' active runs, changes under 30 seconds hidden."
+        session: "E1.2 rangeBar timeline"
+        docs: /cards/chart/types#timelines
+        public: true
       - file: actions-confirmation
         summary: "Actions that ask first: Home Assistant's confirmation on any action"
         description: "LIGHTS asks Home Assistant's own question before it toggles (confirmation: true). AIRLOCK sets its own heading, question and buttons (Cycle, Stay). RED ALERT names the action in the question from Home Assistant's translations; hold it to clear the alert without being asked. Stay, Esc or a tap outside runs nothing."

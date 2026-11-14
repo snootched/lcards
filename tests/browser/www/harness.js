@@ -21,7 +21,7 @@
  */
 import yaml from '/vendor/js-yaml/dist/js-yaml.mjs';
 import { defineHaStubs, createDemoEnv, deepFreeze } from '/helpers/card-env.js';
-import { SAMPLE_ENTITIES, samplePoints, sampleStatistics } from '/demo-data.js';
+import { SAMPLE_ENTITIES, samplePoints, sampleStatistics, sampleStates } from '/demo-data.js';
 
 const params = new URLSearchParams(location.search);
 const caseName = params.get('case');
@@ -54,7 +54,7 @@ defineHaStubs();
 
 // ?now=<ms> pins the sample data (values follow a daily curve) for visual baselines.
 const env = createDemoEnv({
-    sample: { SAMPLE_ENTITIES, samplePoints, sampleStatistics },
+    sample: { SAMPLE_ENTITIES, samplePoints, sampleStatistics, sampleStates },
     now: Number(params.get('now')) || Date.now(),
     historyDelay: Object.fromEntries(params.getAll('historyDelay').map(v => { const [id, ms] = v.split(':'); return [id, Number(ms)]; })),
 });

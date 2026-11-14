@@ -78,7 +78,7 @@ export function carryToEnd(points, end) {
  */
 export function windowPoints(series, raw, span, now = Date.now()) {
   const inWindow = raw.filter(p => p.t <= span.end);
-  if (series.group_by?.duration) return groupBy(inWindow, series.group_by, span, now);
+  if (series.group_by?.duration && !series.keepState) return groupBy(inWindow, series.group_by, span, now);
   if (series.kind === 'statistics') return inWindow.filter(p => p.t >= span.start);
   return carryToEnd(trimToWindow(inWindow, span.start), Math.min(now, span.end));
 }

@@ -60,6 +60,7 @@ export const DOCS = Object.freeze({
   chartGrouping: '/cards/chart/series#grouping',
   chartStatistics: '/cards/chart/series#long-term-statistics',
   chartRangeCharts: '/cards/chart/types#range-charts',
+  chartTimeline: '/cards/chart/types#timelines',
   chartStyling: '/cards/chart/styling',
   chartTypeOptions: '/cards/chart/types#gauges',
   chartRawOptions: '/cards/chart/styling#raw-apexcharts-options',

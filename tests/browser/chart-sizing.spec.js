@@ -60,3 +60,22 @@ test('a state change draws at once (the live history stream, a rolling window th
     const streams = await card.evaluate(el => /** @type {any} */ (el).hass.connection.subs.filter(s => s.active && s.message?.type === 'history/stream').length);
     expect(streams).toBe(1);
 });
+
+test('rangeBar timeline: state runs as bars in their colours; a state change opens a new bar (E1.2)', async ({ page }) => {
+    const card = await mountCase(page, 'chart-timeline', { width: '600', height: '240' });
+    const bars = () => card.evaluate(el => [...el.shadowRoot.querySelectorAll('.apexcharts-rangebar-area')].map(p => p.getAttribute('fill')));
+    await expect.poll(async () => (await bars()).length).toBeGreaterThan(2);
+    const fills = await bars();
+    // the configured heat colour and the input_select's graph colour are both drawn (rgba from ApexCharts)
+    expect(fills.some(f => /255,\s*119,\s*0/.test(f ?? ''))).toBe(true);
+    expect(fills.every(f => f && f !== 'none')).toBe(true);
+    // the mode row: one run (the helper's current value) until it changes
+    const modeRuns = () => card.evaluate(el => /** @type {any} */ (el)._chart?.w?.config?.series?.[1]?.data?.map((d) => d.state));
+    await expect.poll(modeRuns).toEqual(['Auto']);
+    await page.evaluate(() => window.__setState('input_select.demo_mode', 'Cool'));
+    await expect.poll(modeRuns, { timeout: 4000 }).toEqual(['Auto', 'Cool']);
+    // the last bar reaches now: its end grows with the window
+    const lastEnd = await card.evaluate(el => /** @type {any} */ (el)._chart.w.config.series[1].data.at(-1).y[1]);
+    expect(lastEnd).toBeGreaterThan(0);
+});
+

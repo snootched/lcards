@@ -86,7 +86,9 @@ test('size budget: tiny loader, main chunk under its ceiling', () => {
     // follow entities and the camera tour; their maths is in the lazy runtime chunk) took it to 481 KB br.
     // 490,000 until 2026-11-07: the D2 batch 1 card fixes (elbow per-segment entities and
     // actions, select menu grid sizing and rules, the restored pulse texture) took it to 491.1 KB br.
-    expect(size(`chunks/${main}.br`)).toBeLessThanOrEqual(500_000);
+    // 500,000 until 2026-11-13: E2's action confirmation (dialog, Home Assistant's question) and
+    // E1.2's rangeBar timeline (Home Assistant's state colours, state runs, schema) took it to 503.4 KB br.
+    expect(size(`chunks/${main}.br`)).toBeLessThanOrEqual(510_000);
 });
 
 test('size budget: three.js and the anime.js three adapter stay out of the main chunk', () => {

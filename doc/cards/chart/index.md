@@ -111,7 +111,7 @@ sources:
 | `rangeArea` | A shaded band from low to high | See [Range charts](./types#range-charts) |
 | `boxPlot` | Spread of values per time bucket | See [Range charts](./types#range-charts) |
 | `candlestick` | Open, high, low and close per time bucket | See [Range charts](./types#range-charts) |
-| `rangeBar` | Timeline bars from a start to an end time | Not offered in the Chart Studio: the card can't build its data yet; see [Range charts](./types#range-charts) |
+| `rangeBar` | A timeline: a row per entity, a bar for each stretch of one state | Entity history, see [Timelines](./types#timelines) |
 
 ## Card options
 

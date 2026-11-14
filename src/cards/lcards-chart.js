@@ -45,6 +45,8 @@ import {
 } from '../charts/chart-options-builder.js';
 import { ChartSeriesFetcher } from '../charts/chart-series-fetcher.js';
 import { normalizeChartSources, arrayChartProblem } from '../charts/chart-sources.js';
+import { createTimelineColorer } from '../utils/ha-state-color.js';
+import { resolveColor } from '../core/themes/resolve-color.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { getChartSchema } from './schemas/chart-schema.js';
@@ -164,6 +166,22 @@ export class LCARdSChart extends LCARdSCard {
           padding: var(--ha-space-1) var(--ha-space-2);
         }
 
+        /* rangeBar timeline tooltip: the row, the state, its times and duration */
+        .lcards-timeline-tooltip {
+          display: grid;
+          gap: var(--ha-space-1);
+        }
+        .lcards-timeline-row {
+          font-weight: var(--ha-font-weight-bold);
+        }
+        .lcards-timeline-state {
+          display: flex;
+          align-items: center;
+        }
+        .lcards-timeline-duration {
+          opacity: 0.8;
+        }
+
       `
     ];
   }
@@ -180,6 +198,8 @@ export class LCARdSChart extends LCARdSCard {
     this._chartGeneration = 0; // Bumped on every init/teardown so a stale async init is dropped
     /** @type {import('../charts/chart-sources.js').ChartSeries[]} */
     this._series = [];
+    /** @type {((state: string, stateObj?: any) => string)|null} rangeBar: Home Assistant's timeline colours, one per config */
+    this._stateColorer = null;
     /** @type {Set<number>} series indexes that have delivered data (reset in _showPlaceholder) */
     this._seriesLoaded = new Set();
     /** @type {Array<Array<{t: number, v: any}>|undefined>} Latest points per series */
@@ -390,6 +410,8 @@ export class LCARdSChart extends LCARdSCard {
   _onAlertModeChanged(_mode) {
     if (this._chart && this._chartReady) {
       this._updateChartOptions();
+      // Timeline bars carry their state colours in the series data
+      if (this.config.chart_type === 'rangeBar') this._chart.updateSeries(this._buildApexSeries(), false);
     }
   }
 
@@ -429,8 +451,30 @@ export class LCARdSChart extends LCARdSCard {
     return buildApexSeries({
       series: this._displaySeries(),
       points,
-      chartType: this.config.chart_type || 'line'
+      chartType: this.config.chart_type || 'line',
+      timeline: this._timelineContext()
     });
+  }
+
+  /**
+   * rangeBar timeline: each source's entity, Home Assistant's state colours
+   * read from this card (a view or section theme applies), configured colours
+   * made concrete, and Home Assistant's translated state text.
+   * @private
+   * @returns {import('../charts/chart-timeline.js').TimelineContext}
+   */
+  _timelineContext() {
+    // One colourer per config keeps each free-text state on the same graph colour
+    this._stateColorer ??= createTimelineColorer((name) => getComputedStyle(this).getPropertyValue(name));
+    return {
+      stateObjFor: (index) => {
+        const entity = this._series[index]?.entity;
+        return entity ? (this.getEntityState(entity) ?? { entity_id: entity, attributes: {} }) : null;
+      },
+      colorer: this._stateColorer,
+      resolve: (value) => /** @type {string} */ (resolveColor(value, { concrete: true, element: this })),
+      formatState: (stateObj, state) => (stateObj?.state !== undefined && this.hass?.formatEntityState?.(stateObj, state)) || state
+    };
   }
 
   /**
@@ -538,7 +582,8 @@ export class LCARdSChart extends LCARdSCard {
       hass: this.hass,
       resolveStyle: tm ? (st) => resolveThemeTokensRecursive(st, tm) : undefined,
       // a theme on the chart's view or section sets the CSS variables its colours read
-      element: this
+      element: this,
+      timeline: this._timelineContext()
     });
   }
 
@@ -581,6 +626,7 @@ export class LCARdSChart extends LCARdSCard {
     this._chartReady = false;
     this._chartInitialized = false;
     this._chartGeneration++;
+    this._stateColorer = null;
 
     super.setConfig(config);
 

@@ -37,7 +37,7 @@
 // adapter) on generated sample data, so demos match what the card draws.
 import PlaygroundAssist from './PlaygroundAssist.vue'
 import { ref, shallowRef, computed, watch, onMounted, onUnmounted, getCurrentInstance } from 'vue'
-import { SAMPLE_ENTITIES, samplePoints, sampleStatistics, describeEntity, tokenLookup, LCARS_DEMO_VARS } from './chart-demo-data.js'
+import { SAMPLE_ENTITIES, samplePoints, sampleStates, sampleStatistics, describeEntity, tokenLookup, LCARS_DEMO_VARS, STATE_DEMO_VARS } from './chart-demo-data.js'
 
 const props = defineProps({
   /** URI-encoded YAML (set by the ```yaml live fence) */
@@ -184,7 +184,9 @@ function seriesPoints(series, config, span, now) {
     const entity = series.kind === 'datasource'
       ? (config.data_sources?.[series.datasource]?.entity ?? series.datasource)
       : series.entity
-    raw = samplePoints(series.attribute ? `${entity}.${series.attribute}` : entity, span.start - lead, end)
+    const id = series.attribute ? `${entity}.${series.attribute}` : entity
+    // timelines read text states
+    raw = series.keepState ? sampleStates(id, span.start - lead, end) : samplePoints(id, span.start - lead, end)
   }
   return windowPoints(series, raw, span, now)
 }
@@ -295,7 +297,7 @@ onMounted(async () => {
   if (!globalThis.__lcardsDocsPalette) {
     palette.injectPalette(palette.GREEN_ALERT_PALETTE)
     const root = document.documentElement
-    for (const [name, value] of Object.entries(LCARS_DEMO_VARS)) {
+    for (const [name, value] of Object.entries({ ...LCARS_DEMO_VARS, ...STATE_DEMO_VARS })) {
       if (!getComputedStyle(root).getPropertyValue(name).trim()) root.style.setProperty(name, value)
     }
     globalThis.__lcardsDocsPalette = true

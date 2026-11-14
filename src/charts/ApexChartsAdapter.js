@@ -806,10 +806,15 @@ export class ApexChartsAdapter {
             bar: {
               horizontal: true,
               barHeight: '70%',
-              rangeBarOverlap: false,
+              // A row's runs never overlap in time: keep them on the row (false
+              // would step each bar into its own slot)
+              rangeBarOverlap: true,
               rangeBarGroupRows: style.group_rows !== false
             }
           },
+          // Solid bars in their state colours, no outline in the series colour
+          fill: { opacity: style.fill?.opacity ?? 1 },
+          stroke: { width: style.stroke?.width ?? 0 },
           xaxis: {
             type: 'datetime',
             labels: {
@@ -1114,8 +1119,10 @@ export class ApexChartsAdapter {
    *   markerFillSet: style.colors.marker.fill was given, so markers keep it
    */
   static _applySeriesOptions(options, series, yaxisConfig, { valueDecimals, hass, markerFillSet = false }) {
-    const perSeries = (field, fallback) => (series.some(s => s[field] !== undefined)
-      ? series.map((s, i) => s[field] ?? (Array.isArray(fallback) ? fallback[i % fallback.length] : fallback))
+    // A rangeBar source's color may be a state colour map (its bars are coloured per state): not a series colour
+    const valueOf = (s, field) => (field === 'color' && s.color && typeof s.color === 'object' ? undefined : s[field]);
+    const perSeries = (field, fallback) => (series.some(s => valueOf(s, field) !== undefined)
+      ? series.map((s, i) => valueOf(s, field) ?? (Array.isArray(fallback) ? fallback[i % fallback.length] : fallback))
       : null);
 
     const baseColors = Array.isArray(options.colors) && options.colors.length ? options.colors : DEFAULT_SERIES_COLORS;

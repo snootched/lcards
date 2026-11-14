@@ -1,7 +1,7 @@
 // What the live card components (CardDemo.vue, CardGallery.vue) share: the
 // production bundle, one sample hass per page, the LCARS colour variables and
 // the sections-grid sizing.
-import { SAMPLE_ENTITIES, samplePoints, sampleStatistics, LCARS_DEMO_VARS } from './chart-demo-data.js'
+import { SAMPLE_ENTITIES, samplePoints, sampleStatistics, sampleStates, LCARS_DEMO_VARS, STATE_DEMO_VARS } from './chart-demo-data.js'
 // The HA-LCARS palette (fixed colours such as --lcars-alert-red), from the committed snapshot
 // (scripts/sync-ha-lcars.js), so doc examples naming a palette colour render as on a dashboard.
 // Role variables (--lcars-ui-*) stay unset: cards show their LCARdS fallbacks, as without a theme.
@@ -38,7 +38,7 @@ export function sharedEnv() {
     let render = null
     let latest = {}
     const env = mod.createDemoEnv({
-      sample: { SAMPLE_ENTITIES, samplePoints, sampleStatistics },
+      sample: { SAMPLE_ENTITIES, samplePoints, sampleStatistics, sampleStates },
       simulateServices: true,
       // the entities the live demo's views use (demo/views/, DemoBoard.vue)
       extraStates: DEMO_STATES,
@@ -75,7 +75,7 @@ const HA_DEMO_VARS = {
 export function applyDemoVars() {
   const root = document.documentElement
   const palette = Object.fromEntries(haLcars.palette.filter(p => p.name.startsWith('lcars-')).map(p => [`--${p.name}`, p.value]))
-  for (const [name, value] of Object.entries({ ...HA_DEMO_VARS, ...palette, ...LCARS_DEMO_VARS })) {
+  for (const [name, value] of Object.entries({ ...HA_DEMO_VARS, ...palette, ...LCARS_DEMO_VARS, ...STATE_DEMO_VARS })) {
     if (!getComputedStyle(root).getPropertyValue(name).trim()) root.style.setProperty(name, value)
   }
 }

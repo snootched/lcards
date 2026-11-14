@@ -1,5 +1,5 @@
 ---
-description: "Chart card types with examples: time charts (line, area, column, bar, scatter, heatmap), current-value charts (gauges, pie, donut, polar area, radar, treemap), range charts (range area, box plot, candlestick) and mixed charts."
+description: "Chart card types with examples: time charts (line, area, column, bar, scatter, heatmap), current-value charts (gauges, pie, donut, polar area, radar, treemap), timelines (states over time), range charts (range area, box plot, candlestick) and mixed charts."
 ---
 
 # Chart Types
@@ -174,6 +174,46 @@ style:
 | `style.gauge_total` | boolean | `false` | Show the sum of all gauges in the centre |
 | `style.value_format` | string | - | `percent` adds a % sign to the values and rounds them |
 
+## Timelines
+
+**A `rangeBar` chart is a timeline: each series is a row, and each stretch of time the entity held one state is a bar in that state's colour.** Use it for anything that changes state rather than value: a thermostat heating and cooling, a media player, doors, a mode selector.
+
+- Each series is an entity's history, drawn state by state (`heat`, `playing`, `on`); statistics and data sources can't feed a timeline, and the card says so.
+- Bars take the theme's state colours, as Home Assistant's own history does: HA-LCARS colours heating orange and cooling blue. States the theme leaves out take graph colours, each state keeping its own.
+- `color` on a series sets the colours yourself: one colour for every bar, or a colour per state with the same keys as the other cards' state colours (an exact state, then `active`, `inactive`, `unavailable`, then `default`).
+- `states` draws only some states and leaves gaps for the rest; `min_duration` hides states shorter than it, such as a thermostat flickering for a few seconds.
+
+```yaml live
+# a thermostat and a media player over the last day
+type: custom:lcards-chart
+chart_type: rangeBar
+graph_span: 24h
+sources:
+  - entity: climate.demo_hall
+    name: Hall
+    min_duration: 10min
+  - entity: media_player.demo_lounge
+    name: Lounge
+    states:
+      - active
+```
+
+::: details More about timelines
+- **The bar's label** is the state as Home Assistant writes it (translated); labels too long for their bar are hidden. `style.show_labels: false` hides them all.
+- **The tooltip** shows the row, the state, when it started and ended, and how long it lasted.
+- **The last bar** runs to now and grows as time passes.
+- **Active and inactive** follow Home Assistant's split, which differs from domain to domain: a lock is active when unlocked, a cover when not closed, a climate entity in every mode but `off`. `unavailable` covers `unknown` too.
+- **Bars with the same label** share a row (`style.group_rows`); give two series the same `name` to put them on one row.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `color` | colour / map | the theme's state colours | On each series: one colour for every bar, or a colour per state (`heat: var(--lcars-orange)`, `active`, `inactive`, `unavailable`, `default`) |
+| `states` | list | every state | On each series: the states to draw, exact states and the words `active`, `inactive` and `unavailable` |
+| `min_duration` | string | - | On each series: a state shorter than this joins the one before it (`30s`, `10min`) |
+| `style.group_rows` | boolean | `true` | Put bars with the same label on one row |
+| `style.show_labels` | boolean | `true` | Show the state on the bars |
+
 ## Range charts
 
 **`rangeArea`, `boxPlot` and `candlestick` charts draw several values per point: a low and a high, the spread, or open, high, low and close.** `group_by` builds them from any series, one per time bucket.
@@ -225,7 +265,6 @@ sources:
 | `rangeArea` | `minmax`. Or use long-term statistics without `group_by` |
 | `boxPlot` | `box` |
 | `candlestick` | `ohlc` |
-| `rangeBar` | Nothing yet: the card can't build timeline data, and shows a message instead |
 
 ::: details More about range charts
 - **Candlestick colours:** one series draws green candles for up and red for down. Two or more series draw each series' candles in its own colour (full for up, darker for down), so they match the legend and stay apart. Set `plotOptions.candlestick.colors.upward` and `downward` in [`style.chart_options`](./styling#raw-apexcharts-options) to choose.
@@ -235,8 +274,6 @@ sources:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `group_by.func` | string | `avg` | On each series: `minmax`, `box` or `ohlc` for these charts. See [Grouping](./series#grouping) |
-| `style.group_rows` | boolean | `true` | `rangeBar`: put bars with the same label on one row |
-| `style.show_labels` | boolean | `true` | `rangeBar`: show labels on the bars |
 | `style.color` | colour | the theme's accent colour | `boxPlot`: colour of the boxes |
 
 ## Mixing chart types

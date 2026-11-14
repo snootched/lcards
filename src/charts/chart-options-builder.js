@@ -18,6 +18,7 @@ import {
   tooltipTimeFormatter,
   useAmPm
 } from './chart-time-labels.js';
+import { buildTimelineSeries, defaultTimelineContext, formatRunDuration } from './chart-timeline.js';
 
 /**
  * Behaviour defaults the chart card registers with CoreConfigManager, which
@@ -89,9 +90,12 @@ export function windowAxis(config, span) {
  * @param {Array<Object>} args.series - Normalised series (with `name` resolved)
  * @param {Array<Array<{t: number, v: any}>|undefined>} args.points - Points per series
  * @param {string} args.chartType
+ * @param {import('./chart-timeline.js').TimelineContext} [args.timeline] - rangeBar: entity states, colours, state text
  * @returns {Array<any>}
  */
-export function buildApexSeries({ series, points, chartType }) {
+export function buildApexSeries({ series, points, chartType, timeline }) {
+  if (chartType === 'rangeBar') return buildTimelineSeries({ series, points, ctx: timeline ?? defaultTimelineContext() });
+
   const names = series.map(s => s.name);
   const latest = series.map((_, index) => {
     const list = points[index] ?? [];
@@ -133,7 +137,7 @@ export function timeAxisData({ config, span = null, points, hass }) {
   const axis = windowAxis(config, span);
   const timeZone = chartTimeZone(hass);
   const wallClock = !!timeZone && xaxisType === 'datetime'
-    && TIME_AXIS_CHART_TYPES.has(chartType) && chartType !== 'bar' && chartType !== 'rangeBar';
+    && TIME_AXIS_CHART_TYPES.has(chartType) && chartType !== 'bar';
   if (!wallClock || !timeZone) return { axis, points, wallClock: false, timeZone };
   return {
     axis: axis.min !== undefined && axis.max !== undefined
@@ -158,9 +162,10 @@ export function timeAxisData({ config, span = null, points, hass }) {
  * @param {Object} [args.hass] - For locale-aware formatting
  * @param {(style: Object) => Object} [args.resolveStyle] - Theme token resolution
  * @param {Element|null} [args.element] - The chart card: CSS variables in colours resolve against it
+ * @param {import('./chart-timeline.js').TimelineContext} [args.timeline] - rangeBar: entity states, colours, state text
  * @returns {Object} ApexCharts options
  */
-export function buildChartOptions({ config, style, series, points, span = null, size = [400, 200], hass, resolveStyle, element = null }) {
+export function buildChartOptions({ config, style, series, points, span = null, size = [400, 200], hass, resolveStyle, element = null, timeline }) {
   const chartType = config.chart_type || 'line';
   let enhancedStyle = { chart_type: chartType, ...style };
 
@@ -214,5 +219,48 @@ export function buildChartOptions({ config, style, series, points, span = null, 
     options.xaxis = { ...options.xaxis, type: 'category', categories: names };
   }
 
-  return { ...options, series: buildApexSeries({ series, points, chartType }) };
+  if (chartType === 'rangeBar') applyTimelineLabels(options, { style: enhancedStyle, hass, span, wallClock });
+
+  return { ...options, series: buildApexSeries({ series, points, chartType, timeline }) };
+}
+
+/** @param {any} text */
+const escapeHtml = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c);
+
+/**
+ * rangeBar: the state's text on each bar (hidden where it doesn't fit), and a
+ * tooltip with the row, the state, its start and end and how long it lasted.
+ * A tooltip formatter or data label settings of the user's own win.
+ * @param {any} options - ApexCharts options (mutated)
+ * @param {{style: any, hass: any, span: any, wallClock: boolean}} args
+ */
+function applyTimelineLabels(options, { style, hass, span, wallClock }) {
+  /** @param {any} opts */
+  const pointOf = (opts) => opts?.w?.config?.series?.[opts.seriesIndex]?.data?.[opts.dataPointIndex];
+  options.dataLabels = {
+    ...options.dataLabels,
+    formatter: (/** @type {any} */ _value, /** @type {any} */ opts) => pointOf(opts)?.label ?? ''
+  };
+  options.plotOptions = {
+    ...options.plotOptions,
+    bar: { ...options.plotOptions?.bar, dataLabels: { hideOverflowingLabels: true, ...options.plotOptions?.bar?.dataLabels } }
+  };
+  if (style.formatters?.tooltip) return;
+  // Wall-clock values read as UTC; without a zone (docs demos) the browser's own
+  const time = wallClock ? tooltipTimeFormatter(hass, span) : (/** @type {number} */ v) => new Date(v).toLocaleString(hass?.locale?.language || undefined);
+  options.tooltip = {
+    ...options.tooltip,
+    custom: (/** @type {any} */ opts) => {
+      const point = pointOf(opts);
+      if (!point) return '';
+      const [start, end] = point.y;
+      const row = opts.w.config.series[opts.seriesIndex]?.name ?? point.x;
+      return `<div class="apexcharts-tooltip-text lcards-chart-tooltip lcards-timeline-tooltip">`
+        + `<div class="lcards-timeline-row">${escapeHtml(row)}</div>`
+        + `<div class="lcards-timeline-state"><span class="lcards-timeline-swatch" style="display:inline-block;flex:none;width:0.75em;height:0.75em;margin-inline-end:0.5em;border-radius:50%;background:${escapeHtml(point.fillColor)}"></span>${escapeHtml(point.label)}</div>`
+        + `<div class="lcards-timeline-time">${escapeHtml(time(start))} – ${escapeHtml(time(end))}</div>`
+        + `<div class="lcards-timeline-duration">${escapeHtml(formatRunDuration(end - start))}</div>`
+        + `</div>`;
+    }
+  };
 }

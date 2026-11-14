@@ -134,6 +134,44 @@ export function samplePoints(entityId, start, end) {
   return points;
 }
 
+/** Sample state lists for timelines, by domain (anything else: a status text sensor). */
+const SAMPLE_STATES = {
+  climate: { states: ['off', 'heat', 'idle', 'cool'], hold: [3, 1.5, 1, 1.5] },
+  media_player: { states: ['off', 'playing', 'paused', 'idle'], hold: [3, 1.5, 0.3, 0.6] },
+  input_select: { states: ['alpha', 'beta', 'gamma'], hold: [2, 1.5, 1] },
+  select: { states: ['alpha', 'beta', 'gamma'], hold: [2, 1.5, 1] },
+  cover: { states: ['closed', 'open'], hold: [4, 1.5] },
+  person: { states: ['home', 'not_home'], hold: [5, 2] }
+};
+
+/**
+ * Generated history as text states, for timelines (chart_type: rangeBar).
+ * On/off domains switch on and off as samplePoints does; climate, media
+ * players, selects, covers and people step through their states, each held a
+ * few hours on average.
+ * @param {string} entityId
+ * @param {number} start - Epoch ms
+ * @param {number} end - Epoch ms
+ * @returns {Array<{t: number, v: string}>}
+ */
+export function sampleStates(entityId, start, end) {
+  const { kind } = describeEntity(entityId);
+  if (kind === 'onoff') return samplePoints(entityId, start, end).map((p) => ({ t: p.t, v: p.v ? 'on' : 'off' }));
+  const domain = entityId.split('.')[0];
+  const { states, hold } = SAMPLE_STATES[domain] ?? { states: ['idle', 'busy', 'standby'], hold: [2, 1, 1] };
+  const random = rng(entityId);
+  const points = [];
+  let t = start - HOUR * 4 * random();
+  let index = Math.floor(random() * states.length);
+  while (t <= end) {
+    points.push({ t: Math.round(t / MINUTE) * MINUTE, v: states[index] });
+    t += HOUR * hold[index] * (0.4 + random() * 1.2);
+    // mostly the next state in the list, now and then a jump
+    index = random() < 0.75 ? (index + 1) % states.length : Math.floor(random() * states.length);
+  }
+  return points;
+}
+
 /** Start of a statistics period, aligned to local time like HA's recorder. */
 function periodStart(t, period) {
   const d = new Date(t);
@@ -226,4 +264,25 @@ export const LCARS_DEMO_VARS = {
   '--lcars-text-gray': '#d3d3d3',
   '--lcars-text-light': '#ffffff',
   '--lcars-text-dark': '#000000'
+};
+
+/**
+ * Home Assistant state and graph colours as HA-LCARS sets them (approximate
+ * values), so docs timelines colour states as they would on a dashboard.
+ * Only set where the page doesn't already define them.
+ */
+export const STATE_DEMO_VARS = {
+  '--state-active-color': '#ff9966',
+  '--state-inactive-color': '#666688',
+  '--state-climate-heat-color': '#ff7700',
+  '--state-climate-cool-color': '#4455ff',
+  '--state-climate-idle-color': '#99ccff',
+  '--history-unavailable-color': 'transparent',
+  '--history-unknown-color': '#444455',
+  '--graph-color-1': '#ff9966',
+  '--graph-color-2': '#9999ff',
+  '--graph-color-3': '#ffcc33',
+  '--graph-color-4': '#33cc99',
+  '--graph-color-5': '#cc88ff',
+  '--graph-color-6': '#dd4444'
 };

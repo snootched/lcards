@@ -933,7 +933,12 @@ export class LCARdSChartStudioDialog extends LitElement {
                 desc: 'Hierarchical data', docs: 'chartGallery',
                 infoText: `${latest} rectangle, its area sized by the value). Good for breakdowns like power or cost by room.`
             },
-            // rangeBar is not offered: the card can't build its interval data yet (see chart-sources.js arrayChartProblem)
+            {
+                value: 'rangeBar', label: 'Timeline', icon: 'mdi:chart-timeline', minSeries: 1,
+                desc: 'States over time', docs: 'chartTimeline',
+                needs: 'entity history',
+                infoText: 'Each series is a row of bars, one bar for each stretch of time the entity held a state (on, heat, playing), coloured by state as Home Assistant\'s history does. Use entity series with their history (not statistics or data sources); set States to draw only some states.'
+            },
             {
                 value: 'rangeArea', label: 'Range Area', icon: 'mdi:chart-bell-curve', minSeries: 1,
                 desc: 'Confidence bands', docs: 'chartRangeCharts',

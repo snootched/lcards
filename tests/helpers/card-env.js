@@ -92,7 +92,7 @@ const ENTITY_ID = /^(light|switch|sensor|binary_sensor|input_boolean|input_numbe
 
 /**
  * @param {object} opts
- * @param {{ SAMPLE_ENTITIES: string[], samplePoints: Function, sampleStatistics: Function }} opts.sample
+ * @param {{ SAMPLE_ENTITIES: string[], samplePoints: Function, sampleStatistics: Function, sampleStates?: Function }} opts.sample
  * @param {number} [opts.now] - pin the sample data (values follow the time of day)
  * @param {boolean} [opts.simulateServices] - toggle/turn_on/turn_off change the fake state; lcards.*_alert set the alert mode
  * @param {Record<string, object>} [opts.extraStates]
@@ -101,17 +101,22 @@ const ENTITY_ID = /^(light|switch|sensor|binary_sensor|input_boolean|input_numbe
  */
 /** Domains whose history is their current value (nothing changes them but the reader) */
 const HELPER_DOMAINS = new Set(['input_number', 'input_boolean', 'input_select', 'number']);
+/** Domains whose sample history is state words (sampleStates), when the sample module has them */
+const TEXT_STATE_DOMAINS = new Set(['climate', 'media_player', 'cover', 'person']);
 /** Domains Home Assistant gives no toggle, turn_on or turn_off service: a tap's default toggle does nothing there */
 const NO_ONOFF_DOMAINS = new Set(['input_number', 'number', 'input_select', 'select', 'input_text', 'text', 'sensor', 'binary_sensor', 'input_datetime']);
 
 export function createDemoEnv({ sample, now = Date.now(), simulateServices = false, extraStates = {}, historyDelay = {}, renderTemplate = null }) {
-    const { SAMPLE_ENTITIES, samplePoints, sampleStatistics } = sample;
+    const { SAMPLE_ENTITIES, samplePoints, sampleStatistics, sampleStates } = sample;
     // A helper (a slider, a toggle) holds the value it has until someone changes it:
     // its history is that value (sample sensor curves by name would put a 0 to 100
     // slider at 290 W). Other entities get the sample curves.
+    // Entities whose states are words (a thermostat's modes, a player) get sample
+    // state runs, so a timeline has something to draw.
     const historyRows = (id, start, end) => (HELPER_DOMAINS.has(id.split('.')[0]) && current?.states[id]
         ? [{ s: String(current.states[id].state), lu: start / 1000 }]
-        : samplePoints(id, start, end).map(p => ({ s: String(p.v), lu: p.t / 1000 })));
+        : (sampleStates && TEXT_STATE_DOMAINS.has(id.split('.')[0]) ? sampleStates(id, start, end) : samplePoints(id, start, end))
+            .map(p => ({ s: String(p.v), lu: p.t / 1000 })));
 
     const friendly = (entityId) => entityId.split('.')[1].replace(/^demo_/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 

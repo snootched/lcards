@@ -21,6 +21,8 @@ import { migrateChartConfig } from '../../charts/chart-config-migration.js';
 import './shared/lcards-form-section.js';
 import './shared/lcards-message.js';
 import './shared/lcards-color-picker.js';
+import './editors/lcards-color-section-v2.js';
+import { FIXED_DOMAIN_STATES } from '../../utils/ha-state-color.js';
 
 const SOURCE_KINDS = [
   { value: 'history', label: 'Entity history' },
@@ -312,8 +314,69 @@ export class LCARdSChartSeriesListEditor extends LitElement {
     `;
   }
 
+  /**
+   * The states an entity can have, for the timeline's state list and colours:
+   * Home Assistant's fixed list for the domain, else its options or modes.
+   * @param {string|undefined} entityId
+   * @returns {string[]}
+   */
+  _knownStates(entityId) {
+    if (!entityId) return [];
+    const domain = entityId.split('.')[0];
+    const attrs = this.hass?.states?.[entityId]?.attributes ?? {};
+    const fixed = /** @type {Record<string, readonly string[]>} */ (FIXED_DOMAIN_STATES)[domain];
+    return [...(fixed ?? attrs.options ?? attrs.hvac_modes ?? [])];
+  }
+
+  /**
+   * rangeBar timeline fields: which states to draw, the shortest state shown,
+   * and the bar colours by state (lcards-color-section-v2, through a small
+   * adapter onto this series' color).
+   * @param {any} series
+   * @param {number} index
+   */
+  _renderTimelineFields(series, index) {
+    const known = this._knownStates(series.entity);
+    const stateOptions = ['active', 'inactive', 'unavailable', ...known].map((value) => ({ value, label: value }));
+    const colorHost = {
+      hass: this.hass,
+      config: { entity: series.entity },
+      _getConfigValue: () => series.color,
+      _setConfigValue: (/** @type {string} */ _path, /** @type {any} */ value) => this._patch(index, { color: value && (typeof value !== 'object' || Object.keys(value).length) ? value : undefined })
+    };
+    return html`
+      <lcards-form-section header="Timeline" icon="mdi:chart-timeline" nested outlined>
+        <div class="grid">
+          ${this._text('Name', series.name, (v) => this._patch(index, { name: v }))}
+          ${this._text('Shortest state', series.min_duration, (v) => this._patch(index, { min_duration: v }), 'e.g. 30s')}
+          <ha-selector
+            class="full"
+            .hass=${this.hass}
+            .label=${'States to draw (default: all)'}
+            .value=${series.states ?? []}
+            .selector=${{ select: { multiple: true, custom_value: true, mode: 'dropdown', options: stateOptions } }}
+            @value-changed=${(e) => this._patch(index, { states: e.detail.value?.length ? e.detail.value : undefined })}>
+          </ha-selector>
+          <div class="full">
+            <lcards-color-section-v2
+              .editor=${colorHost}
+              .entityId=${series.entity ?? ''}
+              basePath="color"
+              header="Bar colours"
+              description="States left out take the theme's state colours, as Home Assistant's history does"
+              .suggestedStates=${['default', 'active', 'inactive', 'unavailable', ...known]}
+              ?allowCustomStates=${true}
+              ?expanded=${false}>
+            </lcards-color-section-v2>
+          </div>
+        </div>
+      </lcards-form-section>
+    `;
+  }
+
   _renderSeries(series, index, total) {
     const kind = kindOf(series);
+    const timeline = (this.config?.chart_type ?? 'line') === 'rangeBar';
     const title = series.name || series.entity || series.datasource || `Series ${index + 1}`;
     const yaxisIds = (this.config?.yaxis ?? []).map(a => a.id).filter(Boolean);
     const groupBy = series.group_by ?? {};
@@ -348,6 +411,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
           ${this._renderSource(series, index)}
         </div>
 
+        ${timeline ? this._renderTimelineFields(series, index) : html`
         <lcards-form-section header="Grouping" icon="mdi:group" nested outlined>
           <div class="grid">
             ${this._select('Group points by', groupBy.func ?? '', GROUP_FUNCS,
@@ -382,7 +446,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
               </lcards-color-picker>
             </div>
           </div>
-        </lcards-form-section>
+        </lcards-form-section>`}
       </lcards-form-section>
     `;
   }

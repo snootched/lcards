@@ -13,7 +13,7 @@
  * @see doc/user/configuration/cards/chart.md
  */
 
-import { simpleColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, cardLevelProperties, triggersUpdateSchema } from './common-schemas.js';
+import { simpleColorSchema, stateColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, cardLevelProperties, triggersUpdateSchema } from './common-schemas.js';
 
 /**
  * Get complete chart card schema with nested structure
@@ -150,7 +150,23 @@ export function getChartSchema(options = {}) {
                         },
                         additionalProperties: false
                     },
-                    ...seriesDisplayProperties
+                    ...seriesDisplayProperties,
+                    color: {
+                        ...stateColorSchema,
+                        description: 'Series colour (overrides style.colors.series). On a rangeBar timeline it colours the bars: one colour, or a colour per state (an exact state such as heat, then active, inactive, unavailable, then default). States it leaves out take the theme\'s state colours, as Home Assistant\'s history does.'
+                    },
+                    states: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'rangeBar: the states to draw, leaving gaps for the rest. Exact states (heat, playing) and the words active, inactive and unavailable (unknown too), as Home Assistant splits an entity\'s states. Default: every state.',
+                        examples: [['heat', 'cool'], ['active']]
+                    },
+                    min_duration: {
+                        type: 'string',
+                        pattern: DURATION_PATTERN,
+                        description: 'rangeBar: a state that lasts less than this joins the run before it (hides a thermostat flickering for seconds), e.g. 30s, 5min.',
+                        examples: ['30s', '5min']
+                    }
                 },
                 required: ['entity'],
                 additionalProperties: false

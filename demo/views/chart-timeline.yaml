@@ -1,0 +1,61 @@
+# Timelines (E1.2): chart_type rangeBar draws each helper's states as bars on a
+# row. LIGHTS, DOORS and the MODE selector change them: the open bar on the
+# right grows, a change starts a new one. Top: the theme's state colours, as
+# Home Assistant's history draws them. Bottom: colours by state, active only.
+title: Timelines
+path: chart-timeline
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        text:
+          name: { content: LIGHTS, show: true }
+          state: { content: "{entity.state}", show: true, position: center-right }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_doors
+        preset: lozenge
+        text:
+          name: { content: DOORS, show: true }
+          state: { content: "{entity.state}", show: true, position: center-right }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_mode
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      # The theme's state colours, every state
+      - type: custom:lcards-chart
+        chart_type: rangeBar
+        graph_span: 2h
+        sources:
+          - { entity: input_boolean.lcards_test_lights, name: Lights }
+          - { entity: input_boolean.lcards_test_doors, name: Doors }
+          - { entity: input_select.lcards_test_mode, name: Mode }
+        grid_options: { columns: 24, rows: 4 }
+      # Your own colours by state, only the active runs, short flicker hidden
+      - type: custom:lcards-chart
+        chart_type: rangeBar
+        graph_span: 2h
+        sources:
+          - entity: input_boolean.lcards_test_lights
+            name: Lights
+            states: [active]
+            min_duration: 30s
+            color: { active: var(--lcards-orange) }
+          - entity: input_select.lcards_test_mode
+            name: Mode
+            min_duration: 30s
+            color:
+              alpha: var(--lcards-blue)
+              beta: var(--lcards-yellow)
+              gamma: var(--lcards-moonlight)
+        grid_options: { columns: 24, rows: 3 }

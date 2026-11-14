@@ -109,11 +109,12 @@ export function historyNeedsAttributes({ attribute, attribute_path } = {}) {
  * - REST / full: `{ state, attributes?, last_changed?, last_updated? }` with ISO strings.
  *
  * Attributes are carried forward when a state omits them (minimal responses
- * only include them on some rows). Non-numeric values are skipped.
+ * only include them on some rows). Non-numeric values are skipped, unless
+ * `keepState` keeps every value as text (state runs for timelines and bands).
  *
  * @param {Array<Object>} states
- * @param {{attribute?: string|null, attribute_path?: string|null, enum_mapping?: Object}} [opts]
- * @returns {Array<{t: number, v: number}>}
+ * @param {{attribute?: string|null, attribute_path?: string|null, enum_mapping?: Object, keepState?: boolean}} [opts]
+ * @returns {Array<{t: number, v: any}>}
  */
 export function historyStatesToPoints(states, opts = {}) {
   if (!Array.isArray(states)) return [];
@@ -141,7 +142,9 @@ export function historyStatesToPoints(states, opts = {}) {
     }
     if (!Number.isFinite(t)) continue;
 
-    const v = toNumericValue(selectRawValue(state, attributes, opts), opts.enum_mapping);
+    const raw = selectRawValue(state, attributes, opts);
+    // keepState: the state as text (timelines and state bands), not a number
+    const v = opts.keepState ? (raw === null || raw === undefined ? null : String(raw)) : toNumericValue(raw, opts.enum_mapping);
     if (v === null) continue;
 
     points.push({ t, v });
