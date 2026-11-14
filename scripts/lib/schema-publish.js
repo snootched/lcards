@@ -17,7 +17,7 @@
  */
 
 import * as commonSchemas from '../../src/cards/schemas/common-schemas.js';
-import { objectSchema as astrometricsObjectSchema } from '../../src/cards/schemas/astrometrics-schema.js';
+import { objectSchema as astrometricsObjectSchema, sceneActionSchema as astrometricsActionSchema } from '../../src/cards/schemas/astrometrics-schema.js';
 
 /** Subsystems published as their own files: [file name, source schema]. */
 export const SHARED_MODULES = [
@@ -26,7 +26,9 @@ export const SHARED_MODULES = [
   ['background-animation', commonSchemas.backgroundAnimationSchema],
   ['state-color',          commonSchemas.stateColorSchema],
   ['filter',               commonSchemas.filterSchema],
+  ['action',               commonSchemas.actionSchema],
   ['astrometrics-objects', astrometricsObjectSchema],
+  ['astrometrics-action',  astrometricsActionSchema],
 ];
 
 /** Repeated sub-schemas smaller than this stay inline (a $ref would save little). */

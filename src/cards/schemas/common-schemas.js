@@ -371,6 +371,40 @@ export const actionSchema = {
             description: 'Path to navigate to (must start with /)',
             examples: ['/lovelace/dashboard', '/lovelace/0']
         },
+        navigation_replace: {
+            type: 'boolean',
+            default: false,
+            description: 'navigate only: replace the current page in the browser history instead of adding one, so Back skips it'
+        },
+        confirmation: {
+            description: 'Ask before running the action, as Home Assistant does: true asks Home Assistant\'s own question, an object sets the text and buttons and who is not asked. Works on every action type.',
+            anyOf: [
+                { type: 'boolean', description: 'true: ask with Home Assistant\'s default question' },
+                {
+                    type: 'object',
+                    description: 'The question, its buttons and who is not asked',
+                    properties: {
+                        text: { type: 'string', description: 'The question (default: Home Assistant\'s "Are you sure you want to run action ...?" naming the action)' },
+                        title: { type: 'string', description: 'Dialog heading (default: none)' },
+                        confirm_text: { type: 'string', description: 'Confirm button label (default: OK, translated)' },
+                        dismiss_text: { type: 'string', description: 'Dismiss button label (default: Cancel, translated)' },
+                        exemptions: {
+                            type: 'array',
+                            description: 'Users who are not asked: the action runs straight away for them',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    user: { type: 'string', description: 'A Home Assistant user id (Settings > People > Users with advanced mode on, the user\'s ID)' }
+                                },
+                                required: ['user']
+                            }
+                        }
+                    },
+                    additionalProperties: false
+                }
+            ],
+            examples: [true, { text: 'Open the airlock?', exemptions: [{ user: 'a1b2c3d4e5f6' }] }]
+        },
         url_path: {
             type: 'string',
             description: 'url only: the address to open, in a new tab',

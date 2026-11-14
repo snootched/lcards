@@ -9,6 +9,7 @@
  */
 
 import { createDialogFooter, mountDialogNearHomeAssistant } from '../utils/lcards-shared-helpers.js';
+import { showConfirmDialog } from '../utils/lcards-confirm-dialog.js';
 
 /**
  * Show a destructive-action confirmation dialog.
@@ -19,45 +20,7 @@ import { createDialogFooter, mountDialogNearHomeAssistant } from '../utils/lcard
  * @returns {Promise<boolean>} Resolves true when the user confirms, false otherwise.
  */
 export function showConfirmDeleteDialog({ title, message, confirmText = 'Delete' }) {
-    return new Promise((resolve) => {
-        const dialog = document.createElement('ha-dialog');
-        dialog.headerTitle = title;
-        dialog.open = true;
-
-        const content = document.createElement('div');
-        content.textContent = message;
-        content.style.padding = '16px';
-        content.style.lineHeight = '1.5';
-        content.style.maxWidth = '360px';
-        dialog.appendChild(content);
-
-        const cancelButton = document.createElement('ha-button');
-        cancelButton.textContent = 'Cancel';
-        cancelButton.setAttribute('appearance', 'plain');
-        cancelButton.autofocus = true;
-        cancelButton.addEventListener('click', () => {
-            dialog.open = false;
-            resolve(false);
-        });
-
-        const confirmButton = document.createElement('ha-button');
-        confirmButton.textContent = confirmText;
-        confirmButton.setAttribute('variant', 'danger');
-        confirmButton.addEventListener('click', () => {
-            dialog.open = false;
-            resolve(true);
-        });
-
-        dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [confirmButton] }));
-
-        // Resolve false if the dialog is dismissed without choosing (Esc / scrim).
-        dialog.addEventListener('closed', () => {
-            dialog.remove();
-            resolve(false);
-        });
-
-        mountDialogNearHomeAssistant(dialog);
-    });
+    return showConfirmDialog({ title, message, confirmText, destructive: true });
 }
 
 /**

@@ -3,7 +3,7 @@
  */
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { LCARdSActionHandler, toggleService, actionSoundEvent } from '../../src/base/LCARdSActionHandler.js';
+import { LCARdSActionHandler, toggleService, actionSoundEvent, confirmationApplies, confirmationText } from '../../src/base/LCARdSActionHandler.js';
 import { createFakeHass } from '../helpers/fake-hass.js';
 
 /** EventTarget standing in for the card element; records dispatched events. */
@@ -24,7 +24,7 @@ beforeEach(() => {
     pushed = [];
     opened = [];
     windowEvents = [];
-    globalThis.history = { pushState: (state, title, url) => pushed.push(url) };
+    globalThis.history = { pushState: (state, title, url) => pushed.push(url), replaceState: (state, title, url) => pushed.push('replace:' + url) };
     globalThis.open = (url, target) => opened.push([url, target]);
     // window is globalThis under the test shims; node's globalThis is not an EventTarget.
     globalThis.dispatchEvent = (ev) => { windowEvents.push(ev); return true; };
@@ -199,4 +199,62 @@ test('segment sounds: a toggle sounds by the off states (an open cover closes: t
     assert.equal(actionSoundEvent({ action: 'more-info' }, 'on', 'card_hold'), 'card_hold');
     assert.equal(actionSoundEvent({ action: 'none' }, 'on', 'card_tap'), null);
     assert.equal(actionSoundEvent(undefined, 'on', 'card_tap'), null);
+});
+
+test('navigate: navigation_replace replaces the history entry', () => {
+    handler._executeAction({ action: 'navigate', navigation_path: '/lovelace/bridge', navigation_replace: true }, hass, null);
+    assert.deepEqual(pushed, ['replace:/lovelace/bridge']);
+    assert.deepEqual(windowEvents.map(e => [e.type, e.detail]), [['location-changed', { replace: true }]]);
+});
+
+test('confirmationApplies: true, an object, exemptions by user id', () => {
+    hass = createFakeHass({ user: { id: 'u1' } });
+    assert.equal(confirmationApplies({ action: 'toggle' }, hass), false);
+    assert.equal(confirmationApplies({ action: 'toggle', confirmation: false }, hass), false);
+    assert.equal(confirmationApplies({ action: 'toggle', confirmation: true }, hass), true);
+    assert.equal(confirmationApplies({ action: 'toggle', confirmation: {} }, hass), true);
+    assert.equal(confirmationApplies({ action: 'toggle', confirmation: { exemptions: [{ user: 'u2' }] } }, hass), true);
+    assert.equal(confirmationApplies({ action: 'toggle', confirmation: { exemptions: [{ user: 'u1' }] } }, hass), false);
+});
+
+test('confirmationText: own text, else Home Assistant\'s question naming the action', async () => {
+    const localize = (key, args) => key === 'ui.panel.lovelace.cards.actions.action_confirmation'
+        ? `Are you sure you want to run action '${args.action}'?`
+        : key === 'ui.panel.lovelace.editor.action-editor.actions.toggle' ? 'Toggle' : '';
+    hass = { ...createFakeHass(), localize, services: { light: { turn_on: { name: 'Turn on' } } },
+        loadBackendTranslation: async () => (key) => ({ 'component.light.title': 'Light' })[key] ?? '' };
+    assert.equal(await confirmationText({ action: 'toggle', confirmation: { text: 'Sure?' } }, hass), 'Sure?');
+    assert.equal(await confirmationText({ action: 'toggle', confirmation: true }, hass), "Are you sure you want to run action 'Toggle'?");
+    assert.equal(await confirmationText({ action: 'perform-action', perform_action: 'light.turn_on', confirmation: true }, hass), "Are you sure you want to run action 'Light: Turn on'?");
+    // An action Home Assistant has no label for: its type
+    assert.equal(await confirmationText({ action: 'fly-to', confirmation: true }, hass), "Are you sure you want to run action 'fly-to'?");
+    // No translations at all: the English question
+    assert.equal(await confirmationText({ action: 'url', confirmation: true }, { localize: () => '' }), "Are you sure you want to run action 'url'?");
+});
+
+test('confirmation: asks first, runs only when confirmed; an exempt user is not asked', async () => {
+    hass = createFakeHass({ states: { 'light.desk': 'on' }, user: { id: 'u1' } });
+    const asked = [];
+    let answer = false;
+    handler.confirmDialog = async (opts) => { asked.push(opts); return answer; };
+    const cfg = { action: 'toggle', entity: 'light.desk', confirmation: { title: 'Lights', confirm_text: 'Yes', dismiss_text: 'No' } };
+
+    assert.equal(await handler._confirmThenRun(cfg, hass, fakeElement()), false);
+    assert.equal(hass.serviceCalls.length, 0, 'cancel runs nothing');
+    assert.equal(asked.length, 1);
+    assert.equal(asked[0].title, 'Lights');
+    assert.equal(asked[0].confirmText, 'Yes');
+    assert.equal(asked[0].dismissText, 'No');
+    assert.ok(windowEvents.some(e => e.type === 'haptic' && e.detail === 'warning'));
+
+    answer = true;
+    assert.equal(await handler._confirmThenRun(cfg, hass, fakeElement()), true);
+    assert.equal(hass.serviceCalls.length, 1);
+    assert.equal(hass.serviceCalls[0].service, 'turn_off');
+
+    // _executeAction routes through the dialog; an exempt user goes straight through
+    asked.length = 0;
+    handler._executeAction({ ...cfg, confirmation: { exemptions: [{ user: 'u1' }] } }, hass, fakeElement());
+    assert.equal(asked.length, 0);
+    assert.equal(hass.serviceCalls.length, 2);
 });

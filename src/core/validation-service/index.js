@@ -80,7 +80,8 @@ class CoreSchemaRegistry {
         url_path: { type: 'string' },
         pipeline_id: { type: 'string' },
         start_listening: { type: 'boolean' },
-        confirmation: { type: 'object' }
+        navigation_replace: { type: 'boolean' },
+        confirmation: { type: ['boolean', 'object'] }
       }
     });
 

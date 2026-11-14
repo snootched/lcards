@@ -108,6 +108,26 @@ test('toggle button flips the input_boolean', async ({ page }) => {
     await expect.poll(async () => (await client.getState('input_boolean.lcards_test_toggle'))?.state).toBe('on');
 });
 
+test('an action with confirmation asks first: Stay runs nothing, Cycle toggles (E2)', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    const button = page.locator('lcards-button', { hasText: 'CONFIRM' }).locator('path.button-bg');
+    // the ha-dialog host has no box of its own: find the dialog by its role and heading;
+    // the text and buttons are slotted into it, so look for them on the page
+    const dialog = page.getByRole('dialog', { name: 'Airlock' });
+    await button.click();
+    await expect(dialog).toBeVisible();
+    await expect(page.getByText('Cycle the airlock doors?')).toBeVisible();
+    await page.getByRole('button', { name: 'Stay' }).click();
+    await expect(dialog).toBeHidden();
+    await settle(page, 800);
+    expect((await client.getState('input_boolean.lcards_test_toggle'))?.state).toBe('off');
+    await button.click();
+    await expect(dialog).toBeVisible();
+    await page.getByRole('button', { name: 'Cycle', exact: true }).click();
+    await expect.poll(async () => (await client.getState('input_boolean.lcards_test_toggle'))?.state).toBe('on');
+    expect(errors).toEqual([]);
+});
+
 test('more-info tap opens HA\'s more-info dialog', async ({ page }) => {
     await openDashboard(page, 'cards');
     await page.locator('lcards-button', { hasText: 'MORE INFO' }).locator('path.button-bg').click();

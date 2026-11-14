@@ -244,7 +244,7 @@ const landingViewSchema = {
 };
 
 /** tap_action / hold_action: the normal action shape plus fly-to */
-const sceneActionSchema = {
+export const sceneActionSchema = {
     ...actionSchema,
     description: 'Action on a tap or hold: any card action (more-info, toggle, perform-action, navigate, url, ...), or fly-to. fly-to flies the camera to this point or object, or to the named view in view.',
     properties: {

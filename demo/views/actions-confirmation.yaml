@@ -1,0 +1,52 @@
+# Actions that ask first (E2): Home Assistant's confirmation on any action type.
+# LIGHTS asks Home Assistant's own question, AIRLOCK its own question and buttons,
+# RED ALERT names the action from its translations ("LCARdS: ...").
+title: Confirmation
+path: actions-confirmation
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      # confirmation: true asks Home Assistant's default question
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        text:
+          name: { content: LIGHTS, show: true }
+          state: { content: "{entity.state}", show: true, position: center-right }
+        tap_action:
+          action: toggle
+          confirmation: true
+        grid_options: { columns: 8, rows: 1 }
+      # Your own heading, question and button labels
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_doors
+        preset: lozenge
+        text:
+          name: { content: AIRLOCK, show: true }
+          state: { content: "{entity.state}", show: true, position: center-right }
+        tap_action:
+          action: toggle
+          confirmation:
+            title: Airlock
+            text: Cycle the airlock doors?
+            confirm_text: Cycle
+            dismiss_text: Stay
+        grid_options: { columns: 8, rows: 1 }
+      # A perform-action names the action in the question (the alert mode shows on the right); hold clears without asking
+      - type: custom:lcards-button
+        entity: input_select.lcards_alert_mode
+        preset: lozenge
+        text:
+          label: { content: RED ALERT, show: true }
+          state: { content: "{entity.state}", show: true, position: center-right }
+        tap_action:
+          action: perform-action
+          perform_action: lcards.red_alert
+          confirmation: true
+        hold_action:
+          action: perform-action
+          perform_action: lcards.clear_alert
+        grid_options: { columns: 8, rows: 1 }

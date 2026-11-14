@@ -112,10 +112,53 @@ hold_action:
 | `target.area_id` | string / list | - | Area ids to act on |
 | `browser_mod` | object | - | `fire-dom-event`: what browser_mod runs, in its own grammar (`service` and `data`): see [browser_mod](/configuration/browser-mod) |
 | `navigation_path` | string | - | `navigate`: the dashboard path, starting with `/` (`/lovelace/bridge`). Required |
+| `navigation_replace` | boolean | `false` | `navigate`: replace the current page in the browser history, so Back skips it |
 | `url_path` | string | - | `url`: the address to open. Required |
 | `pipeline_id` | string | `preferred` | `assist`: the Assist pipeline to use |
 | `start_listening` | boolean | `true` | `assist`: start listening as soon as the dialog opens |
+| `confirmation` | boolean / object | - | Ask before running: see [Confirmation](#confirmation) |
 | [Scene action keys](/cards/astrometrics/points#scene-actions) | | | `card`, `view`, `point`, `duration`, `warp`, `date`, `rate` and `model_scale` for the astrometrics actions |
+
+## Confirmation
+
+**Ask before an action runs, as Home Assistant's own cards do: `confirmation: true`, or your own question and buttons.**
+
+- `confirmation` works on every action type, including the astrometrics actions. The card's tap sound and animation still play straight away; only the action waits for the answer.
+- With `confirmation: true` the dialog asks Home Assistant's own translated question naming the action ("Are you sure you want to run action 'Light: Turn on'?").
+- Users listed in `exemptions` are not asked: the action runs straight away for them. A user's ID is in Settings > People > Users (with advanced mode on in your profile).
+
+```yaml
+type: custom:lcards-button
+entity: input_boolean.lcards_test_doors
+preset: lozenge
+text:
+  name:
+    show: true
+tap_action:
+  action: toggle
+  confirmation:
+    title: Airlock
+    text: Cycle the airlock doors?
+    confirm_text: Cycle
+    dismiss_text: Stay
+    exemptions:
+      - user: 0123456789abcdef0123456789abcdef
+```
+
+::: details More about confirmation
+- **Cancel, Esc or a tap outside the dialog** runs nothing.
+- **The phone vibrates** with Home Assistant's warning haptic when the dialog opens, in the companion apps.
+- **`navigation_replace`** is the other Home Assistant action key LCARdS reads: on `navigate` it replaces the current page in the browser history, so Back goes past it.
+:::
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `confirmation` | boolean / object | - | `true` asks Home Assistant's default question; an object sets the keys below |
+| `confirmation.text` | string | Home Assistant's question | The question |
+| `confirmation.title` | string | - | Dialog heading |
+| `confirmation.confirm_text` | string | `OK` (translated) | Confirm button label |
+| `confirmation.dismiss_text` | string | `Cancel` (translated) | Dismiss button label |
+| `confirmation.exemptions` | list | - | Users who are not asked, each `user: <user id>` |
 
 ## Tap, hold and double-tap
 

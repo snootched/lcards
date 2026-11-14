@@ -16,6 +16,21 @@ views:
         tap_action:
           action: toggle
       - type: custom:lcards-button
+        id: test_confirm_button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: CONFIRM
+            show: true
+        tap_action:
+          action: toggle
+          confirmation:
+            title: Airlock
+            text: Cycle the airlock doors?
+            confirm_text: Cycle
+            dismiss_text: Stay
+      - type: custom:lcards-button
         id: test_info_button
         entity: input_number.lcards_test_value
         preset: lozenge

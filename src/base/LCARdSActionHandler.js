@@ -16,6 +16,7 @@
 
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { TriggerManager } from '../core/animation/TriggerManager.js';
+import { showConfirmDialog } from '../utils/lcards-confirm-dialog.js';
 
 /**
  * States a toggle turns on from (Home Assistant's STATES_OFF, src/common/const.ts
@@ -76,6 +77,57 @@ export function toggleService(entityId, state) {
 }
 
 /**
+ * Whether an action asks first, as Home Assistant decides it
+ * (frontend src/panels/lovelace/common/handle-action.ts): `confirmation: true`
+ * or an object, unless the current user is in its `exemptions`.
+ * @param {any} actionConfig
+ * @param {any} hass
+ * @returns {boolean}
+ */
+export function confirmationApplies(actionConfig, hass) {
+    const confirmation = actionConfig?.confirmation;
+    if (confirmation === true) return true;
+    if (!confirmation || typeof confirmation !== 'object') return false;
+    const exemptions = confirmation.exemptions;
+    return !(Array.isArray(exemptions) && exemptions.some((e) => e?.user === hass?.user?.id));
+}
+
+/**
+ * The question a confirmation asks: its own `text`, else Home Assistant's
+ * translated "Are you sure you want to run action '...'?" naming the action
+ * as Home Assistant does (for perform-action, "Domain: Action name" from the
+ * backend translations; otherwise the action's editor label, else its type).
+ * @param {any} actionConfig
+ * @param {any} hass
+ * @returns {Promise<string>}
+ */
+export async function confirmationText(actionConfig, hass) {
+    const confirmation = typeof actionConfig?.confirmation === 'object' ? actionConfig.confirmation : {};
+    if (confirmation.text) return confirmation.text;
+    const action = actionConfig?.action;
+    /** @type {string|undefined} */
+    let actionName;
+    if (action === 'call-service' || action === 'perform-action') {
+        const [domain, service] = String(actionConfig.perform_action || actionConfig.service || '').split('.', 2);
+        const serviceInfo = hass?.services?.[domain]?.[service];
+        if (serviceInfo) {
+            try {
+                const titles = await hass.loadBackendTranslation?.('title');
+                const services = (await hass.loadBackendTranslation?.('services')) ?? titles ?? hass.localize;
+                const domainName = services?.(`component.${domain}.title`) || domain;
+                const serviceName = services?.(`component.${domain}.services.${service}.name`, serviceInfo.description_placeholders) || serviceInfo.name || service;
+                actionName = `${domainName}: ${serviceName}`;
+            } catch (err) {
+                lcardsLog.debug('[LCARdSActionHandler] Could not load action names for the confirmation', err);
+            }
+        }
+    }
+    actionName ||= hass?.localize?.(`ui.panel.lovelace.editor.action-editor.actions.${action}`) || action;
+    return hass?.localize?.('ui.panel.lovelace.cards.actions.action_confirmation', { action: actionName })
+        || `Are you sure you want to run action '${actionName}'?`;
+}
+
+/**
  * Action handler for LCARdS cards
  *
  * Provides unified action handling across all card types:
@@ -103,6 +155,9 @@ export function pointerOf(event) {
  * page-wide action handler.
  */
 export class LCARdSActionHandler {
+
+    /** Asks the user to confirm (replaced in tests). */
+    confirmDialog = showConfirmDialog;
 
     /**
      * Setup action handlers on element with full animation support
@@ -566,7 +621,48 @@ export class LCARdSActionHandler {
         if (!actionConfig || !hass) {
             return;
         }
+        if (confirmationApplies(actionConfig, hass)) {
+            this._confirmThenRun(actionConfig, hass, element, defaultEntity);
+            return;
+        }
+        this._runAction(actionConfig, hass, element, defaultEntity);
+    }
 
+    /**
+     * Ask first (an action with `confirmation`), then run it if confirmed. The
+     * tap's sound and animation have already played; only the action waits.
+     * @private
+     * @param {any} actionConfig
+     * @param {any} hass
+     * @param {any} element
+     * @param {*} [defaultEntity]
+     * @returns {Promise<boolean>} whether it ran
+     */
+    async _confirmThenRun(actionConfig, hass, element, defaultEntity = null) {
+        const confirmation = typeof actionConfig.confirmation === 'object' ? actionConfig.confirmation : {};
+        // Home Assistant's warning haptic (the companion apps vibrate)
+        window.dispatchEvent(new CustomEvent('haptic', { detail: 'warning' }));
+        const confirmed = await this.confirmDialog({
+            title: confirmation.title,
+            message: await confirmationText(actionConfig, hass),
+            confirmText: confirmation.confirm_text || hass.localize?.('ui.common.ok') || 'OK',
+            dismissText: confirmation.dismiss_text || hass.localize?.('ui.common.cancel') || 'Cancel',
+            startEl: element
+        });
+        if (!confirmed) return false;
+        this._runAction(actionConfig, hass, element, defaultEntity);
+        return true;
+    }
+
+    /**
+     * Run an action now (any confirmation already given)
+     * @private
+     * @param {any} actionConfig
+     * @param {any} hass
+     * @param {any} element
+     * @param {*} [defaultEntity]
+     */
+    _runAction(actionConfig, hass, element, defaultEntity = null) {
         const action = actionConfig.action;
         // Use entity from action config, or fall back to defaultEntity, or element data attribute
         const entityId = actionConfig.entity || defaultEntity || element?.dataset?.entity;
@@ -789,9 +885,15 @@ export class LCARdSActionHandler {
 
         lcardsLog.debug(`[LCARdSActionHandler] Navigating to ${navigationPath}`);
 
-        window.history.pushState(null, '', navigationPath);
+        // As Home Assistant's navigate(): navigation_replace replaces the current history entry
+        const replace = actionConfig.navigation_replace === true;
+        if (replace) {
+            window.history.replaceState(null, '', navigationPath);
+        } else {
+            window.history.pushState(null, '', navigationPath);
+        }
         window.dispatchEvent(new CustomEvent('location-changed', {
-            detail: { replace: false },
+            detail: { replace },
             bubbles: true,
             composed: true
         }));
