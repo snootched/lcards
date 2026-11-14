@@ -1,5 +1,5 @@
 ---
-description: "Chart card series: where the data comes from (entity history, long-term statistics, LCARdS data sources), series options, the time window, grouping into time buckets, state bands behind the series, and several Y axes."
+description: "Chart card series: where the data comes from (entity history, long-term statistics, LCARdS data sources), series options, the time window, grouping into time buckets, state bands behind the series, linked charts, and several Y axes."
 moved_anchors:
   range-charts: /cards/chart/types#range-charts
   mixing-chart-types: /cards/chart/types#mixing-chart-types
@@ -412,6 +412,45 @@ state_bands:
 | `color` | colour / map | the theme's state colours | One colour, or a colour per state (`heat`, `active`, `inactive`, `unavailable`, `default`) |
 | `opacity` | number | `0.2` | How strongly the bands are shaded (0 to 1) |
 | `label` | boolean | `false` | Write the state at the top of each band |
+
+## Linked charts
+
+**`sync_group` links chart cards: hovering one shows the same moment on all of them, so a temperature and the thermostat's timeline read together.**
+
+- Give every chart the same `sync_group` name. Charts with the same time window show their tooltips together, as one; the others (timelines, or a chart over a shorter window) show a dashed line at that moment.
+- The plots line up when the cards are stacked: the y-axis labels of linked charts are at least 60 px wide.
+- Drag across a chart to zoom in: the other linked charts zoom to the same time, each with a reset button, and resetting any of them resets them all. New data keeps the zoom until you reset it.
+
+```yaml live
+# hover this chart, then the next one: their tooltips move together; drag across one to zoom both
+type: custom:lcards-chart
+chart_type: line
+graph_span: 12h
+sync_group: hall
+sources:
+  - entity: sensor.demo_temperature
+    name: Hall temperature
+```
+
+```yaml live
+type: custom:lcards-chart
+chart_type: area
+graph_span: 12h
+sync_group: hall
+sources:
+  - entity: sensor.demo_humidity
+    name: Hall humidity
+```
+
+::: details More about linked charts
+- **Same window** means the same `graph_span` (and `span`, if set). A linked chart's rolling window ends on the next whole minute, so cards that load a few seconds apart still match.
+- **The dashed line** comes from LCARdS, so it also works between a timeline and a line chart, or a 12 hour chart and a 6 hour one; it shows only where the moment is inside that chart's window.
+- **Wider labels:** set `style.chart_options.yaxis.labels.minWidth` for labels wider than 60 px, on every chart in the group.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `sync_group` | string | - | A name shared by the charts that move together |
 
 ## Y axes
 

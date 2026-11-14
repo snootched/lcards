@@ -76,8 +76,19 @@ export function windowAxis(config, span) {
   if (!span || xaxisType !== 'datetime' || !TIME_AXIS_CHART_TYPES.has(chartType) || chartType === 'bar') {
     return {};
   }
+  // sync_group: ApexCharts syncs only charts whose window is exactly the same,
+  // and each card computes "now" at its own moment. A rolling window ends at
+  // the next whole minute instead, so members with the same graph_span match
+  // (the card moves the axis on the minute).
+  if (config.sync_group && !config.span?.start && !config.span?.end) {
+    const end = Math.ceil(span.end / SYNC_WINDOW_STEP_MS) * SYNC_WINDOW_STEP_MS;
+    return { min: end - (span.end - span.start), max: end };
+  }
   return { min: span.start, max: span.end };
 }
+
+/** sync_group: rolling windows end on this step (the next whole minute). */
+export const SYNC_WINDOW_STEP_MS = 60_000;
 
 /**
  * Series in ApexCharts format.
@@ -163,11 +174,12 @@ export function timeAxisData({ config, span = null, points, hass }) {
  * @param {(style: Object) => Object} [args.resolveStyle] - Theme token resolution
  * @param {Element|null} [args.element] - The chart card: CSS variables in colours resolve against it
  * @param {import('./chart-timeline.js').TimelineContext} [args.timeline] - rangeBar and state bands: entity states, colours, state text
+ * @param {string} [args.chartId] - Unique ApexCharts id (sync_group needs one per chart)
  * @param {Array<Object>} [args.bands] - From normalizeStateBands()
  * @param {Array<Array<{t: number, v: any}>|undefined>} [args.bandPoints] - Text points per band
  * @returns {Object} ApexCharts options
  */
-export function buildChartOptions({ config, style, series, points, span = null, size = [400, 200], hass, resolveStyle, element = null, timeline, bands = [], bandPoints = [] }) {
+export function buildChartOptions({ config, style, series, points, span = null, size = [400, 200], hass, resolveStyle, element = null, timeline, chartId, bands = [], bandPoints = [] }) {
   const chartType = config.chart_type || 'line';
   let enhancedStyle = { chart_type: chartType, ...style };
 
@@ -223,6 +235,8 @@ export function buildChartOptions({ config, style, series, points, span = null, 
 
   if (chartType === 'rangeBar') applyTimelineLabels(options, { style: enhancedStyle, hass, span, wallClock });
 
+  if (config.sync_group) applySyncGroup(options, { group: String(config.sync_group), chartId, chartType });
+
   // State bands behind the series, on the same wall clock as the points
   if (bands.length) {
     const bandAnnotations = buildBandAnnotations({
@@ -277,3 +291,85 @@ function applyTimelineLabels(options, { style, hass, span, wallClock }) {
     }
   };
 }
+
+/** Y-axis label width sync_group members get, so their plot areas line up. */
+export const SYNC_GROUP_LABEL_WIDTH = 60;
+
+/**
+ * sync_group: ApexCharts' own group (tooltips, crosshair and zoom between
+ * charts with the same window; a timeline never syncs, so it stays out) and a
+ * minimum y-axis label width, so the plots of stacked cards line up. A label
+ * width or chart id of the user's own (style.chart_options) wins.
+ * @param {any} options - ApexCharts options (mutated)
+ * @param {{group: string, chartId?: string, chartType: string}} args
+ */
+function applySyncGroup(options, { group, chartId, chartType }) {
+  if (chartType !== 'rangeBar') {
+    const events = options.chart?.events ?? {};
+    let resetting = false;
+    options.chart = {
+      ...options.chart,
+      group,
+      id: options.chart?.id ?? chartId ?? `lcards-chart-${group}-${Math.random().toString(36).slice(2, 10)}`,
+      events: {
+        ...events,
+        // ApexCharts copies a zoom to the group but marks only the chart you
+        // zoomed as zoomed: the others get no reset, and its reset skips them.
+        // Zoom each sibling through its own zoomX() so all of them are zoomed.
+        zoomed: (/** @type {any} */ chart, /** @type {any} */ range) => {
+          events.zoomed?.(chart, range);
+          if (resetting) { resetting = false; return; }
+          // After ApexCharts' own group update, which re-renders the siblings
+          // unzoomed (a sibling zoomed before it would lose its reset control)
+          const xaxis = range?.xaxis ? { min: range.xaxis.min, max: range.xaxis.max } : undefined;
+          setTimeout(() => zoomSiblings(chart, xaxis), 0);
+        },
+        beforeResetZoom: (/** @type {any} */ chart, /** @type {any} */ w) => {
+          resetting = true; // the zoomed event that follows is the reset, not a zoom
+          return events.beforeResetZoom?.(chart, w);
+        }
+      }
+    };
+  }
+  /** @param {any} axis */
+  const widen = (axis) => ({ ...axis, labels: { ...axis?.labels, minWidth: axis?.labels?.minWidth ?? SYNC_GROUP_LABEL_WIDTH } });
+  options.yaxis = Array.isArray(options.yaxis) ? options.yaxis.map(widen) : widen(options.yaxis);
+}
+
+/** True while zoomSiblings() zooms the group, so the siblings' own zoomed events don't echo. */
+let zoomingSiblings = false;
+
+/**
+ * Mark every chart in the source's ApexCharts group zoomed to the same x
+ * range, as a zoom by hand does, so each shows its reset control and the
+ * group reset (which skips charts not marked zoomed) resets all of them.
+ * ApexCharts' own group update has normally applied the range already (and
+ * then an update with the same range draws nothing); a sibling that missed it
+ * gets the range here, keeping its own window as the range its reset returns
+ * to. Neither fires a zoomed event, so nothing echoes.
+ * @param {any} chart - The ApexCharts instance that was zoomed
+ * @param {{min?: number, max?: number}|undefined} xaxis
+ */
+function zoomSiblings(chart, xaxis) {
+  if (zoomingSiblings || !Number.isFinite(xaxis?.min) || !Number.isFinite(xaxis?.max)) return;
+  zoomingSiblings = true;
+  try {
+    for (const sibling of chart?.getGroupedCharts?.() ?? []) {
+      const w = sibling?.w;
+      if (!w?.interact || w.globals?.isDestroyed) continue;
+      w.interact.zoomed = true;
+      if (w.config?.xaxis?.min !== xaxis?.min || w.config?.xaxis?.max !== xaxis?.max) {
+        sibling.updateOptions({ xaxis: { min: xaxis?.min, max: xaxis?.max } }, false, false, false, false);
+      }
+      // The reset control a mount draws for a zoomed chart without a toolbar
+      // (ApexCharts' mount(): createToolbar({ resetOnly: true }))
+      const toolbar = sibling.toolbar;
+      if (!w.config?.chart?.toolbar?.show && toolbar?.resetControlDue?.() && !toolbar._drawnForZoom) {
+        toolbar.createToolbar({ resetOnly: true });
+      }
+    }
+  } finally {
+    zoomingSiblings = false;
+  }
+}
+

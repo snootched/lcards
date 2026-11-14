@@ -46,6 +46,8 @@ import {
 import { ChartSeriesFetcher } from '../charts/chart-series-fetcher.js';
 import { normalizeChartSources, normalizeStateBands, arrayChartProblem } from '../charts/chart-sources.js';
 import { createTimelineColorer } from '../utils/ha-state-color.js';
+import { joinSyncGroup, publishSyncTime, apexShowsCursor, timeAtX, xAtTime } from '../charts/chart-sync-group.js';
+import { SYNC_WINDOW_STEP_MS } from '../charts/chart-options-builder.js';
 import { resolveColor } from '../core/themes/resolve-color.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { deepMerge } from '../utils/deepMerge.js';
@@ -166,6 +168,17 @@ export class LCARdSChart extends LCARdSCard {
           padding: var(--ha-space-1) var(--ha-space-2);
         }
 
+        /* sync_group: another member's hover time, where ApexCharts draws no crosshair */
+        .sync-cursor {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 0;
+          border-left: var(--ha-border-width-sm) dashed var(--secondary-text-color);
+          pointer-events: none;
+          z-index: 2;
+        }
+
         /* rangeBar timeline tooltip: the row, the state, its times and duration */
         .lcards-timeline-tooltip {
           display: grid;
@@ -198,6 +211,8 @@ export class LCARdSChart extends LCARdSCard {
     this._chartGeneration = 0; // Bumped on every init/teardown so a stale async init is dropped
     /** @type {import('../charts/chart-sources.js').ChartSeries[]} */
     this._series = [];
+    /** @type {(() => void)|null} leaves the sync_group (listeners, membership) */
+    this._syncCleanup = null;
     /** @type {Array<any>} state_bands as history series (normalizeStateBands) */
     this._bands = [];
     /** @type {Array<Array<{t: number, v: any}>|undefined>} text points per state band */
@@ -336,8 +351,17 @@ export class LCARdSChart extends LCARdSCard {
     }
     if (!this._chart || !this._chartReady) return;
     try {
-      this._chart.updateOptions({ xaxis: this._windowAxis() }, false, false);
-      this._chart.updateSeries(this._buildApexSeries(), false);
+      if (this._isZoomed()) {
+        // A zoomed chart keeps its zoom: updateSeries() would put back the last
+        // axis range it was given (the window), so the data goes in together
+        // with the zoomed range, which ApexCharts then keeps as that range. The
+        // last argument keeps the window as the range a reset returns to.
+        const { min, max } = /** @type {any} */ (this._chart).w.config.xaxis;
+        this._chart.updateOptions({ xaxis: { min, max }, series: this._buildApexSeries() }, false, false, false, false);
+      } else {
+        this._chart.updateOptions({ xaxis: this._windowAxis() }, false, false, false);
+        this._chart.updateSeries(this._buildApexSeries(), false);
+      }
     } catch (error) {
       lcardsLog.error('[LCARdSChart] Error updating chart data:', error);
     }
@@ -354,7 +378,7 @@ export class LCARdSChart extends LCARdSCard {
     this._bandPoints[index] = points;
     if (!this._chart || !this._chartReady) return;
     try {
-      this._chart.updateOptions({ annotations: this._buildChartOptions().annotations }, false, false);
+      this._chart.updateOptions({ annotations: this._buildChartOptions().annotations }, false, false, false);
     } catch (error) {
       lcardsLog.error('[LCARdSChart] Error updating state bands:', error);
     }
@@ -536,6 +560,7 @@ export class LCARdSChart extends LCARdSCard {
       this._chart = new ApexCharts(container, this._chartOptions);
       await this._chart.render();
       this._observeChartSize(container);
+      this._joinSyncGroup(container);
 
       this._chartReady = true;
       this._error = null;
@@ -545,6 +570,137 @@ export class LCARdSChart extends LCARdSCard {
       this._error = `Chart initialization failed: ${error.message}`;
       this.requestUpdate();
     }
+  }
+
+  /**
+   * sync_group: join the group (ApexCharts' own group is set in the options),
+   * publish the time under the pointer, and draw other members' times.
+   * @private
+   * @param {HTMLElement} container
+   */
+  _joinSyncGroup(container) {
+    this._leaveSyncGroup();
+    const group = this.config?.sync_group;
+    if (!group || !this._chart) return;
+    /** @type {import('../charts/chart-sync-group.js').SyncMember} */
+    const member = {
+      showTime: (time, source) => this._showSyncCursor(time, source, member),
+      window: () => this._xWindow(),
+      apexSynced: () => (this.config?.chart_type || 'line') !== 'rangeBar'
+    };
+    let frame = 0;
+    /** @param {PointerEvent} event */
+    const onMove = (event) => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const plot = this._plotRect();
+        const window = this._xWindow();
+        const time = plot && window ? timeAtX(event.clientX - plot.left, plot.width, window) : null;
+        publishSyncTime(group, member, time);
+      });
+    };
+    const onLeave = () => {
+      cancelAnimationFrame(frame);
+      frame = 0;
+      publishSyncTime(group, member, null);
+    };
+    container.addEventListener('pointermove', onMove);
+    container.addEventListener('pointerleave', onLeave);
+    const leave = joinSyncGroup(group, member);
+    // A rolling window ends on the next whole minute (windowAxis): move the
+    // axis on the minute, as every member does, so their windows stay equal.
+    /** @type {ReturnType<typeof setTimeout>|undefined} */
+    let minuteTimer;
+    const onMinute = () => {
+      minuteTimer = setTimeout(onMinute, SYNC_WINDOW_STEP_MS - (Date.now() % SYNC_WINDOW_STEP_MS) + 20);
+      if (!this._chart || !this._chartReady || this._isZoomed()) return;
+      this._fetcher?.refreshSpan();
+      try {
+        this._chart.updateOptions({ xaxis: this._windowAxis() }, false, false, false);
+      } catch (error) {
+        lcardsLog.warn('[LCARdSChart] sync_group: axis update failed', error);
+      }
+    };
+    minuteTimer = setTimeout(onMinute, SYNC_WINDOW_STEP_MS - (Date.now() % SYNC_WINDOW_STEP_MS) + 20);
+    this._syncCleanup = () => {
+      clearTimeout(minuteTimer);
+      cancelAnimationFrame(frame);
+      container.removeEventListener('pointermove', onMove);
+      container.removeEventListener('pointerleave', onLeave);
+      publishSyncTime(group, member, null);
+      leave();
+    };
+  }
+
+  /** @private */
+  _leaveSyncGroup() {
+    this._syncCleanup?.();
+    this._syncCleanup = null;
+    this._showSyncCursor(null);
+  }
+
+  /**
+   * Whether the user has zoomed the chart (toolbar, drag): live updates then
+   * leave the x range alone until the zoom is reset.
+   * @private
+   * @returns {boolean}
+   */
+  _isZoomed() {
+    return !!(/** @type {any} */ (this._chart)?.w?.interact?.zoomed);
+  }
+
+  /**
+   * The x window the chart shows now (wall-clock values on a time axis).
+   * @private
+   * @returns {{min: number, max: number}|null}
+   */
+  _xWindow() {
+    // ApexCharts' own plotted range (what its sync compares and the plot width
+    // spans); a horizontal timeline keeps its time range in minY / maxY.
+    const g = /** @type {any} */ (this._chart)?.w?.globals;
+    const [min, max] = g ? (g.isBarHorizontal ? [g.minY, g.maxY] : [g.minX, g.maxX]) : [];
+    if (Number.isFinite(min) && Number.isFinite(max) && max > min && Math.abs(max) < 1e300) return { min, max };
+    const axis = this._windowAxis();
+    return axis.min !== undefined && axis.max !== undefined ? { min: axis.min, max: axis.max } : null;
+  }
+
+  /**
+   * The plot area (inside the axes) in viewport pixels, from ApexCharts' layout.
+   * @private
+   * @returns {{left: number, top: number, width: number, height: number}|null}
+   */
+  _plotRect() {
+    const g = /** @type {any} */ (this._chart)?.w?.globals;
+    const svg = this.renderRoot.querySelector('.apexcharts-svg');
+    if (!g || !svg) return null;
+    const box = svg.getBoundingClientRect();
+    return { left: box.left + g.translateX, top: box.top + g.translateY, width: g.gridWidth, height: g.gridHeight };
+  }
+
+  /**
+   * Draw another member's hover time as a dashed line over the plot, unless
+   * ApexCharts already shows its crosshair here (null hides it).
+   * @private
+   * @param {number|null} time
+   * @param {import('../charts/chart-sync-group.js').SyncMember} [source]
+   * @param {import('../charts/chart-sync-group.js').SyncMember} [self]
+   */
+  _showSyncCursor(time, source, self) {
+    const cursor = /** @type {HTMLElement|null} */ (this.renderRoot?.querySelector('.sync-cursor'));
+    if (!cursor) return;
+    const plot = time === null || !source || !self || apexShowsCursor(self, source) ? null : this._plotRect();
+    const window = plot ? this._xWindow() : null;
+    const x = plot && window && time !== null ? xAtTime(time, plot.width, window) : null;
+    const host = /** @type {HTMLElement|null} */ (this.renderRoot.querySelector('.lcards-card-container'));
+    if (x === null || !plot || !host) {
+      cursor.hidden = true;
+      return;
+    }
+    const origin = host.getBoundingClientRect();
+    cursor.style.transform = `translate(${plot.left - origin.left + x}px, ${plot.top - origin.top}px)`;
+    cursor.style.height = `${plot.height}px`;
+    cursor.hidden = false;
   }
 
   /**
@@ -575,7 +731,7 @@ export class LCARdSChart extends LCARdSCard {
           chart: { width: size[0], height: size[1] },
           plotOptions: options.plotOptions,
           grid: options.grid
-        }, false, false);
+        }, false, false, false);
       }, 100);
     });
     this._resizeObserverChart.observe(box);
@@ -609,6 +765,7 @@ export class LCARdSChart extends LCARdSCard {
       // a theme on the chart's view or section sets the CSS variables its colours read
       element: this,
       timeline: this._timelineContext(),
+      chartId: `lcards-chart-${this._cardGuid}`,
       bands: this._bands,
       bandPoints: this._bandPoints
     });
@@ -640,6 +797,7 @@ export class LCARdSChart extends LCARdSCard {
    * @override
    */
   setConfig(config) {
+    this._leaveSyncGroup();
     this._resizeObserverChart?.disconnect();
     this._resizeObserverChart = null;
     if (this._chart) {
@@ -680,11 +838,12 @@ export class LCARdSChart extends LCARdSCard {
         markers: newOptions.markers,
         dataLabels: newOptions.dataLabels,
         tooltip: newOptions.tooltip,
-        xaxis: newOptions.xaxis,
+        // a zoomed chart keeps its zoomed range
+        xaxis: this._isZoomed() ? { ...newOptions.xaxis, min: this._chart.w.config.xaxis.min, max: this._chart.w.config.xaxis.max } : newOptions.xaxis,
         yaxis: newOptions.yaxis,
         // thresholds and state bands (their colours follow the alert mode)
         annotations: newOptions.annotations
-      }, false, false);
+      }, false, false, false, !this._isZoomed());
     } catch (error) {
       lcardsLog.error(`[LCARdSChart] Error updating chart options:`, error);
     }
@@ -707,6 +866,7 @@ export class LCARdSChart extends LCARdSCard {
     return html`
       <div class="lcards-card-container">
         <div class="chart-container"></div>
+        <div class="sync-cursor" hidden></div>
         ${this._error || problems.length
           ? html`<div class="chart-overlay chart-error">${this._error ?? problems[0]}</div>`
           : !this._dataArrived
@@ -765,6 +925,7 @@ export class LCARdSChart extends LCARdSCard {
    * @protected
    */
   _onDisconnected() {
+    this._leaveSyncGroup();
     this._stopLoading();
     this._resizeObserverChart?.disconnect();
     this._resizeObserverChart = null;

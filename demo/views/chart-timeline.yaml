@@ -4,6 +4,7 @@
 # right grows, a change starts a new one. Top: the theme's state colours, as
 # Home Assistant's history draws them. Middle: colours by state, active only.
 # Bottom: VALUE as a line with the lights and doors shaded behind it.
+# All three share sync_group: hover one and the others show the same moment.
 title: Timelines
 path: chart-timeline
 type: sections
@@ -45,6 +46,7 @@ sections:
       - type: custom:lcards-chart
         chart_type: rangeBar
         graph_span: 2h
+        sync_group: timelines
         sources:
           - { entity: input_boolean.lcards_test_lights, name: Lights }
           - { entity: input_boolean.lcards_test_doors, name: Doors }
@@ -54,6 +56,7 @@ sections:
       - type: custom:lcards-chart
         chart_type: rangeBar
         graph_span: 2h
+        sync_group: timelines
         sources:
           - entity: input_boolean.lcards_test_lights
             name: Lights
@@ -72,6 +75,7 @@ sections:
       - type: custom:lcards-chart
         chart_type: line
         graph_span: 2h
+        sync_group: timelines
         sources:
           - { entity: input_number.lcards_test_value, name: Value, curve: stepline }
         state_bands:

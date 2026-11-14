@@ -287,6 +287,11 @@ export function getChartSchema(options = {}) {
                 }
             },
 
+            sync_group: {
+                type: 'string',
+                description: 'A name shared by chart cards that move together: hovering one shows the same time on all of them (a cursor line, and the tooltips of charts with the same time window), and their plots line up (y-axis labels at least 60 px wide). Dragging across one to zoom zooms the others, each with a reset that resets them all. Timelines (rangeBar) show the cursor line only. A rolling window ends on the next whole minute so the members match.',
+                examples: ['climate']
+            },
             state_bands: {
                 type: 'array',
                 description: 'An entity\'s states shaded behind the series, a band for each stretch of time it held one (a thermostat heating behind its temperature). Time charts only (line, area, column, scatter, rangeArea, rangeBar, candlestick, boxPlot).',

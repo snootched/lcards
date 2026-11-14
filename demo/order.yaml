@@ -95,8 +95,8 @@ releases:
     views:
       - file: chart-timeline
         summary: "Chart timelines and state bands: states as bars, or shaded behind a line"
-        description: "chart_type: rangeBar. Toggle LIGHTS and DOORS or pick a MODE: the bar on the right grows while a state holds and a change starts a new one; hover a bar for its state, times and how long it lasted. Top: the theme's state colours, as Home Assistant's history draws them. Middle: your own colours by state, only the lights' active runs, changes under 30 seconds hidden. Bottom: state_bands shade the lights (orange) and doors (blue) behind VALUE while they are on; drag VALUE to move the line."
-        session: "E1.2 rangeBar timeline, E1.1 state bands"
+        description: "chart_type: rangeBar. Toggle LIGHTS and DOORS or pick a MODE: the bar on the right grows while a state holds and a change starts a new one; hover a bar for its state, times and how long it lasted. Top: the theme's state colours, as Home Assistant's history draws them. Middle: your own colours by state, only the lights' active runs, changes under 30 seconds hidden. Bottom: state_bands shade the lights (orange) and doors (blue) behind VALUE while they are on; drag VALUE to move the line. All three share a sync_group: hover one and a dashed line marks the same moment on the others."
+        session: "E1.2 rangeBar timeline, E1.1 state bands, E1.3 sync_group"
         docs: /cards/chart/types#timelines
         public: true
       - file: actions-confirmation

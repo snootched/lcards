@@ -146,6 +146,15 @@ export class ChartSeriesFetcher {
     this._windowTimer = null;
   }
 
+  /**
+   * Recompute a rolling window now (a sync_group card moves its axis on the
+   * minute, between data updates). Aligned windows wait for the tick, which
+   * notices their rollover.
+   */
+  refreshSpan() {
+    if (this._running && !this._spanConfig.span?.start && !this._spanConfig.span?.end) this._span = this._computeSpan();
+  }
+
   /** @returns {{start: number, end: number, duration: number, live: boolean}|null} */
   get span() {
     return this._span;
