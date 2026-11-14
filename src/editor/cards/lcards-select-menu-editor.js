@@ -31,7 +31,7 @@ import '../components/datasources/lcards-datasource-editor-tab.js';
 import '../components/templates/lcards-template-evaluation-tab.js';
 import { renderInfoGuide } from '../components/shared/info-guide.js';
 import '../components/provenance/lcards-provenance-tab.js';
-import { createDialogFooter, mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { createDialogFooter, mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 
 const _overflowOpts = [
     { value: 'visible', label: 'Visible: content paints outside the box' },
@@ -1094,7 +1094,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
 
         dialog.appendChild(createDialogFooter({ secondary: [cancelBtn], primary: [saveBtn] }));
 
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._buttonTemplateDialogRef === dialog) {
                 this._buttonTemplateDialogRef = null;

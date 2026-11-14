@@ -2,7 +2,7 @@
 
 > **Home Assistant 2026.11 or later.** LCARdS refuses to load on anything older (`MIN_HA_VERSION` in `custom_components/lcards/const.py:9`), so every variable on this page is available to LCARdS code. Values are read from the Home Assistant frontend source, `src/resources/theme/` ([on GitHub](https://github.com/home-assistant/frontend/tree/dev/src/resources/theme)); `file:line` citations refer to frontend `20261028.2`, the 2026.11 release line.
 
-This page is the one reference for Home Assistant CSS variables in LCARdS: what each variable is called, the value it has in the default Home Assistant theme (light and dark), and the rules LCARdS code follows when it uses them. `CLAUDE.md` and `.github/instructions/editor.instructions.md` keep only the short rules and link here.
+This page is the one reference for Home Assistant CSS variables in LCARdS: what each variable is called, the value it has in the default Home Assistant theme (light and dark), and the rules LCARdS code follows when it uses them. `CLAUDE.md` and `.claude/rules/editor.md` keep only the short rules and link here.
 
 It does not track which LCARdS files use which variable. Search the code for that (`grep -rn "var(--ha-space-" src/`).
 
@@ -562,7 +562,7 @@ The Theme Generator keeps a copy of this alias list (`WA_COLOR_ALIAS_VARS` in `s
 
 ## Rules for LCARdS Code
 
-The short form of these rules is in `CLAUDE.md` (its CSS variables section) and `.github/instructions/editor.instructions.md` ("CSS & Theming Conventions").
+The short form of these rules is in `CLAUDE.md` (its CSS variables section) and `.claude/rules/editor.md` ("CSS & Theming Conventions").
 
 | Property | Rule |
 |---|---|
@@ -576,7 +576,7 @@ The short form of these rules is in `CLAUDE.md` (its CSS variables section) and 
 | Colour | Theme variables only (`--primary-color`, `--primary-text-color`, `--secondary-background-color`, the status colours, the semantic tokens); never `rgba(60,60,60,X)` or `rgba(255,255,255,X)` in structural CSS. LCARS colours come from `--lcars-*` / `--lcards-*` or `theme:` tokens ([Colour Resolution](colour-resolution.md#css-variables-and-theme-tokens)) |
 | Theme variables | Read `--ha-card-*` and the other [theme variables](#theme-variables-not-globals) with a fallback |
 
-Home Assistant components: `<ha-button variant="danger | warning | brand">` (never `--mdc-theme-primary` overrides), `ha-input` / `ha-textarea` (not `ha-textfield`), `ha-spinner size="small"` (not `ha-circular-progress`). The full component rules are in `.github/instructions/editor.instructions.md`.
+Home Assistant components: `<ha-button variant="danger | warning | brand">` (never `--mdc-theme-primary` overrides), `ha-input` / `ha-textarea` (not `ha-textfield`), `ha-spinner size="small"` (not `ha-circular-progress`). The full component rules are in `.claude/rules/editor.md`.
 
 ---
 

@@ -1,5 +1,11 @@
 ---
-applyTo: "src/cards/**, src/editor/**, src/core/**, src/msd/**, src/charts/**, src/base/**"
+paths:
+  - "src/cards/**"
+  - "src/editor/**"
+  - "src/core/**"
+  - "src/msd/**"
+  - "src/charts/**"
+  - "src/base/**"
 ---
 
 # LCARdS State-Based Color & Token Resolution Rules
@@ -10,7 +16,7 @@ These rules apply to all card and editor source files. Color resolution has mult
 
 ## One Grammar, One Resolver
 
-`src/core/themes/color-syntax.js` defines every accepted colour value (hex, named, all CSS colour functions, `var()`, `theme:` tokens, the computed functions `alpha darken lighten saturate desaturate mix base` with nesting, and `match-light`). Use its exports; never write a local list, regex or parser:
+`src/core/themes/color-syntax.js` defines every accepted colour value (hex, named, all CSS colour functions, `var()`, `theme:` tokens, the computed functions `alpha darken lighten saturate desaturate mix base` with nesting, and `match-light` / `match-brightness`). Use its exports; never write a local list, regex or parser:
 
 - `COLOR_VALUE_PATTERN`: the schema `pattern` for every colour field
 - `isColorValue` / `isCssColor` / `isComputedColor`: detection
@@ -81,7 +87,7 @@ style:
     default:      '#666666'
     active:       '#FF9900'
     heat:         '#FF6600'   # overrides 'active' when state is 'heat'
-    above:80:     '#00FF00'   # numeric range (requires ranges_attribute)
+    above:80:     '#00FF00'   # numeric range (entity state, or ranges_attribute)
     between:20:80: '#FFFF00'
     below:20:     '#FF0000'
     fade:         '#FF0000'   # matches effect attribute == "fade" (requires state_attribute: effect)
@@ -92,8 +98,8 @@ style:
 
 `_classifyEntityState()` maps raw entity states to one of:
 
-- `active` — on, playing, open, locked, heating, cooling, cleaning, … (built-in list in `LCARdSCard.js`)
-- `inactive` — off, paused, idle, closed, unlocked, disarmed, … (catch-all)
+- `active` — on, open, playing, home, heat, cool, auto, locked, armed_*, cleaning, docked, paused, … (built-in list in `LCARdSCard.js`)
+- `inactive` — everything else: off, idle, closed, unlocked, disarmed, … (catch-all, or `state_classification.else`)
 - `unavailable` — unavailable, unknown (always, cannot be overridden)
 - `default` — no entity
 

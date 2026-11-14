@@ -2,7 +2,7 @@
 
 > **The base classes every LCARdS card is built on**: `LCARdSNativeCard` (the Home Assistant card contract) and `LCARdSCard` (core singletons, config processing, templates, entities, actions, rules and cleanup).
 > **Source**: `src/base/LCARdSNativeCard.js`, `src/base/LCARdSCard.js`, `src/base/LCARdSActionHandler.js`
-> **Rules for card code**: `.github/instructions/cards.instructions.md`
+> **Rules for card code**: `.claude/rules/cards.md`
 
 ---
 
@@ -238,7 +238,7 @@ Syntax and evaluator internals: [Template System](../subsystems/template-system.
 | `_resolveEntityStateColor(colorConfig, fallback)` | A state-keyed colour map resolved for the card's entity, kept as CSS (`var()` stays live, so alert modes recolour without a re-render) |
 | `_classifyEntityState(entity)` / `_resolveStateValue(options)` | The state key (`active`, `inactive`, `unavailable`, ...) a state-keyed map is read with |
 
-Colour syntax lives only in `src/core/themes/color-syntax.js`; see `.github/instructions/state-color.instructions.md` and [Theme System](../subsystems/theme-system.md). Theme tokens are always read through `window.lcards.core.themeManager`, never a module import.
+Colour syntax lives only in `src/core/themes/color-syntax.js`; see `.claude/rules/state-color.md` and [Theme System](../subsystems/theme-system.md). Theme tokens are always read through `window.lcards.core.themeManager`, never a module import.
 
 ---
 
@@ -363,7 +363,7 @@ flowchart TD
 - **Card size.** Override `_getCardSize()` when the card is taller than one row, e.g. `return Math.ceil((this._configPx(this.config?.height) || 200) / 50);` (the chart and MSD do this).
 - **Host size keys.** `height`, `width`, `min_*`, `max_*`, `overflow*` and `z_index` are applied to the host by `LCARdSNativeCard._onConfigSet()`; an explicit `height` / `width` sets the matching `min-*` to `0px`.
 - **`_setupAutoSizing(onResize)`** (call from `_handleFirstUpdate()`): a `ResizeObserver` on `.lcards-size-ref` stores `this._containerSize = { width, height }` and calls `onResize(width, height)` (default: `requestUpdate()`). The first measurement waits one animation frame (parents such as the layout card inject margins in their own first update); later ones are debounced (150 ms) with a 2 px hysteresis. It also detects a parent `card_margin` and sets `calc(100% - Npx)` on the host (`_parentMarginV`). Inside an MSD `foreignObject` it locks `_containerSize` to the design size instead. `_onConnected()` re-creates the observer after a reconnect.
-- Sizing inside nested grids (`hui-card`, layout card and view tracks) follows the rules in `.github/instructions/cards.instructions.md` ("Sizing in Nested Grids").
+- Sizing inside nested grids (`hui-card`, layout card and view tracks) follows the rules in `.claude/rules/cards.md` ("Sizing in Nested Grids").
 
 ---
 
@@ -392,7 +392,7 @@ The MSD card overrides `_detectPreviewMode()` and returns `'picker'` / `'editor'
 - **Zones** are named rectangles text fields are placed in (`zone: <name>`). Cards override `_calculateZones(width, height)` and call `_rebuildZones(width, height)` at the top of each render, which recalculates and merges user zones (`_mergeUserZones()`). `_generateZoneTextMarkup()`, `_generateZoneDebugMarkup()` and `_injectTextFieldsToElement()` are defined on `LCARdSButton` (so the button, elbow and slider have them), not on `LCARdSCard`.
 - **Segments**: `_extractSegmentIds()`, `_processSegmentConfig()`, `_setupSegmentInteractivity()` and `_attachSegmentActions()` give each SVG element with an id its own style and actions (button component mode).
 
-See `.github/instructions/cards.instructions.md` ("Zone System") for the rules.
+See `.claude/rules/cards.md` ("Zone System") for the rules.
 
 ---
 

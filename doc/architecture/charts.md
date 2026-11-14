@@ -159,7 +159,7 @@ Two places run it:
 
 ## Entity access: the documented exception
 
-Cards normally read entities through `subscribeToEntity()` (see `.github/instructions/cards.instructions.md`). That delivers current state only, and a chart needs history for a time window, so the chart is the one card that talks to the websocket directly: `ChartSeriesFetcher` subscribes to `history/stream` and calls `recorder/statistics_during_period` on `hass.connection`. It owns its cleanup (`stop()`, from `_onDisconnected()` through `_stopLoading()`) and its reconnect handling (the `ready` listener above). New cards that need history should reuse this fetcher rather than open their own raw subscriptions.
+Cards normally read entities through `subscribeToEntity()` (see `.claude/rules/cards.md`). That delivers current state only, and a chart needs history for a time window, so the chart is the one card that talks to the websocket directly: `ChartSeriesFetcher` subscribes to `history/stream` and calls `recorder/statistics_during_period` on `hass.connection`. It owns its cleanup (`stop()`, from `_onDisconnected()` through `_stopLoading()`) and its reconnect handling (the `ready` listener above). New cards that need history should reuse this fetcher rather than open their own raw subscriptions.
 
 The card still uses the normal paths for everything else: `getEntityState()` for series names and units, the shared `DataSourceManager` for datasource series, and `LCARdSCard`'s HASS handling for templates in `style` (`_processCustomTemplates()` pre-evaluates them for `_resolveTemplateValue()`).
 

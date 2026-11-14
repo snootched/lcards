@@ -83,3 +83,39 @@ test('clearing the entity removes the key', () => {
     assert.deepEqual(writes, [['entity', 'light.y']]);
     assert.deepEqual(removed, ['entity']);
 });
+
+/** Every template value, nested templates and arrays included. */
+function allValues(t, out = []) {
+    for (const v of t?.values ?? []) {
+        out.push(v);
+        if (Array.isArray(v)) v.forEach(x => allValues(x, out));
+        else if (v?.strings) allValues(v, out);
+    }
+    return out;
+}
+
+function frameEditor(frame) {
+    const { editor, writes } = fakeEditor({ elbow: { type: 'frame', frame } });
+    const get = (p) => p.split('.').reduce((o, k) => o?.[k], editor.config);
+    Object.defineProperty(editor, '_getConfigValue', { value: get });
+    Object.defineProperty(editor, '_getSchemaForPath', { value: (p) => ({ type: p.endsWith('.enabled') ? 'boolean' : 'number', description: p }) });
+    Object.defineProperty(editor, '_renderShapeTextureSection', { value: () => '' });
+    return { editor, writes };
+}
+
+test('frame tab: every field renders through FormField (no bare ha-selector in the method)', () => {
+    const src = Editor.prototype._renderFrameDesign.toString();
+    assert.doesNotMatch(src, /<ha-selector/);
+    const { editor } = frameEditor({ bar_width: 40 });
+    const selectors = allValues(editor._renderFrameDesign()).filter(v => v?.number || v?.boolean);
+    assert.ok(selectors.length >= 15, `frame number/boolean selectors rendered (${selectors.length})`);
+});
+
+test('frame tab: a CSS length from YAML shows as text, blanking it writes the number default back', () => {
+    const { editor, writes } = frameEditor({ bar_width: 40, left: { bar_width: 'clamp(20px, 3vw, 40px)' } });
+    const values = allValues(editor._renderFrameDesign());
+    assert.ok(values.includes('clamp(20px, 3vw, 40px)'), 'the CSS value is shown');
+    const t = editor._renderCssField('Thickness (px)', 'clamp(20px, 3vw, 40px)', 'elbow.frame.left.bar_width', 40);
+    choose(t, '  ');
+    assert.deepEqual(writes, [['elbow.frame.left.bar_width', 40]]);
+});

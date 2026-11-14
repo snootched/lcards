@@ -16,7 +16,7 @@ import { parseLayoutConfig, getAreaNames } from '../../views/layout-grid-utils.j
 
 // Side-effect import: registers <lcards-layout-studio-dialog>.
 import '../dialogs/lcards-layout-studio-dialog.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 
 export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
@@ -88,7 +88,7 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
             fireEvent(this, 'config-changed', { config: this.config });
             this.requestUpdate();
         });
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._studio === dialog) this._studio = null;
         });

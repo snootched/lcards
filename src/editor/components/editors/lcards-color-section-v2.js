@@ -32,7 +32,7 @@ import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 import { editorWidgetStyles } from './editor-widget-styles.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-color-picker.js';
-import { createDialogFooter, mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
+import { createDialogFooter, mountDialogNearHomeAssistant, onDialogClosed } from '../../../utils/lcards-shared-helpers.js';
 import { resolveColor } from '../../../core/themes/resolve-color.js';
 
 export class LCARdSColorSectionV2 extends LitElement {
@@ -938,7 +938,7 @@ export class LCARdSColorSectionV2 extends LitElement {
 
             dialog.appendChild(createDialogFooter({ primary: [closeButton] }));
 
-            dialog.addEventListener('closed', () => {
+            onDialogClosed(dialog, () => {
                 dialog.remove();
             });
 
@@ -986,7 +986,7 @@ export class LCARdSColorSectionV2 extends LitElement {
 
             dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [confirmButton] }));
 
-            dialog.addEventListener('closed', () => {
+            onDialogClosed(dialog, () => {
                 dialog.remove();
             });
 

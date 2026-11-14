@@ -1,6 +1,6 @@
 # Building a Custom Card
 
-This guide walks through adding a new card to LCARdS: the class, the schema, the registration in `src/lcards-main.js`, the editor hook-up, the build and the checks that guard each step. It is the how-to; the base classes themselves (every hook, the HASS flow, rules, preview mode, cleanup) are described in [Card Foundation](../architecture/cards/lcards-card-foundation.md), and the rules card code must follow are in `.github/instructions/cards.instructions.md`.
+This guide walks through adding a new card to LCARdS: the class, the schema, the registration in `src/lcards-main.js`, the editor hook-up, the build and the checks that guard each step. It is the how-to; the base classes themselves (every hook, the HASS flow, rules, preview mode, cleanup) are described in [Card Foundation](../architecture/cards/lcards-card-foundation.md), and the rules card code must follow are in `.claude/rules/cards.md`.
 
 New cards live in this repository: there is no plugin API for cards shipped outside the LCARdS bundle. Every sample below uses the real base class APIs in `src/base/LCARdSCard.js` and `src/base/LCARdSNativeCard.js`.
 
@@ -227,7 +227,7 @@ See [Action Handler](../architecture/subsystems/action-handler.md) for the suppo
 - **CSS.** New `--lcards-*` variables go in `src/lcards-vars.js` and `--lcars-*` ones in `scripts/ha-lcars-theme-vars.js`, or `npm run validate:css-vars` fails the build. Use Home Assistant's spacing, radius and border variables (see [Home Assistant CSS Variables](ha-css-vars.md)).
 - **Logging.** `lcardsLog.debug('[LCARdSMyCard] ...', { data })`, never `console.log`. Turn on debug output in the browser console with `window.lcards.setGlobalLogLevel('debug')`.
 - **Animations** use the anime.js v4 API through the [Animation API](anim-api.md).
-- **Zones.** Cards that place text fields in named zones override `_calculateZones(width, height)` and call `_rebuildZones(width, height)` at the top of each render; the zone text helpers are on `LCARdSButton`, not `LCARdSCard`. See `cards.instructions.md` "Zone System".
+- **Zones.** Cards that place text fields in named zones override `_calculateZones(width, height)` and call `_rebuildZones(width, height)` at the top of each render; the zone text helpers are on `LCARdSButton`, not `LCARdSCard`. See `.claude/rules/cards.md` "Zone System".
 
 ## 2. The schema
 
@@ -283,7 +283,7 @@ if (!customElements.get('lcards-mycard-editor')) {
 }
 ```
 
-The editor guide is [Building a Studio Editor](building-an-editor.md); the field rules are in `.github/instructions/editor.instructions.md`.
+The editor guide is [Building a Studio Editor](building-an-editor.md); the field rules are in `.claude/rules/editor.md`.
 
 ## 4. Register the card
 
@@ -346,7 +346,7 @@ _getCardSize() {
 }
 ```
 
-`_configPx()` turns `400`, `"400"` or `"400px"` into a number and returns `null` for relative units (`50vh`, `%`), so those fall back to the default. For the sections view, override `getGridOptions()` (the select menu does) or `_getGridOptions()`. Sizing inside layout cards and views follows `cards.instructions.md` "Sizing in Nested Grids".
+`_configPx()` turns `400`, `"400"` or `"400px"` into a number and returns `null` for relative units (`50vh`, `%`), so those fall back to the default. For the sections view, override `getGridOptions()` (the select menu does) or `_getGridOptions()`. Sizing inside layout cards and views follows `.claude/rules/cards.md` "Sizing in Nested Grids".
 
 ## 8. Build, test and document
 

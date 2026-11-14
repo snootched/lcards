@@ -4,7 +4,7 @@ A **studio** is a full-size Home Assistant dialog with a config panel on the lef
 
 This page shows how to build one, how to launch it from a card editor and how to test it. The short [Basic Card Editor](#basic-card-editor) section at the end covers the plain tabbed editor every card has, which is also where a studio is launched from.
 
-The full rule set for editor code is `.github/instructions/editor.instructions.md` (Field Rendering, Approved Shared Components, "Dialogs, surfaces and messages", CSS and Theming). This page follows it and cites the files every sample comes from; when the two disagree, the code wins and the instructions file needs fixing.
+The full rule set for editor code is `.claude/rules/editor.md` (Field Rendering, Approved Shared Components, "Dialogs, surfaces and messages", CSS and Theming). This page follows it and cites the files every sample comes from; when the two disagree, the code wins and the instructions file needs fixing.
 
 ## When to Build a Studio
 
@@ -55,7 +55,7 @@ flowchart TD
 - **Styles:** `studioDialogStyles` (`src/editor/dialogs/studio-dialog-styles.js`) fixes the dialog at 90vh and 95vw, keeps `.dialog-content` in the flex chain so only `.tab-content` scrolls, draws `.studio-layout` as the black inset (`var(--primary-background-color)`), and styles the tab group, the floating `.canvas-toolbar`, `.zoom-controls` and `.placeholder-content`. It also sets `font-family: var(--ha-font-family-body)` on `.dialog-content`, so LCARdS text follows the theme font like Home Assistant's controls do. Add `editorStyles` (`src/editor/base/editor-styles.js`, which includes the info guide styles) and `messageStyles` (`src/editor/base/surface-styles.js`, for `.hint` and `.banner`).
 - **Split:** `.studio-layout` is 50/50 and stacks into two rows below 1024px. A studio changes only `grid-template-columns`, and when it does it must set `grid-template-rows: minmax(0, 1fr)` in the same rule, or the shared narrow-screen rule leaves an empty second row (`tests/editor/studio-layout-css.test.js`). Don't set heights on `.dialog-content`, `.tab-content` or the panels.
 - **Sections:** group fields in `lcards-form-section` (`src/editor/components/shared/lcards-form-section.js`), the outlined section card built on `ha-expansion-panel`. Every section has an `icon`, nested sections included (`nested` gives the tighter spacing). Don't add tinted containers, accent borders or your own card styles around them: the section is the container.
-- **Help:** one way for each kind (`editor.instructions.md`, "Messages and explainers"): `renderInfoGuide()` for explanations, the section's `description` for one line about a section, the field's `helper` for one line about a field, `lcards-message` for something to notice now (at most 200 characters for an info message).
+- **Help:** one way for each kind (`.claude/rules/editor.md`, "Messages and explainers"): `renderInfoGuide()` for explanations, the section's `description` for one line about a section, the field's `helper` for one line about a field, `lcards-message` for something to notice now (at most 200 characters for an info message).
 - **Preview:** the real card element (chart, data grid, astrometrics, layout) or a dedicated preview element (`lcards-alert-preview`, the MSD canvas), fed from the working copy.
 - **Footer:** `<ha-dialog-footer slot="footer">` with Cancel (`slot="secondaryAction"`, `appearance="plain"`) then Save (`slot="primaryAction"`, `variant="brand"`, an `mdi:check` icon). Documentation and Reset go first, in a `<div class="footer-start" slot="secondaryAction">`, which `studioDialogStyles` pushes to the left. `tests/editor/dialog-footer-guards.test.js` fails on a hand-built `div slot="footer"` and on a Cancel that isn't plain.
 - **YAML:** the last tab is `lcards-studio-yaml-tab` (`src/editor/components/yaml/lcards-studio-yaml-tab.js`) with the icon `mdi:code-braces`.
@@ -124,6 +124,13 @@ export function mountDialogNearHomeAssistant(dialogEl, startEl) {
 - **Imperative dialogs** (built with `document.createElement('ha-dialog')`) get their footer from `createDialogFooter({ secondary, primary })` in the same file (`lcards-shared-helpers.js:78`).
 - **No native dialogs.** Never `confirm()`, `alert()` or `prompt()` (`tests/editor/editor-guards.test.js`). Use `showConfirmDeleteDialog`, `showInfoDialog` and `showPromptDialog` from `src/views/layout-edit-dialogs.js`. The chart studio's "Discard unsaved changes?" is `showConfirmDeleteDialog({ title, message, confirmText: 'Discard' })` (`lcards-chart-studio-dialog.js:698`).
 - **Closing:** `ha-dialog` fires `closed` when it closes for any reason (Esc, its close button, `open = false`), and some components inside a dialog fire their own `closed`, which bubbles. Stop the event so it doesn't close the card editor around the studio, and act only when `e.target === e.currentTarget` (`_onDialogClosed()`, `lcards-astrometrics-studio-dialog.js:2072`). `tests/editor/studio-dialog-guards.test.js` fails on an `@closed` handler that acts without the check.
+- **Imperative `closed` listeners** go through `onDialogClosed(dialog, handler)` (`lcards-shared-helpers.js`), which runs the handler only for the dialog's own `closed`. A bare `addEventListener('closed', ...)` fails `tests/editor/editor-guards.test.js`: a card picker's `ha-select` or a nested dialog inside would otherwise remove the outer dialog.
+- **Home Assistant's card picker** (`hui-card-picker`; recipe in `lcards-layout-studio-dialog.js` `_openCardPicker` and `alert-studio/alert-studio-forms.js`):
+  - Home Assistant registers it lazily: check `customElements.get('hui-card-picker')` first, and if it is missing tell the user (`showInfoDialog`) to open "Add card" on a dashboard once. The layout view primes it (`src/views/lcards-layout-view.js`).
+  - Create an `ha-dialog` with `headerTitle`, mount it with `mountDialogNearHomeAssistant`, set `open = true` and await `updateComplete`.
+  - Set `picker.hass` and `picker.lovelace` (a config with `views: [{ title: 'Home', path: 'home', cards: [] }]`), append the picker as a direct child of the dialog, then `requestUpdate()` it after about 80ms.
+  - On the picker's `config-changed`: stop it, close the dialog, deep-copy `detail.config`. Remove the dialog in `onDialogClosed`.
+  - The MSD Studio still reaches the picker through an event proxy (`open-card-picker` to the MSD editor, `card-picker-result` back on `document`); new code opens it directly.
 
 ## Build a Studio, Step by Step
 
@@ -386,7 +393,7 @@ export class LCARdSMyCardStudioDialog extends LitElement {
 - **Reuse the shared controls** before writing new ones (`src/editor/components/shared/`): `lcards-color-picker` and `lcards-color-list` for colours (FormField renders the colour picker for a schema with `x-ui-hints.widget: 'lcards-color-picker'`), `lcards-form-section` and `lcards-collapsible-section`, `renderInfoGuide()`, `renderFilterChips()` for a single-choice row of pills, `lcards-message`, `lcards-asset-source-picker`, and `lcards-zone-list-editor` (in `src/editor/components/`). The Alert Studio edits a content card with that card's own editor instead of rebuilding its fields.
 - **No added decoration.** No accent-coloured panels, tinted boxes, gradient headers, emoji or badges: the section card, its icon and Home Assistant's controls are the look. Colours come from theme variables (`var(--primary-color)`, `var(--divider-color)`, `var(--secondary-text-color)`), never hex values or a new palette.
 - **Spacing, radius and motion** use Home Assistant's variables: `var(--ha-space-N)`, `var(--ha-border-radius-*)`, `var(--ha-border-width-*)`, `var(--ha-box-shadow-s/m/l)` (never a hand-written shadow), `var(--ha-animation-duration-*)` and `var(--ha-font-size-*)`. See the [Home Assistant CSS Variable Reference](ha-css-vars.md).
-- **Home Assistant elements:** `ha-input` and `ha-textarea` (with `hint`, not `helper-text`) for text that isn't a schema field, `ha-button` with `variant="brand"`, `"danger"` or `"warning"` and `appearance="plain"` for cancel-like actions, `ha-spinner size="small"` while loading (`ha-circular-progress` no longer exists), `ha-switch` with its label inside, `ha-icon-button` with `.label`. The full list of approved and dead elements is in the approved elements section of `editor.instructions.md`, and `npm run validate:ha-compat` fails the build on the dead ones.
+- **Home Assistant elements:** `ha-input` and `ha-textarea` (with `hint`, not `helper-text`) for text that isn't a schema field, `ha-button` with `variant="brand"`, `"danger"` or `"warning"` and `appearance="plain"` for cancel-like actions, `ha-spinner size="small"` while loading (`ha-circular-progress` no longer exists), `ha-switch` with its label inside, `ha-icon-button` with `.label`. The full list of approved and dead elements is in the approved elements section of `.claude/rules/editor.md`, and `npm run validate:ha-compat` fails the build on the dead ones. `ha-button` sizes are `xs`, `s`, `m`, `l` and `xl`: any other value (`small`, `large`) is ignored, and `validate:ha-compat` flags it; `?loading` shows a spinner and blocks clicks.
 - **Text:** sentence case for new labels, "Home Assistant" in full, no em dashes. Delete is permanent, Remove is reversible.
 
 ### 4. The Live Preview
@@ -505,7 +512,7 @@ import { html } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { configToYaml } from '../utils/yaml-utils.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 
 export class LCARdSMyCardEditor extends LCARdSBaseEditor {
 
@@ -561,7 +568,7 @@ export class LCARdSMyCardEditor extends LCARdSBaseEditor {
             fireEvent(this, 'config-changed', { config: this.config });
             this.requestUpdate();
         });
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._studio === dialog) this._studio = null;
         });
@@ -612,6 +619,10 @@ height: {
 ```
 
 - **Selector order:** `options.selectorOverride`, then `x-ui-hints.selector`, then one generated from the schema (`type`, `enum`, `format: 'entity' | 'icon' | 'color' | 'action'`) (`lcards-form-field.js:100-103`, `_getSelectorConfig()` and `_autoGenerateSelector()` below it). A field label and helper come from `x-ui-hints` unless the call overrides them.
+- **Generated selectors** (`_autoGenerateSelector()`): `number` / `integer` gives a number selector (`slider` when `maximum` is 100 or less, else `box`; step 1 for an integer, else `multipleOf` or 0.1); `boolean` a toggle; a string with `format` `entity`, `icon`, `color` or `action` gives `entity`, `icon`, `ui_color` (Home Assistant's colour picker, not `lcards-color-picker`) or `ui_action`; a string `enum` a dropdown; `object` the object selector; anything else text.
+- **`oneOf`** without an `x-ui-hints.selector` becomes Home Assistant's `choose` selector, one choice per branch, labelled by the branch `title` or inferred (Number, Text, Theme Token, By State, ...). FormField converts to and from the selector's `{ active_choice, ... }` value, so the saved config stays plain.
+- **Special renderers** win over any selector, `selectorOverride` included: `format: 'font-family'` renders `lcards-font-selector`; an enum of position words with at least one compound (`top-left`) renders `lcards-position-picker`; `x-ui-hints.widget: 'lcards-color-picker'` renders the LCARdS colour picker; the path `tags` renders a multi-select of the tags in use.
+- **Labels and helpers:** the label is `options.label`, then `x-ui-hints.label`, then the schema `title`, then the last path key; the helper is `options.helper`, then `x-ui-hints.helper`, then the schema `description`. FormField reads only `label`, `helper`, `selector` and `widget` from `x-ui-hints`.
 - **A path with no schema** renders "No schema found for path" as a warning, so a typo or a missing schema entry shows at once. `tests/browser/alert-overlay-editor.spec.js` checks that every Alert Studio field resolves.
 - **Unset fields show the schema `default`.** Pass `options.value` to show a value the config implies instead.
 - **Every schema property needs a `description`** (`scripts/check-schema-descriptions.js` runs in `npm run build`). New keys follow the `lcards-card-option` project skill: schema, runtime, editor, docs and tests together, reusing the words other cards already use.
@@ -654,7 +665,7 @@ height: {
 
 ```javascript
 // src/editor/cards/lcards-mycard-editor.js
-// Patterns: src/editor/cards/lcards-elbow-editor.js:219-231,456-522 and editor.instructions.md
+// Patterns: src/editor/cards/lcards-elbow-editor.js:219-231,456-522 and .claude/rules/editor.md
 import { html } from 'lit';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
@@ -718,7 +729,15 @@ if (!customElements.get('lcards-mycard-editor')) {
 - **Declarative entries** (`_renderFromConfig()`, `LCARdSBaseEditor.js:761-886`): `section` (`header`, `description`, `icon`, `expanded`, `outlined`, `headerLevel`, `children`), `grid` (two columns), `field` (`path`, `label`, `helper`, rendered by `FormField.renderField()`) and `custom` (`render`, called with the editor as `this`). Any entry can take a `condition`.
 - **Fields are schema-driven.** Prefer `field` entries and `FormField.renderField()` calls; declare the control in the schema's `x-ui-hints` (see [Validation and Schema Hints](#validation-and-schema-hints)). For options known only at run time, pass `selectorOverride` rather than rendering a bare `ha-selector` in a `custom` entry.
 - **Commit with `_updateConfig(partial)`.** It deep-merges the partial update, restores `type`, validates, re-syncs the YAML tab and fires `config-changed` to Home Assistant after a 50ms debounce (`LCARdSBaseEditor.js:249-292`). Nested updates need no spreading: `this._updateConfig({ style: { background: ev.detail.value } })` keeps the rest of `style`. The second argument is the source, `'visual'` (the default) or `'yaml'`; only `'visual'` re-syncs the YAML tab, so leave it out. Never assign `this.config = ...` or fire `config-changed` yourself (the studio launcher above is the one exception, and it does the YAML sync itself).
-- **Styles:** `LCARdSBaseEditor.styles` already includes `editorStyles` and `messageStyles`. An editor that adds styles returns `` [...super.styles, css`...`] ``.
+- **Path setters** (what FormField writes through): `_getConfigValue(path)` reads a dotted path; `_setConfigValue(path, value)` removes the key when the value is `undefined`, `null` or `''` (`_removeConfigPath()` also prunes parents left empty) and otherwise calls `_updateConfig()`. A path with a numeric segment (`style.ranges.0.min`) builds arrays and fires `config-changed` at once, without the debounce or YAML resync (`LCARdSBaseEditor.js`, `_setConfigValue`).
+- **Merge rules** (`deepMerge`, `src/core/config-manager/merge-helpers.js`): arrays replace, plain objects merge, `null` and `undefined` are set as values (the key stays). To drop a key, set the field empty or call `_removeConfigPath(path)`; to drop keys inside an object, replace the whole object.
+- **Styles:** `LCARdSBaseEditor.styles` already includes `editorStyles` and `messageStyles`. An editor that adds styles returns `` [...super.styles, css`...`] ``. Two more shared modules: `editorComponentStyles` (`src/editor/base/editor-component-styles.js`: `.info-card`, `.two-column-grid`, `.button-group`, `.empty-state`, `.toolbar`) and `editorWidgetStyles` (`src/editor/components/editors/editor-widget-styles.js`: `.editor-list`, `.editor-item`, `.drag-handle`, `.add-button`, for collapsible list editors).
+- **Reuse a sub-editor before writing one** (`src/editor/components/editors/`):
+  - `lcards-multi-action-editor`: `.hass` and `.actions=${{ tap_action, hold_action, double_tap_action }}`; fires `value-changed` with all three in `detail.value`.
+  - `lcards-color-section-v2`: one colour path, plain or by state: `.editor`, `basePath`, `header`, `description`, `.suggestedStates`, `?allowCustomStates`, `.entityId` (a string); reads and writes through the editor's path setters.
+  - `lcards-object-editor`: one control per key of an object (`.editor`, `path`, `.properties`, `controlType`, `columns`); a declarative `grid` entry renders `lcards-grid-layout`.
+  - Also `lcards-icon-section`, `lcards-border-editor`, `lcards-unified-segment-editor`, `lcards-multi-text-editor-v2`, `lcards-text-field-editor`, `lcards-font-selector`, `lcards-position-picker`, `lcards-padding-editor`.
+- **Where things live** in `src/editor/`: `base/` (base class, styles), `cards/` (card editors), `dialogs/` (studios and their `*-studio/` helpers), `components/shared/` (FormField, form section, colour picker, info guide), `components/editors/` (sub-editors and pickers), `components/yaml/` (YAML editor and the studio YAML tab), `components/{datasources,dashboard,templates,provenance,theme-browser,sound}/` (the Main Engineering and utility tabs), `utils/yaml-utils.js` (`configToYaml`, `yamlToConfig`). The base editor imports every element it renders itself (`tests/editor/editor-element-imports.test.js`).
 
 ### Lazy Loading
 

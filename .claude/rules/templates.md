@@ -1,5 +1,8 @@
 ---
-applyTo: "src/core/templates/**, src/cards/**"
+paths:
+  - "src/core/templates/**"
+  - "src/cards/**"
+  - "src/base/**"
 ---
 
 # LCARdS Template System Rules
@@ -27,7 +30,7 @@ Jinja2 templates round-trip to HA's real `render_template` API (the same engine 
 
 ## Creating an Evaluator
 
-Always create one evaluator per evaluation context — do not reuse across different cards or config scopes.
+Always create one evaluator per evaluation context — do not reuse across different cards or config scopes. Inside a card, prefer `this.processTemplate(template, options)` (`LCARdSCard.js`), which builds this context for you.
 
 ```javascript
 import { UnifiedTemplateEvaluator } from '../core/templates/UnifiedTemplateEvaluator.js';
@@ -35,10 +38,9 @@ import { UnifiedTemplateEvaluator } from '../core/templates/UnifiedTemplateEvalu
 const evaluator = new UnifiedTemplateEvaluator({
   hass: this.hass,
   context: {
-    entity:    this.hass.states[this.config.entity],  // or null
+    entity:    this._entity,                          // or null; never this.hass.states[...]
     config:    this.config,
     hass:      this.hass,
-    states:    this.hass.states,                      // flat dict, keyed by full entity_id
     variables: this.config.variables || {},
     theme:     window.lcards?.core?.themeManager?.getActiveTheme()
   },
@@ -61,7 +63,7 @@ Per-phase error/fallback behaviour differs — none of them throw up to the call
 | DataSource | The `{ds:...}` text left in place (unresolved source); a value of 0 shows as 0 |
 | Jinja2 | Original content string returned unchanged (also on the 5s HA round-trip timeout) |
 
-`evaluateAsync()`'s outer try/catch is a last-resort safety net on top of the above — check for the error sentinel only if you need to distinguish failure from a template that legitimately produces the word "error".
+`evaluateAsync()`'s outer try/catch is a last-resort safety net on top of the above: on an unexpected error it returns the original string.
 
 ---
 
@@ -95,7 +97,7 @@ Available in `{...}` token templates:
 | `{theme:colors.ui.primary}` | Theme token at path `colors.ui.primary` |
 | `{hass.user.name}` | Current HA user name |
 
-`{states.domain.object_id...}` requires `states` to be present on the evaluator's `context` (see above) — it is a flat dict keyed by the full `"domain.object_id"` string, so the entity ID is reconstructed from the two segments right after `states` (`_resolveToken()` special-cases this, since a plain per-segment dot-walk can't otherwise resolve a key that itself contains a `.`).
+`{states.domain.object_id...}` requires `hass` on the evaluator (it reads `hass.states`, a flat dict keyed by the full `"domain.object_id"` string, so the entity ID is reconstructed from the two segments right after `states` (`_resolveToken()` special-cases this, since a plain per-segment dot-walk can't otherwise resolve a key that itself contains a `.`).
 
 ---
 
@@ -112,6 +114,8 @@ Inside `[[[...]]]`, the following are available as variables:
 ```
 
 Return a value explicitly. `undefined` renders as empty string.
+
+**Testing templates:** the editor's Templates tab opens the Template Sandbox ("Open in sandbox", `src/editor/components/templates/lcards-template-sandbox.js`), which evaluates a template against mock entity states and test values and can save it back to the field.
 
 ---
 
@@ -136,7 +140,7 @@ When a card needs Jinja2/JS templates to be resolved **before** synchronous SVG/
 ```javascript
 async _processCustomTemplates() {
   // Pre-evaluate any template strings found in config.style
-  await this._preEvaluateStyleTemplates(this.config.style);
+  await this._preEvaluateStyleTemplates(this.config.style, 'style');
   this.requestUpdate();
 }
 

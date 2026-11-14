@@ -208,6 +208,25 @@ window.lcards.debug.datasources.getStats('temp_sensor')
 
 ---
 
+## Diagnosing a Card
+
+**Select the card's element in the browser's element inspector (it becomes `$0`), then walk these checks in order; stop at the first one that fails.** Leading-underscore names are internals: fine for diagnosis, never for code outside the card.
+
+| Step | Check | What it tells you |
+|---|---|---|
+| 1. Core | `window.lcards.core._coreInitialized`, `window.lcards.core.themeManager.getActiveTheme()?.id` | `false` or an error means core never initialized: look for an import error in the console |
+| 2. Registration | `window.customCards`, `window.lcards.core._cardInstances.has($0._cardGuid)` | The card type is registered, and this card is known to core |
+| 3. Services | `$0._singletons` (`systemsManager`, `themeManager`, `rulesEngine`, `animationManager`, `dataSourceManager`, `validationService`, `stylePresetManager`) | Missing services: the card ran before core was ready |
+| 4. Entity | `$0._entity?.state`, `$0.getEntityState()` | `null` with a valid `hass`: the entity id in the config is wrong |
+| 5. Subscriptions | `$0._entitySubscriptions?.size`, `$0._trackedEntities` | `undefined` or empty: `subscribeToEntity()` never ran, or ran before `_singletons` existed (it logs a warning then) |
+| 6. Rules | `$0._overlayRegistered`, `$0._lastRulePatches`, `$0._baseConfig` | Patches present but the look unchanged: `_onRulePatchesChanged()` didn't recompute the card's derived style (the base calls `requestUpdate()` itself) |
+| 7. Templates | `await $0._configProcessingPromise`, `$0._evaluatedStyleCache` | The promise settles once config processing is done (it is never reset to `null`); the cache only fills for templated style values, so empty is normal without them |
+| 8. Provenance | `$0._provenance`, `$0._provenanceTracker.getProvenance('style.color')`, `.debugProvenance(true)`, `.printConfigTree()` | Where each value came from (preset, theme, user config, rule, template); the editor's Provenance tab shows the same |
+| 9. Size | `$0._containerSize`, `$0._resizeObserver` | Only on auto-sizing cards (button, elbow, slider, data grid); `null` until the first measure, and locked to the design size inside an MSD |
+| 10. Data sources | `window.lcards.core.dataSourceManager.getSource('name').getCurrentData()`, `.cfg`, `dataSourceManager._sourceToCards.get('name')` | The source's current value, its resolved config, and which cards it feeds |
+
+---
+
 ## MSD Card API (`window.lcards.cards.msd`)
 
 Production utilities for finding MSD card elements by their config `id` (`src/msd/index.js:36-90`). They work in normal use, not just in debug sessions.

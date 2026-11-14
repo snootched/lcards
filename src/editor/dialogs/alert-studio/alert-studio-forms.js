@@ -15,7 +15,7 @@ import { LCARdSFormFieldHelper as FormField } from '../../components/shared/lcar
 import { renderInfoGuide } from '../../components/shared/info-guide.js';
 import { parseColor } from '../../../core/themes/color-syntax.js';
 import { displayFor, builtInSymbol, promoteLegacyBackdrop, symbolPatch, mergePatch, patchDiff, ALERT_BUTTON_FIXED_KEYS } from '../../../cards/alert-overlay-config.js';
-import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../../utils/lcards-shared-helpers.js';
 import { showInfoDialog, showConfirmDeleteDialog } from '../../../views/layout-edit-dialogs.js';
 import '../../components/shared/lcards-message.js';
 import '../../components/shared/lcards-form-section.js';
@@ -1180,7 +1180,7 @@ export const AlertStudioForms = (Base) => class extends Base {
                 this._setConditionProp(condKey, 'content', JSON.parse(JSON.stringify(selected)));
             }
         });
-        dialog.addEventListener('closed', (/** @type {Event} */ e) => {
+        onDialogClosed(dialog, (/** @type {Event} */ e) => {
             e.stopPropagation();
             dialog.remove();
             if (this._pickerDialog === dialog) this._pickerDialog = null;

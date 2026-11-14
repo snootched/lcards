@@ -8,7 +8,7 @@
  * box: Cancel for a destructive confirm, the input for a prompt, OK otherwise.
  */
 
-import { createDialogFooter, mountDialogNearHomeAssistant } from '../utils/lcards-shared-helpers.js';
+import { createDialogFooter, mountDialogNearHomeAssistant, onDialogClosed } from '../utils/lcards-shared-helpers.js';
 import { showConfirmDialog } from '../utils/lcards-confirm-dialog.js';
 
 /**
@@ -52,7 +52,7 @@ export function showInfoDialog({ title, message }) {
         });
         dialog.appendChild(createDialogFooter({ primary: [okButton] }));
 
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             resolve();
         });
@@ -122,7 +122,7 @@ export function showPromptDialog({ title, message = '', label = '', value = '', 
 
         dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [okButton] }));
 
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             finish(null);
         });

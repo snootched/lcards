@@ -2,7 +2,7 @@
  * @fileoverview lcards-alert-overlay-studio-dialog: the Alert Studio.
  *
  * The alert overlay card's one editor (its card editor is a launcher), on the
- * shared studio shell (README-STUDIO-DIALOG.md): tabs on the left (Config,
+ * shared studio shell (doc/development/building-an-editor.md): tabs on the left (Config,
  * Backdrop, Conditions, YAML; the forms are in alert-studio/alert-studio-forms.js),
  * and on the right a mock screen (`lcards-alert-preview`) showing one alert
  * condition, picked in the floating toolbar or on the Conditions tab.

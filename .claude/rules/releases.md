@@ -1,5 +1,6 @@
 ---
-applyTo: doc/releases/**
+paths:
+  - "doc/releases/**"
 ---
 
 # Release notes
@@ -81,13 +82,13 @@ Files live in `doc/public/releases/<version>/`, named by feature (`chart-studio.
 <video class="release-shot" src="/releases/2026.11.0/slider-drag-badge.webm" title="What it shows" autoplay loop muted playsinline></video>
 ```
 
-- Stills are WebP, at most 1600 px wide. Animations are looping muted WebM (a GIF is ten times larger). On GitHub a video becomes its `.gif` twin when one exists (`--gif` below), otherwise a link.
+- Stills are WebP, at most 1600 px wide. Animations are looping muted WebM (a GIF is ten times larger). On GitHub a video becomes its `.gif` twin when one exists (`--gif` below), else its `poster` still linked to the clip, else a link.
 - Always write a real `alt` (or `title` for a video).
 - The check fails on a missing image and on files in the folder that no page uses.
 
 ### Capturing them
 
-`npm run release:shots -- <version> [name ...] [--gif]` runs the shot list `doc/releases/shots/<version>.yaml` against the dev HA (token in `.ha-token` or `$HA_TOKEN`; run `npm run build` first). Each shot mounts a card, its editor or a studio inside `home-assistant` on a plain backdrop (or opens an HA path), runs steps (click, type, drag, wait, JavaScript, service calls), and crops to an element. Videos are recorded in real time. The options are listed at the top of `scripts/release-shots.mjs`; the 2026.10.0 list has an example of each kind.
+`npm run release:shots -- <version> [name ...] [--gif]` runs the shot list `doc/releases/shots/<version>.yaml` against the dev HA (token in `.ha-token` or `$HA_TOKEN`; run `npm run build` first). Each shot mounts a card, its editor or a studio inside `home-assistant` on a plain backdrop (or opens an HA path), runs steps (click, type, drag, wait, JavaScript, service calls), and crops to an element. Videos are recorded in real time. The options are listed at the top of `scripts/release-shots.mjs`; the 2026.11.0 list (`doc/releases/shots/2026.11.0.yaml`) has an example of each kind.
 
 **Before committing any picture, look at it for personal data:** entity ids, areas, dashboard and city names from the dev HA. Shots should use the `lcards_test_*` helpers, or real sensors only behind a `name:` in places that never show the entity id. Pictures you take by hand go in the same folder.
 

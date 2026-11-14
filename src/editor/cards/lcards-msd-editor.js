@@ -17,7 +17,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { fireEvent } from 'custom-card-helpers';
 import { configToYaml } from '../utils/yaml-utils.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 
 // Import shared form components
 import '../components/shared/lcards-message.js';
@@ -256,7 +256,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
         }
 
         // Handle dialog close
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._cardPickerDialogRef === dialog) {
                 this._cardPickerDialogRef = null;
@@ -338,7 +338,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
         });
 
         // Cleanup on close
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             this.removeEventListener('card-picker-result', cardPickerResultHandler);
             dialog.remove();
             if (this._studio === dialog) this._studio = null;

@@ -9,7 +9,7 @@
  * `<home-assistant>` so Home Assistant's contexts reach it.
  */
 
-import { createDialogFooter, mountDialogNearHomeAssistant } from './lcards-shared-helpers.js';
+import { createDialogFooter, mountDialogNearHomeAssistant, onDialogClosed } from './lcards-shared-helpers.js';
 
 /**
  * Ask the user to confirm.
@@ -62,7 +62,7 @@ export function showConfirmDialog({ title, message, confirmText = 'OK', dismissT
         dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [confirmButton] }));
 
         // Dismissed without choosing (Esc / scrim): not confirmed.
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             finish(false);
         });

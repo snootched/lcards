@@ -47,7 +47,7 @@ import '../components/datasources/lcards-datasource-editor-tab.js';
 // Import template components
 import '../components/templates/lcards-template-evaluation-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
-import { createDialogFooter, mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { createDialogFooter, mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 import { showInfoDialog } from '../../views/layout-edit-dialogs.js';
 import { elbowEditorZones } from './elbow-editor-zones.js';
 
@@ -295,7 +295,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             dialog.open = false;
         });
 
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._symbioCardPickerDialogRef === dialog) {
                 this._symbioCardPickerDialogRef = null;
@@ -382,7 +382,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
         dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [saveButton] }));
 
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._symbioCardEditorDialogRef === dialog) {
                 this._symbioCardEditorDialogRef = null;
@@ -653,29 +653,32 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const cornerOuter = (ck) => frame.corners?.[ck]?.outer_curve ?? parsedCorners[ck]?.outer ?? defOC;
         const cornerInner = (ck) => frame.corners?.[ck]?.inner_curve ?? parsedCorners[ck]?.inner ?? defIC;
 
+        /**
+         * A frame length: px through FormField, or a CSS text field when the YAML holds a CSS length.
+         * @param {string} path
+         * @param {string} label
+         * @param {any} shown - value shown when unset (the card's own default)
+         * @param {{ min?: number, max?: number, mode?: string, helper?: string, style?: string }} [opts]
+         */
+        const lengthField = (path, label, shown, { min = 0, max = 250, mode = 'slider', helper = undefined, style = '' } = {}) => {
+            const raw = this._getConfigValue(path);
+            const field = this._isCssExpr(raw)
+                ? this._renderCssField(label, raw, path, typeof shown === 'number' ? shown : undefined)
+                : FormField.renderField(this, path, {
+                    label, helper, value: shown,
+                    selectorOverride: { number: { min, max, step: 1, mode, unit_of_measurement: 'px' } }
+                });
+            return style ? html`<div style=${style}>${field}</div>` : field;
+        };
+
         const renderSideRow = (key, label) => html`
             <div style="display: flex; align-items: center; gap: 12px; padding: 4px 0;">
-                <ha-selector
-                    style="flex: 0 0 140px;"
-                    .hass=${this.hass}
-                    .label=${label}
-                    .selector=${{ boolean: {} }}
-                    .value=${sideEnabled(key)}
-                    @value-changed=${(e) => this._setConfigValue(`elbow.frame.${key}.enabled`, e.detail.value)}>
-                </ha-selector>
-                ${sideEnabled(key) ? html`
-                    <ha-selector
-                        style="flex: 1;"
-                        .hass=${this.hass}
-                        .label=${'Thickness (px)'}
-                        .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
-                        .value=${sideThickness(key)}
-                        @value-changed=${(e) => {
-                            const k = (key === 'top' || key === 'bottom') ? 'bar_height' : 'bar_width';
-                            this._setConfigValue(`elbow.frame.${key}.${k}`, e.detail.value);
-                        }}>
-                    </ha-selector>
-                ` : ''}
+                <div style="flex: 0 0 140px;">
+                    ${FormField.renderField(this, `elbow.frame.${key}.enabled`, { label, value: sideEnabled(key) })}
+                </div>
+                ${sideEnabled(key)
+                    ? lengthField(`elbow.frame.${key}.${(key === 'top' || key === 'bottom') ? 'bar_height' : 'bar_width'}`, 'Thickness (px)', sideThickness(key), { min: 1, max: 500, mode: 'box', style: 'flex: 1;' })
+                    : ''}
             </div>
         `;
 
@@ -689,23 +692,11 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             return html`
                 <div style="display: flex; align-items: center; gap: 8px; padding: 2px 0;">
                     <span style="flex: 0 0 130px; font-size: 13px; color: var(--secondary-text-color);">${label}</span>
-                    <ha-selector
-                        style="flex: 1;"
-                        .hass=${this.hass}
-                        .label=${outerLabel}
-                        .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
-                        .value=${cornerOuter(ck)}
-                        @value-changed=${(e) => this._setConfigValue(`elbow.frame.corners.${ck}.outer_curve`, e.detail.value)}>
-                    </ha-selector>
-                    <ha-selector
-                        style="flex: 1;"
-                        .hass=${this.hass}
-                        .label=${innerLabel}
-                        .helper=${'Rounded curve on the inner corner of the bar; only applied when both adjacent sides are enabled'}
-                        .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
-                        .value=${cornerInner(ck)}
-                        @value-changed=${(e) => this._setConfigValue(`elbow.frame.corners.${ck}.inner_curve`, e.detail.value)}>
-                    </ha-selector>
+                    ${lengthField(`elbow.frame.corners.${ck}.outer_curve`, outerLabel, cornerOuter(ck), { mode: 'box', style: 'flex: 1;' })}
+                    ${lengthField(`elbow.frame.corners.${ck}.inner_curve`, innerLabel, cornerInner(ck), {
+                        mode: 'box', style: 'flex: 1;',
+                        helper: 'Rounded curve on the inner corner of the bar; only applied when both adjacent sides are enabled'
+                    })}
                 </div>
             `;
         };
@@ -724,37 +715,13 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 ?expanded=${true}
                 ?outlined=${true}>
 
-                <ha-selector .hass=${this.hass}
-                    .label=${'Default Side Width (left/right)'}
-                    .helper=${'Applied to left and right bars unless overridden'}
-                    .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                    .value=${defBW}
-                    @value-changed=${(e) => this._setConfigValue('elbow.frame.bar_width', e.detail.value)}>
-                </ha-selector>
+                ${lengthField('elbow.frame.bar_width', 'Default Side Width (left/right)', defBW, { min: 1, max: 500, mode: 'slider', helper: 'Applied to left and right bars unless overridden' })}
 
-                <ha-selector .hass=${this.hass}
-                    .label=${'Default Side Height (top/bottom)'}
-                    .helper=${'Applied to top and bottom bars unless overridden'}
-                    .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                    .value=${defBH}
-                    @value-changed=${(e) => this._setConfigValue('elbow.frame.bar_height', e.detail.value)}>
-                </ha-selector>
+                ${lengthField('elbow.frame.bar_height', 'Default Side Height (top/bottom)', defBH, { min: 1, max: 500, mode: 'slider', helper: 'Applied to top and bottom bars unless overridden' })}
 
-                <ha-selector .hass=${this.hass}
-                    .label=${'Default Outer Corner Curve'}
-                    .helper=${'Outer corner/end-cap arc radius: applied to all 4 corners unless overridden'}
-                    .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                    .value=${defOC}
-                    @value-changed=${(e) => this._setConfigValue('elbow.frame.outer_curve', e.detail.value)}>
-                </ha-selector>
+                ${lengthField('elbow.frame.outer_curve', 'Default Outer Corner Curve', defOC, { min: 0, max: 250, mode: 'slider', helper: 'Outer corner/end-cap arc radius: applied to all 4 corners unless overridden' })}
 
-                <ha-selector .hass=${this.hass}
-                    .label=${'Default Inner Corner Curve'}
-                    .helper=${'Default inner corner curve; only applied when both adjacent sides are enabled; open-side corners are always square'}
-                    .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                    .value=${defIC}
-                    @value-changed=${(e) => this._setConfigValue('elbow.frame.inner_curve', e.detail.value)}>
-                </ha-selector>
+                ${lengthField('elbow.frame.inner_curve', 'Default Inner Corner Curve', defIC, { min: 0, max: 250, mode: 'slider', helper: 'Default inner corner curve; only applied when both adjacent sides are enabled; open-side corners are always square' })}
             </lcards-form-section>
 
             <!-- Per-side control -->
@@ -794,41 +761,15 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     ?expanded=${true}
                     ?outlined=${true}>
 
-                    <ha-selector .hass=${this.hass}
-                        .label=${'Gap between rings (px)'}
-                        .selector=${{ number: { min: 0, max: 50, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
-                        .value=${segGap}
-                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.gap', e.detail.value)}>
-                    </ha-selector>
+                    ${lengthField('elbow.frame.segments.gap', 'Gap between rings (px)', segGap, { min: 0, max: 50, mode: 'box' })}
 
-                    <ha-selector .hass=${this.hass}
-                        .label=${'Inner ring width (left/right)'}
-                        .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                        .value=${iDefBW}
-                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.bar_width', e.detail.value)}>
-                    </ha-selector>
+                    ${lengthField('elbow.frame.segments.inner_frame.bar_width', 'Inner ring width (left/right)', iDefBW, { min: 1, max: 500, mode: 'slider' })}
 
-                    <ha-selector .hass=${this.hass}
-                        .label=${'Inner ring height (top/bottom)'}
-                        .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                        .value=${iDefBH}
-                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.bar_height', e.detail.value)}>
-                    </ha-selector>
+                    ${lengthField('elbow.frame.segments.inner_frame.bar_height', 'Inner ring height (top/bottom)', iDefBH, { min: 1, max: 500, mode: 'slider' })}
 
-                    <ha-selector .hass=${this.hass}
-                        .label=${'Inner ring outer curve'}
-                        .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                        .value=${iDefOC}
-                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.outer_curve', e.detail.value)}>
-                    </ha-selector>
+                    ${lengthField('elbow.frame.segments.inner_frame.outer_curve', 'Inner ring outer curve', iDefOC, { min: 0, max: 250, mode: 'slider' })}
 
-                    <ha-selector .hass=${this.hass}
-                        .label=${'Inner ring inner curve'}
-                        .helper=${'Inner ring corner curve; only applied when both adjacent sides are enabled; open-side corners are always square'}
-                        .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                        .value=${iDefIC}
-                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.inner_curve', e.detail.value)}>
-                    </ha-selector>
+                    ${lengthField('elbow.frame.segments.inner_frame.inner_curve', 'Inner ring inner curve', iDefIC, { min: 0, max: 250, mode: 'slider', helper: 'Inner ring corner curve; only applied when both adjacent sides are enabled; open-side corners are always square' })}
                 </lcards-form-section>
 
                 <lcards-form-section
@@ -891,36 +832,28 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Render a read-only banner for a CSS expression value set via YAML.
-     * Provides a 'Clear' button that reverts the field to a plain numeric default
-     * so the user can switch back to the slider UI without hand-editing YAML.
+     * Render a text field for a CSS expression value set via YAML (a number
+     * field can't show it). Blanking the field writes `clearValue`, so the user
+     * can get back to the number control without hand-editing YAML.
      *
      * @param {string} label       - Field label
      * @param {string} cssValue    - The CSS expression string to display
      * @param {string} configPath  - Dot-path to pass to _setConfigValue when clearing
      * @param {*}      clearValue  - Value to set when the user clears the expression
-     * @returns {TemplateResult}
+     * @returns {import('lit').TemplateResult}
      * @private
      */
     _renderCssField(label, cssValue, configPath, clearValue) {
-        return html`
-            <ha-selector
-                .hass=${this.hass}
-                .label=${label}
-                .helper=${'CSS length: vw, vh, clamp(), calc(), etc. Switch mode dropdown to revert to slider.'}
-                .selector=${{ text: {} }}
-                .value=${cssValue || ''}
-                @value-changed=${(e) => {
-                    const v = (e.detail.value || '').trim();
-                    // If user blanks the field, revert to the numeric/string fallback
-                    if (v === '') {
-                        this._setConfigValue(configPath, clearValue);
-                    } else {
-                        this._setConfigValue(configPath, v);
-                    }
-                }}>
-            </ha-selector>
-        `;
+        return this._renderFieldWithHandler(configPath, {
+            label,
+            helper: 'CSS length: vw, vh, clamp(), calc(), etc. Switch mode dropdown to revert to slider.',
+            value: cssValue || '',
+            selectorOverride: { text: {} }
+        }, (value) => {
+            const v = String(value ?? '').trim();
+            // If user blanks the field, revert to the numeric/string fallback
+            this._setConfigValue(configPath, v === '' ? clearValue : v);
+        });
     }
 
     /**

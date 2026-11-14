@@ -68,6 +68,22 @@ export function mountDialogNearHomeAssistant(dialogEl, startEl) {
 }
 
 /**
+ * Runs `handler` when `dialog` itself closes. `closed` bubbles: an `ha-select`
+ * menu, a nested dialog or a card picker inside the dialog fires its own
+ * `closed`, which would otherwise tear the outer dialog down. Use this for
+ * every imperative `closed` listener (a guard test bans the bare form);
+ * templates write `@closed=${(e) => { if (e.target === e.currentTarget) ... }}`.
+ * @param {EventTarget} dialog
+ * @param {(event: Event) => void} handler
+ */
+export function onDialogClosed(dialog, handler) {
+  dialog.addEventListener('closed', (event) => {
+    if (event.target !== event.currentTarget) return;
+    handler(event);
+  });
+}
+
+/**
  * Builds HA's standard dialog footer for an imperatively created `ha-dialog`:
  * `<ha-dialog-footer slot="footer">` with the secondary buttons (cancel, close:
  * `appearance="plain"`) placed before the primary ones. Templates write the same

@@ -1,5 +1,8 @@
 ---
-applyTo: "src/core/data-sources/**, src/cards/**"
+paths:
+  - "src/core/data-sources/**"
+  - "src/cards/**"
+  - "src/base/**"
 ---
 
 # LCARdS DataSource System Rules
@@ -109,13 +112,13 @@ When the last card leaves a source (`removeCardFromSource()`, called by `LCARdSC
 Reference them in any template string evaluated by `UnifiedTemplateEvaluator`:
 
 ```
-{datasource:cpu_temp}            — current value as string
-{datasource:cpu_temp:.1f}°C     — formatted float
+{datasource:cpu_temp}            — current value, locale-formatted, with the entity's unit
+{datasource:cpu_temp:.1f}°C     — formatted float (number only, no unit)
 {datasource:cpu_temp:.0f}%      — formatted int
 {ds:cpu_temp}                    — short alias
 ```
 
-The evaluator resolves these synchronously via `dataSource.getCurrentData()`. If the source has no value yet, the token evaluates to the empty string.
+The evaluator resolves these synchronously via `dataSource.getCurrentData()`. If the source doesn't exist or has no value yet, the `{ds:...}` text is left in place.
 
 ---
 
@@ -137,9 +140,6 @@ The evaluator resolves these synchronously via `dataSource.getCurrentData()`. If
 ```
 
 `getCurrentData()` returns `t`, `v`, `buffer`, `stats`, `processing`, `entity`, `historyReady` plus `metadata` (copy of the entity metadata: `unit_of_measurement`, `device_class`, `friendly_name`, ...), `bufferSize` and `started`. It has **no** top-level `unit_of_measurement`: read `getCurrentData().metadata.unit_of_measurement` (or `source.getMetadata()`).
-
-```javascript
-```
 
 ---
 
@@ -167,5 +167,5 @@ window.lcards.core.dataSourceManager._sourceToCards
 ❌ Don't call `source.subscribe()` inside `_renderCard()` — subscriptions accumulate on every render
 ❌ Don't manually unsubscribe in `_onDisconnected()` if you stored the function in `this._datasourceSubscriptions` — the base class handles it
 ❌ Don't use `dsManager.sources` to iterate all sources for a single card's data — use `getSource(name)` directly
-❌ Don't create DataSources with `autoCreated = true` from card code — that flag is reserved for the pipeline's automatic entity-to-source promotion
+❌ Don't pass `autoCreated = true` from card code: an auto-created source is never released (no current caller sets it)
 ❌ Don't assume the source exists immediately after calling `createDataSource()` with `await` — the first data push is asynchronous (HA subscription or poll cycle is pending)

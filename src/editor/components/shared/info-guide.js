@@ -9,7 +9,7 @@
  * `.info-guide-example` (code), `.info-guide-tip`, `.info-guide-links` and
  * short lcards-message elements.
  *
- * When to use it (and when not): .github/instructions/editor.instructions.md,
+ * When to use it (and when not): .claude/rules/editor.md,
  * "Dialogs, surfaces and messages".
  *
  * @module editor/components/shared/info-guide

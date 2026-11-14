@@ -11,7 +11,7 @@ import { fireEvent } from 'custom-card-helpers';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { configToYaml } from '../utils/yaml-utils.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 import { displayFor, ALERT_CONDITION_KEYS } from '../../cards/alert-overlay-config.js';
 import '../components/shared/lcards-message.js';
 
@@ -159,7 +159,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
             fireEvent(this, 'config-changed', { config: this.config });
             this.requestUpdate();
         });
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._studio === dialog) this._studio = null;
         });

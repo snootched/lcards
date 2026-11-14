@@ -11,7 +11,7 @@ import { fireEvent } from 'custom-card-helpers';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { configToYaml } from '../utils/yaml-utils.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 import { ensureAstrometricsSchema } from '../../cards/lcards-astrometrics-card.js';
 
 import '../components/shared/lcards-form-section.js';
@@ -128,7 +128,7 @@ export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
             fireEvent(this, 'config-changed', { config: this.config });
             this.requestUpdate();
         });
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._studio === dialog) this._studio = null;
         });

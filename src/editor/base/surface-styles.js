@@ -2,7 +2,7 @@
  * @fileoverview Surfaces shared by the config panel, its tabs and the editor
  * dialogs: the inset content area, its scrolling body, status banners and hint
  * text. Taken from the config panel (the reference look); see "Dialogs, surfaces
- * and messages" in .github/instructions/editor.instructions.md.
+ * and messages" in .claude/rules/editor.md.
  *
  * Class names: `.studio-layout` / `.scrollable-body` are the names the panel tabs
  * use; `.inset-surface` / `.scroll-body` are the same styles for new code. Studio

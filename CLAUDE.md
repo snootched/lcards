@@ -10,19 +10,20 @@ LCARdS is a Star Trek LCARS-style card system for Home Assistant. It ships as a 
 
 ---
 
-## Detailed instruction files
+## Subsystem rules (`.claude/rules/`)
 
-The `.github/instructions/` directory contains authoritative rules for each subsystem. Read the relevant file before touching that area — these override any generic guidance:
+Path-scoped rules for each subsystem. Claude Code loads a rule automatically when you work on a file its `paths:` frontmatter matches; they override any generic guidance. When planning work in an area before opening its files, read the matching rule:
 
-- `.github/instructions/cards.instructions.md` — lifecycle hooks, entity access, action handling, cleanup, zones
-- `.github/instructions/core-services.instructions.md` — BaseService pattern, HASS propagation, init order
-- `.github/instructions/templates.instructions.md` — four eval types, UnifiedTemplateEvaluator API
-- `.github/instructions/datasources.instructions.md` — DataSource config, subscriptions, data shape
-- `.github/instructions/state-color.instructions.md` — color resolution patterns A vs B, theme tokens
-- `.github/instructions/animation.instructions.md` — anime.js v4 API, AnimationManager, alert mode
-- `.github/instructions/editor.instructions.md` — FormField API, approved HA elements, _updateConfig
-- `.github/instructions/msd.instructions.md` — MSD pipeline, overlays, routing, navigation
-- `.github/instructions/releases.instructions.md`: release notes pages (`doc/releases/`), lifecycle, pictures, GitHub export
+- `.claude/rules/cards.md` — lifecycle hooks, entity access, action handling, cleanup, zones
+- `.claude/rules/core-services.md` — BaseService pattern, HASS propagation, init order
+- `.claude/rules/templates.md` — four eval types, UnifiedTemplateEvaluator API
+- `.claude/rules/datasources.md` — DataSource config, subscriptions, data shape
+- `.claude/rules/state-color.md` — color resolution patterns A vs B, theme tokens
+- `.claude/rules/animation.md` — anime.js v4 API, AnimationManager, alert mode
+- `.claude/rules/editor.md` — FormField API, approved HA elements, _updateConfig
+- `.claude/rules/msd.md` — MSD pipeline, overlays, routing, navigation
+- `.claude/rules/releases.md`: release notes pages (`doc/releases/`), lifecycle, pictures, GitHub export
+- `.claude/rules/security.md`: user code evaluation, DOM writes (`unsafeHTML`, `innerHTML`, `sanitizeSvg`), fetches, config and logs
 
 ---
 
@@ -57,7 +58,7 @@ npm run bump-version:dev          # dev: increment -dev.N, or start -dev.1 on th
 
 Typical flow: iterate on `dev` with `bump-version:dev`; when ready to ship, `bump-version` to strip the suffix; merge `dev` → `main` via PR with that stable version already in `package.json`; run the `Release` GitHub Action on `main`.
 
-Release notes are the docs page `doc/releases/<version>.md` (Releases section of the docs site); the `Release` workflow exports it as the GitHub release body and fails a stable release whose page is missing or still `status: testing`. Start the page at the first dev build. See `.github/instructions/releases.instructions.md`.
+Release notes are the docs page `doc/releases/<version>.md` (Releases section of the docs site); the `Release` workflow exports it as the GitHub release body and fails a stable release whose page is missing or still `status: testing`. Start the page at the first dev build. See `.claude/rules/releases.md`.
 
 ### HA frontend/core impact analysis (local, manual)
 
@@ -145,7 +146,7 @@ lcardsLog.debug('[MyClass] message', { data });
 ### Color resolution — one grammar, one resolver
 
 Colour syntax (schema pattern, detection, parsing) lives only in `src/core/themes/color-syntax.js`. Resolve with `resolveColor(value)` for Lit/CSS (CSS variables stay live, so alert modes recolour without a re-render) or `resolveColor(value, { concrete: true, element })` for Canvas2D/SVG attributes/anime.js (`src/core/themes/resolve-color.js`). In cards use `_resolveColorValue()` (concrete) / `_resolveEntityStateColor()` (CSS). Guard tests fail on local colour lists, regexes, parsers or resolve-then-`resolveCssVariable` lambdas.
-See `state-color.instructions.md` and `doc/development/colour-resolution.md`.
+See `.claude/rules/state-color.md` and `doc/development/colour-resolution.md`.
 
 ### Theme tokens — always via singleton, never module import
 
@@ -249,6 +250,8 @@ window.lcards.debug.msd.routing.inspectAll()         // like inspect(), for ever
 window.lcards.debug.msd.routing.trunks('card-id')    // every discovered/configured trunk row
 ```
 
+For one misbehaving card, select it in the element inspector (`$0`) and follow "Diagnosing a Card" in `doc/development/debug-api.md` (`$0._singletons`, entity, subscriptions, rule patches, templates, provenance, size, data sources).
+
 ---
 
 ## Adding new cards (checklist)
@@ -268,4 +271,5 @@ window.lcards.debug.msd.routing.trunks('card-id')    // every discovered/configu
 1. Create in `src/core/` extending `BaseService`
 2. Import and instantiate in `src/core/lcards-core.js` `_performInitialization()` (respect initialization order)
 3. Nothing to expose: `window.lcards.core` is `lcardsCore` itself (set in `src/lcards-main.js` before `initialize()`), so `this.myService` is `window.lcards.core.myService`; never add a separate `window.lcards.core.X =` copy
-4. Document in `doc/architecture/subsystems/`
+4. If it consumes HASS, add it to the fixed list in `LCARdSCore._updateHass()` (order matters)
+5. Document in `doc/architecture/subsystems/`, and keep that page current whenever the subsystem changes

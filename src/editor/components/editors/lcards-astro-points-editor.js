@@ -25,7 +25,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
 import { MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, PLACEMENT_FORMS, SATELLITE_NAMES, SATELLITE_HEIGHTS } from '../../../core/astrometrics/names.js';
-import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../../utils/lcards-shared-helpers.js';
 import { showInfoDialog } from '../../../views/layout-edit-dialogs.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-message.js';
@@ -528,9 +528,8 @@ export class LCARdSAstroPointsEditor extends LitElement {
       dialog.open = false;
       if (selected) onPick(JSON.parse(JSON.stringify(selected)));
     });
-    dialog.addEventListener('closed', (/** @type {Event} */ e) => {
+    onDialogClosed(dialog, (e) => {
       e.stopPropagation();
-      if (e.target !== e.currentTarget) return;
       dialog.remove();
       if (this._pickerDialog === dialog) this._pickerDialog = null;
     });

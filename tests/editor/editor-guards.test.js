@@ -1,6 +1,6 @@
 /**
  * Editor and panel UI guards: patterns the shared look replaced stay gone
- * (.github/instructions/editor.instructions.md, "Dialogs, surfaces and messages").
+ * (.claude/rules/editor.md, "Dialogs, surfaces and messages").
  *
  * - No native dialogs (confirm/alert/prompt), no <textarea> for code and no
  *   raw <select> (ha-selector with a select selector).
@@ -114,4 +114,12 @@ test('config panel tabs: no hand-built label divs beside a label-less control (h
 test('the config panel host sets HA\'s body font (otherwise text falls back to the page\'s Roboto while HA controls follow the theme)', () => {
     const panel = SOURCES.find(s => s.path === 'src/panels/lcards-config-panel.js');
     assert.match(code(panel.text), /:host\s*\{[^}]*font-family:\s*var\(--ha-font-family-body\)/);
+});
+
+test('imperative dialog `closed` listeners go through onDialogClosed (a bubbling `closed` from an ha-select or nested picker must not close the outer dialog)', () => {
+    const all = files('src').map(p => ({ path: relative('.', p).replace(/\\/g, '/'), text: readFileSync(p, 'utf8') }));
+    const hits = all
+        .filter(({ path }) => path !== 'src/utils/lcards-shared-helpers.js')
+        .flatMap(({ path, text }) => [...code(text).matchAll(/addEventListener\(\s*['"]closed['"]/g)].map(() => path));
+    assert.deepEqual(hits, []);
 });

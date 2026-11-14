@@ -48,4 +48,4 @@ The short version:
 - `npm run build` is the only build, for development and releases alike. It runs every validator first (strict doc examples, schema descriptions, em dashes and "Home Assistant" in the docs, CSS variables, the Home Assistant compatibility lint, typecheck) and writes the bundle into `custom_components/lcards/`. Hard-refresh the browser afterwards (Ctrl+Shift+R).
 - `npm test` runs the node tests; `npm run test:browser` the browser tests against the built bundle. CI runs both, plus the checks inside the build.
 - `npm run validate:config -- <file>` checks any LCARdS YAML (a card, a view, a dashboard) with the same checker as the doc examples.
-- Code rules live in `CLAUDE.md` and `.github/instructions/*.md`; read the file for the area you change.
+- Code rules live in `CLAUDE.md` and `.claude/rules/*.md`; read the file for the area you change.

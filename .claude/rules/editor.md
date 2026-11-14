@@ -1,5 +1,6 @@
 ---
-applyTo: src/editor/**
+paths:
+  - "src/editor/**"
 ---
 
 # LCARdS Editor Development Rules
@@ -21,19 +22,19 @@ import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-
 export class MyCardEditor extends LCARdSBaseEditor {
   constructor() {
     super();
-    this.cardType = 'my-card'; // Must match card's static CARD_TYPE
+    this.cardType = 'my-card'; // The name the card registers its schema under (registerCardSchema), in practice its CARD_TYPE
   }
 
   _getTabDefinitions() {
     return [
       { label: 'Config',   content: () => this._renderConfig() },
-      { label: 'YAML',     content: () => this._renderYamlTab() },
+      ...this._getUtilityTabs(),   // Main Engineering (YAML, data sources, rules, templates, provenance, ...)
     ];
   }
 
   _renderConfig() {
     return html`
-      <lcards-form-section label="Basic Settings">
+      <lcards-form-section header="Basic Settings" icon="mdi:cog" outlined>
         ${FormField.renderField(this, 'entity')}
         ${FormField.renderField(this, 'style.color', { label: 'Color' })}
       </lcards-form-section>
@@ -41,6 +42,8 @@ export class MyCardEditor extends LCARdSBaseEditor {
   }
 }
 ```
+
+The full walk-through (path setters, merge rules, sub-editors, schema hints, studios, tests) is `doc/development/building-an-editor.md`.
 
 ---
 
@@ -93,7 +96,7 @@ Import from `src/editor/components/shared/` — never recreate these:
 
 | Component | Import | Use |
 |-----------|--------|-----|
-| `lcards-form-section` | `../components/shared/lcards-form-section.js` | Section wrapper with label |
+| `lcards-form-section` | `../components/shared/lcards-form-section.js` | Section wrapper (`header`, `icon`, `description`, `outlined`, `nested`) |
 | `lcards-collapsible-section` | `../components/shared/lcards-collapsible-section.js` | Collapsible wrapper |
 | `lcards-color-picker` | `../components/shared/lcards-color-picker.js` | Standalone color picker |
 | `lcards-color-list` | `../components/shared/lcards-color-list.js` | List of color inputs |
@@ -141,13 +144,13 @@ Use these HA-native elements where appropriate. Do **not** fabricate alternative
 - `ha-expansion-panel` — collapsible sections
 - `ha-tab-group` / `ha-tab-group-tab`: tab layouts (used internally by base). `LCARdSBaseEditor` renders each tab's content in a plain `<div class="tab-panel">` (toggled with `?hidden`); there is no `ha-tab-panel` element.
 - `ha-selector` — generic HA selector (entity, device, number, text, select, etc.)
-- `ha-alert` — info/warning/error banners
+- `ha-alert` — only inside the `lcards-message` wrapper (see Messages); editors use `lcards-message`
 - `ha-entity-picker` — entity ID autocomplete
 - `ha-icon-button` — icon-only buttons (toolbar actions)
 
-**Do NOT use `ha-textfield`** — it wraps a deprecated MDC component that renders at 0px height in newer HA versions. Use `ha-selector` with `{ text: {} }` for text inputs and `{ number: { mode: 'box' } }` for numeric inputs instead. Event: `@value-changed` / `e.detail.value`.
+**Do NOT use `ha-textfield`**: it no longer exists in Home Assistant (unregistered, renders nothing). Use `ha-input` / `ha-textarea`, or `ha-selector` with `{ text: {} }` for text inputs and `{ number: { mode: 'box' } }` for numeric inputs instead. Event: `@value-changed` / `e.detail.value`.
 
-**Do NOT use `ha-formfield`** — it is still MWC-based (a likely future removal) and HA no longer registers it eagerly (only via the lazily-loaded boolean/select selectors). `ha-switch` and `ha-checkbox` are WebAwesome components with a clickable default-slot label — put the label text inside the control (HA's own pattern, see `ha-form-boolean.ts`):
+**Do NOT use `ha-formfield`**: it no longer exists in Home Assistant. `ha-switch` and `ha-checkbox` are WebAwesome components with a clickable default-slot label — put the label text inside the control (HA's own pattern, see `ha-form-boolean.ts`):
 
 ```javascript
 html`<ha-switch .checked=${on} @change=${(e) => this._toggle(e.target.checked)}>Invert Fill</ha-switch>`
@@ -187,7 +190,7 @@ LCARdS requires HA 2026.11+. Use HA CSS variables; no fallbacks needed unless no
 ```
 
 ❌ `style="--mdc-theme-primary: var(--error-color)"` — dead MDC var in HA 2026.6  
-❌ `appearance="accent"` without `variant` — dead MDC pattern
+❌ Colouring a button with `appearance`: colour is `variant` (brand, danger, warning, neutral, success); `appearance` is accent, filled, outlined or plain
 
 ### ha-input and ha-textarea (HA 2026.6+)
 
@@ -199,7 +202,7 @@ LCARdS requires HA 2026.11+. Use HA CSS variables; no fallbacks needed unless no
     @input=${e => this._x = e.target.value}></ha-textarea>
 ```
 
-❌ `ha-textfield` — deprecated MDC component, renders at 0px height in HA 2026.6
+❌ `ha-textfield` — removed from Home Assistant
 
 ### Helper/hint text — never `helper-text`
 
@@ -214,7 +217,7 @@ LCARdS requires HA 2026.11+. Use HA CSS variables; no fallbacks needed unless no
     helper="Shown below the field" @value-changed=${e => this._x = e.detail.value}></ha-selector>
 ```
 
-❌ `helper-text="..."` on either element — a whole editor dialog (`lcards-msd-studio-dialog.js`) shipped 51 instances of this before it was caught; none of that helper text was ever rendering. `lcards-filter-editor.js` and `lcards-processor-editor.js` had the same bug (4 sites total) — also fixed. If you find more, they get the same treatment: `hint` on `ha-input`/`ha-textarea`, `helper` on `ha-selector`.
+❌ `helper-text="..."` on either element — a whole editor dialog (`lcards-msd-studio-dialog.js`) shipped 51 instances of this before it was caught; none of that helper text was ever rendering. If you find more, they get the same treatment: `hint` on `ha-input`/`ha-textarea`, `helper` on `ha-selector`.
 
 ### ha-spinner (HA 2026.7+)
 
@@ -230,20 +233,20 @@ LCARdS requires HA 2026.11+. Use HA CSS variables; no fallbacks needed unless no
 
 ## Required Styles
 
-Every editor **must** include `editorStyles` in `static get styles()`:
+Card editors inherit `editorStyles` and `messageStyles` from `LCARdSBaseEditor`; add to them, don't replace them:
 
 ```javascript
-import { editorStyles } from '../base/editor-styles.js';
-
 static get styles() {
   return [
-    editorStyles,
+    ...super.styles,
     css`
       /* card-specific additions only */
     `
   ];
 }
 ```
+
+Standalone components and studios import `editorStyles` (`src/editor/base/editor-styles.js`) themselves.
 
 `editorStyles` provides: `.editor-container`, `.form-row`, `.form-row.two-controls`, `.form-control`, `.helper-text`, `.error-message`, `.warning-message`, `.section`, `.section-header`. Use these classes — do not redefine them.
 
@@ -285,5 +288,5 @@ fireEvent(this, 'hass-more-info', { entityId: this.config.entity });
 ❌ Don't render bare `<input>`, `<select>`, or `<textarea>` — use `FormField.renderField()`
 ❌ Don't skip `editorStyles` — inconsistent styling results
 ❌ Don't call `fireEvent(this, 'config-changed', ...)` directly — use `_updateConfig()`
-❌ Don't hand-roll field lists that duplicate `FormField.renderField()`'s schema-driven rendering. Note: `_getConfigTabConfig()` itself is still alive as a documented extension point in `LCARdSBaseEditor` (built on `_buildConfigTab()`/`modeSections`, used by `lcards-slider-editor.js`, `lcards-button-editor.js`, `lcards-elbow-editor.js`) — it's not removed, but its returned field specs should still be rendered via `FormField.renderField()`, not raw elements
-❌ Don't import `LitElement` directly in editor files — extend `LCARdSBaseEditor` instead
+❌ Don't hand-roll field lists that duplicate `FormField.renderField()`'s schema-driven rendering. `_buildConfigTab()` (LCARdSBaseEditor) builds a config tab from `modeSections`; the button and slider editors implement `_getConfigTabConfig()` with it. Their field specs still render through `FormField.renderField()`
+❌ Don't extend `LitElement` in a card editor — extend `LCARdSBaseEditor` (studios in `src/editor/dialogs/` and shared components are plain LitElements)

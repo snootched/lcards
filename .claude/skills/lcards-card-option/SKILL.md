@@ -5,7 +5,7 @@ description: Add, change, rename or remove an LCARdS card/view/strategy config o
 
 # LCARdS card option change
 
-A config key lives in up to eight places. They drift when one is changed alone: an undeclared key fails strict doc validation and the published schema (so LLMs never learn it), a schema stricter than the runtime rejects working configs at runtime validation (CoreValidationService) and in `npm run validate:config`, and an editor field without a schema node renders wrong. Change them together, in this order. Read `.github/instructions/editor.instructions.md` (FormField) and `cards.instructions.md` first if you touch the editor or the card.
+A config key lives in up to eight places. They drift when one is changed alone: an undeclared key fails strict doc validation and the published schema (so LLMs never learn it), a schema stricter than the runtime rejects working configs at runtime validation (CoreValidationService) and in `npm run validate:config`, and an editor field without a schema node renders wrong. Change them together, in this order. Read `.claude/rules/editor.md` (FormField) and `.claude/rules/cards.md` first if you touch the editor or the card.
 
 Never commit, stage or push unless the user asks. Never claim it works in HA; give test steps.
 

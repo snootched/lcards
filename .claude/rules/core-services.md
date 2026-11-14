@@ -1,5 +1,6 @@
 ---
-applyTo: src/core/**
+paths:
+  - "src/core/**"
 ---
 
 # LCARdS Core Services Rules
@@ -52,7 +53,7 @@ Cards do **not** propagate HASS directly to services. The chain is:
 LCARdSCard._onHassChanged()
   → window.lcards.core.ingestHass(newHass)        // only when relevant entities changed
     → LCARdSCore._updateHass(hass)
-      → each registered service.updateHass(hass)
+      → the services listed in _updateHass(), in that order
 ```
 
 **Do not** call `service.updateHass()` from a card. Rely on the core propagation.
@@ -77,9 +78,10 @@ await this.myService.initialize(hass); // if async init needed
 lcardsLog.debug('[LCARdSCore] ✅ MyService initialized');
 ```
 
-4. It is on `window.lcards.core` already: `src/lcards-main.js` sets `window.lcards.core = lcardsCore` before `initialize()`, so `this.myService` is `window.lcards.core.myService`. Don't write a separate `window.lcards.core.myService = ...` copy.
+4. If the service consumes HASS, add `if (this.myService) this.myService.updateHass(hass);` to `_updateHass()` in `src/core/lcards-core.js`: it calls a fixed list, so a service not added there never sees HASS (order matters, see the SoundManager note).
+5. It is on `window.lcards.core` already: `src/lcards-main.js` sets `window.lcards.core = lcardsCore` before `initialize()`, so `this.myService` is `window.lcards.core.myService`. Don't write a separate `window.lcards.core.myService = ...` copy.
 
-5. Add a getter if lazy access is needed:
+6. Add a getter if lazy access is needed:
 
 ```javascript
 getMyService() {
@@ -96,7 +98,7 @@ The current order — respect dependencies:
 1. `injectPalette()` — CSS vars (no deps)
 2. `systemsManager` — entity tracking (no deps)
 3. `dataSourceManager` — depends on `hass`
-4. `rulesManager` — connects to `systemsManager`
+4. `rulesManager` — depends on `dataSourceManager`, connects to `systemsManager`
 5. `themeManager` — no deps (packs loaded later by PackManager)
 6. `animationManager` — depends on `systemsManager`
 7. `performanceMonitor` — no deps
@@ -180,7 +182,8 @@ Any new code that calls `connection.addEventListener('disconnected', ...)` or `c
 
 ❌ Don't call `service.updateHass()` from cards — let `LCARdSCore.ingestHass()` distribute it
 ❌ Don't initialize services outside `_performInitialization()` — initialization order matters
-❌ Don't expose services on `window.lcards.core` before they are initialized — other code may read them on first HASS frame
+❌ Don't assign `this.myService` until it is ready to use: `window.lcards.core` is the core itself, so the property is public as soon as it is set
+❌ Don't change a core subsystem without updating its page in `doc/architecture/subsystems/`
 ❌ Don't use `console.log()` — use `lcardsLog` with a severity level
 ❌ Don't create services that depend on `window.lcards.core.*` being available at construction time — use lazy references or accept deps via constructor
 ❌ Don't call `connection.removeEventListener()` synchronously from inside a `hass.connection` event callback — defer with `queueMicrotask()` (see "`hass.connection` event listeners" above)

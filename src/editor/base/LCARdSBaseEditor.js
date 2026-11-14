@@ -19,6 +19,15 @@ import '../components/sound/lcards-card-sound-tab.js';
 import '../components/lcards-zone-list-editor.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/theme-browser/lcards-card-theme-tab.js';
+// Elements this base renders (grid entries, object fields, the YAML and Main Engineering tabs):
+// imported here so every editor gets them, not only the ones that import them too.
+import '../components/editors/lcards-grid-layout.js';
+import '../components/editors/lcards-object-editor.js';
+import '../components/yaml/lcards-yaml-editor.js';
+import '../components/datasources/lcards-datasource-editor-tab.js';
+import '../components/dashboard/lcards-rules-dashboard.js';
+import '../components/templates/lcards-template-evaluation-tab.js';
+import '../components/provenance/lcards-provenance-tab.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import { editorTabDocs } from '../utils/yaml-docs-links.js';
 

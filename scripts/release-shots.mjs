@@ -12,7 +12,7 @@
  * dev HA (HA_URL, default http://localhost:8123) with a long-lived token in $HA_TOKEN
  * or .ha-token, a current `npm run build`, and `magick` + `ffmpeg`.
  *
- * Shot list entries (see .github/instructions/releases.instructions.md):
+ * Shot list entries (see .claude/rules/releases.md):
  *
  *   - name: chart-studio            # output file name
  *     kind: still                   # still (default) | video

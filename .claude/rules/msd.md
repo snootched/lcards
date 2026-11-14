@@ -1,5 +1,11 @@
 ---
-applyTo: src/msd/**
+paths:
+  - "src/msd/**"
+  - "src/cards/lcards-msd.js"
+  - "src/cards/schemas/msd-schema.js"
+  - "src/editor/dialogs/lcards-msd-studio-dialog.js"
+  - "src/editor/dialogs/msd-studio/**"
+  - "src/editor/components/lcards-msd-live-preview.js"
 ---
 
 # LCARdS MSD (Master Systems Display) Rules
@@ -20,7 +26,7 @@ applyTo: src/msd/**
 
 ## MSD Pipeline Stages
 
-The pipeline runs on every config update (`_handleFirstUpdate`, `_onConfigUpdated`):
+The pipeline is built on first mount and on reconnect (`_onFirstUpdated` / `_onConnected` → `_loadAndInitializeMsd()`); re-renders run PipelineCore's `reRender()` via `coordinator._reRenderCallback()`. `_onConfigUpdated()` only re-extracts the config and reconciles the viewBox. The build steps:
 
 ```
 Config (raw YAML)
@@ -74,7 +80,7 @@ overlays:
     anchor_side: right          # which side of the anchor overlay it departs from
     attach_to: other-control    # end: named anchor, overlay id, or [x, y]
     attach_side: left
-    route: auto                 # auto | direct | manhattan | smart | grid | manual
+    route: auto                 # auto | direct | angled | manhattan | smart | grid | manual
     route_hint: xy               # initial segment direction hint (xy/yx/empty)
     style:
       color: var(--lcards-blue)  # literal/token, OR a state-color object (see below)
@@ -136,7 +142,7 @@ Control overlays use `position`/`size`/`attachment`; line overlays use `anchor`/
 
 ## Animations in MSD
 
-All three overlay types accept an `animations:` array (line/control/shape), and `base_svg.animations:` targets elements *inside* the parsed base SVG by id/class using the same syntax. All four registration points funnel through the same `AnimationManager`/`ANIMATION_PRESET_PARAMS_SCHEMAS` system documented in `.github/instructions/animation.instructions.md` — see that file for the full preset reference, canonical-field semantics, and `map_range` live-speed adjustment. MSD-specific notes:
+All three overlay types accept an `animations:` array (line/control/shape), and `base_svg.animations:` targets elements *inside* the parsed base SVG by id/class using the same syntax. All four registration points funnel through the same `AnimationManager`/`ANIMATION_PRESET_PARAMS_SCHEMAS` system (preset params: `src/cards/schemas/animation-preset-params-schemas.js`; `map_range`: `src/core/animation/resolveAnimParams.js`; user docs `doc/cards/msd/animations.md`; engine rules: the animation rule). MSD-specific notes:
 
 - **Controls need `data-overlay-id` to animate at all** — `MsdControlsRenderer.js` sets this on every control's `<foreignObject>` specifically so `PipelineCore`'s animated-overlay DOM lookup can find it. If you ever touch control-rendering code, don't drop this attribute.
 - **`target`/`target-selector` scope**: an animation declared on an overlay is scoped to that overlay's own rendered subtree by default (`overlayElement.querySelectorAll(selector)` for `target`); `base_svg.animations` is scoped to `#__msd-base-content` specifically via `searchRootSelector` in the editor's target picker.
@@ -183,7 +189,7 @@ A channel's own `route_channels`-based opt-in and RouterCore's automatic trunk *
 The visual editor (`src/editor/dialogs/lcards-msd-studio-dialog.js`) is the primary way users configure MSD cards. A few conventions if you're touching it:
 
 - **Shared chrome**: `studio-dialog-styles.js` for the main dialog frame (imported by all Studio dialogs — Chart/Layout/Data Grid/MSD); `studio-subform-dialog-styles.js` for nested subform dialogs (line/control edit forms, the embedded card-editor modal) — both use distinctly-named classes (`.subform-*`) specifically to avoid colliding with the main dialog's own canvas-interaction class lookups (`.preview-panel`/`.config-panel`).
-- **Live preview**: `lcards-msd-live-preview.js` fully destroys/recreates the preview `<lcards-msd-card>` on every config change *and* hass tick — if you're wiring something that depends on a stable live-preview element reference (e.g. an animation editor's target picker), don't cache it; re-fetch via `_getLivePreviewCardElement()` on demand. Two complementary mechanisms handle this, and new code should prefer the second over inventing a third: a manual "Refresh Element List" button (dispatches a `refresh-targets` event the parent catches with `this.requestUpdate()`, which re-fetches the card element fresh); and, since a user won't always know that button exists or when they need it, a **self-healing retry**: when a scoped DOM query comes up empty (e.g. `<lcards-animation-editor>`'s `searchRootSelector` lookup failing in `_getTargetOptions()`), the component that owns the failing query dispatches that same `refresh-targets` event itself *and* calls `this.requestUpdate()` on itself unconditionally — the latter matters because if the parent's re-fetch happens to return the exact same object reference (element wasn't swapped, just hadn't finished rendering yet), Lit's property-diffing (`!==`) won't re-invoke the child's `render()` on its own. Bound the retry (e.g. ~10 attempts, short delay) so a selector that can genuinely never resolve doesn't loop forever. Don't reach for a fixed-delay `setTimeout` guess instead — it was tried first here and confirmed unreliable, since neither the preview's debounce nor the MSD pipeline's render time is fixed.
+- **Live preview**: `lcards-msd-live-preview.js` recreates the preview `<lcards-msd-card>` on every config change (debounced 300 ms; a hass tick only updates `card.hass`) — if you're wiring something that depends on a stable live-preview element reference (e.g. an animation editor's target picker), don't cache it; re-fetch via `_getLivePreviewCardElement()` on demand. Two complementary mechanisms handle this, and new code should prefer the second over inventing a third: a manual "Refresh Element List" button (dispatches a `refresh-targets` event the parent catches with `this.requestUpdate()`, which re-fetches the card element fresh); and, since a user won't always know that button exists or when they need it, a **self-healing retry**: when a scoped DOM query comes up empty (e.g. `<lcards-animation-editor>`'s `searchRootSelector` lookup failing in `_getTargetOptions()`), the component that owns the failing query dispatches that same `refresh-targets` event itself *and* calls `this.requestUpdate()` on itself unconditionally — the latter matters because if the parent's re-fetch happens to return the exact same object reference (element wasn't swapped, just hadn't finished rendering yet), Lit's property-diffing (`!==`) won't re-invoke the child's `render()` on its own. Bound the retry (e.g. ~10 attempts, short delay) so a selector that can genuinely never resolve doesn't loop forever. Don't reach for a fixed-delay `setTimeout` guess instead — it was tried first here and confirmed unreliable, since neither the preview's debounce nor the MSD pipeline's render time is fixed.
 - **Editing an existing control/line, not creating a new one**: always resolve the array index via the *stable* editing id captured at edit-open time (`_editingControlId`/`_editingLineId`), never via the live, user-editable ID form field — renaming while editing must update in place, not push a duplicate.
 - **Saving a control/line**: spread the existing overlay object before applying explicit field overrides (`{...existingOverlay, ...explicitFields}`), so fields the form doesn't manage survive a GUI save instead of being silently dropped. Controls, lines, and shapes each have a dedicated Animations subtab (`_renderControlFormAnimation()`/`_renderLineFormAnimation()`/`_renderShapeFormAnimation()`) wired to their own `_<x>FormAnimations`/`_<x>FormData.animations` state and saved explicitly — not relying on the spread-survives-unmanaged-fields fallback.
 - **Debug canvas overlays** (grid, bounding boxes, channels, routing grid, discovered trunks, etc.) follow one array-driven pattern: a `{ key, prop, icon, tooltip }` entry in `overlayToggles`, a matching `_<prop>` reactive property (default `false` — these are debug aids, off by default), a `_render<X>Overlay()` method reusing `_getPreviewSvgAndViewBox()`'s coordinate-transform pattern, and a call site in the main overlay-render list. The Routing Grid (amber, router's own resolved `grid_resolution`, via `router.resolvedGridResolution()`) and Discovered Trunks (cyan, `origin: 'discovered'` rows only — config-authored channels are left to the existing channels overlay to avoid double-rendering, via `router.trunks()`) both reach the live router the same way: `preview.msdCard._msdPipeline?.coordinator?.router`. Add new debug overlays the same way rather than inventing a new toggle mechanism.
@@ -256,7 +262,7 @@ window.lcards.debug.msd.routing.trunks('my-msd')
 ❌ Don't create a custom base class between `LCARdSCard` and `LCARdSMSDCard` — the hierarchy is fixed
 ❌ Don't mutate overlay config objects returned by the pipeline — they are shared; create new config and re-run
 ❌ Don't position overlay elements with CSS manually — always use `position`/`anchor` in the overlay config so routing lines stay connected
-❌ Don't call `AnimationManager.onOverlayRendered()` directly — `PipelineCore` calls it automatically after rendering each overlay
+❌ Don't call `AnimationManager.onOverlayRendered()` directly — `PipelineCore` calls it after rendering each overlay that has animations (or a rule targeting it by `overlay:`)
 ❌ Don't hand-position routed lines — the pipeline computes paths from anchors + routing mode; per-line choices go on the `line` overlay, global tunables in `msd.routing`, channels in `msd.channels`
 ❌ Don't call `RouterCore.computePath()` with endpoints other than a line's real resolved anchors ("just to inspect"/"so the HUD sees it") — registration is a side effect of routing, and synthetic requests pollute the trunk/crossing registries under the real line's id, breaking order independence; `RouterCore.inspect(id)` reads the cache without computing
 ❌ Don't add a new overlay `type` for something that's really just a differently-configured control — MSD has three types (`line`/`control`/`shape`); a fourth needs a genuinely new geometry/rendering primitive to justify it (the bar `shape` cleared), not a `card:` variant, which belongs inside a `control`'s `card:` config instead

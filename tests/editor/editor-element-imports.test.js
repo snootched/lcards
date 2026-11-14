@@ -38,7 +38,8 @@ function closure(file, seen = new Set()) {
   return seen;
 }
 
-const editors = files.filter((f) => /[/\\]editor[/\\]cards[/\\]lcards-[a-z-]+-editor\.js$/.test(f));
+// Card editors, and the base editor (it renders the YAML and Main Engineering tabs for all of them).
+const editors = files.filter((f) => /[/\\]editor[/\\](?:cards[/\\]lcards-[a-z-]+-editor|base[/\\]LCARdSBaseEditor)\.js$/.test(f));
 
 for (const editor of editors) {
   test(`${editor.slice(root.length + 1)} imports every lcards element it renders`, () => {

@@ -228,4 +228,4 @@ The card evaluator's `HATemplateEvaluator` shares its context object, so a hass 
 - [Templates user guide](../../core/templates/)
 - [DataSource System](datasource-system.md)
 - [Rules Engine](rules-engine.md): Jinja2 and JavaScript conditions
-- `.github/instructions/templates.instructions.md`: the rules for code that evaluates templates
+- `.claude/rules/templates.md`: the rules for code that evaluates templates

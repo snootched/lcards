@@ -24,7 +24,7 @@ import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-
 
 // Import Chart Configuration Studio dialog
 import '../dialogs/lcards-chart-studio-dialog.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 
 export class LCARdSChartEditor extends LCARdSBaseEditor {
 
@@ -196,7 +196,7 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
         });
 
         // Cleanup on close
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._studio === dialog) this._studio = null;
         });

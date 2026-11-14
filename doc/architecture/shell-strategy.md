@@ -119,7 +119,7 @@ The light list needs the auto-entities card from HACS; without it Home Assistant
 | `footer` | A `lcards-layout-card` with two `filled` toggle buttons (the second pulses on hover) |
 | `footer-border` | A `lcards-layout-card` with one `panel-light` button |
 
-The sizing choices (definite heights for content-sized tracks, `minmax(0, ...)` tracks, `min_height: 1` fillers) follow the rules in `.github/instructions/cards.instructions.md`, "Sizing in Nested Grids".
+The sizing choices (definite heights for content-sized tracks, `minmax(0, ...)` tracks, `min_height: 1` fillers) follow the rules in `.claude/rules/cards.md`, "Sizing in Nested Grids".
 
 ---
 

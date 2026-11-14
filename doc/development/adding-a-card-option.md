@@ -6,7 +6,7 @@ A card option (a YAML key) lives in up to eight places: the schema, the runtime 
 The same procedure is the `lcards-card-option` project skill (`.claude/skills/lcards-card-option/SKILL.md`), which Claude Code loads for this kind of change.
 :::
 
-Read `.github/instructions/cards.instructions.md` before touching the card and `.github/instructions/editor.instructions.md` before touching the editor.
+Read `.claude/rules/cards.md` before touching the card and `.claude/rules/editor.md` before touching the editor.
 
 ## 0. Find every place the key lives
 

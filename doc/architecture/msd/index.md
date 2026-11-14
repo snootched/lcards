@@ -8,7 +8,7 @@
 
 The MSD card has a dedicated rendering pipeline in `src/msd/`. It composes a base SVG with any number of positioned overlays (embedded cards, routed lines, shapes), routes SVG lines between them, and applies per-overlay animations and rules. The card element itself (`LCARdSMSDCard`, `src/cards/lcards-msd.js`) extends `LCARdSCard` like every other card; the pipeline is what it adds on top.
 
-Non-MSD cards use `LCARdSCard` directly; the MSD pipeline is purposely isolated. The rules for working in `src/msd/` (overlay types, z-order, animations, Studio conventions, anti-patterns) live in `.github/instructions/msd.instructions.md`; this page explains how the pieces fit.
+Non-MSD cards use `LCARdSCard` directly; the MSD pipeline is purposely isolated. The rules for working in `src/msd/` (overlay types, z-order, animations, Studio conventions, anti-patterns) live in `.claude/rules/msd.md`; this page explains how the pieces fit.
 
 The entry point is `initMsdPipeline()` (`src/msd/pipeline/PipelineCore.js:34`, re-exported by `src/msd/index.js`). It returns the pipeline API object the card stores on `this._msdPipeline`.
 

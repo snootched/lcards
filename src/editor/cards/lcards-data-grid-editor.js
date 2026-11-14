@@ -38,7 +38,7 @@ import '../components/provenance/lcards-provenance-tab.js';
 
 // Import Configuration Studio dialog
 import '../dialogs/lcards-data-grid-studio-dialog.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 
 export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
@@ -208,7 +208,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
             this.requestUpdate();
         });
 
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._studio === dialog) this._studio = null;
         });

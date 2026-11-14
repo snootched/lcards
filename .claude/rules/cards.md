@@ -1,10 +1,12 @@
 ---
-applyTo: src/cards/**
+paths:
+  - "src/cards/**"
+  - "src/base/**"
 ---
 
 # LCARdS Card Development Rules
 
-These rules apply to all files under `src/cards/`. They complement `copilot-instructions.md` with precise API-level detail.
+These rules apply to card files (`src/cards/`) and their base classes (`src/base/`). They complement CLAUDE.md with precise API-level detail. When a card misbehaves, the console checklist is in `doc/development/debug-api.md` ("Diagnosing a Card").
 
 ---
 
@@ -200,7 +202,7 @@ Override `_getCardSize()` when the card is taller than 1 grid row. Compute it in
 
 ```javascript
 _getCardSize() {
-  const h = this._configPx(this.config.style?.height) || 200;
+  const h = this._configPx(this.config?.height) || 200;
   return Math.ceil(h / 50); // see lcards-chart.js / lcards-msd.js for real examples
 }
 ```
@@ -213,7 +215,7 @@ HA wraps every card in `<hui-card>` (light DOM, no styles, no height of its own)
 
 - **Content-sized tracks (`auto`, `max-content`) cannot reliably measure a card through hui-card.** Percentage-height hosts contribute 0 or garbage to intrinsic track sizing. If a card must drive a content-sized parent track, compute its natural height from config and set it as a **definite inline pixel height on the host** (reference implementation: `lcards-select-menu` `grid.height: 'fit'`). The parent track should be `minmax(0, max-content)` — sizes to the published height, capped by the container.
 - **Filling a bounded track**: host stays `height: 100%`, track is `minmax(0, 1fr)` — never bare `1fr`. Bare `1fr` = `minmax(auto, 1fr)`, whose auto minimum lets the card's intrinsic min-content inflate the track and overflow the layout. To compute exact child sizes from the container, use a `ResizeObserver` (reference: select-menu `grid.height: '100%'`) — but never combine container measurement with a content-sized parent track (circular → shrink spiral).
-- **Buttons never shrink below the theme minimum.** With no `height`/`min_height` config, `--lcars-button-min-height` (typically 56px) applies — a button in a collapsed `0px` row still paints ~56px past the row (overflow is visible throughout). Panel strips/fillers placed in collapsible rows must set `min_height: 1`.
+- **Buttons never shrink below the theme minimum.** With no `height`/`min_height` config, the preset's `min_height` (theme token `components.button.layout.minHeight`, 56px) applies, falling back to `--lcards-button-min-height`: a button in a collapsed `0px` row still paints ~56px past the row (overflow is visible throughout). Panel strips/fillers placed in collapsible rows must set `min_height: 1`.
 - A ResizeObserver-computed size must **never lock in an inflated measurement**: if the observed container can grow from your own content (auto-min track), the feedback loop ratifies overflow forever. Fix the track (`minmax(0, …)`) before trusting the measurement.
 
 ---
@@ -232,7 +234,7 @@ _handleFirstUpdate() {
 
 Use `_isPreviewMode` for work that is checked again later (the background renderer skips its off-screen IntersectionObserver in previews).
 
-`isPreviewMode()` returning the tri-state `false`/`'editor'`/`'picker'` string is **`LCARdSMSDCard`-specific** — `lcards-msd.js` overrides `_detectPreviewMode()` without calling `super()` and does its own picker-vs-editor distinction (`this._isPreviewMode === 'picker'`). Don't rely on the tri-state form outside `lcards-msd.js`; see `msd.instructions.md`.
+`isPreviewMode()` returning the tri-state `false`/`'editor'`/`'picker'` string is **`LCARdSMSDCard`-specific** — `lcards-msd.js` overrides `_detectPreviewMode()` without calling `super()` and does its own picker-vs-editor distinction (`this._isPreviewMode === 'picker'`). Don't rely on the tri-state form outside `lcards-msd.js` (`_detectPreviewMode()` there).
 
 ---
 
@@ -259,7 +261,7 @@ _calculateZones(width, height) {
 }
 ```
 
-`_generateZoneTextMarkup`/`_generateZoneDebugMarkup`/`_injectTextFieldsToElement` are defined on `LCARdSButton`, not on base `LCARdSCard` — available to `LCARdSButton` and its subclasses (`LCARdSSlider`, `LCARdSElbow`) only. Cards extending `LCARdSCard` directly (chart, data-grid, alert-overlay, layout-card, select-menu, msd) don't have them.
+`_generateZoneTextMarkup` and `_injectTextFieldsToElement` are defined on `LCARdSButton` (so also `LCARdSSlider`, `LCARdSElbow`); cards extending `LCARdSCard` directly (chart, data-grid, alert-overlay, layout-card, select-menu, msd) don't have them. `_generateZoneDebugMarkup`, `_rebuildZones` and `_calculateZones` are on base `LCARdSCard`.
 
 **SVG string pipeline** — use `_generateZoneTextMarkup(textFields)`:
 
@@ -277,6 +279,18 @@ this._injectTextFieldsToElement(this._svgEl, width, height);
 ❌ Never call `_calculateZones()` directly — always go through `_rebuildZones()` so user overrides are applied.
 ❌ Never access `this._zones` before calling `_rebuildZones()` — it will be empty or stale.
 ❌ Do not use `_processTextFields()` in zone-aware cards — use `_generateZoneTextMarkup` or `_injectTextFieldsToElement`.
+
+**User zones** (`zones:` in config, merged by `_mergeUserZones()`): each axis takes px or percent (`x` / `x_percent`, `y` / `y_percent`, `width` / `width_percent`, `height` / `height_percent`); px wins when both are set, and a zone missing an axis is skipped with a warning. The auto-zone names per card are in the user docs (`doc/core/text-fields-zones.md`); keep that page in step when a card's `_calculateZones()` changes.
+
+**`debug_zones: true`** outlines every zone; the editor's Zones tab sets it from its Developer Tools section. It stays in the config, so it is for development only.
+
+---
+
+## Shadow DOM Styles
+
+- Card styles go in `static get styles()` with the `css` tag; never put a `<style>` element in `_renderCard()`. Values that change per render go inline (the button's generated SVG uses inline styles because a `<style>` block in regenerated SVG is cached by the browser and misses variable changes; see the "CRITICAL DESIGN DECISION" note in `lcards-button.js`).
+- `var(--x)` reaches into the shadow root; outside stylesheets don't. Theme a card through CSS variables and its config, not through page CSS.
+- The `:host` rules come from the base CSS (`height: 100%`, see Sizing in Nested Grids); add card-specific `:host` rules in the card's own styles.
 
 ---
 

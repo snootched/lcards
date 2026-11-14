@@ -5,7 +5,7 @@ description: Draft, update or promote LCARdS release notes (doc/releases/<versio
 
 # LCARdS release notes
 
-The release page `doc/releases/<version>.md` is the source of truth for release notes: the docs site shows it and the `Release` GitHub workflow publishes it as the GitHub release body. You draft and maintain it; the user hand-tunes and commits. The user's side of the process (bumps, commits, workflow runs) is in `COOKBOOK.md` § Releases; the writing rules are in `.github/instructions/releases.instructions.md`. Read that guide before writing.
+The release page `doc/releases/<version>.md` is the source of truth for release notes: the docs site shows it and the `Release` GitHub workflow publishes it as the GitHub release body. You draft and maintain it; the user hand-tunes and commits. The user's side of the process (bumps, commits, workflow runs) is in `COOKBOOK.md` § Releases; the writing rules are in `.claude/rules/releases.md`. Read that guide before writing.
 
 Never commit, stage, push or run GitHub workflows. Never claim a fix works in HA; the notes describe what the commits say and what you verified in the code.
 

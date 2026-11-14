@@ -1,6 +1,6 @@
 # LCARdS maintainer cookbook
 
-How we build, test, release and publish LCARdS: the recipes first, then the reference. Internal (not on the docs site). Rules for writing code live in `CLAUDE.md` and `.github/instructions/`; this file is about running things.
+How we build, test, release and publish LCARdS: the recipes first, then the reference. Internal (not on the docs site). Rules for writing code live in `CLAUDE.md` and `.claude/rules/` (path-scoped, loaded by Claude Code); this file is about running things.
 
 **Contents:** [Daily loop](#daily-loop) · [Releases](#releases) · [CI workflows](#ci-workflows) · [npm scripts](#npm-scripts) · [Tests](#tests) · [Docs site](#docs-site) · [Other maintenance](#other-maintenance) · [Gotchas](#gotchas)
 
@@ -40,7 +40,7 @@ doc/releases/<version>.md  ──►  docs site /releases/        (Docs workflow
 - **`notes_through: <sha>`** in the frontmatter: the last commit the notes cover. `npm run release:commits` lists everything after it, so each update only looks at what's new.
 - **Pictures** in `doc/public/releases/<version>/`, captured from the dev HA by `npm run release:shots` from `doc/releases/shots/<version>.yaml`, or dropped in by hand.
 - **Two tiers:** the docs page is the full notes; the GitHub body (also Home Assistant's update dialog and HACS) is a slim export of it: intro, Before you update, the features named in the page's `highlights:` (without their `::: details` blocks), links to the rest and the reported-issue fixes. `npm run release:notes -- <version>` prints it, `--full` the whole page.
-- **Writing rules:** `.github/instructions/releases.instructions.md`.
+- **Writing rules:** `.claude/rules/releases.md`.
 
 ### Who does what
 

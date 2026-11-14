@@ -91,7 +91,7 @@ const STATE_PATH = join(REPORTS_DIR, '.state.json');
 
 // ─── Relevant path allowlists ─────────────────────────────────────────────────
 // Mirrors ha-lcars's RELEVANT_PATH_PREFIXES pattern, but scoped to what LCARdS
-// actually depends on (see .github/instructions/editor.instructions.md
+// actually depends on (see .claude/rules/editor.md
 // "Approved HA Elements" + doc/development/ha-css-vars.md "Variable Sources").
 // The static list covers infrastructure; the files defining every <ha-*>/<hui-*>
 // element LCARdS renders are added automatically (deriveLcardsElementPaths),
@@ -468,7 +468,7 @@ next one of these before it ships.
 First, read these two files in this repo for context on exactly what LCARdS currently depends \
 on:
   - doc/development/ha-css-vars.md  (every HA CSS custom property LCARdS uses, and how)
-  - .github/instructions/editor.instructions.md  (the "Approved HA Elements" list and CSS/theming conventions)
+  - .claude/rules/editor.md  (the "Approved HA Elements" list and CSS/theming conventions)
 
 Then, for each repo/commit-range below, run \`git -C <repo path> diff <range> -- <file>\` \
 yourself (or in batches) to see the actual content diffs of the changed files — the list below \

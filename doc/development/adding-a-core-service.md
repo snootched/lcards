@@ -1,6 +1,6 @@
 # Adding a Core Service
 
-A core service is a singleton the whole page shares: one instance, created by `LCARdSCore` at startup, reachable as `window.lcards.core.<name>`, fed the Home Assistant object by the core. Add one when several cards (or a card and the config panel) need the same state or connection; a feature only one card uses belongs in that card. This guide is the how-to; the existing services, their startup order and how HASS reaches them are in [Core Subsystems](../architecture/subsystems/), and the rules for code under `src/core/` are in `.github/instructions/core-services.instructions.md`.
+A core service is a singleton the whole page shares: one instance, created by `LCARdSCore` at startup, reachable as `window.lcards.core.<name>`, fed the Home Assistant object by the core. Add one when several cards (or a card and the config panel) need the same state or connection; a feature only one card uses belongs in that card. This guide is the how-to; the existing services, their startup order and how HASS reaches them are in [Core Subsystems](../architecture/subsystems/), and the rules for code under `src/core/` are in `.claude/rules/core-services.md`.
 
 ## Checklist
 
@@ -181,7 +181,7 @@ test('subscribers hear a time zone change once', () => {
 
 - A page `doc/architecture/subsystems/<name>.md`: what it owns, its public API, when it gets HASS, console access.
 - In `doc/architecture/subsystems/index.md`: a row in the Quick Reference table, a short section, its step in the Initialization Order table, and its place in the HASS distribution list if it is in `_updateHass()`.
-- The numbered order in `.github/instructions/core-services.instructions.md`, and the singleton list in `CLAUDE.md` if cards will use it.
+- The numbered order in `.claude/rules/core-services.md`, and the singleton list in `CLAUDE.md` if cards will use it.
 - If it adds a `--lcards-*` CSS variable, register it in `src/lcards-vars.js`.
 
 ## Related

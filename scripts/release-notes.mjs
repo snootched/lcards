@@ -19,7 +19,7 @@
  *       the attached images to doc/public/releases/<tag>/ as WebP (needs `magick`).
  *       Existing pages are skipped unless --force.
  *
- * See .github/instructions/releases.instructions.md.
+ * See .claude/rules/releases.md.
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';

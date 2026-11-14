@@ -68,7 +68,7 @@ import { searchableSelectStyles } from '../components/shared/searchable-select-s
 // Native HA Card Picker & Editor Integration
 import { MSDCardPickerManager } from './msd-studio/msd-card-picker-manager.js';
 import { MSDEventInterceptor } from './msd-studio/msd-event-interceptor.js';
-import { createDialogFooter, mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { createDialogFooter, mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 import { normalizeHACardType, isBuiltinCardType } from '../../utils/ha-card-factory.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import { QUICK_LABEL_STYLES, BRACKET_KINDS, QUICK_LABEL_TEXT, buildQuickLabel, guessQuickLabelStyle, QUICK_LABEL_SIZES, unitsPerPxForSize, guessQuickLabelSize, isLabelOverlay, snapLabelPoint, nearestSnapTarget, controlConnectionPoints, isNamedAnchor } from './msd-studio/msd-quick-label.js';
@@ -210,7 +210,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _bulkEditSnapshot: { type: Object, state: true }, // form-data snapshot at bulk-open time
             // Shield-Bubble Suggest - editor-only ephemeral state, never persisted to
             // config (matches the _showBoundingBoxes/_baseSvgPreviewDimmed precedent,
-            // not a config flag - see .github/instructions/msd.instructions.md)
+            // not a config flag - see .claude/rules/msd.md)
             _shieldBubbleState: { type: Object, state: true },
             // Channels Tab Properties
             _editingChannelId: { type: String, state: true },
@@ -3197,7 +3197,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [confirmButton] }));
 
-            dialog.addEventListener('closed', () => {
+            onDialogClosed(dialog, () => {
                 dialog.remove();
             });
 
@@ -19065,7 +19065,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             dialog.appendChild(createDialogFooter({ primary: [closeButton] }));
 
-            dialog.addEventListener('closed', () => {
+            onDialogClosed(dialog, () => {
                 dialog.remove();
             });
 

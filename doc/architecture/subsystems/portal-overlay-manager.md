@@ -53,7 +53,7 @@ Two consequences in POM:
 - **Styles go into the portal's root.** The per-slot `<style>` (see [DOM structure](#dom-structure)) is appended to `portal.getRootNode()` when that is a shadow root, because document styles do not reach inside it (`PortalOverlayManager.js:241-244`). Only when the portal is under `document.body` does it go into `document.head`.
 - **Portal first, then occupied.** `show()` reads `sem.portal` (which creates the portal) before `sem.setOverlayOccupied(true)`. In the other order the first overlay without `layers` (the alert band) stayed hidden, because `setOverlayOccupied()` can only show a portal that exists (`:183-187`).
 
-Any LCARdS dialog or overlay mounted imperatively must use the same helper (the rule is in `.github/instructions/editor.instructions.md`).
+Any LCARdS dialog or overlay mounted imperatively must use the same helper (the rule is in `.claude/rules/editor.md`).
 
 ---
 

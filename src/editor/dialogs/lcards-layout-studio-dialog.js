@@ -37,7 +37,7 @@ import '../components/yaml/lcards-studio-yaml-tab.js';
 // a layout view was edited earlier on the page.
 import '../../views/lcards-grid-edit-overlay.js';
 import { layoutCardSchema } from '../../cards/schemas/layout-card-schema.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 
 const ALIGN_V_OPTIONS = [
     { value: 'stretch', label: 'Stretch (default)' },
@@ -689,7 +689,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
             dialog.open = false;
             if (selected) onPick(JSON.parse(JSON.stringify(selected)));
         });
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._pickerDialog === dialog) this._pickerDialog = null;
         });
