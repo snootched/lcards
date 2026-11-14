@@ -19,7 +19,7 @@
  *
  * The working copy is plain config: Save sends it whole. Every commit goes
  * through `_commit`, which records the copy it replaces for undo and redo
- * (astro-studio/history.js). A starter can be tried first: the preview shows
+ * (studio-history.js). A starter can be tried first: the preview shows
  * the working copy with the starter in it (`_trying`) until Keep commits it
  * or Discard drops it.
  *
@@ -45,7 +45,7 @@ import { starterYaml } from '../../core/astrometrics/starters/yaml.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import { SCENE_SCOPE, scopeSystem, validScope, scopedList, setScopedList, scopedObjectIds, pointScope, objectScope, allPointIds, allObjectIds, pointsEditorConfig } from './astro-studio/systems.js';
-import { createHistory } from './astro-studio/history.js';
+import { createHistory } from './studio-history.js';
 import { QUICK_VIEWS, quickViewKeys, nextLook, measureText, isolateConfig } from './astro-studio/preview-tools.js';
 import { modelSizeReadout, fitToViewSize, roundLength, shortNumber } from './astro-studio/model-size.js';
 import { prismOutline } from '../../core/astrometrics/objects/volume.js';

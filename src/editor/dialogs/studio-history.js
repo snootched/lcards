@@ -1,5 +1,5 @@
 /**
- * @fileoverview Undo and redo for the Astrometrics Studio's working copy.
+ * @fileoverview Undo and redo for a Studio's working copy (the Astrometrics and MSD Studios).
  *
  * Every commit records the config it replaces. Commits that change the same
  * paths within a short window (typing in one field, dragging one slider)

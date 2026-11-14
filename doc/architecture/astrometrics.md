@@ -549,7 +549,7 @@ The Studio (`src/editor/dialogs/lcards-astrometrics-studio-dialog.js`) is a full
 - **Preview only.** The toolbar's look, isolate and quick views (`astro-studio/preview-tools.js`) change the preview's config, never the saved one.
 - **Forms from the schema.** Each object's form is generated from its type's schema branch (`lcards-astro-schema-form.js`, `fieldKind()` in `schema-fields.js`), so a new object type or key needs no Studio form code. Bindings, templates and tours get their own sub-panels.
 - **Scopes.** The Points and Objects tabs edit the scene's lists or one system's (`astro-studio/systems.js`; ids stay card-wide and must match the runtime's `type#n` naming).
-- **History.** Every commit goes through `_commit` and `astro-studio/history.js` (undo and redo, merged within a short window per path).
+- **History.** Every commit goes through `_commit` and `studio-history.js` (undo and redo, merged within a short window per path).
 - **Starters.** The Starters tab applies `src/core/astrometrics/starters/` (`applyStarter`, `fitFactor`, `unitsClash`): a scene replaces, a part merges with its ids prefixed; a starter can be tried in the preview before Keep or Discard.
 
 User docs: [Getting Started: The Studio](../cards/astrometrics/start.md#the-studio).

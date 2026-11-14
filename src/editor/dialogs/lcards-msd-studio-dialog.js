@@ -73,6 +73,10 @@ import { normalizeHACardType, isBuiltinCardType } from '../../utils/ha-card-fact
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import { QUICK_LABEL_STYLES, BRACKET_KINDS, QUICK_LABEL_TEXT, buildQuickLabel, guessQuickLabelStyle, QUICK_LABEL_SIZES, unitsPerPxForSize, guessQuickLabelSize, isLabelOverlay, snapLabelPoint, nearestSnapTarget, controlConnectionPoints, isNamedAnchor } from './msd-studio/msd-quick-label.js';
 import { copyStyle, pasteStyle } from './msd-studio/msd-style-clipboard.js';
+import { createHistory } from './studio-history.js';
+
+/** How often (ms) at most the working config is compared with the last undo step. */
+const HISTORY_CHECK_MS = 400;
 
 // Mode constants
 const MODES = {
@@ -180,7 +184,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _connectLineState: { type: Object, state: true }, // { source: null, tempLineElement: null }
             _quickLabelState: { type: Object, state: true }, // { style, bracketKind, text, size, target, targetSide, targetPoint, currentPoint, snap }
             _quickLabelPanelPos: { type: Object, state: true }, // dragged panel's {left, top} in px, or null (bottom-left)
-            _styleClipboard: { type: Object, state: true }, // copied label/line style (msd-style-clipboard.js copyStyle), or null
+            _styleClipboard: { type: Object, state: true },
+            _historyVersion: { type: Number, state: true }, // bumped on every undo history change (Undo/Redo buttons) // copied label/line style (msd-style-clipboard.js copyStyle), or null
             // Lines tab list multi-select, for Bulk Edit Style — see _toggleLineSelection
             _selectedLineIds: { type: Object, state: true }, // Set<string>
             // Shapes Tab Properties
@@ -424,6 +429,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._styleClipboard = null;
         /** @type {{ left: number, top: number } | null} */
         this._quickLabelPanelPos = null;
+        // Undo and redo. Much of the Studio edits the working config in place, so
+        // steps are taken from snapshots: after renders (at most every
+        // HISTORY_CHECK_MS) the config is compared with the last step's JSON.
+        this._history = createHistory();
+        this._historyVersion = 0;
+        /** @type {string | null} the working config's JSON at the last recorded step */
+        this._historyBase = null;
+        /** @type {ReturnType<typeof setTimeout> | null} */
+        this._historyTimer = null;
         this._selectedLineIds = new Set();
 
         // Bulk Style Edit — shared by Shapes and Lines tabs, only one bulk edit
@@ -632,6 +646,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._workingConfig.msd = {};
         }
 
+        // A fresh history for what the Studio opened with.
+        this._history.clear();
+        this._historyBase = JSON.stringify(this._workingConfig);
+        this._historyVersion++;
+
         // Initialize Native HA Card Picker & Editor Managers
         this._cardPickerManager = new MSDCardPickerManager(this);
         this._eventInterceptor = new MSDEventInterceptor(this);
@@ -777,6 +796,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     updated(changedProps) {
         super.updated(changedProps);
+        this._scheduleHistoryCheck();
 
         // Re-initialize zoom if the working config changed (triggers card re-render)
         if (changedProps.has('_workingConfig')) {
@@ -1224,6 +1244,87 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Check for a change to record, at most every HISTORY_CHECK_MS (renders
+     * come in bursts while dragging or typing).
+     * @private
+     */
+    _scheduleHistoryCheck() {
+        if (this._historyTimer) return;
+        this._historyTimer = setTimeout(() => {
+            this._historyTimer = null;
+            this._recordHistory();
+        }, HISTORY_CHECK_MS);
+    }
+
+    /**
+     * Record an undo step when the working config differs from the last one.
+     * Steps that change the same keys within a moment merge (a drag, typing
+     * in one field), unless `step`.
+     * @param {{ step?: boolean }} [opts]
+     * @private
+     */
+    _recordHistory({ step = false } = {}) {
+        if (this._historyTimer) {
+            clearTimeout(this._historyTimer);
+            this._historyTimer = null;
+        }
+        const now = JSON.stringify(this._workingConfig ?? {});
+        if (this._historyBase === null) {
+            this._historyBase = now;
+            return;
+        }
+        if (now === this._historyBase) return;
+        this._history.push(JSON.parse(this._historyBase), JSON.parse(now), { step });
+        this._historyBase = now;
+        this._historyVersion++;
+    }
+
+    /**
+     * Whether a form is open over the Studio (it has its own Cancel; undo
+     * waits until it closes).
+     * @returns {boolean}
+     * @private
+     */
+    _historyBlocked() {
+        return !!(this._showCardEditorForm || this._showLineForm || this._showShapeForm || this._showControlForm
+            || this._showAnchorForm || this._editingChannelId !== null || this._bulkEditKind);
+    }
+
+    /** Step back one change. @private */
+    _undo() {
+        if (this._historyBlocked()) return;
+        this._recordHistory();
+        const prev = this._history.undo(JSON.parse(this._historyBase ?? '{}'));
+        if (prev) this._showHistoryConfig(prev);
+    }
+
+    /** Step forward one undone change. @private */
+    _redo() {
+        if (this._historyBlocked()) return;
+        this._recordHistory();
+        const next = this._history.redo(JSON.parse(this._historyBase ?? '{}'));
+        if (next) this._showHistoryConfig(next);
+    }
+
+    /**
+     * Show a config from the history as the working copy (not recorded again).
+     * A tool's half-done placement and selections of things no longer there are dropped.
+     * @param {any} config
+     * @private
+     */
+    _showHistoryConfig(config) {
+        this._workingConfig = config;
+        this._historyBase = JSON.stringify(config);
+        this._historyVersion++;
+        if (this._activeMode !== MODES.VIEW) this._setMode(MODES.VIEW);
+        const ids = new Set((config.msd?.overlays || []).map((/** @type {any} */ o) => o?.id));
+        this._selectedLineIds = new Set([...this._selectedLineIds].filter(id => ids.has(id)));
+        if (this._selectedShapeId && !ids.has(this._selectedShapeId)) this._selectedShapeId = null;
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+    }
+
+    /**
      * Update config value at nested path
      * @param {string} path - Dot-separated path (e.g., 'msd.base_svg.builtin')
      * @param {*} value - New value
@@ -1432,11 +1533,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     async _handleReset() {
-        if (!await this._confirmAction('Reset to initial configuration? All changes will be lost.')) {
+        if (!await this._confirmAction('Reset to the configuration the Studio opened with? Undo brings your changes back.')) {
             return;
         }
         lcardsLog.debug('[MSDStudio] Resetting to initial config');
+        this._recordHistory();
         this._workingConfig = JSON.parse(JSON.stringify(this._initialConfig));
+        this._recordHistory({ step: true });
         this._validationErrors = [];
         this._showSuccessToast('Configuration reset to initial state');
         this._schedulePreviewUpdate();
@@ -18649,6 +18752,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
             return;
         }
 
+        // Ctrl+Z undoes, Ctrl+Shift+Z or Ctrl+Y redoes (text boxes returned above keep their own undo).
+        const lower = e.key.toLowerCase();
+        if ((e.ctrlKey || e.metaKey) && !e.altKey && (lower === 'z' || lower === 'y')) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (lower === 'y' || e.shiftKey) this._redo();
+            else this._undo();
+            return;
+        }
+
         // Enter - Finish an in-progress polyline (second way to finish,
         // alongside double-click; _finishDrawShapePolyline already no-ops
         // with a warning if fewer than 2 points, so no extra guard needed).
@@ -18980,6 +19093,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <ha-button @click=${() => window.open(docsUrl(DOCS.msd), '_blank', 'noopener')} appearance="plain">
                             <ha-icon icon="mdi:book-open-variant" slot="start"></ha-icon>
                             Documentation
+                        </ha-button>
+                        <ha-button class="history-undo" @click=${() => this._undo()} appearance="plain"
+                            title="Undo (Ctrl+Z)" ?disabled=${!this._history.canUndo || this._historyBlocked()}>
+                            <ha-icon icon="mdi:undo" slot="start"></ha-icon>
+                            Undo
+                        </ha-button>
+                        <ha-button class="history-redo" @click=${() => this._redo()} appearance="plain"
+                            title="Redo (Ctrl+Shift+Z)" ?disabled=${!this._history.canRedo || this._historyBlocked()}>
+                            <ha-icon icon="mdi:redo" slot="start"></ha-icon>
+                            Redo
                         </ha-button>
                         <ha-button @click=${this._handleReset} appearance="plain" variant="warning">
                             <ha-icon icon="mdi:restore" slot="start"></ha-icon>

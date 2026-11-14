@@ -1,12 +1,12 @@
 /**
- * The Astrometrics Studio's undo and redo (astro-studio/history.js): steps
+ * The Astrometrics Studio's undo and redo (studio-history.js): steps
  * go back and forth, a new commit drops the redo steps, commits to the same
  * paths within the window merge (typing in one field is one step), a `step`
  * commit never merges, and the history keeps at most `limit` steps.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHistory, changedPaths, COALESCE_MS } from '../../src/editor/dialogs/astro-studio/history.js';
+import { createHistory, changedPaths, COALESCE_MS } from '../../src/editor/dialogs/studio-history.js';
 
 /** A history on a clock the test moves */
 function clocked(opts = {}) {

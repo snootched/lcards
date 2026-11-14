@@ -94,6 +94,7 @@ Built-in ships, and most SVGs, come with anchor points worked out from the drawi
 
 **Click Save in the Studio's footer, then save the card and the dashboard as usual.** That is a complete display: a background, a live control, and a line from the control to the ship.
 
+- The Studio works on a copy: **Cancel** leaves the card as it was. Every change can be undone with **Undo** in the footer or Ctrl+Z (Cmd+Z on a Mac), and redone with **Redo** or Ctrl+Shift+Z; **Reset** goes back to what the Studio opened with, and can be undone too.
 - Shapes and Routing are optional. Shapes add rooms, zones and conduits when you want the drawing to feel like a real schematic; Routing holds card-wide settings worth changing only once you notice something you want different ([Line Routing](./routing) explains how lines find their way).
 
 ![Screenshot: finished MSD card rendered on a dashboard, background + two controls + connecting line](/img/msd-quickstart-09-final-result.png)
