@@ -178,9 +178,9 @@ sections:
               corner_radius: 20
             - id: lbl_5
               type: control
-              attachment: left
+              attachment: right
               position:
-                - 1290
+                - 1010
                 - 150
               size:
                 - 237
@@ -193,14 +193,14 @@ sections:
                   label:
                     content: MAIN SHUTTLEBAY
                     show: true
-                    position: center-left
+                    position: center-right
                     font_size: 26
                     color: theme:colors.ui.secondary
             - id: ln_5
               type: line
               anchor: lbl_5
               attach_to: shuttle_bay
-              anchor_side: left
+              anchor_side: right
               route: manhattan
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
@@ -210,9 +210,9 @@ sections:
               corner_radius: 20
             - id: lbl_6
               type: control
-              attachment: right
+              attachment: left
               position:
-                - 1100
+                - 1380
                 - 110
               size:
                 - 263
@@ -225,14 +225,14 @@ sections:
                   label:
                     content: BUSSARD COLLECTOR
                     show: true
-                    position: center-right
+                    position: center-left
                     font_size: 26
                     color: theme:colors.ui.secondary
             - id: ln_6
               type: line
               anchor: lbl_6
               attach_to: bussard
-              anchor_side: right
+              anchor_side: left
               route: manhattan
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
