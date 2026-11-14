@@ -201,6 +201,7 @@ elbow:
 **The main display: a dimmed line drawing with small labels pointing at its parts.** It is an [MSD](../cards/msd/) whose labels are `text-only` buttons placed as controls, each joined to its part by a leader line.
 
 - Widen `view_box` beyond the drawing to leave room for the labels, and place each label in that margin, well inside the `view_box` edge, with its proportions matching the display's area (otherwise the drawing is letterboxed and the margin moves).
+- In the MSD Studio, the [Quick label](../cards/msd/quick-start#labels-with-leader-lines) tool places a label and its leader line in any of these styles.
 - A leader leaves its label from the side that faces the part (`anchor_side: left` or `right`), at the text's mid-height. Align the text toward that side (`center-right` or `center-left`) and size the box close to the text, so the line starts at the text, not at empty box.
 - Place the label so the part lies well past its end, above or below it: the line runs out, turns once near the part, and goes in. Leave top and bottom exits to a bar's corner.
 - Sizes are in `view_box` units and scale with the drawing. Aim for labels that render at 12 to 14 px, lines at 2 to 3 px (Picard) or 1.5 to 2 px (classic), and bends that read as curves: value = px x `view_box` width / the display's width in px. Use one leader style for the whole MSD, with one corner size and line width; mix styles only when asked.

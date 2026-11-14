@@ -27,7 +27,7 @@
  * @property {Object} config - Initial card configuration
  */
 
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, svg, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -71,6 +71,8 @@ import { MSDEventInterceptor } from './msd-studio/msd-event-interceptor.js';
 import { createDialogFooter, mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 import { normalizeHACardType, isBuiltinCardType } from '../../utils/ha-card-factory.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
+import { QUICK_LABEL_STYLES, BRACKET_KINDS, QUICK_LABEL_TEXT, buildQuickLabel, guessQuickLabelStyle, QUICK_LABEL_SIZES, unitsPerPxForSize, guessQuickLabelSize, isLabelOverlay, snapLabelPoint, nearestSnapTarget, controlConnectionPoints, isNamedAnchor } from './msd-studio/msd-quick-label.js';
+import { copyStyle, pasteStyle } from './msd-studio/msd-style-clipboard.js';
 
 // Mode constants
 const MODES = {
@@ -80,7 +82,8 @@ const MODES = {
     CONNECT_LINE: 'connect_line',
     DRAW_CHANNEL: 'draw_channel',
     ADD_WAYPOINT: 'add_waypoint',
-    DRAW_SHAPE: 'draw_shape'
+    DRAW_SHAPE: 'draw_shape',
+    QUICK_LABEL: 'quick_label'
 };
 
 // Above this many points, a polyline shape's per-vertex X/Y form (one
@@ -175,6 +178,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _lineFormData: { type: Object, state: true }, // Complete line form data with correct schema
             _lineFormActiveSubtab: { type: String, state: true }, // 'connection' or 'style'
             _connectLineState: { type: Object, state: true }, // { source: null, tempLineElement: null }
+            _quickLabelState: { type: Object, state: true }, // { style, bracketKind, text, size, target, targetSide, targetPoint, currentPoint, snap }
+            _quickLabelPanelPos: { type: Object, state: true }, // dragged panel's {left, top} in px, or null (bottom-left)
+            _styleClipboard: { type: Object, state: true }, // copied label/line style (msd-style-clipboard.js copyStyle), or null
             // Lines tab list multi-select, for Bulk Edit Style — see _toggleLineSelection
             _selectedLineIds: { type: Object, state: true }, // Set<string>
             // Shapes Tab Properties
@@ -400,6 +406,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
         };
         this._lineFormActiveSubtab = 'basic';
         this._connectLineState = { source: /** @type {any} */ (null), tempLineElement: null };
+        // Quick label: style choice stays for the dialog's life (one style per MSD);
+        // style null = not chosen yet, guessed from the MSD's lines on first use.
+        this._quickLabelState = {
+            style: /** @type {string | null} */ (null),
+            bracketKind: 'level',
+            text: QUICK_LABEL_TEXT,
+            size: /** @type {string | null} */ (null), // QUICK_LABEL_SIZES key; null = guess from the MSD's labels
+            target: /** @type {any} */ (null),
+            targetSide: /** @type {string | null} */ (null),
+            targetPoint: /** @type {[number, number] | null} */ (null),
+            currentPoint: /** @type {[number, number] | null} */ (null),
+            // Hover snap feedback: the snapped part (a ring) or the label's alignment guides
+            snap: /** @type {{ point: [number, number], named: boolean, guideX: number | null, guideY: number | null } | null} */ (null)
+        };
+        /** @type {ReturnType<typeof copyStyle>} */
+        this._styleClipboard = null;
+        /** @type {{ left: number, top: number } | null} */
+        this._quickLabelPanelPos = null;
         this._selectedLineIds = new Set();
 
         // Bulk Style Edit — shared by Shapes and Lines tabs, only one bulk edit
@@ -880,7 +904,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             .scaleExtent([0.25, 10])  // 25% to 1000% zoom range
             .filter((event) => {
                 // Block zoom during active drawing/placement modes
-                const blockingModes = ['place_anchor', 'place_control', 'draw_channel', 'connect_line'];
+                const blockingModes = ['place_anchor', 'place_control', 'draw_channel', 'connect_line', 'quick_label'];
                 if (blockingModes.includes(this._activeMode)) {
                     return false;
                 }
@@ -1117,6 +1141,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
         if (this._activeMode !== MODES.CONNECT_LINE) {
             this._connectLineState = { source: /** @type {any} */ (null), tempLineElement: null };
+        }
+        // Quick label: any mode change drops a half-placed label (the part
+        // picked but no label point yet); the style and text stay.
+        this._quickLabelState = { ...this._quickLabelState, target: null, targetPoint: null, currentPoint: null };
+        if (this._activeMode === MODES.QUICK_LABEL && !this._quickLabelState.style) {
+            const guess = guessQuickLabelStyle(this._workingConfig.msd?.overlays);
+            this._quickLabelState = {
+                ...this._quickLabelState,
+                style: guess?.style || 'classic',
+                bracketKind: guess?.bracketKind || 'level'
+            };
+        }
+        if (this._activeMode === MODES.QUICK_LABEL && !this._quickLabelState.size) {
+            const vbW = this._getPreviewSvgAndViewBox()?.viewBoxWidth || 0;
+            this._quickLabelState = { ...this._quickLabelState, size: guessQuickLabelSize(this._workingConfig.msd?.overlays, vbW) || 'medium' };
         }
         // Leaving PLACE_CONTROL abandons any in-progress draw (mirrors
         // DRAW_CHANNEL) — the control is only created once the form is saved.
@@ -1471,6 +1510,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             { mode: MODES.PLACE_ANCHOR, icon: 'mdi:map-marker-plus', tooltip: 'Place Anchor' },
             { mode: MODES.PLACE_CONTROL, icon: 'mdi:widgets', tooltip: 'Place Control' },
             { mode: MODES.CONNECT_LINE, icon: 'mdi:vector-line', tooltip: 'Connect Line' },
+            { mode: MODES.QUICK_LABEL, icon: 'mdi:label-outline', tooltip: 'Quick label (a label and its leader line)' },
             { mode: MODES.DRAW_CHANNEL, icon: 'mdi:chart-timeline-variant', tooltip: 'Draw Channel' },
             { mode: MODES.ADD_WAYPOINT, icon: 'mdi:map-marker-path', tooltip: 'Add Waypoint (Select line first)' }
         ];
@@ -3365,6 +3405,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._handleDrawChannelClick(event);
         } else if (this._activeMode === MODES.DRAW_SHAPE) {
             this._handleDrawShapeClick(event);
+        } else if (this._activeMode === MODES.QUICK_LABEL) {
+            this._handleQuickLabelClick(event);
         }
     }
 
@@ -3523,6 +3565,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 this.requestUpdate();
             }
         }
+        // Track mouse for the quick label: the snap ring on a part, then the
+        // preview line and alignment guides while placing the label
+        if (this._activeMode === MODES.QUICK_LABEL) {
+            const snapped = this._quickLabelSnap(event);
+            if (snapped) {
+                this._quickLabelState = {
+                    ...this._quickLabelState,
+                    currentPoint: this._quickLabelState.targetPoint ? snapped.point : null,
+                    snap: snapped
+                };
+            }
+        }
         // Track mouse for draw shape rubber-band preview (rect/circle bbox drag,
         // or the "next segment" line while building a polyline)
         if (this._activeMode === MODES.DRAW_SHAPE && this._drawShapeState.points.length > 0) {
@@ -3549,6 +3603,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Clear Place Control current point
         if (this._placeControlDrawState.drawing) {
             this._placeControlDrawState.currentPoint = null;
+        }
+        if (this._quickLabelState.currentPoint || this._quickLabelState.snap) {
+            this._quickLabelState = { ...this._quickLabelState, currentPoint: null, snap: null };
         }
 
         // Clear an unconverted draw-shape drag candidate — if the drag was
@@ -9507,6 +9564,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _handleAttachmentPointClick(e) {
         e.stopPropagation();
 
+        // Quick label: a dot is a point to pick (the part) or to place the label at.
+        if (this._activeMode === MODES.QUICK_LABEL) {
+            const dot = /** @type {HTMLElement} */ (e.currentTarget);
+            this._handleQuickLabelDotClick(dot.dataset.connectionId || '', dot.dataset.connectionPoint || 'center');
+            return;
+        }
+
         const target = /** @type {HTMLElement} */ (e.currentTarget);
         const connectionInfo = {
             type: target.dataset.connectionType,
@@ -9727,6 +9791,456 @@ export class LCARdSMSDStudioDialog extends LitElement {
         `;
     }
 
+    // ============================
+    // Quick label (a label and its leader line in one go)
+    // ============================
+
+    /**
+     * Quick label click: the first click picks the part (a point on the
+     * drawing, or an anchor marker / attachment point when one is under the
+     * cursor), the second places the label. Both overlays are then written
+     * in one config change; the mode stays on for the next label.
+     * @param {MouseEvent} event
+     * @private
+     */
+    _handleQuickLabelClick(event) {
+        const snapped = this._quickLabelSnap(event);
+        if (!snapped) return;
+        const point = snapped.point;
+
+        if (!this._quickLabelState.targetPoint) {
+            this._quickLabelState = {
+                ...this._quickLabelState,
+                target: snapped.target ?? point,
+                targetSide: snapped.targetSide ?? null,
+                targetPoint: point,
+                currentPoint: null,
+                snap: null
+            };
+            return;
+        }
+        this._placeQuickLabel(point);
+    }
+
+    /**
+     * Quick label with the Attachment Points overlay on: a click on a dot
+     * picks that attachment point as the part (by name and side, as Connect
+     * Line does), or places the label at it.
+     * @param {string} name - data-connection-id: an anchor, control or shape id
+     * @param {string} pointName - data-connection-point: a side, 'center' or 'vertexN'
+     * @private
+     */
+    _handleQuickLabelDotClick(name, pointName) {
+        const side = pointName && pointName !== 'center' ? pointName : null;
+        const hit = this._quickLabelSnapTargets().find(c => c.name === name && c.side === side);
+        if (!hit) return;
+        if (!this._quickLabelState.targetPoint) {
+            this._quickLabelState = {
+                ...this._quickLabelState,
+                // A drawing part with a made-up id joins by its point.
+                target: hit.id ?? hit.point,
+                targetSide: hit.id ? side : null,
+                targetPoint: hit.point,
+                currentPoint: null,
+                snap: null
+            };
+            return;
+        }
+        this._placeQuickLabel(hit.point);
+    }
+
+    /**
+     * Second quick label click: write the label and its leader line.
+     * @param {[number, number]} point - where the line leaves the label
+     * @private
+     */
+    _placeQuickLabel(point) {
+        const preview = this._getPreviewSvgAndViewBox();
+        const clip = this._quickLabelState.style === 'copied' && this._styleClipboard?.kind === 'label' ? this._styleClipboard : null;
+        // A copied style: build in the style it resembles, then paste the copy on top.
+        const base = clip
+            ? guessQuickLabelStyle([
+                { id: '__src', type: 'control', card: { type: 'custom:lcards-button', ...clip.label } },
+                { id: '__ln', type: 'line', anchor: '__src', ...(clip.line || {}) }
+            ])
+            : null;
+        // Sizes are a share of the drawing, so they hold on any dashboard width.
+        const unitsPerPx = unitsPerPxForSize(preview?.viewBoxWidth || 0, this._quickLabelState.size || 'medium');
+
+        let overlays = [...(this._workingConfig.msd?.overlays || [])];
+        const { label, line } = buildQuickLabel({
+            style: base?.style || (clip ? 'classic' : this._quickLabelState.style || 'classic'),
+            bracketKind: base?.bracketKind || this._quickLabelState.bracketKind,
+            labelPoint: point,
+            target: this._quickLabelState.target,
+            targetSide: this._quickLabelState.targetSide,
+            targetPoint: this._quickLabelState.targetPoint || undefined,
+            unitsPerPx,
+            overlays,
+            text: this._quickLabelState.text
+        });
+        overlays.push(label, line);
+        if (clip) overlays = pasteStyle(overlays, [label.id], clip, (t) => this._stylePointOf(t));
+        this._setNestedValue('msd.overlays', overlays);
+        this._quickLabelState = { ...this._quickLabelState, target: null, targetSide: null, targetPoint: null, currentPoint: null, snap: null };
+        lcardsLog.debug('[MSDStudio] Quick label added', { label: label.id, line: line.id });
+    }
+
+    /**
+     * Esc in the Quick label mode: leave it, as Esc leaves the other modes;
+     * a label half placed (part picked) is dropped (_setMode clears it).
+     * @private
+     */
+    _quickLabelEscape() {
+        // Let go of the panel's text field so the Studio's own keys work again.
+        const active = /** @type {HTMLElement | null} */ (/** @type {ShadowRoot} */ (this.renderRoot)?.activeElement || null);
+        if (active?.closest?.('.quick-label-panel')) active.blur();
+        this._setMode(MODES.VIEW);
+    }
+
+    /**
+     * Drag the Quick label panel by its header; it stays inside the preview
+     * and keeps its place for the dialog's life.
+     * @param {PointerEvent} e
+     * @private
+     */
+    _startQuickLabelPanelDrag(e) {
+        if (e.button !== 0) return;
+        const panel = /** @type {HTMLElement | null} */ (/** @type {HTMLElement} */ (e.currentTarget).closest('.quick-label-panel'));
+        const host = /** @type {HTMLElement | null} */ (panel?.offsetParent || panel?.parentElement || null);
+        if (!panel || !host) return;
+        e.preventDefault();
+        const start = { x: e.clientX, y: e.clientY, left: panel.offsetLeft, top: panel.offsetTop };
+        /** @param {PointerEvent} ev */
+        const move = (ev) => {
+            const maxLeft = Math.max(0, host.clientWidth - panel.offsetWidth);
+            const maxTop = Math.max(0, host.clientHeight - panel.offsetHeight);
+            this._quickLabelPanelPos = {
+                left: Math.min(maxLeft, Math.max(0, start.left + ev.clientX - start.x)),
+                top: Math.min(maxTop, Math.max(0, start.top + ev.clientY - start.y))
+            };
+        };
+        const up = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+            window.removeEventListener('pointercancel', up);
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+        window.addEventListener('pointercancel', up);
+    }
+
+    /**
+     * View-box units per screen pixel in the preview (zoom included).
+     * @returns {number}
+     * @private
+     */
+    _previewUnitsPerScreenPx() {
+        const preview = this._getPreviewSvgAndViewBox();
+        const rect = preview?.svg.getBoundingClientRect();
+        if (!preview || !rect || !(rect.width > 0) || !(rect.height > 0)) return 1;
+        return Math.max(preview.viewBoxWidth / rect.width, preview.viewBoxHeight / rect.height);
+    }
+
+    /**
+     * The quick label's snapped point for a mouse event. Picking the part, it
+     * snaps to the nearest anchor, control connection point or shape point
+     * (joining the line to it by name); placing the label, it snaps in line
+     * with the other labels. Alt skips both. Returns null off the drawing.
+     * @param {MouseEvent} event
+     * @returns {{ point: [number, number], named: boolean, target?: string, targetSide?: string | null, guideX: number | null, guideY: number | null } | null}
+     * @private
+     */
+    _quickLabelSnap(event) {
+        const coords = this._getPreviewCoordinates(event);
+        if (!coords) return null;
+        /** @type {[number, number]} */
+        const raw = [coords.x, coords.y];
+        const overlays = this._workingConfig.msd?.overlays || [];
+
+        if (!this._quickLabelState.targetPoint) {
+            // An anchor marker or connection point right under the cursor wins.
+            const hit = /** @type {HTMLElement | undefined} */ (event.composedPath().find(
+                el => el instanceof Element && (el.hasAttribute('data-anchor-name') || el.hasAttribute('data-connection-id'))
+            ));
+            const name = hit?.getAttribute('data-anchor-name') || hit?.getAttribute('data-connection-id') || null;
+            if (name) {
+                const pointName = hit?.getAttribute('data-connection-point');
+                const side = pointName && pointName !== 'center' ? pointName : null;
+                const exact = this._quickLabelSnapTargets().find(c => c.name === name && c.side === side);
+                if (exact) return { point: exact.point, named: true, target: exact.id ?? undefined, targetSide: exact.id ? side : null, guideX: null, guideY: null };
+                return { point: raw, named: true, target: name, targetSide: null, guideX: null, guideY: null };
+            }
+            if (event.altKey) return { point: raw, named: false, guideX: null, guideY: null };
+            const near = nearestSnapTarget(raw, this._quickLabelSnapTargets(), 12 * this._previewUnitsPerScreenPx());
+            return near
+                ? { point: near.point, named: true, target: near.id ?? undefined, targetSide: near.side, guideX: null, guideY: null }
+                : { point: raw, named: false, guideX: null, guideY: null };
+        }
+
+        if (event.altKey) return { point: raw, named: false, guideX: null, guideY: null };
+        const aligned = snapLabelPoint(raw, overlays, 8 * this._previewUnitsPerScreenPx());
+        return { point: aligned.point, named: false, guideX: aligned.guideX, guideY: aligned.guideY };
+    }
+
+    /**
+     * Points a quick label's part click snaps to: anchors and the drawing's
+     * parts (by name, or by point when the id is made up), the connection
+     * points of controls that are not labels, shape corners, sides and vertices.
+     * @returns {Array<{ id: string | null, name: string, side: string | null, point: [number, number] }>}
+     * @private
+     */
+    _quickLabelSnapTargets() {
+        /** @type {Array<{ id: string | null, name: string, side: string | null, point: [number, number] }>} */
+        const out = [];
+        // The MSD's own anchors and the drawing's parts. A part whose id a
+        // drawing tool made up (g46-3, path385) snaps by its point, not by name.
+        const anchors = { ...this._getBaseSvgAnchors(), ...(this._workingConfig.msd?.anchors || {}) };
+        const own = this._workingConfig.msd?.anchors || {};
+        for (const [name, pos] of Object.entries(anchors)) {
+            if (!Array.isArray(pos) || pos.length < 2) continue;
+            out.push({ id: own[name] || isNamedAnchor(name) ? name : null, name, side: null, point: [Number(pos[0]), Number(pos[1])] });
+        }
+        for (const o of this._workingConfig.msd?.overlays || []) {
+            // Every control's nine attachment points, labels included (as the Attachment Points overlay shows them).
+            if (o?.type === 'control') {
+                const position = this._resolveControlPosition(o);
+                if (position) out.push(...controlConnectionPoints({ ...o, position, size: o.size || [100, 100] }).map(c => ({ ...c, name: o.id })));
+            }
+        }
+        for (const shape of this._getShapeOverlays()) {
+            if (shape.kind === 'polyline') {
+                (shape.points || []).forEach((/** @type {any} */ pt, /** @type {number} */ i) => {
+                    if (Array.isArray(pt) && pt.length >= 2) out.push({ id: shape.id, name: shape.id, side: `vertex${i}`, point: [Number(pt[0]), Number(pt[1])] });
+                });
+            } else if (Array.isArray(shape.position) && Array.isArray(shape.size)) {
+                // Shapes position from their top-left.
+                out.push(...controlConnectionPoints({ ...shape, attachment: 'top-left' }).map(c => ({ ...c, name: shape.id })));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Where a line's named end is (an anchor, control or shape), for the style clipboard.
+     * @param {any} target
+     * @returns {[number, number] | null}
+     * @private
+     */
+    _stylePointOf(target) {
+        if (typeof target !== 'string') return null;
+        const p = this._resolvePositionWithSide(target, null);
+        return Array.isArray(p) ? [Number(p[0]), Number(p[1])] : null;
+    }
+
+    /**
+     * Copy a label's (with its leader) or a line's style.
+     * @param {any} overlay
+     * @private
+     */
+    _copyOverlayStyle(overlay) {
+        const clip = copyStyle(overlay, this._workingConfig.msd?.overlays || []);
+        if (!clip) return;
+        this._styleClipboard = clip;
+        lcardsLog.debug('[MSDStudio] Style copied', { from: clip.sourceId, kind: clip.kind });
+    }
+
+    /**
+     * Paste the copied style onto overlays by id (a label also restyles its leader).
+     * @param {string[]} ids
+     * @private
+     */
+    _pasteOverlayStyle(ids) {
+        const clip = this._styleClipboard;
+        if (!clip || !ids.length) return;
+        const overlays = pasteStyle(this._workingConfig.msd?.overlays || [], ids, clip, (t) => this._stylePointOf(t));
+        this._setNestedValue('msd.overlays', overlays);
+        lcardsLog.debug('[MSDStudio] Style pasted', { from: clip.sourceId, to: ids });
+    }
+
+    /**
+     * Copy style / paste style buttons for a list row.
+     * @param {any} overlay
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderStyleClipboardButtons(overlay) {
+        const clip = this._styleClipboard;
+        const canCopy = overlay?.type === 'line' || isLabelOverlay(overlay);
+        if (!canCopy) return html``;
+        const canPaste = clip && clip.sourceId !== overlay.id && (overlay.type === 'line' ? !!clip.line : true);
+        return html`
+            <ha-icon-button
+                class="${clip?.sourceId === overlay.id ? 'active' : ''}"
+                @click=${() => this._copyOverlayStyle(overlay)}
+                .label=${'Copy style'}>
+                <ha-icon icon="mdi:format-paint"></ha-icon>
+            </ha-icon-button>
+            ${canPaste ? html`
+                <ha-icon-button
+                    @click=${() => this._pasteOverlayStyle([overlay.id])}
+                    .label=${'Paste style'}>
+                    <ha-icon icon="mdi:clipboard-arrow-down-outline"></ha-icon>
+                </ha-icon-button>
+            ` : ''}
+        `;
+    }
+
+    /**
+     * Tab-bar actions for the copied style: paste to all (labels or lines),
+     * to the selected lines, and clear.
+     * @param {'label' | 'line'} kind
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderStyleClipboardBar(kind) {
+        const clip = this._styleClipboard;
+        if (!clip) return html``;
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const all = (kind === 'label' ? overlays.filter(isLabelOverlay) : overlays.filter((/** @type {any} */ o) => o?.type === 'line'))
+            .map((/** @type {any} */ o) => o.id)
+            .filter((/** @type {string} */ id) => id !== clip.sourceId);
+        if (kind === 'line' && !clip.line) return html``;
+        const selected = kind === 'line' ? [...this._selectedLineIds].filter(id => id !== clip.sourceId) : [];
+        return html`
+            <div class="style-clipboard-bar">
+                <ha-icon icon="mdi:format-paint"></ha-icon>
+                <span>Style of ${clip.sourceId}</span>
+                ${selected.length ? html`
+                    <ha-button size="s" @click=${() => this._pasteOverlayStyle(selected)}>Paste to selected (${selected.length})</ha-button>
+                ` : ''}
+                <ha-button size="s" ?disabled=${!all.length} @click=${() => this._pasteOverlayStyle(all)}>
+                    Paste to all ${kind === 'label' ? 'labels' : 'lines'} (${all.length})
+                </ha-button>
+                <ha-icon-button @click=${() => { this._styleClipboard = null; if (this._quickLabelState.style === 'copied') this._quickLabelState = { ...this._quickLabelState, style: 'classic' }; }} .label=${'Clear copied style'}>
+                    <ha-icon icon="mdi:close"></ha-icon>
+                </ha-icon-button>
+            </div>
+        `;
+    }
+
+    /**
+     * Quick label panel (style, bracket kind, text) and the preview line from
+     * the picked part to the cursor.
+     * @returns {TemplateResult|string}
+     * @private
+     */
+    _renderQuickLabelOverlay() {
+        if (this._activeMode !== MODES.QUICK_LABEL) return '';
+        const state = this._quickLabelState;
+        const style = state.style || 'classic';
+
+        let previewLine = html``;
+        const vbToPixel = state.targetPoint || state.snap ? this._getViewBoxToPixelConverter() : null;
+        if (vbToPixel) {
+            const t = state.targetPoint ? vbToPixel(state.targetPoint[0], state.targetPoint[1]) : null;
+            const cur = state.currentPoint ? vbToPixel(state.currentPoint[0], state.currentPoint[1]) : null;
+            // Picking the part: a ring on the point it snaps to (a named one).
+            const ring = !state.targetPoint && state.snap?.named ? vbToPixel(state.snap.point[0], state.snap.point[1]) : null;
+            // Placing the label: guides through the labels it lines up with.
+            const gx = state.targetPoint && state.snap?.guideX != null ? vbToPixel(state.snap.guideX, 0)[0] : null;
+            const gy = state.targetPoint && state.snap?.guideY != null ? vbToPixel(0, state.snap.guideY)[1] : null;
+            previewLine = html`
+                <svg class="quick-label-feedback" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: none;">
+                    ${gx !== null ? svg`<line class="quick-label-guide" x1="${gx}" y1="0" x2="${gx}" y2="100%" stroke="#00FFFF" stroke-width="1" stroke-dasharray="3,4" opacity="0.7"></line>` : ''}
+                    ${gy !== null ? svg`<line class="quick-label-guide" x1="0" y1="${gy}" x2="100%" y2="${gy}" stroke="#00FFFF" stroke-width="1" stroke-dasharray="3,4" opacity="0.7"></line>` : ''}
+                    ${ring ? svg`<circle class="quick-label-snap" cx="${ring[0]}" cy="${ring[1]}" r="9" fill="none" stroke="#00FFFF" stroke-width="2"></circle>` : ''}
+                    ${t ? svg`<circle cx="${t[0]}" cy="${t[1]}" r="5" fill="#00FFFF"></circle>` : ''}
+                    ${t && cur ? svg`<line x1="${t[0]}" y1="${t[1]}" x2="${cur[0]}" y2="${cur[1]}" stroke="#00FFFF" stroke-width="2" stroke-dasharray="5,5"></line>` : ''}
+                </svg>`;
+        }
+
+        const hint = state.targetPoint
+            ? 'Click where the label goes (the line leaves it there) · Esc: cancel'
+            : 'Click the part to label · Alt: no snap · Esc: cancel';
+        const pos = this._quickLabelPanelPos;
+
+        /** @param {Event} e */
+        const stop = (e) => e.stopPropagation();
+
+        return html`
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1000;">
+                ${previewLine}
+                <div class="quick-label-panel" @click=${stop} @mousedown=${stop} @pointerdown=${stop} @wheel=${stop}
+                    style=${pos ? `left: ${pos.left}px; top: ${pos.top}px; bottom: auto;` : ''}>
+                    <div class="quick-label-header">
+                        <div class="quick-label-handle" title="Drag to move" @pointerdown=${(/** @type {PointerEvent} */ e) => this._startQuickLabelPanelDrag(e)}>
+                            <ha-icon icon="mdi:drag"></ha-icon>
+                            <span>Quick label</span>
+                        </div>
+                        <ha-icon-button class="quick-label-close" .label=${'Close quick label'} @click=${() => this._setMode(MODES.VIEW)}>
+                            <ha-icon icon="mdi:close"></ha-icon>
+                        </ha-icon-button>
+                    </div>
+                    <div class="quick-label-step">${hint}</div>
+                    ${[['classic', 'picard'], ['bracket', 'tag']].map(pair => html`
+                        <div class="quick-label-row">
+                            <wa-button-group childSelector="ha-button">
+                                ${pair.map(key => html`
+                                    <ha-button iconTag="ha-svg-icon" variant="brand" size="s"
+                                        title=${QUICK_LABEL_STYLES[key].description}
+                                        .appearance=${style === key ? 'accent' : 'filled'}
+                                        @click=${() => { this._quickLabelState = { ...this._quickLabelState, style: key }; }}>
+                                        ${QUICK_LABEL_STYLES[key].label}
+                                    </ha-button>
+                                `)}
+                            </wa-button-group>
+                        </div>
+                    `)}
+                    ${this._styleClipboard?.kind === 'label' ? html`
+                        <div class="quick-label-row">
+                            <wa-button-group childSelector="ha-button">
+                                <ha-button iconTag="ha-svg-icon" variant="brand" size="s"
+                                    title="New labels in the style copied from ${this._styleClipboard.sourceId}"
+                                    .appearance=${style === 'copied' ? 'accent' : 'filled'}
+                                    @click=${() => { this._quickLabelState = { ...this._quickLabelState, style: 'copied' }; }}>
+                                    Copied style (${this._styleClipboard.sourceId})
+                                </ha-button>
+                            </wa-button-group>
+                        </div>
+                    ` : ''}
+                    ${style === 'bracket' ? html`
+                        <div class="quick-label-row">
+                            <wa-button-group childSelector="ha-button">
+                                ${Object.entries(BRACKET_KINDS).map(([key, k]) => html`
+                                    <ha-button iconTag="ha-svg-icon" variant="brand" size="s"
+                                        title=${k.description}
+                                        .appearance=${state.bracketKind === key ? 'accent' : 'filled'}
+                                        @click=${() => { this._quickLabelState = { ...this._quickLabelState, bracketKind: key }; }}>
+                                        ${k.label}
+                                    </ha-button>
+                                `)}
+                            </wa-button-group>
+                        </div>
+                    ` : ''}
+                    ${style === 'copied' ? '' : html`<div class="quick-label-row">
+                        <wa-button-group childSelector="ha-button">
+                            ${Object.entries(QUICK_LABEL_SIZES).map(([key, z]) => html`
+                                <ha-button iconTag="ha-svg-icon" variant="brand" size="s"
+                                    title="${z.name}: label size as a share of the drawing (it scales with the MSD)"
+                                    .appearance=${(state.size || 'medium') === key ? 'accent' : 'filled'}
+                                    @click=${() => { this._quickLabelState = { ...this._quickLabelState, size: key }; }}>
+                                    ${z.label}
+                                </ha-button>
+                            `)}
+                        </wa-button-group>
+                    </div>`}
+                    <div class="quick-label-fields">
+                        <ha-input
+                            class="quick-label-text"
+                            label="Label text"
+                            .value=${state.text}
+                            @input=${(/** @type {Event} */ e) => {
+                                const value = /** @type {HTMLInputElement} */ (e.target).value;
+                                this._quickLabelState = { ...this._quickLabelState, text: value };
+                            }}>
+                        </ha-input>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     /**
      * Hint shown while CONNECT_LINE mode is active — this mode has no
      * rubber-band overlay of its own (source/target are picked by clicking
@@ -9919,6 +10433,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </ha-icon-button>
                 </div>
 
+                ${this._renderStyleClipboardBar('label')}
                 <!-- Controls Management -->
                 <lcards-form-section
                     header="Control Overlays"
@@ -10252,6 +10767,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             .label=${'Edit'}
                             .path=${'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z'}>
                         </ha-icon-button>
+                        ${this._renderStyleClipboardButtons(control)}
                         <ha-icon-button
                             @click=${() => this._duplicateControl(control)}
                             .label=${'Duplicate'}
@@ -12035,6 +12551,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </ha-icon-button>
                 </div>
 
+                ${this._renderStyleClipboardBar('line')}
                 <!-- Lines Management -->
                 <lcards-form-section
                     header="Line Overlays"
@@ -13404,6 +13921,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .label=${'Edit'}
                         .path=${'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z'}>
                     </ha-icon-button>
+                    ${this._renderStyleClipboardButtons(line)}
                     <ha-icon-button
                         @click=${() => this._duplicateLine(line)}
                         .label=${'Duplicate'}
@@ -13434,6 +13952,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _formatConnectionPoint(point) {
         if (!point) return 'not set';
         if (typeof point === 'string') return point;
+        // attach_to as a bare view-box point ([x, y])
+        if (Array.isArray(point)) return `[${point[0]}, ${point[1]}]`;
         if (point.type === 'anchor') return `anchor:${point.id}`;
         if (point.type === 'control') {
             const attachPoint = point.point ? `@${point.point}` : '';
@@ -18070,6 +18590,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _handleKeyDown(e) {
+        // Quick label: Esc works even while typing in its panel's text field
+        // (the input check below would swallow it), unless a form is open.
+        if (e.key === 'Escape' && this._activeMode === MODES.QUICK_LABEL && !this._showCardEditorForm && !this._showLineForm
+            && !this._showShapeForm && !this._showControlForm && !this._showAnchorForm && this._editingChannelId === null) {
+            e.preventDefault();
+            e.stopPropagation();
+            this._quickLabelEscape();
+            return;
+        }
         // Don't interfere with input fields.
         // Use composedPath()[0] to pierce shadow DOM boundaries and find the actual
         // element that received the keystroke (e.target is retargeted at shadow boundaries).
@@ -18508,6 +19037,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             ${this._renderDrawShapeOverlay()}
                             ${this._renderPlaceControlOverlay()}
                             ${this._renderConnectLineHint()}
+                            ${this._renderQuickLabelOverlay()}
                             ${this._renderShieldBubblePreview()}
                             ${this._renderCrosshairGuidelines()}
                             ${this._renderGridOverlay()}

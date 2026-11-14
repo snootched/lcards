@@ -75,6 +75,21 @@ Built-in ships, and most SVGs, come with anchor points worked out from the drawi
 
 ![Screenshot: two controls connected by a routed line on the canvas](/img/msd-quickstart-08-line-routed.png)
 
+### Labels with leader lines
+
+**The Quick label tool adds a label and its leader line in two clicks, in one of the [Labelled schematic](../../getting-started/lcars-patterns#labelled-schematic) styles.** Click the part on the drawing, then where the label goes.
+
+- **Pick a style in the panel that opens:** Classic sweep (one broad bend), Picard tight (one small bend, a thicker line), Picard bracket (a bar beside the label, the line leaving the top or bottom end of the bar, straight or **Angled** into one sharp diagonal) or Picard tag (a filled block).
+- **The line leaves the side facing the part:** the label's text is aligned toward it and the box is sized to the text. Your second click is where the line leaves the label; the box grows away from the part. A **Level** bracket moves the label so the end of its bar sits at the part's height and the line runs straight.
+- **Type the text before you place the label.**
+- **Clicks snap:** the part click snaps to a nearby anchor, part of the drawing, control connection point or shape corner (a ring shows it) and joins the line to it by name when it has one; the label click snaps in line with your other labels (a dashed guide shows it). Hold Alt to place freely. With **Attachment Points** on, click any dot (an anchor, or a side or corner of a control or shape) to use that point.
+- **The panel moves:** drag it by its header out of the way. Esc or the X closes the tool, dropping a label you have started.
+- **Size is a share of the drawing:** **XS** to **XL** (M is the pattern's usual size) sets the text, line and bend sizes against the drawing's width, so labels keep their size next to the ship on any dashboard. The Studio starts from the size of the labels already on the MSD.
+- **One style per MSD:** the tool keeps your style for every label you add and starts from the style of the labels already there. Change a label afterwards like any other control or line.
+- **Copy a style you have tuned:** the paint roller on a label (Controls tab) or a line (Lines tab) copies its look; the label's copy includes its leader line. Paste it onto one row, the selected lines, or **Paste to all labels**. Each label keeps its text and place, mirrored to the side it faces. The Quick label panel then offers **Copied style** for new labels.
+
+![Screenshot: the Quick label panel with the Picard bracket style, three labels with angled leader lines on the shuttlecraft drawing](/img/msd-quick-label.png)
+
 ## Step 5: Save
 
 **Click Save in the Studio's footer, then save the card and the dashboard as usual.** That is a complete display: a background, a live control, and a line from the control to the ship.

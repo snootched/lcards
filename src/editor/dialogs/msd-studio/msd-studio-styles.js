@@ -163,7 +163,7 @@ export const msdStudioStyles = css`
         position: absolute;
         top: 60px;
         right: 12px;
-        width: 280px;
+        width: 300px;
         background: var(--card-background-color);
         border: 1px solid var(--divider-color);
         border-radius: 12px;
@@ -755,5 +755,113 @@ export const msdStudioStyles = css`
 
     .preview-container[data-mode="add-waypoint"] * {
         cursor: crosshair !important;
+    }
+
+    /* Quick label: style picker panel, bottom-left where the other modes show
+       their hint (the expanded canvas toolbar can wrap across the whole top) */
+    .preview-container[data-mode="quick_label"],
+    .preview-container[data-mode="quick_label"] * {
+        cursor: crosshair;
+    }
+
+    .quick-label-panel {
+        position: absolute;
+        bottom: 12px;
+        left: 12px;
+        width: 300px;
+        max-width: calc(100% - 24px);
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: var(--ha-space-2);
+        padding: var(--ha-space-3);
+        background: var(--card-background-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
+        border-radius: var(--ha-card-border-radius, var(--ha-border-radius-lg));
+        box-shadow: var(--ha-box-shadow-m);
+        font-family: var(--ha-font-family-body);
+        pointer-events: auto;
+        cursor: default;
+    }
+
+    .quick-label-row {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .quick-label-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: calc(-1 * var(--ha-space-2)) calc(-1 * var(--ha-space-2)) 0 0;
+    }
+
+    .quick-label-handle {
+        flex: 1 1 auto;
+        display: flex;
+        align-items: center;
+        gap: var(--ha-space-1);
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        color: var(--secondary-text-color);
+        font-size: var(--ha-font-size-s);
+    }
+
+    .quick-label-handle:active {
+        cursor: grabbing;
+    }
+
+    .quick-label-step {
+        font-weight: var(--ha-font-weight-medium);
+    }
+
+    .style-clipboard-bar {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--ha-space-2);
+        margin-bottom: var(--ha-space-4);
+        padding: var(--ha-space-2) var(--ha-space-3);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
+        border-radius: var(--ha-border-radius-lg);
+        font-size: var(--ha-font-size-s);
+        color: var(--secondary-text-color);
+    }
+
+    .style-clipboard-bar span {
+        flex: 1 1 auto;
+    }
+
+    .quick-label-fields {
+        display: flex;
+        gap: var(--ha-space-2);
+    }
+
+    .quick-label-text {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .quick-label-panel wa-button-group ha-button::part(base) {
+        min-height: 28px;
+        height: 28px;
+        padding-block: 0;
+        font-size: var(--ha-font-size-s);
+        border-radius: 0;
+    }
+
+    .quick-label-panel wa-button-group ha-button:not(:last-child)::part(base) {
+        border-inline-end: none;
+    }
+
+    .quick-label-panel wa-button-group ha-button:first-child::part(base) {
+        border-start-start-radius: var(--ha-border-radius-pill);
+        border-end-start-radius: var(--ha-border-radius-pill);
+    }
+
+    .quick-label-panel wa-button-group ha-button:last-child::part(base) {
+        border-start-end-radius: var(--ha-border-radius-pill);
+        border-end-end-radius: var(--ha-border-radius-pill);
     }
 `;
