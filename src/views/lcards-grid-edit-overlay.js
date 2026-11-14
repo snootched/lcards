@@ -601,9 +601,6 @@ export class LCARdSGridEditOverlay extends LitElement {
         .ap-field lcards-color-picker,
         .ap-field ha-input,
         .ap-field ha-selector { flex: 1; min-width: 0; }
-        .ap-inline { display: flex; gap: 6px; flex: 1; min-width: 0; }
-        .ap-inline ha-input,
-        .ap-inline ha-selector { flex: 1; min-width: 0; }
 
         /* ─── Reorder drag chip (follows the cursor) ──────────────────────── */
         .drag-chip {
@@ -1922,21 +1919,21 @@ export class LCARdSGridEditOverlay extends LitElement {
                             ></lcards-color-picker>
                         </div>
                         <div class="ap-field">
-                            <label>Border</label>
-                            <div class="ap-inline">
-                                <ha-input
-                                    .value=${s['border-width'] ?? ''}
-                                    placeholder="2px"
-                                    title="Border width"
-                                    @change=${(e) => set('border-width', e.target.value || undefined)}
-                                ></ha-input>
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .selector=${{ select: { mode: 'dropdown', options: AREA_BORDER_STYLE_OPTIONS } }}
-                                    .value=${s['border-style'] ?? 'none'}
-                                    @value-changed=${(e) => set('border-style', e.detail.value === 'none' ? undefined : e.detail.value)}
-                                ></ha-selector>
-                            </div>
+                            <label>Border width</label>
+                            <ha-input
+                                .value=${s['border-width'] ?? ''}
+                                placeholder="2px"
+                                @change=${(e) => set('border-width', e.target.value || undefined)}
+                            ></ha-input>
+                        </div>
+                        <div class="ap-field">
+                            <label>Border style</label>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ select: { mode: 'dropdown', options: AREA_BORDER_STYLE_OPTIONS } }}
+                                .value=${s['border-style'] ?? 'none'}
+                                @value-changed=${(e) => set('border-style', e.detail.value === 'none' ? undefined : e.detail.value)}
+                            ></ha-selector>
                         </div>
                         <div class="ap-field">
                             <label>Radius</label>

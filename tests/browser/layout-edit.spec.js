@@ -345,6 +345,13 @@ test('dock: a track opens in the dock, the grid narrows instead of being covered
     await page.evaluate(() => window.__view.shadowRoot.querySelector('lcards-grid-edit-overlay')._openAreaSettings('temp'));
     await page.waitForTimeout(100);
     expect(await page.evaluate(() => window.__view.shadowRoot.querySelector('lcards-grid-edit-overlay').shadowRoot.querySelector('#dock .edit-panel-title').textContent)).toBe('Area: temp');
+    // Every area setting gets a full-width control (no side-by-side pair that truncates in the dock).
+    const controlWidths = await page.evaluate(() => [...window.__view.shadowRoot.querySelector('lcards-grid-edit-overlay').shadowRoot
+        .querySelectorAll('#dock .ap-field ha-input, #dock .ap-field ha-selector, #dock .ap-field lcards-color-picker')]
+        .filter(el => el.getBoundingClientRect().width > 0)
+        .map(el => Math.round(el.getBoundingClientRect().width)));
+    expect(controlWidths.length).toBeGreaterThan(3);
+    for (const w of controlWidths) expect(w).toBeGreaterThan(150);
     // Escape closes it and the grid gets its width back.
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
