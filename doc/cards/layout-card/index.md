@@ -13,7 +13,7 @@ A grid of cards inside one card. Use it to build a sub-grid in one area of a [La
 - **CSS Grid with named areas:** place each card by area name.
 - **Layout Studio:** a full-screen visual editor to size tracks, draw areas and place cards.
 - **Nestable:** put layout cards inside layout cards for deeper sub-grids.
-- **Visibility:** child cards keep Home Assistant's own Visibility conditions.
+- **Visibility:** child cards keep Home Assistant's own Visibility conditions, and `conditional` cards work too (see [Showing cards only sometimes](#showing-cards-only-sometimes)).
 
 ## Quick start
 
@@ -70,6 +70,42 @@ cards:
       - type: custom:lcards-button
       - type: custom:lcards-button
       - type: custom:lcards-button
+```
+
+## Showing cards only sometimes
+
+**A child card's Visibility conditions and Home Assistant's `conditional` card work inside a layout card as they do on a view: each child is wrapped in Home Assistant's own card wrapper, which decides whether it shows.**
+
+- A hidden card leaves its area empty: its row and column keep their size. The layout card doesn't collapse tracks; a [Layout View](../layout-view/#visibility-driven-row-sizing) collapses a hidden card's row, but not its column.
+- In an `auto` row a card takes its own natural height, which can be taller than a layout card with a fixed `height`, so it spills out of the card. Use `minmax(0, max-content)` to size the row to the card but never past the layout card, or `1fr` to share the height.
+
+The example is plain YAML: Home Assistant decides visibility, and the docs have no dashboard to do it.
+
+```yaml
+# A row of two buttons; the second shows only while the helper is on.
+# minmax(0, max-content) keeps the row inside the 120 px card.
+type: custom:lcards-layout-card
+layout:
+  height: 120px
+  grid-template-columns: 1fr 1fr
+  grid-template-rows: minmax(0, max-content)
+  grid-template-areas: |
+    "main extra"
+cards:
+  - type: custom:lcards-button
+    preset: lozenge
+    view_layout:
+      grid-area: main
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: input_boolean.show_extra
+        state: "on"
+    card:
+      type: custom:lcards-button
+      preset: lozenge
+    view_layout:
+      grid-area: extra
 ```
 
 ## Options

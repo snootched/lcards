@@ -358,6 +358,160 @@ views:
         view_layout:
           grid-area: msd
 
+  # #400 checks (tests/ha/issue400.spec.js): visibility and conditional children of a
+  # layout card, by row sizing; and whether a hidden nav column collapses. One case per card.
+  - title: Issue 400
+    path: issue-400
+    cards:
+      - # case: vis-select-auto
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: auto
+        cards:
+          - type: custom:lcards-select-menu
+            entity: input_select.lcards_test_mode
+            preset: lozenge
+            visibility:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+      - # case: cond-select-auto
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: auto
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+            card:
+              type: custom:lcards-select-menu
+              entity: input_select.lcards_test_mode
+              preset: lozenge
+      - # case: cond-stock-button-auto
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: auto
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+            card:
+              type: button
+              entity: input_boolean.lcards_test_toggle
+              name: STOCK
+      - # case: cond-lcards-button-auto
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: auto
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+            card:
+              type: custom:lcards-button
+              preset: lozenge
+              text:
+                label:
+                  content: LCARDS
+                  show: true
+      - # case: stock-button-auto
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: auto
+        cards:
+          - type: button
+            entity: input_boolean.lcards_test_toggle
+            name: STOCK
+      - # case: lcards-button-auto
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: auto
+        cards:
+          - type: custom:lcards-button
+            preset: lozenge
+            text:
+              label:
+                content: LCARDS
+                show: true
+      - # case: cond-stock-button-maxcontent
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: minmax(0, max-content)
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+            card:
+              type: button
+              entity: input_boolean.lcards_test_toggle
+              name: STOCK
+      - # case: cond-stock-button-fr
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: 1fr
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+            card:
+              type: button
+              entity: input_boolean.lcards_test_toggle
+              name: STOCK
+      - # case: nav-column
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 120px 1fr
+          grid-template-rows: 1fr
+          grid-template-areas: '"nav main"'
+        cards:
+          - type: custom:lcards-button
+            preset: lozenge
+            text:
+              label:
+                content: LCARDS
+                show: true
+            view_layout:
+              grid-area: nav
+            visibility:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+          - type: custom:lcards-button
+            preset: lozenge
+            text:
+              label:
+                content: LCARDS
+                show: true
+            view_layout:
+              grid-area: main
+
   - title: MSD
     path: msd
     cards:
