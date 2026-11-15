@@ -45,3 +45,74 @@ The configuration formats differ, so card configs don't carry over directly.
 | Sounds | ❌ | ✅ | Customisable sounds for many UI and card event types (tap, double tap, hold, hover, sidebar expand/collapse, and more). |
 | Alert Overlay | ❌ | ✅ `lcards-alert-overlay` | Dashboard-level card that reacts to `input_select.lcards_alert_mode` and displays a full-screen configurable backdrop with an embedded content card. |
 
+## Moving a Card Over
+
+**Rebuild each CB-LCARS card as its LCARdS card: keep the entity and actions, pick the matching preset or elbow type, then carry the label, colours and sizes across.** The tables below give the usual matches; anything not listed has no direct equivalent, so restyle it with the card's own options.
+
+- **Card and template:** `type: custom:cb-lcars-<kind>-card` with `cblcars_card_type` (the template) becomes one LCARdS card type with a `preset` (buttons) or an `elbow.type` (elbows).
+- **Settings:** `cblcars_card_config` holds the CB-LCARS settings (`entity`, `label`, actions and the template `variables`). In LCARdS they sit at the top level of the card.
+- **Sizing:** `layout_options` (`grid_columns`, `grid_rows`) becomes Home Assistant's own `grid_options` (`columns`, `rows`).
+- **Colours:** use theme colours (`var(--lcars-...)` or `theme:` tokens) and LCARdS state maps (`active`, `inactive`, `unavailable` and any state). See [Colours](../core/colours).
+- **Ask an assistant:** with the [LCARdS skill](ai-assistance) loaded, paste a CB-LCARS dashboard and ask for it in LCARdS: it keeps your entities and actions, rebuilds each card and lists what has no equivalent.
+
+```yaml no-validate
+# CB-LCARS
+type: custom:cb-lcars-button-card
+cblcars_card_type: cb-lcars-button-lozenge
+cblcars_card_config:
+  entity: light.kitchen
+  label: KITCHEN
+  show_label: true
+layout_options:
+  grid_columns: 2
+  grid_rows: 1
+```
+
+```yaml
+# LCARdS
+type: custom:lcards-button
+preset: lozenge
+entity: light.kitchen
+text:
+  name:
+    content: KITCHEN
+    show: true
+grid_options:
+  columns: 6
+  rows: 1
+```
+
+::: details Templates and their LCARdS matches
+| CB-LCARS (`cblcars_card_type`) | LCARdS |
+|---|---|
+| `cb-lcars-button-lozenge`, `-right` | `lcards-button`, `preset: lozenge`, `lozenge-right` |
+| `cb-lcars-button-bullet`, `-right` | `lcards-button`, `preset: bullet`, `bullet-right` |
+| `cb-lcars-button-capped`, `-right` | `lcards-button`, `preset: capped`, `capped-right` |
+| `cb-lcars-button-picard`, `-right` | `lcards-button`, `preset: outline`, `outline-right` |
+| `cb-lcars-button-picard-filled`, `-right` | `lcards-button`, `preset: filled`, `filled-right` |
+| `custom:cb-lcars-label-card` | `lcards-button`, `preset: text-only`, or a `bar-label-*` preset for a label in a bar (`cb-lcars-label-picard-square`: `bar-label-square`) |
+| `cb-lcars-header`, `-right`, `-open`, `-contained` | `lcards-elbow`, `elbow.type: header-left`, `header-right`, `header-open`, `header-contained` |
+| `cb-lcars-footer`, `-right`, `-open`, `-contained` | `lcards-elbow`, `elbow.type: footer-left`, `footer-right`, `footer-open`, `footer-contained` |
+| `cb-lcars-header-picard`, `cb-lcars-footer-picard` (double elbow card) | `lcards-elbow`, `elbow.style: segmented` with the matching `elbow.type` |
+| `cb-lcars-slider`, `cb-lcars-slider-gauge` (multimeter, slider cards) | `lcards-slider`, `preset: pills-basic`, `gauge-basic` (Picard: `picard-gauge-vertical`) |
+| `cb-lcars-cascade` | `lcards-data-grid` (decorative mode) |
+| `custom:cb-lcars-dpad-card` | `lcards-button`, `component: dpad` |
+| `custom:layout-card` | `lcards-layout-card` (see the table above) |
+:::
+
+::: details Settings and their LCARdS keys
+| CB-LCARS | LCARdS |
+|---|---|
+| `cblcars_card_config.entity` | `entity` |
+| `label` with `show_label: true` | `text.name.content` with `show: true` (lozenge, bullet, capped, outline, filled); `text.label.content` on the bar-label and panel presets |
+| `tap_action`, `hold_action`, `double_tap_action` | the same keys: see [Actions](../core/actions) |
+| `variables.card.color.default`, `active`, `inactive`, `unavailable` | `style.card.color.background` with the same state keys |
+| `variables.text.label.color` | `text.<field>.color`, a colour or a state map |
+| `variables.text.label.font_size`, `font_weight` | `text.<field>.font_size`, `font_weight` |
+| `variables.card.border.left.size`, `top.size` (elbows) | `elbow.segment.bar_width`, `bar_height` |
+| `variables.card.border.top.left_radius` (elbows) | `elbow.segment.outer_curve` |
+| `variables.card.border.color` (elbows) | `elbow.segment.color` |
+| `layout_options.grid_columns`, `grid_rows` | `grid_options.columns`, `rows` (the old grid had 4 columns, the new one 12: multiply the columns by 3) |
+| `card_mod` | not needed: use the card's own style keys, or UIX for anything else |
+:::
+

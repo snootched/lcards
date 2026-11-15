@@ -17,6 +17,7 @@
  *   lcards/references/uix/                the UIX styling docs pages
  *                                         (scripts/data/uix/, scripts/sync-uix-docs.js)
  *   lcards/scripts/lcards-validate.mjs    the standalone config checker
+ *   lcards/scripts/lcards-preview-link.mjs  a link to the docs' preview page with the YAML in its hash
  *
  * The same tree is also packaged as a Claude Code plugin, with a marketplace file that
  * points at it (install: /plugin marketplace add <site>/marketplace.json, then
@@ -69,7 +70,9 @@ const write = (rel, text) => {
 
 // SKILL.md, stamped with the version it was built for.
 const skillMd = readFileSync(join(ROOT, 'skills/lcards/SKILL.md'), 'utf8');
-write('SKILL.md', skillMd.replace(/\n# LCARdS\n/, `\n# LCARdS\n\n<!-- Built for LCARdS ${version} -->\n`));
+// The docs channel's preview page (Preview Your YAML), for the preview link.
+const previewUrl = `${SITE_URL}${process.env.DOCS_BASE ?? '/'}getting-started/preview.html`;
+write('SKILL.md', skillMd.replace(/\n# LCARdS\n/, `\n# LCARdS\n\n<!-- Built for LCARdS ${version} -->\n`).replaceAll('__PREVIEW_URL__', previewUrl));
 
 // Hand-written references (the feature catalogue), next to the generated ones.
 const handRefs = join(ROOT, 'skills/lcards/references');
@@ -121,6 +124,9 @@ for (const page of uix.pages) {
 // The checker.
 mkdirSync(join(skill, 'scripts'), { recursive: true });
 execFileSync(process.execPath, [join(ROOT, 'scripts/build-validator.js'), `--out=${join(skill, 'scripts/lcards-validate.mjs')}`], { stdio: 'ignore' });
+// The preview link maker, pointed at this docs channel's preview page.
+writeFileSync(join(skill, 'scripts/lcards-preview-link.mjs'), readFileSync(join(ROOT, 'skills/lcards/scripts/lcards-preview-link.mjs'), 'utf8')
+  .replace('__PREVIEW_URL__', previewUrl));
 
 const zipDir = (cwd, out, ...entries) => {
   mkdirSync(dirname(out), { recursive: true });

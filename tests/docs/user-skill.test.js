@@ -100,6 +100,16 @@ test('features.md points at real files and covers every card and built-in name t
     assert.ok(!/\bHA\b/.test(md.replace(/HA-LCARS/g, '')), 'Home Assistant in full');
 });
 
+test("the preview link points at this docs channel's preview page", () => {
+    const md = readFileSync(join(skill, 'SKILL.md'), 'utf8');
+    const script = readFileSync(join(skill, 'scripts/lcards-preview-link.mjs'), 'utf8');
+    for (const text of [md, script]) {
+        assert.ok(!text.includes('__PREVIEW_URL__'), 'placeholder filled in');
+        assert.ok(text.includes('https://lcards.unimatrix01.ca/getting-started/preview.html'));
+    }
+    assert.ok(existsSync(join(ROOT, 'doc/getting-started/preview.md')));
+});
+
 test('schemas for every card, view and strategy; docs for every card', () => {
     const index = JSON.parse(readFileSync(join(skill, 'references/schema/index.json'), 'utf8'));
     for (const { tag } of getSchemaEntries()) {

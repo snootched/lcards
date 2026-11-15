@@ -154,6 +154,8 @@ export default {
     app.component('AstroStarterTiles', AstroStarterTiles)
     // The Check Your Config page (ajv, the schemas): its own chunk, loaded on that page only.
     app.component('ConfigChecker', defineAsyncComponent(() => import('./ConfigChecker.vue')))
+    // The preview page: YAML from the link or pasted, as real cards (getting-started/preview.md).
+    app.component('PreviewBoard', defineAsyncComponent(() => import('./PreviewBoard.vue')))
   },
 
   Layout() {

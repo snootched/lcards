@@ -70,7 +70,8 @@
 // Data: demo.data.js. Usage in markdown: <DemoBoard />
 import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { data } from './demo.data.js'
-import { cardRuntime, sizeMount } from './card-demo-runtime.js'
+import { cardRuntime } from './card-demo-runtime.js'
+import { mountView } from './view-mount.js'
 
 const byPath = new Map(data.views.map(v => [v.path, v]))
 /** The release filter ('' for all); it and the badges only mean something once there is more than one release. */
@@ -128,13 +129,6 @@ let seeded = false
 let mounted = []
 let generation = 0
 
-/** Grid columns a card spans, out of the section's total. */
-function span(card, total) {
-  const columns = card.grid_options?.columns
-  if (columns === 'full' || columns === undefined) return total
-  return Math.min(total, Math.max(1, Number(columns) || total))
-}
-
 function clear() {
   for (const card of mounted) env?.unmount(card)
   mounted = []
@@ -160,66 +154,12 @@ async function show(path) {
       env.addAutomations?.((await import('../../../tests/helpers/demo-states.js')).DEMO_AUTOMATIONS)
     }
     if (run !== generation) return
-    // Narrow screens: twice the columns per card, as Home Assistant reflows a section
-    const narrow = stage.value.clientWidth < 700
     // Every card mounts at once: one slow card (a WebGL scene, a texture) never holds back the rest
-    const mounting = []
-    // a layout view (the astrometrics showcase): one CSS grid of named areas, as lcards-layout-view lays it out
-    if (view.config.type === 'custom:lcards-layout-view') {
-      const l = view.config.layout ?? {}
-      const grid = document.createElement('div')
-      grid.className = 'demo-board-layout'
-      Object.assign(grid.style, {
-        display: 'grid',
-        gap: l['grid-gap'] ?? '8px',
-        gridTemplateColumns: l['grid-template-columns'] ?? '1fr',
-        gridTemplateRows: l['grid-template-rows'] ?? 'auto',
-        gridTemplateAreas: l['grid-template-areas'] ?? 'none',
-        // a dashboard's own height (the gallery's calc(100dvh - header) fills the window here too)
-        // and padding; the showcase gives a min-height
-        height: l.height ?? l['min-height'] ?? '900px',
-        padding: l.padding ?? '0',
-        boxSizing: 'border-box',
-        // a phone layout (order.yaml max_width) at its own width, centred
-        ...(view.maxWidth ? { width: '100%', maxWidth: `${view.maxWidth}px`, margin: '0 auto' } : {})
-      })
-      stage.value.appendChild(grid)
-      for (const config of view.config.cards ?? []) {
-        const cell = document.createElement('div')
-        cell.className = 'demo-board-cell'
-        const vl = config.view_layout ?? {}
-        if (vl['grid-area']) cell.style.gridArea = vl['grid-area']
-        if (vl['grid-column']) cell.style.gridColumn = vl['grid-column']
-        cell.style.minHeight = '0'
-        grid.appendChild(cell)
-        env.ensureEntities(config)
-        mounting.push(env.mount(cell, config).then((card) => {
-          if (run !== generation) return env.unmount(card)
-          mounted.push(card)
-        }))
-      }
-    }
-    for (const section of view.config.sections ?? []) {
-      const total = 12 * (section.column_span ?? 1)
-      const grid = document.createElement('div')
-      grid.className = 'demo-board-section'
-      grid.style.gridTemplateColumns = `repeat(${total}, minmax(0, 1fr))`
-      stage.value.appendChild(grid)
-      for (const config of section.cards ?? []) {
-        const cell = document.createElement('div')
-        cell.className = 'demo-board-cell'
-        cell.style.gridColumn = `span ${narrow ? Math.min(total, span(config, total) * 2) : span(config, total)}`
-        cell.style.height = sizeMount(config, null)
-        grid.appendChild(cell)
-        env.ensureEntities(config)
-        mounting.push(env.mount(cell, config).then((card) => {
-          // switched to another view meanwhile: this card's cell is gone
-          if (run !== generation) return env.unmount(card)
-          mounted.push(card)
-          cell.style.height = sizeMount(config, card)
-        }))
-      }
-    }
+    const mounting = mountView(stage.value, view.config, env, {
+      maxWidth: view.maxWidth,
+      stale: () => run !== generation,
+      onCard: (card) => mounted.push(card),
+    })
     // Ready when every card has mounted, or after 30 s at most (a card still settling
     // keeps going); tests/docs-site/demo-board.spec.js waits for it
     await Promise.race([Promise.allSettled(mounting), new Promise(r => setTimeout(r, 30_000))])
