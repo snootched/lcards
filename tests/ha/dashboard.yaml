@@ -149,6 +149,215 @@ views:
         view_layout:
           grid-area: main
 
+  # #408 / #409 checks (tests/ha/issues.spec.js): a layout view with many cards,
+  # data sources, a rule, a chart and an MSD, opened by in-app navigation.
+  - title: Issues
+    path: issues
+    type: custom:lcards-layout-view
+    layout:
+      grid-template-columns: repeat(4, 1fr)
+      grid-template-rows: repeat(3, 60px) 60px 200px 260px
+      grid-template-areas: |
+        "b0 b1 b2 b3"
+        "b4 b5 b6 b7"
+        "b8 b9 b10 b11"
+        "ds rule s1 s2"
+        "chart chart chart chart"
+        "msd msd msd msd"
+      grid-gap: 8px
+    cards:
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: WARP
+            show: true
+        view_layout:
+          grid-area: b0
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: IMPULSE
+            show: true
+        view_layout:
+          grid-area: b1
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: SHIELDS
+            show: true
+        view_layout:
+          grid-area: b2
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: PHASERS
+            show: true
+        view_layout:
+          grid-area: b3
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: SENSORS
+            show: true
+        view_layout:
+          grid-area: b4
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: COMMS
+            show: true
+        view_layout:
+          grid-area: b5
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: DEFLECTOR
+            show: true
+        view_layout:
+          grid-area: b6
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: TRANSPORT
+            show: true
+        view_layout:
+          grid-area: b7
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: HOLODECK
+            show: true
+        view_layout:
+          grid-area: b8
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: REPLICATOR
+            show: true
+        view_layout:
+          grid-area: b9
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: LIFE SUPPORT
+            show: true
+        view_layout:
+          grid-area: b10
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: NAVIGATION
+            show: true
+        view_layout:
+          grid-area: b11
+      - type: custom:lcards-button
+        id: issue_ds_button
+        preset: lozenge
+        data_sources:
+          issue_value:
+            entity: input_number.lcards_test_value
+        text:
+          label:
+            content: "VALUE {ds:issue_value}"
+            show: true
+        view_layout:
+          grid-area: ds
+      - type: custom:lcards-button
+        id: issue_rule_button
+        preset: lozenge
+        text:
+          label:
+            content: RULE
+            show: true
+        style:
+          card:
+            color:
+              background: "#333366"
+        rules:
+          - id: issue-toggle-rule
+            when:
+              entity: input_boolean.lcards_test_toggle
+              state: "on"
+            apply:
+              overlays:
+                issue_rule_button:
+                  style:
+                    card:
+                      color:
+                        background: "#00aa00"
+        view_layout:
+          grid-area: rule
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: pills-basic
+        view_layout:
+          grid-area: s1
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: gauge-basic
+        view_layout:
+          grid-area: s2
+      - type: custom:lcards-chart
+        sources:
+          - entity: input_number.lcards_test_value
+        view_layout:
+          grid-area: chart
+      - type: custom:lcards-msd-card
+        id: issue_msd
+        data_sources:
+          msd_value:
+            entity: input_number.lcards_test_value
+        msd:
+          base_svg:
+            source: none
+          view_box: [0, 0, 600, 240]
+          anchors:
+            a_start: [50, 120]
+          overlays:
+            - id: issue_msd_button
+              type: control
+              position: [350, 90]
+              size: [180, 60]
+              card:
+                type: custom:lcards-button
+                entity: input_boolean.lcards_test_toggle
+                preset: lozenge
+                text:
+                  label:
+                    content: MSD CONTROL
+                    show: true
+            - id: issue_msd_line
+              type: line
+              anchor: a_start
+              attach_to: issue_msd_button
+              attach_side: left
+        view_layout:
+          grid-area: msd
+
   - title: MSD
     path: msd
     cards:
