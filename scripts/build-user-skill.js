@@ -4,6 +4,8 @@
  * lcards-skill.zip: SKILL.md plus generated references for this LCARdS version.
  *
  *   lcards/SKILL.md                       from skills/lcards/SKILL.md
+ *   lcards/references/features.md         hand-written, from skills/lcards/references/ (the
+ *                                         feature catalogue the skill proposes designs from)
  *   lcards/references/schema/             index.json, cards/, views/, strategies/, shared/,
  *                                         registries.json (scripts/lib/schema-publish.js,
  *                                         scripts/lib/registries.js)
@@ -68,6 +70,12 @@ const write = (rel, text) => {
 // SKILL.md, stamped with the version it was built for.
 const skillMd = readFileSync(join(ROOT, 'skills/lcards/SKILL.md'), 'utf8');
 write('SKILL.md', skillMd.replace(/\n# LCARdS\n/, `\n# LCARdS\n\n<!-- Built for LCARdS ${version} -->\n`));
+
+// Hand-written references (the feature catalogue), next to the generated ones.
+const handRefs = join(ROOT, 'skills/lcards/references');
+for (const name of readdirSync(handRefs).filter(f => f.endsWith('.md'))) {
+  write(`references/${name}`, readFileSync(join(handRefs, name), 'utf8'));
+}
 
 // Schemas and registries.
 const { files, index } = buildSchemaSet(getSchemaEntries(), { version });

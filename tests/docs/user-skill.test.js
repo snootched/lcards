@@ -80,6 +80,26 @@ test('every path SKILL.md mentions exists in the package', () => {
     for (const p of paths) assert.ok(existsSync(join(skill, p)), `${p} missing from the package`);
 });
 
+// The feature catalogue the skill proposes designs from: every page it points at ships,
+// and it covers every card and every kind of built-in name, so a new card or a new name
+// type can't be left out of what the skill suggests.
+test('features.md points at real files and covers every card and built-in name type', () => {
+    const md = readFileSync(join(skill, 'references/features.md'), 'utf8');
+    const paths = [...md.matchAll(/`((?:docs|schema|ha-lcars|gallery)\/[^`<>*\s]*)`/g)].map(m => m[1].replace(/\/$/, ''));
+    assert.ok(paths.length >= 40);
+    for (const p of paths) assert.ok(existsSync(join(skill, 'references', p)), `${p} missing from the package`);
+    const cards = readdirSync(join(skill, 'references/docs/cards'), { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name);
+    for (const card of cards) assert.ok(md.includes(`docs/cards/${card}/`), `features.md never mentions the ${card} card`);
+    const registries = JSON.parse(readFileSync(join(skill, 'references/schema/registries.json'), 'utf8'));
+    // Name types the catalogue doesn't need to offer: positions, theme internals, version stamps.
+    const plumbing = ['$comment', 'lcards_version', 'text_positions', 'theme_token_open_prefixes', 'ha_lcars_commit', 'ha_lcars_vars', 'lcards_palette_vars', 'theme_tokens', 'component_presets', 'sound_events', 'sound_schemes', 'sound_assets', 'astrometrics'];
+    for (const key of Object.keys(registries).filter(k => !plumbing.includes(k))) {
+        assert.ok(md.includes(`\`${key}\``), `features.md never names the registries list ${key}`);
+    }
+    assert.ok(!/—/.test(md));
+    assert.ok(!/\bHA\b/.test(md.replace(/HA-LCARS/g, '')), 'Home Assistant in full');
+});
+
 test('schemas for every card, view and strategy; docs for every card', () => {
     const index = JSON.parse(readFileSync(join(skill, 'references/schema/index.json'), 'utf8'));
     for (const { tag } of getSchemaEntries()) {

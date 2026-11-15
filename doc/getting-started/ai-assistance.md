@@ -29,6 +29,7 @@ description: "Get Claude, ChatGPT or another AI assistant to write LCARdS YAML t
 2. Ask. For example:
    - "Make me an LCARdS button for `light.kitchen` that turns red when it's on."
    - "Build an engineering dashboard with my `sensor.power_*` entities."
+   - "I want a Star Trek engineering screen for my house. What could I do?"
 
 Claude uses your real entity ids instead of inventing them: give it them, or connect it to Home Assistant with [ha-mcp](#give-claude-your-home-s-context-ha-mcp). It also checks its own YAML before handing it over.
 
@@ -36,7 +37,7 @@ In Claude Code the plugin goes further:
 
 - The config checker **runs by itself** every time Claude writes a YAML file with LCARdS cards in it, and Claude fixes whatever it reports before handing the file over.
 - **`/lcards:check`** followed by a file or pasted YAML checks it and explains each problem.
-- **`/lcards:dashboard`** builds a whole dashboard with you, one question at a time.
+- **`/lcards:dashboard`** designs a whole dashboard with you: a few questions to pick from, then two or three concepts side by side with a layout sketch each, then the YAML.
 
 ::: details Keeping the Claude Code plugin up to date
 Each LCARdS release comes with a new version of the plugin. To get it, run `/plugin marketplace update lcards`, or open `/plugin`, go to **Marketplaces**, select **lcards** and turn on **Enable auto-update**. Run `/reload-plugins` (or start a new session) to load the new version.
@@ -49,6 +50,10 @@ Each LCARdS release comes with a new version of the plugin. To get it, run `/plu
 
 ::: info Other tools that support skills
 The LCARdS skill follows the open [Agent Skills](https://agentskills.io) standard, so any tool that supports Agent Skills can load the same zip. We build and test it with Claude.
+:::
+
+::: tip Talk it through first
+Ask for a dashboard without the details and Claude works it out with you instead of guessing. It asks what the screen is for, where it runs, the look and your entities, then offers two or three concepts. Each concept has a layout sketch and the features that suit your devices, including ones you may not know about: a yellow alert and a chirp when the door opens, a starfield that speeds up with the fan, a schematic of your house with a light switch in every room. Pick one, change what you like, and Claude builds it, checks it and adds a few ideas for later. When Claude can reach your Home Assistant and a browser (for example Claude Code with ha-mcp and a browser tool), it can also offer to put the draft on a separate dashboard and show you a screenshot before you paste anything. Ask for "just the YAML" to skip the questions.
 :::
 
 ::: tip Claude can check YAML too
