@@ -115,4 +115,14 @@ test('shell strategy: top bar and right sidebar collapse and come back', async (
     mkdirSync(new URL('../../reports/ha-issues/', import.meta.url), { recursive: true });
     writeFileSync(new URL(`../../reports/ha-issues/${LABEL}.json`, import.meta.url), JSON.stringify(report, null, 2));
     expect(report['both shown']).not.toBeNull();
+    // Same shape as the phase 0 baseline (reports/shell-collapse-plan.md) in every
+    // state: the top bar row and the right sidebar column collapse, the content
+    // panel takes their space, the screen keeps its size.
+    const box = (state, area) => report[state].areas[area];
+    expect(report['top bar hidden'].rows.split(' ')[0]).toBe('0px');
+    expect(box('top bar hidden', 'content-panel').h - box('both shown', 'content-panel').h).toBe(box('both shown', 'header-border').h);
+    expect(report['both hidden'].columns.split(' ').at(-1)).toBe('0px');
+    expect(box('both hidden', 'content-panel').w - box('top bar hidden', 'content-panel').w).toBe(box('both shown', 'sidebar-right').w);
+    expect(report['both shown again']).toEqual(report['both shown']);
+    for (const state of Object.keys(report)) expect(report[state].host).toEqual(report['both shown'].host);
 });

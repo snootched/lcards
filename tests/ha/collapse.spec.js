@@ -72,5 +72,17 @@ test('layout view: which tracks collapse when their card is hidden', async ({ pa
     for (const [k, m] of Object.entries(report)) console.log(`${k.padEnd(7)} rows ${m.rows} | cols ${m.columns} | main ${m.areas.main.w}x${m.areas.main.h}`);
     mkdirSync(new URL('../../reports/ha-issues/', import.meta.url), { recursive: true });
     writeFileSync(new URL(`../../reports/ha-issues/${LABEL}.json`, import.meta.url), JSON.stringify(report, null, 2));
-    expect(shown.areas.main.w).toBeGreaterThan(0);
+    // An LCARS screen keeps its size and reshapes inside: every track kind collapses
+    // (fixed row, fixed column, auto row, auto column), fr takes the space.
+    const px = (list) => list.split(' ').map(parseFloat);
+    const [top, mid, foot] = px(shown.rows);
+    expect([top, foot]).toEqual([60, 50]);
+    expect(mid, 'the fr row gets its space next to an auto row').toBeGreaterThan(500);
+    expect(px(shown.columns)[0]).toBe(120);
+    // the two 5 px grid gaps stay beside the collapsed rows
+    expect(hidden.rows).toBe(`0px ${top + mid + foot}px 0px`);
+    expect(px(hidden.columns)[0], 'the fixed nav column collapses').toBe(0);
+    expect(px(hidden.columns)[2], 'the auto side column collapses').toBe(0);
+    expect(hidden.areas.main.h).toBe(top + mid + foot);
+    expect(again).toEqual(shown);
 });

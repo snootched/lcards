@@ -1,5 +1,7 @@
 ---
 description: "Layout view: a dashboard view that is one CSS grid, built and edited in place on the dashboard, compatible with lovelace-layout-card's grid-layout."
+moved_anchors:
+  visibility-driven-row-sizing: /cards/layout-view/#collapsing-rows-and-columns
 ---
 
 # Layout View
@@ -303,36 +305,54 @@ cards:
 
 - The layout view has no `view_layout.show` key: a pasted `grid-layout` config that uses it ignores it, so move the condition to the Visibility tab. To change the grid itself by screen size, use [`mediaquery`](#responsive-layouts-mediaquery).
 
-### Visibility-driven row sizing
+### Collapsing rows and columns
 
-**When a card with a Visibility condition is hidden, the row it fills collapses to 0 and the other rows take the space; it comes back when the card shows again.** Use it for a banner or bar that appears only sometimes.
+**When a card with a Visibility condition is hidden, its row or column collapses to 0 and the `fr` rows and columns take the space; it comes back when the card shows again.** The view keeps its size and only changes shape inside, as an LCARS screen does: use it for a top bar, a sidebar or a navigation column that appears only sometimes.
 
-- The card needs a definite height to size its row to: a [Layout Card](/cards/layout-card/) with a `layout.height` such as `10vh` or `120px` (not a percentage or `auto`).
-- The row collapses only when every card in it that has a Visibility condition is hidden; cards without a condition don't hold it open, so give such a row one card.
-- In edit mode every row shows, as Home Assistant shows every card while editing.
+- A row collapses when every card that sits in that row alone is hidden; the same goes for columns. A card without a condition keeps its row and column open, and a card that spans several rows (or columns) doesn't hold one of them open: it just gets smaller.
+- Fixed (`60px`), `fr` and `auto` rows and columns all collapse. The grid gap beside a collapsed one stays.
+- A shown [Layout Card](/cards/layout-card/) with a definite `layout.height` (such as `10vh`) sizes its row; any other card leaves the row at its configured size.
+- In edit mode every row and column shows, as Home Assistant shows every card while editing.
 
 The example is plain YAML: Home Assistant decides visibility, and the docs have no dashboard to do it.
 
 ```yaml
-# Part of a view's cards: the top-bar row collapses while the helper is off
+# A top bar row and a navigation column that collapse while their helpers are off;
+# the main area grows into the space and the screen keeps its size.
+type: custom:lcards-layout-view
+layout:
+  grid-template-columns: 180px 1fr
+  grid-template-rows: 60px 1fr
+  grid-template-areas: |
+    "top top"
+    "nav main"
 cards:
-  - type: custom:lcards-layout-card
-    layout:
-      height: 10vh
-      grid-template-areas: |
-        "left banner"
-      grid-template-columns: auto 1fr
+  - type: custom:lcards-button
+    preset: lozenge
     view_layout:
-      grid-area: top-bar
+      grid-area: top
     visibility:
       - condition: state
         entity_id: input_boolean.show_top_bar
         state: "on"
+  - type: custom:lcards-button
+    preset: lozenge
+    view_layout:
+      grid-area: nav
+    visibility:
+      - condition: state
+        entity_id: input_boolean.show_navigation
+        state: "on"
+  - type: custom:lcards-button
+    preset: lozenge
+    view_layout:
+      grid-area: main
 ```
 
-::: details More about row sizing
+::: details More about collapsing
 - **Any condition:** every Visibility condition type works (`state`, `numeric_state`, `screen`, `user`, `template`, `and`, `or`, `not`): the view follows whether Home Assistant hid the card rather than checking the condition itself. The older `entity:` key in a state condition works too.
-- **Resizing:** rows are worked out again whenever the view changes size (the sidebar opens, the window is resized).
+- **The screen keeps its size:** the `fr` rows share the view's height (`layout.height`, by default the screen below the header), so collapsing never makes the view scroll. With `layout.height: auto` the view grows and shrinks with its content instead.
+- **Media queries:** the rows and columns of a matching `mediaquery` entry collapse the same way.
 :::
 
 ## Per-area settings

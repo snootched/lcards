@@ -76,14 +76,15 @@ cards:
 
 **A child card's Visibility conditions and Home Assistant's `conditional` card work inside a layout card as they do on a view: each child is wrapped in Home Assistant's own card wrapper, which decides whether it shows.**
 
-- A hidden card leaves its area empty: its row and column keep their size. The layout card doesn't collapse tracks; a [Layout View](../layout-view/#visibility-driven-row-sizing) collapses a hidden card's row, but not its column.
+- A hidden card's row or column collapses and the `fr` rows and columns take the space, as in a [Layout View](../layout-view/#collapsing-rows-and-columns): a row (column) collapses when every card that sits in it alone is hidden, and a card without a condition keeps its row and column open.
 - In an `auto` row a card takes its own natural height, which can be taller than a layout card with a fixed `height`, so it spills out of the card. Use `minmax(0, max-content)` to size the row to the card but never past the layout card, or `1fr` to share the height.
 
 The example is plain YAML: Home Assistant decides visibility, and the docs have no dashboard to do it.
 
 ```yaml
-# A row of two buttons; the second shows only while the helper is on.
-# minmax(0, max-content) keeps the row inside the 120 px card.
+# A row of two buttons; the second shows only while the helper is on, and its
+# column collapses while it is hidden. minmax(0, max-content) keeps the row
+# inside the 120 px card.
 type: custom:lcards-layout-card
 layout:
   height: 120px

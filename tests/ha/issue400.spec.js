@@ -111,8 +111,8 @@ test('#400: layout card children with visibility and conditional cards, by row s
     for (const name of ['stock-button-auto', 'lcards-button-auto']) expect(report[name].hidden[0].hidden).toBe(false);
     // minmax(0, max-content) keeps the row inside the 160 px layout card
     expect(report['cond-stock-button-maxcontent'].shown[0].box.h).toBeLessThanOrEqual(160);
-    // The nav card hides; its 120 px column is not collapsed (no track collapse yet:
-    // backlog). Measured only, so this check shows when that feature lands.
+    // The nav card hides and its 120 px column collapses: the main card takes the row
     expect(report['nav-column'].hidden[0].hidden).toBe(true);
+    expect(report['nav-column'].hidden[1].box.w).toBe(report['nav-column'].shown[0].box.w + report['nav-column'].shown[1].box.w);
     console.log('nav column with the nav hidden: main card width', report['nav-column'].hidden[1].box.w, 'of', report['nav-column'].shown[1].box.w + report['nav-column'].shown[0].box.w);
 });

@@ -734,29 +734,59 @@ function parsePxValue(str) {
 }
 
 /**
- * Resolve row tracks for visibility-controlled rows.
+ * Rows and columns after Visibility conditions: an LCARS screen keeps its size and
+ * reshapes inside it (reports/shell-collapse-plan.md).
  *
- * A row registered by one or more visibility-controlled cards gets its
- * `targetHeight` while ANY of those cards is shown (HA's hui-card sets
- * `hidden` when its Visibility conditions fail) and collapses to `0px` once
- * all of them are hidden. In edit mode every such row is expanded, matching
- * HA showing every card while editing. Rows with no entries keep their
- * base track.
+ * A row (or column) collapses to `0px` when it has a card with a Visibility
+ * condition and every card that sits in that row (column) alone is hidden; Home
+ * Assistant's hui-card sets `hidden` when the conditions fail. A card without a
+ * condition is never hidden, so it keeps its track open. A card spanning several
+ * rows (columns) doesn't keep one of them open: it narrows when one collapses.
+ * While a row is open, a shown card with a definite `targetHeight` (a layout
+ * card's `layout.height`) sizes it. In edit mode every track is open, as Home
+ * Assistant shows every card while editing.
  *
- * @param {string[]} baseRows  row tracks from config (not mutated)
- * @param {{rowIndex: number, hidden: boolean, targetHeight: string}[]} entries
+ * Only the tracks change; CSS grid shares the freed space between `fr` tracks,
+ * and an `auto` track collapses by itself once its cards are hidden.
+ *
+ * @param {{ rows: string[], columns: string[], areas: string[][] }} grid  active tracks (not mutated)
+ * @param {{ area: string, hidden: boolean, conditional: boolean, targetHeight?: string | null }[]} cards
+ *        every placed card, by `view_layout.grid-area`
  * @param {boolean} editMode
- * @returns {string[]} resolved row tracks
+ * @returns {{ rows: string[], columns: string[] }}
  */
-export function resolveVisibilityRowTracks(baseRows, entries, editMode) {
-    const rows = [...baseRows];
-    const rowTracks = new Map(); // rowIndex -> resolved track
-    for (const { rowIndex, hidden, targetHeight } of entries) {
-        if (editMode || !hidden) rowTracks.set(rowIndex, targetHeight);
-        else if (!rowTracks.has(rowIndex)) rowTracks.set(rowIndex, '0px');
+export function resolveVisibilityTracks({ rows, columns, areas }, cards, editMode) {
+    const out = { rows: [...rows], columns: [...columns] };
+    if (editMode) return out;
+    /** @typedef {{conditional: boolean, open: boolean, size: string|null}} TrackState */
+    /** @type {Map<number, TrackState>} */
+    const rowState = new Map();
+    /** @type {Map<number, TrackState>} */
+    const colState = new Map();
+    const note = (/** @type {Map<number, TrackState>} */ map, /** @type {number} */ i, card, /** @type {boolean} */ sizes) => {
+        const st = map.get(i) ?? { conditional: false, open: false, size: null };
+        if (card.conditional) st.conditional = true;
+        if (!card.hidden) {
+            st.open = true;
+            if (sizes && card.conditional && card.targetHeight && !st.size) st.size = card.targetHeight;
+        }
+        map.set(i, st);
+    };
+    for (const card of cards) {
+        const b = card.area ? getAreaBounds(areas ?? [], card.area) : null;
+        if (!b) continue;
+        if (b.r2 - b.r1 === 1) note(rowState, b.r1, card, true);
+        if (b.c2 - b.c1 === 1) note(colState, b.c1, card, false);
     }
-    for (const [rowIndex, track] of rowTracks) rows[rowIndex] = track;
-    return rows;
+    for (const [i, st] of rowState) {
+        if (i >= out.rows.length || !st.conditional) continue;
+        if (!st.open) out.rows[i] = '0px';
+        else if (st.size) out.rows[i] = st.size;
+    }
+    for (const [i, st] of colState) {
+        if (i < out.columns.length && st.conditional && !st.open) out.columns[i] = '0px';
+    }
+    return out;
 }
 
 /**

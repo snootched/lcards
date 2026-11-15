@@ -32,7 +32,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
-import { parseLayoutConfig, cellHeightDefinite, gridHeightIsDefinite } from '../views/layout-grid-utils.js';
+import { parseLayoutConfig, cellHeightDefinite, gridHeightIsDefinite, resolveVisibilityTracks } from '../views/layout-grid-utils.js';
 import {
     buildGridStyle,
     applyCardPlacement,
@@ -71,16 +71,50 @@ export class LCARdSLayoutCard extends LitElement {
         this._helpers  = null;
         /** @type {{ mql: MediaQueryList, handler: () => void }[]} */
         this._mediaQueryLists = [];
+        // A child's hui-card fires a bubbling, composed `card-visibility-changed`
+        // when it hides or shows itself: re-resolve the collapsed tracks.
+        this._visibilityRaf = 0;
+        this._onCardVisibilityChanged = () => {
+            cancelAnimationFrame(this._visibilityRaf);
+            this._visibilityRaf = requestAnimationFrame(() => this._applyVisibilityTracks());
+        };
     }
 
     connectedCallback() {
         super.connectedCallback();
         this._setupMediaQueries();
+        this.addEventListener('card-visibility-changed', this._onCardVisibilityChanged);
     }
 
     disconnectedCallback() {
         super.disconnectedCallback();
         this._teardownMediaQueries();
+        this.removeEventListener('card-visibility-changed', this._onCardVisibilityChanged);
+        cancelAnimationFrame(this._visibilityRaf);
+    }
+
+    /**
+     * Collapse the row or column of a hidden child (resolveVisibilityTracks, the
+     * layout view's rule): a track goes to 0 when every child with a Visibility
+     * condition that sits in it alone is hidden, and the `fr` tracks take the
+     * space. Written on the grid node after Lit's own style, so it survives
+     * re-renders (updated() calls it again). Every track is open while the
+     * dashboard or the Layout Studio is editing.
+     */
+    _applyVisibilityTracks() {
+        const grid = /** @type {HTMLElement | null} */ (this.renderRoot?.querySelector('#grid-root'));
+        if (!grid) return;
+        const cards = (this._config?.cards ?? []).flatMap((cfg, i) => {
+            const area = cfg?.view_layout?.['grid-area'];
+            if (!area) return [];
+            const conditional = !!cfg?.visibility?.length;
+            const h = cfg.layout?.height;
+            return [{ area, conditional, hidden: conditional && !!this._cardElements?.[i]?.hidden, targetHeight: h && h !== 'auto' && h !== '100%' ? h : null }];
+        });
+        if (!cards.some((c) => c.conditional)) return;
+        const { rows, columns } = resolveVisibilityTracks(this._activeGrid(), cards, !!(this.preview || this.editing));
+        grid.style.gridTemplateRows = rows.join(' ');
+        grid.style.gridTemplateColumns = columns.join(' ');
     }
 
     /** Re-render when a `layout.mediaquery` query starts or stops matching. */
@@ -267,6 +301,8 @@ export class LCARdSLayoutCard extends LitElement {
             || changed.has('_areas') || changed.has('_gap') || changed.has('editing')) {
             this._placeCards();
         }
+        // Lit wrote the configured tracks back with the style attribute
+        this._applyVisibilityTracks();
     }
 
     render() {
@@ -302,6 +338,7 @@ export class LCARdSLayoutCard extends LitElement {
         });
         // cards already in place stay put (no disconnect and reconnect, #409)
         placeGridChildren(grid, this._cardElements ?? [], surfaces);
+        this._applyVisibilityTracks();
     }
 
     static styles = css`

@@ -123,37 +123,35 @@ Cards are **always placed**; per-card visibility is not the view's concern. Home
 
 ---
 
-## Visibility-driven row sizing
+## Collapsing rows and columns
 
-Home Assistant's `hui-card` wrapper hides cards by setting `display: none`. In a standard CSS Grid, a `display: none` item does not contribute to track sizing, so a row with only hidden cards collapses to `0px` naturally. In practice, Home Assistant's layout context does not provide the grid engine with a definite available block-size, so `fr` tracks expand to the max-content of their items rather than filling the remaining space. This makes `minmax(0,auto)` tracks collapse correctly but `1fr` tracks wrong.
+An LCARS screen keeps its size and only changes shape inside it: a card hidden by its Visibility condition collapses its row or column to `0px` and the `fr` tracks take the space. CSS does the sizing; the view only rewrites the tracks of hidden cards (`reports/shell-collapse-plan.md`, 2026-11-15).
 
-The view solves this entirely in JS:
+Until 2026-11-15 the view resolved `fr` rows in JavaScript (`_applyVisibilityRowHeights()`): it wrote every `fr` row as `0px`, measured the others and wrote the `fr` rows back as pixels, because Home Assistant's layout gave the grid no definite height. The grid has had one since 2026-11-08 (the view's `layout.height`, by default `calc(100dvh - var(--header-height, 56px))`, on the host; `#grid-root` is `100%` of it), so CSS shares the space itself. The measuring also broke any view with an `auto` row next to an `fr` row: the `auto` row grew into the space the `0px` freed and the `fr` row was left at 0 px (`tests/browser/layout-collapse.spec.js`, `tests/ha/collapse.spec.js`).
 
-### `_baseRows` and `_visibilityRows`
+### The rule: `resolveVisibilityTracks()`
 
-`_baseRows` holds the row tracks as parsed from config (never modified at runtime). After every card placement, `_collectVisibilityRows()` scans the placed cards for a non-empty `visibility` array, any condition type or shape; conditions are **not** parsed. For each card with a definite `layout.height` and a `grid-area` it records `{ rowIndex, cardEl, targetHeight }` in `_visibilityRows`.
+`resolveVisibilityTracks({ rows, columns, areas }, cards, editMode)` in `layout-grid-utils.js` (pure, shared with the layout card; `tests/layout/visibility-rows.test.js`) takes every placed card as `{ area, conditional, hidden, targetHeight }`:
 
-The view deliberately never evaluates conditions itself. Home Assistant's `hui-card` owns that (since Home Assistant 2026.10 stateful conditions are evaluated by core over a `subscribe_condition` websocket subscription, and Home Assistant's Visibility editor rewrites `state`/`numeric_state` conditions from lovelace `entity` shape into core `entity_id` shape). The view reads the outcome: `hui-card` toggles its `hidden` attribute and fires a bubbling, composed `card-visibility-changed` event, the same signal `hui-section` uses.
+- A row collapses to `0px` when it has a card with a Visibility condition and every card that sits in that row **alone** (its area spans one row) is hidden. Columns the same.
+- A card without a condition is never hidden, so it keeps its row and column open. A card spanning several rows (columns) is ignored for them: it narrows when one collapses.
+- While a row is open, a shown conditional card with a definite `targetHeight` (a layout card's `layout.height`, not `auto` or `100%`) sizes it.
+- Edit mode opens every track at its configured size.
+- `auto` tracks would collapse natively (a `display: none` item adds nothing); rewriting them to `0px` is harmless and keeps one rule.
 
-### `_applyVisibilityRowHeights()`
+The view never evaluates conditions. Home Assistant's `hui-card` owns that (since Home Assistant 2026.10 stateful conditions are evaluated by core over a `subscribe_condition` websocket subscription, and the Visibility editor rewrites `state`/`numeric_state` conditions from lovelace `entity` shape into core `entity_id` shape). The view reads the outcome: `hui-card` toggles its `hidden` attribute and fires a bubbling, composed `card-visibility-changed` event, the same signal `hui-section` uses.
 
-Called from: end of `_placeCards()`, every `updated()` (after Lit renders), and (rAF-debounced via `_scheduleRowHeights()`) every `card-visibility-changed` event and every host resize. It is **not** called from `set hass()`: entity updates reach it only through hui-card's visibility event, so ordinary state changes cost no layout reads.
+### `_collectVisibilityCards()` and `_applyVisibilityTracks()`
 
-1. **Build candidate rows**: start from `_baseRows`; a visibility row gets `targetHeight` if the view is in edit mode or **any** of its registered cards is not `hidden`, otherwise `'0px'`.
-2. **Identify `fr` tracks**: locate all `Nfr` tracks in the candidate rows.
-3. **Resolve non-fr sizes**: temporarily write the rows with every `fr` replaced by `0px` and force a reflow (`getComputedStyle`), so the browser evaluates all `clamp()`, `vh`, `px`, and `min()`/`max()` tracks to their actual pixel sizes.
-4. **Compute fr allocation**: `frSpace = hostHeight - sum(non-fr rows) - sum(gaps)`. This is exact regardless of what the CSS Grid engine would have done.
-5. **Final write**: replace every `Nfr` track with `round(frSpace × N / totalFR)px` and write `grid.style.gridTemplateRows` directly (bypassing Lit to avoid a re-render feedback loop).
+After every placement `_collectVisibilityCards()` records each placed card's `{ area, cardEl, conditional, targetHeight }`. `_applyVisibilityTracks()` takes the active tracks (`_activeTracks()`: the editor state, with a matching `layout.mediaquery` entry's tracks, areas and gap over it), resolves them and writes `grid-template-columns`, `grid-template-rows`, `grid-template-areas` and `gap` on `#grid-root` directly (no Lit re-render).
 
-Nested `hui-card`s (inside an MSD control, `lcards-layout-card` child, or elbow symbiont) never reach the view's listener: the enclosing top-level `hui-card` catches and stops `card-visibility-changed` from its own inner element.
+Called from: the end of `_placeCards()`, every `updated()` (Lit wrote the configured tracks back), media query changes (`_applyMediaQueryOverrides()`), and, rAF-debounced via `_scheduleTrackUpdate()`, every `card-visibility-changed` event. Not from `set hass()`: entity updates reach it only through hui-card's event, so ordinary state changes cost nothing. There is no host `ResizeObserver` any more: nothing is measured.
 
-### `ResizeObserver`
-
-A `ResizeObserver` on the host element (created in `connectedCallback`, torn down in `disconnectedCallback`) fires `_applyVisibilityRowHeights()` via a `requestAnimationFrame` debounce whenever the host's bounding box changes: window resize, Home Assistant sidebar toggle, devtools open/close. This keeps row allocations correct across all viewport changes without polling.
+Nested `hui-card`s (inside an MSD control, an `lcards-layout-card` child, or an elbow symbiont) never reach the view's listener: the enclosing top-level `hui-card` catches and stops `card-visibility-changed` from its own inner element. A layout card listens on its own host, so its children's events reach it first.
 
 ### Debugging row sizing
 
-`scripts/lcards-layout-debug.js` is a console paste script: run it on a dashboard with a layout view (or with the view selected in the DevTools Elements panel) to print each row's configured track against its computed height, the `_baseRows` / `_visibilityRows` state, unexpected `0px` rows and whether the host `ResizeObserver` is connected.
+`scripts/lcards-layout-debug.js` is a console paste script: run it on a dashboard with a layout view (or with the view selected in the DevTools Elements panel) to print each row and column's configured track against its computed size, the cards with a Visibility condition and whether each is hidden, and unexpected `0px` tracks.
 
 ---
 
@@ -192,7 +190,8 @@ All of these route back through `_saveViewConfig`.
 - **Placement.** `updated()` calls `_placeCards()` when the config, the grid state or `editing` changed: it applies `applyCardPlacement()` and `applyGridItemHeight()` to every child, then `placeGridChildren()` puts the area surfaces (`renderAreaSurfaces()`) first and the children after them, without moving a child that is already in place. The host height mirrors `layout.height` (default `100%`), because a percentage host in a content-sized row would collapse to 0.
 - **Media queries.** `layout.mediaquery` overrides are matched with `matchMedia()` listeners (`_setupMediaQueries()`) and merged into the drawn grid by `_activeGrid()`; while `editing` is set (in the studio) the base layout is always drawn, because that is what the studio edits.
 - **Edit mode.** `preview` (set by `hui-card` in dashboard edit mode) is passed to the children, so like `hui-stack-card` they stay visible when their Visibility conditions are not met. `editing` (set by the studio) reserves the overlay gutter (`buildGridStyle(..., { editMode: 'grid' })`).
-- **Not in the card:** the view's visibility-driven row sizing and its in-place editor. A row of a layout card holding only hidden cards follows plain CSS Grid rules.
+- **Collapsing:** the layout card applies the view's rule (`resolveVisibilityTracks()`) to its own grid in `_applyVisibilityTracks()`, after placement and every `updated()`, and on its children's `card-visibility-changed` events (rAF-debounced). Every track is open while the dashboard or the Layout Studio is editing (`preview` or `editing`).
+- **Not in the card:** the view's in-place editor.
 
 ---
 

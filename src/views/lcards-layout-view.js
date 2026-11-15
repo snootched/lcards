@@ -54,7 +54,9 @@ import {
     getAreaNames,
     renameAreaSettings,
     pruneAreaSettings,
-    resolveVisibilityRowTracks,
+    resolveVisibilityTracks,
+    parseTrackList,
+    parseAreasString,
     EDIT_BAR_HEIGHT,
     cellHeightDefinite, gridHeightIsDefinite,
 } from './layout-grid-utils.js';
@@ -134,10 +136,10 @@ export class LCARdSLayoutView extends LitElement {
         this._editSubMode = 'grid'; // reset to grid mode each time edit mode activates
         this._columns  = ['1fr', '1fr', '1fr'];
         this._rows     = ['1fr', '1fr', '1fr'];
-        this._baseRows = ['1fr', '1fr', '1fr']; // rows from config, never modified by visibility logic
         this._areas    = Array(3).fill(null).map(() => Array(3).fill('.'));
         this._gap      = '5px';
-        this._visibilityRows  = []; // [{rowIndex, cardEl, targetHeight}]
+        /** @type {{area: string, cardEl: any, conditional: boolean, targetHeight: string|null}[]} placed cards, for visibility collapse */
+        this._visibilityCards = [];
         this._cardElements    = []; // HA-provided pre-built card elements
         this._mediaQueryLists = []; // active MediaQueryList instances
         this._pendingAddArea  = null; // area name waiting for HA's card picker to save
@@ -153,28 +155,24 @@ export class LCARdSLayoutView extends LitElement {
         this._boundDocPointerDown  = this._onDocPointerDown.bind(this);
         // hui-card fires a bubbling, composed `card-visibility-changed` whenever it
         // hides/shows itself (same signal hui-section listens to).
-        this._boundCardVisibilityChanged = () => this._scheduleRowHeights();
+        this._boundCardVisibilityChanged = () => this._scheduleTrackUpdate();
     }
 
     connectedCallback() {
         super.connectedCallback();
         document.addEventListener('pointerdown', this._boundDocPointerDown, true);
         this.addEventListener('card-visibility-changed', this._boundCardVisibilityChanged);
-        // Recompute fr row allocations whenever the host changes size (window resize,
-        // sidebar toggle that changes our bounding box, devtools open/close).
-        this._hostResizeObserver = new ResizeObserver(() => this._scheduleRowHeights());
-        this._hostResizeObserver.observe(this);
         // disconnectedCallback removed the edit overlay; a re-attached view (moved
         // in the DOM) recreates it in updated() -> _syncEditOverlay().
         if (this.hasUpdated) this.requestUpdate();
     }
 
-    /** rAF-debounced _applyVisibilityRowHeights() (resize + card visibility changes). */
-    _scheduleRowHeights() {
+    /** rAF-debounced _applyVisibilityTracks() (card visibility changes). */
+    _scheduleTrackUpdate() {
         if (this._resizeRaf) cancelAnimationFrame(this._resizeRaf);
         this._resizeRaf = requestAnimationFrame(() => {
             this._resizeRaf = null;
-            this._applyVisibilityRowHeights();
+            this._applyVisibilityTracks();
         });
     }
 
@@ -202,7 +200,6 @@ export class LCARdSLayoutView extends LitElement {
         this._config = JSON.parse(JSON.stringify(config ?? {}));
         const { columns, rows, areas, gap } = parseLayoutConfig(this._config.layout);
         this._columns  = columns;
-        this._baseRows = rows;
         this._rows     = rows;
         this._areas    = areas;
         this._gap      = gap;
@@ -314,8 +311,6 @@ export class LCARdSLayoutView extends LitElement {
         this._teardownMediaQueries();
         document.removeEventListener('pointerdown', this._boundDocPointerDown, true);
         this.removeEventListener('card-visibility-changed', this._boundCardVisibilityChanged);
-        this._hostResizeObserver?.disconnect();
-        this._hostResizeObserver = null;
         this._saveEventsUnsub?.then((/** @type {any} */ unsub) => unsub?.()).catch(() => {});
         this._saveEventsUnsub = null;
         if (this._resizeRaf) { cancelAnimationFrame(this._resizeRaf); this._resizeRaf = null; }
@@ -335,7 +330,7 @@ export class LCARdSLayoutView extends LitElement {
         // While a dock is open the grid narrows by its width (see :host([dock-open])).
         const cards = this._editMode && this._editSubMode === 'cards';
         this.toggleAttribute('dock-open', this._editMode && (cards ? !!this._placementEditCard : this._overlayDockOpen));
-        this._applyVisibilityRowHeights();
+        this._applyVisibilityTracks();
     }
 
     /**
@@ -819,8 +814,8 @@ export class LCARdSLayoutView extends LitElement {
             }
         }
 
-        this._collectVisibilityRows();
-        this._applyVisibilityRowHeights();
+        this._collectVisibilityCards();
+        this._applyVisibilityTracks();
     }
 
     /** The stacked card whose controls are in front: the picked one, else the top one. */
@@ -910,111 +905,65 @@ export class LCARdSLayoutView extends LitElement {
     }
 
     /**
-     * Scan placed cards for Visibility conditions that govern entire rows.
-     * Fills this._visibilityRows with {rowIndex, cardEl, targetHeight}.
-     * Called after every card placement so the list stays in sync.
+     * The placed cards by area, marking those with a Visibility condition, for
+     * _applyVisibilityTracks(). Called after every card placement.
      *
-     * Conditions are not parsed here — any non-empty `visibility` (any condition
+     * Conditions are not parsed here: any non-empty `visibility` (any condition
      * type, lovelace `entity` or core `entity_id` shape) registers the card, and
-     * _applyVisibilityRowHeights() reads HA's own verdict from the hui-card's
-     * `hidden` state. HA evaluates stateful conditions server-side (2026.10+)
-     * and the visibility editor rewrites them into core shape, so re-evaluating
-     * them here would drift from HA.
+     * the hui-card's own `hidden` verdict decides. Home Assistant evaluates
+     * stateful conditions server-side (2026.10+) and the visibility editor
+     * rewrites them into core shape, so re-evaluating them here would drift.
      */
-    _collectVisibilityRows() {
-        this._visibilityRows = [];
-        if (!this._areas?.length) return;
+    _collectVisibilityCards() {
+        this._visibilityCards = [];
         for (const cardEl of (this._cardElements ?? [])) {
             const config = cardEl.config;
-            if (!config) continue;
-            const area       = config.view_layout?.['grid-area'];
-            const visibility = config.visibility;
-            if (!area || !visibility?.length) continue;
-            const rowIndex = this._areas.findIndex(row => row.includes(area));
-            if (rowIndex === -1) continue;
-            // Only forward a definite viewport/pixel height (same rule as applyGridItemHeight).
+            const area = config?.view_layout?.['grid-area'];
+            if (!area) continue;
+            // A definite layout.height sizes its row while shown (same rule as applyGridItemHeight).
             const h = config.layout?.height;
-            if (!h || h === 'auto' || h === '100%') continue;
-            this._visibilityRows.push({ rowIndex, cardEl, targetHeight: h });
+            this._visibilityCards.push({ area, cardEl, conditional: !!config.visibility?.length, targetHeight: h && h !== 'auto' && h !== '100%' ? h : null });
         }
     }
 
     /**
-     * Evaluate current entity states and update grid-template-rows directly on
-     * the DOM node — bypassing Lit's render cycle to avoid feedback loops.
-     *
-     * CSS Grid's track sizing algorithm treats a self-imposed height (height: calc(100dvh - ...))
-     * as infinite available block-size, so `1fr` expands to max-content instead of filling the
-     * remaining space. We resolve this in JS: temporarily write `0px` for fr tracks (so the
-     * browser correctly sizes all clamp/vh/px tracks), read those back, compute the leftover
-     * space, then write explicit px values for every fr track.
+     * The tracks in effect: the editor state, with a matching `layout.mediaquery`
+     * entry's tracks, areas and gap over it.
+     * @returns {{ columns: string[], rows: string[], areas: string[][], gap: string }}
      */
-    _applyVisibilityRowHeights() {
+    _activeTracks() {
+        let columns = this._columns, rows = this._rows, areas = this._areas, gap = this._gap;
+        for (const [query, override] of Object.entries(this._config?.layout?.mediaquery ?? {})) {
+            try {
+                if (!override || !window.matchMedia(query).matches) continue;
+                if (override['grid-template-columns']) columns = parseTrackList(override['grid-template-columns']);
+                if (override['grid-template-rows'])    rows    = parseTrackList(override['grid-template-rows']);
+                if (override['grid-template-areas'])   areas   = parseAreasString(override['grid-template-areas']);
+                if (override['grid-gap'] || override.gap) gap = override['grid-gap'] ?? override.gap;
+            } catch { /* ignore invalid queries */ }
+        }
+        return { columns, rows, areas, gap };
+    }
+
+    /**
+     * Write the grid's tracks: the active tracks with a hidden card's row or
+     * column collapsed (resolveVisibilityTracks). An LCARS screen keeps its size
+     * and reshapes inside it: the grid has a definite height (the view's
+     * `layout.height`, the screen below the header by default), so CSS shares
+     * the freed space between the `fr` tracks. Written on the DOM node, not
+     * through Lit, so a visibility change costs no re-render.
+     */
+    _applyVisibilityTracks() {
         const grid = this._qh('#grid-root');
         if (!grid) return;
-
-        // Visibility-controlled rows follow hui-card's own `hidden` verdict
-        // (see resolveVisibilityRowTracks for the open/collapse rule).
-        const rows = resolveVisibilityRowTracks(
-            this._baseRows,
-            (this._visibilityRows ?? []).map(({ rowIndex, cardEl, targetHeight }) =>
-                ({ rowIndex, hidden: !!cardEl.hidden, targetHeight })),
-            this._editMode,
-        );
-
-        // Identify fr tracks in the resolved rows.
-        const frTracks = [];
-        let totalFR = 0;
-        rows.forEach((r, i) => {
-            const m = String(r).match(/^([0-9.]+)fr$/);
-            if (m) { frTracks.push({ index: i, units: parseFloat(m[1]) }); totalFR += parseFloat(m[1]); }
-        });
-
-        if (frTracks.length === 0) {
-            grid.style.gridTemplateRows = rows.join(' ');
-            return;
-        }
-
-        // Available height: the host's (provided by HA's parent container) minus the
-        // grid's own padding and border (layout.padding, and the edit-mode reserve
-        // for the toolbar strip / header gutter).
-        const gcs = getComputedStyle(grid);
-        const inset = (parseFloat(gcs.paddingTop) || 0) + (parseFloat(gcs.paddingBottom) || 0)
-            + (parseFloat(gcs.borderTopWidth) || 0) + (parseFloat(gcs.borderBottomWidth) || 0)
-            + (parseFloat(gcs.marginTop) || 0) + (parseFloat(gcs.marginBottom) || 0);
-        const available = this.getBoundingClientRect().height - inset;
-        if (available <= 0) {
-            // Host not yet laid out — write rows as-is and retry after render.
-            grid.style.gridTemplateRows = rows.join(' ');
-            return;
-        }
-
-        // Write fr tracks as 0px so clamp/vh/px rows compute their natural sizes.
-        const tempRows = rows.map(r => /^[0-9.]+fr$/.test(String(r)) ? '0px' : r);
-        grid.style.gridTemplateRows = tempRows.join(' ');
-
-        // Force reflow and read back computed px values for every row.
-        const computedPx = getComputedStyle(grid).gridTemplateRows
-            .split(/\s+/).map(v => parseFloat(v) || 0);
-
-        // Sum the non-fr row heights and the inter-row gaps.
-        let fixedTotal = 0;
-        rows.forEach((r, i) => {
-            if (!/^[0-9.]+fr$/.test(String(r))) fixedTotal += computedPx[i] ?? 0;
-        });
-        const gap = parseFloat(gcs.rowGap) || 0;
-        const gapTotal = (rows.length - 1) * gap;
-
-        const frSpace = Math.max(0, available - fixedTotal - gapTotal);
-
-        // Replace each fr track with its allocated px.
-        for (const { index, units } of frTracks) {
-            // Rounded down, so the rows never add up to a pixel more than the grid
-            // (which would show a scrollbar on a view that fits).
-            rows[index] = Math.floor(frSpace * units / totalFR) + 'px';
-        }
-
-        grid.style.gridTemplateRows = rows.join(' ');
+        const active = this._activeTracks();
+        const { rows, columns } = resolveVisibilityTracks(active,
+            (this._visibilityCards ?? []).map(({ area, cardEl, conditional, targetHeight }) => ({ area, conditional, hidden: conditional && !!cardEl.hidden, targetHeight })),
+            this._editMode);
+        grid.style.gridTemplateColumns = columns.join(' ');
+        grid.style.gridTemplateRows    = rows.join(' ');
+        if (getAreaNames(active.areas).length) grid.style.gridTemplateAreas = active.areas.map(r => `"${r.join(' ')}"`).join(' ');
+        grid.style.gap = active.gap;
     }
 
     /** Show a card's placement in the dock (it replaces whatever card was there). */
@@ -1253,36 +1202,8 @@ export class LCARdSLayoutView extends LitElement {
     }
 
     _applyMediaQueryOverrides() {
-        const grid = this._qh('#grid-root');
-        if (!grid) return;
-
-        const baseLayout   = this._config?.layout ?? {};
-        const mediaquery   = baseLayout.mediaquery ?? {};
-
-        // Start fresh from the editor-state values
-        let cols  = this._columns.join(' ');
-        let rows  = this._rows.join(' ');
-        let areas = this._areas.map(r => `"${r.join(' ')}"`).join(' ');
-        let gap   = this._gap;
-
-        // Apply any matching media query overrides
-        for (const [query, override] of Object.entries(mediaquery)) {
-            try {
-                if (window.matchMedia(query).matches) {
-                    if (override['grid-template-columns']) cols  = override['grid-template-columns'];
-                    if (override['grid-template-rows'])    rows  = override['grid-template-rows'];
-                    if (override['grid-template-areas'])   areas = override['grid-template-areas'];
-                    if (override['grid-gap'] || override.gap) gap = override['grid-gap'] ?? override.gap;
-                }
-            } catch { /* ignore */ }
-        }
-
-        grid.style.gridTemplateColumns = cols;
-        grid.style.gridTemplateRows    = rows;
-        grid.style.gridTemplateAreas   = areas;
-        grid.style.gap                 = gap;
-        // Cards keep their grid-area and reflow automatically; no re-placement
-        // needed. Per-card visibility is HA's hui-card responsibility.
+        // Cards keep their grid-area and reflow; per-card visibility is hui-card's.
+        this._applyVisibilityTracks();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1304,7 +1225,6 @@ export class LCARdSLayoutView extends LitElement {
         ev.stopPropagation();
         const { columns, rows, areas, gap } = ev.detail;
         this._columns  = columns;
-        this._baseRows = rows;
         this._rows     = rows;
         this._areas    = areas;
         this._gap      = gap ?? this._gap;

@@ -2,13 +2,12 @@
  * lcards-layout-debug.js: LCARdS Layout View diagnostic tool
  *
  * A browser-console paste script, not a Node script: nothing in the build or the
- * tests runs it. It reports how an lcards-layout-view sized its grid rows: the
- * host and grid heights, every row's configured track against its computed px
- * height, the visibility-controlled rows (_baseRows / _visibilityRows, see
- * doc/architecture/layout-view.md "Visibility-driven row sizing"), unexpected
- * 0px rows, whether the host ResizeObserver is connected, and the LCARdS version.
- * Use it when a layout view's rows collapse, overflow or ignore a visibility
- * toggle.
+ * tests runs it. It reports how an lcards-layout-view sized its grid: the host
+ * and grid heights, every row and column's active track (with any matching
+ * mediaquery) against its computed px size, the cards with a Visibility condition
+ * and whether each is hidden (see doc/architecture/layout-view.md "Collapsing rows
+ * and columns"), unexpected 0px tracks, and the LCARdS version. Use it when a
+ * layout view's rows or columns collapse, overflow or ignore a visibility toggle.
  *
  * Paste the entire contents of this file into the browser console on any HA
  * dashboard that uses custom:lcards-layout-view.
@@ -55,90 +54,58 @@
     if (!grid) { console.error('[lcards-diag] #grid-root not found in shadow DOM.'); return; }
 
     // ── 2. Gather data ───────────────────────────────────────────────────────
-    const hostH    = view.getBoundingClientRect().height;
-    const gridCS   = getComputedStyle(grid);
-    const gap      = parseFloat(gridCS.rowGap) || 0;
-    const baseRows = view._baseRows ?? [];
-    const visRows  = view._visibilityRows ?? [];
-    const hass     = view._hass;
+    const hostH   = view.getBoundingClientRect().height;
+    const gridCS  = getComputedStyle(grid);
+    const rowGap  = parseFloat(gridCS.rowGap) || 0;
+    const active  = view._activeTracks?.() ?? { rows: [], columns: [] };
+    const cards   = view._visibilityCards ?? [];
+    const areas   = active.areas ?? [];
+    const px      = (list) => list.split(/\s+/).map(v => parseFloat(v) || 0);
+    const rowsPx  = px(gridCS.gridTemplateRows);
+    const colsPx  = px(gridCS.gridTemplateColumns);
+    const rowSum  = rowsPx.reduce((t, v) => t + v, 0) + (rowsPx.length - 1) * rowGap;
+    const delta   = hostH - rowSum;
 
-    const computedRows = gridCS.gridTemplateRows.split(/\s+/).map(v => parseFloat(v) || 0);
-    const rowSum       = computedRows.reduce((s, v) => s + v, 0);
-    const gapTotal     = (computedRows.length - 1) * gap;
-    const delta        = hostH - rowSum - gapTotal;
-    const deltaOk      = Math.abs(delta) < 2;
+    /** Indexes of the rows (axis 'r') or columns ('c') an area covers. */
+    const span = (area, axis) => {
+        const hits = new Set();
+        areas.forEach((row, r) => row.forEach((name, c) => { if (name === area) hits.add(axis === 'r' ? r : c); }));
+        return [...hits];
+    };
+    const hiddenTrack = (axis, i) => cards.some(c => c.conditional && c.cardEl?.hidden && span(c.area, axis).length === 1 && span(c.area, axis)[0] === i);
 
     // ── 3. Print report ──────────────────────────────────────────────────────
     console.group('%c[lcards layout audit]', 'font-weight:bold;color:#37a6d1');
-
-    // Overall size check
-    console.log(`Host height   : ${hostH}px`);
-    console.log(`Host inline h : ${view.style.height || '(none)'}`);
-    console.log(`Grid inline h : ${grid.style.height || '(none)'}`);
+    console.log(`Host height   : ${hostH}px   (layout.height: ${view._config?.layout?.height ?? 'default, the screen below the header'})`);
     console.log(`Grid overflow : ${gridCS.overflowY}`);
-    console.log(`Row count     : ${computedRows.length}   gap: ${gap}px   gap-total: ${gapTotal}px`);
-    console.log(`Row sum       : ${rowSum.toFixed(2)}px`);
-    console.log(`Gap-adj sum   : ${(rowSum + gapTotal).toFixed(2)}px`);
     console.log(
-        `%cDelta (≈0 = ✓): ${delta.toFixed(2)}px  ${deltaOk ? '✓ PASS' : '✗ OVERFLOW/UNDERFLOW'}`,
-        deltaOk ? 'color:green' : 'color:red;font-weight:bold'
+        `%cRows + gaps   : ${rowSum.toFixed(1)}px, ${Math.abs(delta) < 2 ? '✓ the grid fills the view' : `✗ ${delta.toFixed(1)}px off (scrolls or leaves space)`}`,
+        Math.abs(delta) < 2 ? 'color:green' : 'color:red;font-weight:bold'
     );
 
-    // Visibility rows
-    if (visRows.length) {
-        console.log('');
-        console.log('Visibility-controlled rows:');
-        for (const { rowIndex, entity, expectedState, targetHeight } of visRows) {
-            const state  = hass?.states?.[entity]?.state ?? '(unknown)';
-            const active = state === expectedState;
-            console.log(
-                `  %c[row ${rowIndex}]%c ${entity} = "${state}"  (want "${expectedState}") → ${active ? targetHeight : '0px'}  ${active ? '✓ ON' : '○ OFF'}`,
-                active ? 'color:green' : 'color:orange',
-                'color:inherit'
-            );
+    console.log('');
+    const conditional = cards.filter(c => c.conditional);
+    if (conditional.length) {
+        console.log('Cards with a Visibility condition:');
+        for (const c of conditional) {
+            console.log(`  ${c.area.padEnd(16)} ${c.cardEl?.hidden ? '○ hidden' : '✓ shown'}   rows ${span(c.area, 'r').join(',')}  columns ${span(c.area, 'c').join(',')}${c.targetHeight ? `   height ${c.targetHeight}` : ''}`);
         }
     } else {
+        console.log('No cards with a Visibility condition.');
+    }
+
+    for (const [label, axis, tracks, computed] of [['Rows', 'r', active.rows, rowsPx], ['Columns', 'c', active.columns, colsPx]]) {
         console.log('');
-        console.log('No visibility-controlled rows detected.');
-        if (baseRows.length === 0) console.warn('  _baseRows is empty: has setConfig() run?');
+        console.log(`${label}:`);
+        (tracks ?? []).forEach((track, i) => {
+            const size = computed[i] ?? 0;
+            const note = size === 0 && track !== '0px'
+                ? (hiddenTrack(axis, i) ? '  ← collapsed (hidden card)' : '  ← %c0px, not by a hidden card')
+                : '';
+            if (note.includes('%c')) console.warn(`  [${i}] "${track}" = ${size.toFixed(1)}px${note.replace('%c', '')}`);
+            else console.log(`  [${i}] "${track}" = ${size.toFixed(1)}px${note}`);
+        });
     }
-
-    // Per-row breakdown
-    console.log('');
-    console.log('Row breakdown:');
-    (baseRows.length ? baseRows : computedRows.map(() => '?')).forEach((base, i) => {
-        const px     = computedRows[i] ?? '?';
-        const isFR   = /^[0-9.]+fr$/.test(String(base));
-        const visHit = visRows.find(v => v.rowIndex === i);
-        let note = '';
-        if (visHit) {
-            const state  = hass?.states?.[visHit.entity]?.state ?? '?';
-            const active = state === visHit.expectedState;
-            note = `  ← vis ${active ? '✓' : '○'}  ${visHit.entity}="${state}"`;
-        } else if (isFR) {
-            const expected = hostH - (rowSum - px) - gapTotal;
-            const match = Math.abs(px - expected) < 2;
-            note = `  ← fr  computed=${px.toFixed(1)}px  expected=${expected.toFixed(0)}px  ${match ? '✓' : '✗'}`;
-        }
-        console.log(`  [${i}]  base="${base}"   computed=${typeof px === 'number' ? px.toFixed(2) : px}px${note}`);
-    });
-
-    // Unexpected 0px rows
-    console.log('');
-    const unexpected = baseRows
-        .map((b, i) => ({ i, b, px: computedRows[i] }))
-        .filter(({ b, i, px }) => px === 0 && b !== '0px' && !visRows.find(v => v.rowIndex === i));
-    if (unexpected.length) {
-        console.warn('%cUnexpected 0px rows (not visibility-controlled):', 'color:red');
-        unexpected.forEach(({ i, b }) => console.warn(`  [${i}] base="${b}"`));
-    } else {
-        console.log('No unexpected 0px rows ✓');
-    }
-
-    // ResizeObserver wired?
-    console.log('');
-    const hasRO = !!view._hostResizeObserver;
-    console.log(`ResizeObserver : ${hasRO ? '✓ connected' : '✗ NOT present: resize will not update rows'}`);
 
     // LCARdS version
     const ver = window.lcards?.version ?? '(unknown)';

@@ -38,9 +38,8 @@ export function buildGridStyle(layout = {}, columns, rows, areas, gap, opts = {}
         defaultHeight = 'calc(100dvh - var(--header-height, 56px))',
         // Unconditional height override. The view passes '100%' here so that #grid-root fills
         // the host element, which carries the actual height value. This way the CSS Grid engine
-        // receives the height as a parent-provided size rather than a self-imposed one.
-        // Note: in practice HA's layout context still treats available block-size as indefinite,
-        // so fr tracks are resolved in JS by _applyVisibilityRowHeights() rather than by CSS.
+        // receives the height as a parent-provided size rather than a self-imposed one, and
+        // CSS shares it between the fr tracks (a collapsed track's space goes to them).
         overrideHeight = undefined,
         overflowY = 'auto',
     } = opts;
