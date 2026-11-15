@@ -189,7 +189,7 @@ export const LCARS_SECTIONS = {
         build: (hass, ids) => { const labels = sectionLabels(hass, ids); return [...ids].sort(byName(hass)).map(id => ({
             type: 'custom:lcards-slider', preset: 'picard-gauge-column', entity: id,
             style: { gauge: { scale: { labels: { enabled: false } } } },
-            text: { name: { content: capLabel(labels.get(id) ?? '') } },
+            text: { name: { content: capLabel(labels.get(id) ?? ''), fit: true } },
             hold_action: { action: 'more-info' },
             grid_options: { columns: 3, rows: 5 },
         })); },
@@ -200,7 +200,7 @@ export const LCARS_SECTIONS = {
         match: () => isToggle,
         build: (hass, ids) => { const labels = sectionLabels(hass, ids); return [...ids].sort(byName(hass)).map(id => ({
             type: 'custom:lcards-button', preset: 'lozenge', entity: id,
-            text: { label: { content: labels.get(id), show: true } },
+            text: { label: { content: labels.get(id), show: true, fit: true } },
             tap_action: { action: 'toggle' }, hold_action: { action: 'more-info' },
             grid_options: { columns: 6, rows: 1 },
         })); },
@@ -225,7 +225,7 @@ export const LCARS_SECTIONS = {
                         style: { card: { color: { background: { default: STRUCTURE } } } }, view_layout: { 'grid-column': '1', 'grid-row': '1 / -1' } },
                     ...sorted.map(id => ({
                         type: 'custom:lcards-button', preset: 'panel-dark', entity: id, min_height: 0,
-                        text: { label: { content: labels.get(id), position: 'center-right', font_size: 14 } },
+                        text: { label: { content: labels.get(id), position: 'center-right', font_size: 14, fit: true } },
                         tap_action: { action: 'toggle' }, hold_action: { action: 'more-info' },
                     })),
                 ],

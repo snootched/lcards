@@ -24,7 +24,7 @@ topics:
     title: Buttons and elbows
     groups:
       - title: Buttons
-        views: [button-presets, button-states, button-components, button-dpad-voyager, button-brackets-radar, actions-confirmation]
+        views: [button-presets, button-states, button-components, button-dpad-voyager, button-brackets-radar, actions-confirmation, text-fit]
       - title: Elbows
         views: [elbows]
       - title: LCARS patterns
@@ -100,6 +100,12 @@ releases:
         description: "chart_type: rangeBar. Toggle LIGHTS and DOORS or pick a MODE: the bar on the right grows while a state holds and a change starts a new one; hover a bar for its state, times and how long it lasted. Top: the theme's state colours, as Home Assistant's history draws them. Middle: your own colours by state, only the lights' active runs, changes under 30 seconds hidden. Bottom: state_bands shade the lights (orange) and doors (blue) behind VALUE while they are on; drag VALUE to move the line. All three share a sync_group: hover one and a dashed line marks the same moment on the others."
         session: "E1.2 rangeBar timeline, E1.1 state bands, E1.3 sync_group"
         docs: /cards/chart/types#timelines
+        public: true
+      - file: text-fit
+        summary: "Text fit: long text shrinks, wraps, then ends in an ellipsis inside its zone"
+        description: "Each pair shows a long label without fit and with fit: true. A block's label shrinks and wraps to two lines; with max_lines: 1 it shrinks to its minimum and ends in an ellipsis; a lozenge and a Picard gauge cap keep a long name inside. Toggle WARP TRAVEL or drag a gauge: the text stays fitted."
+        session: "D text fit"
+        docs: /core/text-fields-style#fit
         public: true
       - file: sections-strategies
         summary: "LCARS section strategies: readings, gauges, controls and code blocks that fill themselves"
