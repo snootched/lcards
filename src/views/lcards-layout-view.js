@@ -64,6 +64,7 @@ import {
     applyCardPlacement,
     applyGridItemHeight,
     renderAreaSurfaces,
+    placeGridChildren,
 } from './layout-render.js';
 import {
     ICON,
@@ -712,16 +713,19 @@ export class LCARdSLayoutView extends LitElement {
         const grid = this._qh('#grid-root');
         if (!grid) return;
 
-        grid.innerHTML = '';
-
         const layout       = this._config?.layout ?? {};
         const cardMargin   = layout.card_margin ?? null;
         const cardOverflow = layout.card_overflow ?? 'visible';
         const cardMode     = this._editMode && this._editSubMode === 'cards';
 
+        // Card mode wraps every card in edit controls, so it rebuilds the grid.
+        // Otherwise cards already in place stay put (placeGridChildren, #409).
+        if (cardMode) grid.innerHTML = '';
+        const surfaces = document.createDocumentFragment();
+
         // Per-area backing surfaces (background/border etc.) — rendered first so
         // cards paint above their own area surface by DOM order.
-        renderAreaSurfaces(grid, layout, this._areas);
+        renderAreaSurfaces(cardMode ? grid : surfaces, layout, this._areas);
 
         // Card mode: areas holding several stacked cards (only the top one would
         // get the pointer) get a picker that brings one card's controls to the front.
@@ -779,9 +783,9 @@ export class LCARdSLayoutView extends LitElement {
                 // Outside card mode the card element itself is the grid item.
                 applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings, { cellFits });
                 applyGridItemHeight(cardEl, cardEl.config);
-                grid.appendChild(cardEl);
             }
         });
+        if (!cardMode) placeGridChildren(grid, this._cardElements ?? [], surfaces);
 
         for (const [area, list] of stacks) {
             const picker = document.createElement('div');

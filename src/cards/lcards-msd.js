@@ -206,6 +206,12 @@ export class LCARdSMSDCard extends LCARdSCard {
         // comment). Without this, both calls run the full SVG-fetch/pipeline-
         // init/background-animation sequence concurrently and redundantly.
         this._msdLoadInFlight = null;
+        // Bumped by _cleanupMsdPipeline(). A load started under an older generation
+        // is stale: a disconnect tore its card down while it ran (Home Assistant
+        // detaches and re-attaches cards during a view build, #409). It stops at its
+        // next await and is never reused, so the reconnect builds a fresh pipeline
+        // instead of waiting on one that can no longer reveal the card.
+        this._msdGeneration = 0;
         // Set by _onRulePatchesChanged() when it triggers a re-render (fire-and-
         // forget for its other, post-reveal callers) — _initializeMsdPipeline()
         // awaits this once, right after the initial rules registration, so the
@@ -396,20 +402,27 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @private
      */
     async _loadAndInitializeMsd() {
-        if (this._msdLoadInFlight) {
-            lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsd already in flight - awaiting existing call');
-            return this._msdLoadInFlight;
+        // Reuse a load of this generation; let a stale one (its card was torn down
+        // while it ran) finish first, then start a fresh one.
+        while (this._msdLoadInFlight) {
+            const inFlight = this._msdLoadInFlight;
+            if (inFlight.generation === this._msdGeneration) {
+                lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsd already in flight - awaiting existing call');
+                return inFlight.promise;
+            }
+            lcardsLog.debug('[LCARdSMSDCard] Waiting for a stale MSD load to finish before loading again');
+            await inFlight.promise.catch(() => {});
+            if (this._msdLoadInFlight === inFlight) this._msdLoadInFlight = null;
         }
 
-        const loadPromise = this._loadAndInitializeMsdCore();
-        this._msdLoadInFlight = loadPromise;
+        const generation = this._msdGeneration;
+        const entry = { generation, promise: this._loadAndInitializeMsdCore(generation) };
+        this._msdLoadInFlight = entry;
         try {
-            await loadPromise;
+            await entry.promise;
         } finally {
-            // Compare-and-clear: guards against a stale/orphaned call's finally
-            // block clobbering a newer cycle's in-flight reference (e.g. a fast
-            // disconnect/reconnect happening while an old call is still winding down).
-            if (this._msdLoadInFlight === loadPromise) {
+            // Compare-and-clear: a newer cycle may own the slot by now.
+            if (this._msdLoadInFlight === entry) {
                 this._msdLoadInFlight = null;
             }
         }
@@ -417,8 +430,9 @@ export class LCARdSMSDCard extends LCARdSCard {
 
     /**
      * @private
+     * @param {number} generation - the _msdGeneration this load belongs to
      */
-    async _loadAndInitializeMsdCore() {
+    async _loadAndInitializeMsdCore(generation) {
         lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsdCore called');
 
         // Tier 2/3 (editor stats display, card-picker placeholder) never show the
@@ -509,7 +523,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             guid: this._msdInstanceGuid
         });
 
-        await this._initializeMsdPipeline();
+        await this._initializeMsdPipeline(generation);
+        if (generation !== this._msdGeneration) return;
 
         // Must come after pipeline init: _msdInitialized only flips to true (and the
         // SVG container, i.e. #msd-v1-comprehensive-wrapper, only actually mounts)
@@ -1149,7 +1164,8 @@ export class LCARdSMSDCard extends LCARdSCard {
      * Initialize MSD pipeline using initMsdPipeline from pipeline core
      * @private
      */
-    async _initializeMsdPipeline() {
+    async _initializeMsdPipeline(generation = this._msdGeneration) {
+        if (generation !== this._msdGeneration) return;
         if (this._msdInitialized || !this._msdConfig || !this.hass) {
             lcardsLog.debug('[LCARdSMSDCard] Skipping pipeline init:', {
                 initialized: this._msdInitialized,
@@ -1174,6 +1190,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             // This ensures the SVG container is actually mounted in the DOM
             // before the renderer tries to access it
             await this.updateComplete;
+            // Torn down while waiting: the cleanup reset the flags already.
+            if (generation !== this._msdGeneration) return;
 
             lcardsLog.debug('[LCARdSMSDCard] SVG container rendered and mounted to DOM');
 
@@ -1214,6 +1232,13 @@ export class LCARdSMSDCard extends LCARdSCard {
                 this._isStudioPreview,
                 this  // the first render resolves colours against the card (view and section themes)
             );
+
+            if (generation !== this._msdGeneration) {
+                // Torn down while the pipeline was built: it belongs to no card now.
+                pipelineResult?.coordinator?.destroy?.();
+                lcardsLog.debug('[LCARdSMSDCard] Discarded a pipeline built for a torn-down card');
+                return;
+            }
 
             if (!pipelineResult || !pipelineResult.enabled) {
                 lcardsLog.error('[LCARdSMSDCard] Pipeline initialization failed or disabled');
@@ -1262,6 +1287,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             lcardsLog.debug('[LCARdSMSDCard] ✅ MSD pipeline initialized successfully with SVG container mounted');
 
         } catch (error) {
+            if (generation !== this._msdGeneration) return;
             lcardsLog.error('[LCARdSMSDCard] Pipeline initialization error:', error);
             this._configIssues = {
                 errors: [{ message: `Pipeline initialization failed: ${error.message}` }]
@@ -1331,6 +1357,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @private
      */
     _cleanupMsdPipeline() {
+        this._msdGeneration++;
         if (this._msdPipeline?.coordinator?.destroy) {
             this._msdPipeline.coordinator.destroy();
         }

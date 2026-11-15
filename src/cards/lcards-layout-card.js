@@ -38,6 +38,7 @@ import {
     applyCardPlacement,
     applyGridItemHeight,
     renderAreaSurfaces,
+    placeGridChildren,
 } from '../views/layout-render.js';
 
 import { layoutCardSchema } from './schemas/layout-card-schema.js';
@@ -282,14 +283,13 @@ export class LCARdSLayoutCard extends LitElement {
     _placeCards() {
         const grid = /** @type {HTMLElement | null} */ (this.renderRoot?.querySelector('#grid-root'));
         if (!grid) return;
-        grid.innerHTML = '';
-
         const layout       = this._config?.layout ?? {};
         const cardMargin   = layout.card_margin ?? null;
         const cardOverflow = layout.card_overflow ?? 'visible';
 
         const active = this._activeGrid();
-        renderAreaSurfaces(grid, layout, active.areas);
+        const surfaces = document.createDocumentFragment();
+        renderAreaSurfaces(surfaces, layout, active.areas);
         const gridDefinite = gridHeightIsDefinite(layout.height);
 
         (this._cardElements ?? []).forEach((cardEl, i) => {
@@ -299,8 +299,9 @@ export class LCARdSLayoutCard extends LitElement {
             const cellFits     = cellHeightDefinite(active.rows, active.areas, viewLayout, gridDefinite);
             applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings, { cellFits });
             applyGridItemHeight(cardEl, childCfg);
-            grid.appendChild(cardEl);
         });
+        // cards already in place stay put (no disconnect and reconnect, #409)
+        placeGridChildren(grid, this._cardElements ?? [], surfaces);
     }
 
     static styles = css`

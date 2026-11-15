@@ -226,7 +226,7 @@ export function applyAreaSurfaceStyle(el, s) {
  * siblings) and sit beneath it, so they show through margins and remain visible
  * when the area is empty.
  *
- * @param {HTMLElement} grid    the grid container
+ * @param {HTMLElement|DocumentFragment} grid    the grid container (or a fragment for placeGridChildren)
  * @param {object} layout       the `layout` block (reads `layout.areas`)
  * @param {string[][]} areas    2D area matrix (used to validate names)
  */
@@ -242,4 +242,29 @@ export function renderAreaSurfaces(grid, layout, areas) {
         applyAreaSurfaceStyle(surface, settings);
         grid.appendChild(surface);
     }
+}
+
+/**
+ * Put the cards into the grid, after the area surfaces, without moving a card
+ * that is already in place. Moving or re-appending a card disconnects and
+ * reconnects it (every LCARdS card then tears down and renders again), and
+ * Home Assistant hands a view the same card elements several times while it
+ * builds (#409). Only cards out of order move; other children (old surfaces,
+ * edit-mode wrappers, cards that left) are removed.
+ *
+ * @param {HTMLElement} grid
+ * @param {HTMLElement[]} cards     in grid order
+ * @param {DocumentFragment} [surfaces]  area surfaces (renderAreaSurfaces), painted under the cards
+ */
+export function placeGridChildren(grid, cards, surfaces) {
+    const wanted = new Set(cards);
+    for (const child of [...grid.children]) {
+        if (!wanted.has(/** @type {HTMLElement} */ (child))) child.remove();
+    }
+    let next = grid.firstElementChild;
+    for (const card of cards) {
+        if (card === next) next = next.nextElementSibling;
+        else grid.insertBefore(card, next);
+    }
+    if (surfaces) grid.insertBefore(surfaces, grid.firstChild);
 }
