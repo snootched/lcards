@@ -103,7 +103,7 @@ export const dataGridSchema = {
                 {
                     type: 'string',
                     enum: ['decorative', 'data'],
-                    description: 'decorative: generated values; data: your rows. Defaults to data when rows are set, otherwise decorative.'
+                    description: 'decorative: generated values; data: your rows. Defaults to data when rows with values are set, otherwise decorative (rows with only a style stay decorative).'
                 },
                 {
                     type: 'string',
@@ -138,7 +138,7 @@ export const dataGridSchema = {
         // ── Data mode ───────────────────────────────────────────────────────
         rows: {
             type: 'array',
-            description: 'Data rows. Each row is a list of cells, or { values, style, header }.',
+            description: 'Data mode: the rows, each a list of cells or { values, style, header }. Decorative mode: row styles only ({ style }, such as a colour per row); the list repeats from the top when the grid has more rows.',
             items: {
                 oneOf: [
                     { type: 'array', title: 'Row', items: cellSchema },
@@ -157,6 +157,13 @@ export const dataGridSchema = {
                             sources: { type: 'array', deprecated: true, 'x-replacement': 'values' }
                         },
                         required: ['values']
+                    },
+                    {
+                        type: 'object',
+                        title: 'Row style (decorative mode)',
+                        properties: { style: dataGridCellStyleSchema },
+                        required: ['style'],
+                        not: { anyOf: [{ required: ['values'] }, { required: ['sources'] }] }
                     }
                 ]
             }

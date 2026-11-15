@@ -172,7 +172,9 @@ export class LCARdSDataGrid extends LCARdSCard {
   get _dataMode() {
     const mode = this.config?.data_mode;
     if (mode === 'data' || mode === 'decorative') return mode;
-    return Array.isArray(this.config?.rows) && this.config.rows.length ? 'data' : 'decorative';
+    // Rows that are only a style (a colour per row) belong to a decorative grid.
+    const rows = Array.isArray(this.config?.rows) ? this.config.rows : [];
+    return rows.some(r => Array.isArray(r) || (r && typeof r === 'object' && ('values' in r || 'sources' in r))) ? 'data' : 'decorative';
   }
 
   /** @protected */
@@ -727,7 +729,9 @@ export class LCARdSDataGrid extends LCARdSCard {
     const cached = this._styleCache.get(key);
     if (cached) return cached;
 
-    const rowCfg = this._rows[row];
+    // Decorative mode: the rows list is row styles, repeating from the top.
+    const decorative = this._dataMode === 'decorative' && Array.isArray(this.config.rows) ? this.config.rows : null;
+    const rowCfg = decorative?.length ? decorative[row % decorative.length] : this._rows[row];
     const isHeader = rowCfg?.header === true;
     const cell = this._cellConfigs[row]?.[col];
     const columns = Array.isArray(this.config.columns) ? this.config.columns : [];

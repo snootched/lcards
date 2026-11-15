@@ -26,3 +26,25 @@ test('under reduced motion a cascade grid keeps its cells\' own colour', async (
     await expect.poll(async () => (await cellColours(page)).some((c) => c !== 'rgb(0, 200, 0)'), { timeout: 8000 }).toBe(true);
     await expectNoErrors(page);
 });
+
+test('decorative mode: rows hold a style per row, repeating from the top (design pilot 2026-11-11)', async ({ page }) => {
+    await mountCase(page, 'data-grid-decorative', { width: '400' });
+    await page.evaluate(() => window.__reconfigure({
+        type: 'custom:lcards-data-grid', format: 'digit',
+        grid: { 'grid-template-rows': 'repeat(5, auto)', 'grid-template-columns': 'repeat(3, 1fr)' },
+        // no data_mode: style-only rows keep the grid decorative
+        rows: [{ style: { color: 'rgb(255, 0, 0)' } }, { style: { color: 'rgb(0, 0, 255)' } }],
+        columns: [{ style: { color: 'rgb(0, 200, 0)' } }],
+    }));
+    const firstColumn = () => page.evaluate(() => {
+        const grid = document.querySelector('lcards-data-grid');
+        const cells = [...grid.shadowRoot.querySelectorAll('.grid-cell')];
+        return { count: cells.length, colours: cells.filter((_, i) => i % 3 === 0).map((c) => getComputedStyle(c).color) };
+    });
+    // 15 generated cells; row colours alternate and win over the column colour
+    await expect.poll(firstColumn).toEqual({
+        count: 15,
+        colours: ['rgb(255, 0, 0)', 'rgb(0, 0, 255)', 'rgb(255, 0, 0)', 'rgb(0, 0, 255)', 'rgb(255, 0, 0)'],
+    });
+    await expectNoErrors(page);
+});

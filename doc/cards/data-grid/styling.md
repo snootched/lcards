@@ -19,7 +19,7 @@ How the cells look, how the grid is laid out, and how it moves. What the cells s
 | 2 | `style` | Every cell |
 | 3 | Header defaults, then `header_style` | Rows with `header: true` |
 | 4 | `columns[i].style` | Column i (counting from 0) |
-| 5 | Row `style` | One row (a row written with `values`) |
+| 5 | Row `style` | One row (a row written with `values`; in decorative mode, a [row style](#row-styles-in-decorative-mode)) |
 | 6 | Cell `style` | One cell (a [cell object](./data#cell-objects)) |
 
 ```yaml live
@@ -60,6 +60,35 @@ header_style:
 | `columns[].style` | object | - | Style for one column, by position |
 | `rows[].style` | object | - | Style for one row |
 | `rows[].values[].style` | object | - | Style for one cell |
+
+## Row styles in decorative mode
+
+**In decorative mode, `rows` holds a style for each row instead of values: the classic number cascade with one or two colours a row.** The list repeats from the top, so two entries alternate down the whole grid.
+
+- A row here has only `style`; a row with `values` makes the grid a data grid. Set `data_mode: decorative` to say which you mean.
+- Row styles sit between column styles and cell styles, so a row colour wins over a column colour. A [cascade](#the-cascade) animates the text colour and overrides it while it runs.
+
+```yaml live
+type: custom:lcards-data-grid
+data_mode: decorative
+format: digit
+grid:
+  grid-template-rows: repeat(6, auto)
+  grid-template-columns: repeat(8, 1fr)
+  gap: 0px 10px
+style:
+  font_size: 18px
+# two colours, alternating down the grid
+rows:
+  - style:
+      color: var(--lcars-african-violet)
+  - style:
+      color: var(--lcars-orange)
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `rows[].style` | object | - | Decorative mode: the style for one row; the list repeats from the top when the grid has more rows |
 
 ## Style keys
 
