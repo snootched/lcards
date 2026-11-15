@@ -48,6 +48,7 @@ import './msd/index.js';
 
 // LCARdS strategy imports
 import { LCARdSShellDashboardStrategy, LCARdSShellStrategyEditor, LCARdSShellPicardDashboardStrategy } from './strategies/index.js';
+import { registerLcarsSections } from './strategies/lcards-section-strategies.js';
 
 // LCARdS view imports
 import { LCARdSLayoutView } from './views/index.js';
@@ -516,6 +517,10 @@ if (!customElements.get('ll-strategy-dashboard-lcars-shell-picard')) {
 if (!customElements.get('lcards-shell-strategy-editor')) {
     customElements.define('lcards-shell-strategy-editor', LCARdSShellStrategyEditor);
 }
+
+// LCARS section strategies: Home Assistant's Create section → Automatic section
+// lists them under Community sections. Top level, like the dashboard strategies.
+registerLcarsSections();
 
 // Register the LCARS shell as a community dashboard in HA's New Dashboard picker (HA 2026.5+).
 window.customStrategies = window.customStrategies || [];

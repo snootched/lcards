@@ -73,6 +73,8 @@ export const DOCS = Object.freeze({
   layoutCard: '/cards/layout-card/',
   // The New Dashboard picker entry for the lcars-shell strategy.
   dashboardStrategies: '/getting-started/dashboard-strategies',
+  // The section chooser's entries for the LCARS section strategies.
+  sectionStrategies: '/getting-started/section-strategies',
 });
 
 /** Docs page per LCARdS config panel tab, by tab index (lcards-config-panel.js). */

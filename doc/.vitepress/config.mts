@@ -421,6 +421,7 @@ export default withMermaid(defineConfig({
           { text: 'Installation',          link: '/getting-started/installation' },
           { text: 'Building a Dashboard', link: '/getting-started/building-dashboards' },
           { text: 'Dashboard Strategies', link: '/getting-started/dashboard-strategies' },
+          { text: 'Section Strategies', link: '/getting-started/section-strategies' },
           { text: 'Designing LCARS Screens', link: '/getting-started/lcars-design' },
           { text: 'LCARS Patterns',       link: '/getting-started/lcars-patterns' },
           { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
@@ -609,6 +610,7 @@ export default withMermaid(defineConfig({
             { text: 'Installation',               link: '/getting-started/installation' },
             { text: 'Building a Dashboard',    link: '/getting-started/building-dashboards' },
             { text: 'Dashboard Strategies',    link: '/getting-started/dashboard-strategies' },
+            { text: 'Section Strategies',    link: '/getting-started/section-strategies' },
             {
               text: 'Designing LCARS Screens',
               collapsed: true,

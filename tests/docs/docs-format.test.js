@@ -15,6 +15,7 @@ const ROOT = path.resolve(import.meta.dirname, '../..');
 const FORMATTED = [
   'doc/cards/layout-view/index.md',
   'doc/getting-started/dashboard-strategies.md',
+  'doc/getting-started/section-strategies.md',
   'doc/cards/common.md',
   'doc/cards/slider-card/index.md',
   'doc/cards/slider-card/styles.md',

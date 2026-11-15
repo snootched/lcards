@@ -9,6 +9,7 @@ description: "Dashboard strategies: dashboards LCARdS builds for you from a few 
 - A strategy dashboard rebuilds itself when you add, rename or move areas, devices or entities. While it does, you can change its settings but not its cards.
 - To change the cards, **take control**: Home Assistant saves what the strategy made as an ordinary dashboard, and you edit it like any other. The strategy no longer runs after that.
 - LCARdS has one dashboard strategy so far, the [LCARS Dashboard](#lcars-dashboard). More are on the way.
+- For single sections that fill themselves inside your own sections dashboard, see [Section Strategies](section-strategies).
 
 | Strategy | In the Add dashboard dialog | What it builds |
 |---|---|---|

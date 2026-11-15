@@ -82,6 +82,7 @@ declare global {
         'lcards-rule-editor-dialog': import('../editor/components/dashboard/lcards-rule-editor-dialog.js').LCARdSRuleEditorDialog;
         'lcards-rules-dashboard': import('../editor/components/dashboard/lcards-rules-dashboard.js').LCARdSRulesDashboard;
         'lcards-scope-selector': import('../panels/components/shared/lcards-scope-selector.js').LCARdSScopeSelector;
+        'lcards-section-strategy-editor': import('../strategies/lcards-section-strategies.js').LCARdSSectionStrategyEditor;
         'lcards-select-menu': import('../cards/lcards-select-menu.js').LCARdSSelectMenu;
         'lcards-select-menu-editor': import('../editor/cards/lcards-select-menu-editor.js').LCARdSSelectMenuEditor;
         'lcards-shape-texture-editor': import('../editor/components/lcards-shape-texture-editor.js').LCARdSShapeTextureEditor;

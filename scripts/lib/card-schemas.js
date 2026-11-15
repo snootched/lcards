@@ -23,6 +23,7 @@ import { layoutCardSchema, layoutViewSchema } from '../../src/cards/schemas/layo
 import { getMsdSchema }          from '../../src/cards/schemas/msd-schema.js';
 import { astrometricsSchema }    from '../../src/cards/schemas/astrometrics-schema.js';
 import { shellStrategySchema, shellPicardStrategySchema } from '../../src/cards/schemas/shell-strategy-schema.js';
+import { LCARS_SECTION_KINDS, lcarsSectionSchema } from '../../src/cards/schemas/section-strategy-schema.js';
 import { TEXT_POSITIONS }        from '../../src/cards/schemas/schema-options.js';
 import { withCardPlumbing }      from '../../src/cards/schemas/card-plumbing.js';
 import { BUTTON_PRESETS }        from '../../src/core/packs/style-presets/buttons/index.js';
@@ -62,5 +63,6 @@ export function getSchemaEntries() {
     { kind: 'view',     tag: 'lcards-layout-view',   schema: layoutViewSchema },
     { kind: 'strategy', tag: 'lcars-shell',          schema: shellStrategySchema },
     { kind: 'strategy', tag: 'lcars-shell-picard',   schema: shellPicardStrategySchema },
+    ...LCARS_SECTION_KINDS.map(([tag, shows]) => ({ kind: /** @type {const} */ ('strategy'), tag, schema: lcarsSectionSchema(tag, shows) })),
   ]).map(e => (e.kind === 'card' ? { ...e, schema: withCardPlumbing(e.schema) } : e));
 }
