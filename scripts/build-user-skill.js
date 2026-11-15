@@ -70,9 +70,11 @@ const write = (rel, text) => {
 
 // SKILL.md, stamped with the version it was built for.
 const skillMd = readFileSync(join(ROOT, 'skills/lcards/SKILL.md'), 'utf8');
-// The docs channel's preview page (Preview Your YAML), for the preview link.
-const previewUrl = `${SITE_URL}${process.env.DOCS_BASE ?? '/'}getting-started/preview.html`;
-write('SKILL.md', skillMd.replace(/\n# LCARdS\n/, `\n# LCARdS\n\n<!-- Built for LCARdS ${version} -->\n`).replaceAll('__PREVIEW_URL__', previewUrl));
+// This docs channel's site (gallery pictures) and its preview page (Preview Your YAML).
+const docsUrl = `${SITE_URL}${process.env.DOCS_BASE ?? '/'}`;
+const previewUrl = `${docsUrl}getting-started/preview.html`;
+write('SKILL.md', skillMd.replace(/\n# LCARdS\n/, `\n# LCARdS\n\n<!-- Built for LCARdS ${version} -->\n`)
+  .replaceAll('__PREVIEW_URL__', previewUrl).replaceAll('__DOCS_URL__', docsUrl));
 
 // Hand-written references (the feature catalogue), next to the generated ones.
 const handRefs = join(ROOT, 'skills/lcards/references');

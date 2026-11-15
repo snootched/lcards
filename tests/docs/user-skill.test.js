@@ -110,6 +110,19 @@ test("the preview link points at this docs channel's preview page", () => {
     assert.ok(existsSync(join(ROOT, 'doc/getting-started/preview.md')));
 });
 
+test('SKILL.md links a gallery picture for every gallery dashboard it names', () => {
+    const md = readFileSync(join(skill, 'SKILL.md'), 'utf8');
+    assert.ok(!md.includes('__DOCS_URL__'), 'placeholder filled in');
+    assert.ok(md.includes('https://lcards.unimatrix01.ca/gallery/<name>.webp'));
+    for (const f of readdirSync(join(skill, 'references/gallery')).filter(f => f.endsWith('.yaml'))) {
+        assert.ok(existsSync(join(ROOT, 'doc/public/gallery', f.replace(/\.yaml$/, '.webp'))), `no picture for ${f}`);
+    }
+    const step2 = md.slice(md.indexOf('To show a look or a style'), md.indexOf('Keep each concept short'));
+    for (const [, name] of step2.matchAll(/`([a-z-]+)`/g)) {
+        assert.ok(existsSync(join(ROOT, 'doc/public/gallery', `${name}.webp`)), `SKILL.md names ${name}, which has no picture`);
+    }
+});
+
 test('schemas for every card, view and strategy; docs for every card', () => {
     const index = JSON.parse(readFileSync(join(skill, 'references/schema/index.json'), 'utf8'));
     for (const { tag } of getSchemaEntries()) {
