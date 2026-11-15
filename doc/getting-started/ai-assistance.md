@@ -25,7 +25,7 @@ description: "Get Claude, ChatGPT or another AI assistant to write LCARdS YAML t
      /plugin install lcards@lcards
      ```
 
-   - **claude.ai or the Claude apps:** download [`lcards-skill.zip`](/tools/lcards-skill.zip) and upload it as a custom skill in **Settings** (needs code execution turned on).
+   - **claude.ai or the Claude apps:** download [`lcards-skill.zip`](/tools/lcards-skill.zip) and upload it as a custom skill in **Settings** (needs code execution turned on). To let Claude show you pictures of gallery screens while you plan, allow network access to `lcards.unimatrix01.ca` in the code execution settings (add it to the allowed domains, or allow all domains). Without it, Claude gives you the links.
 2. Ask. For example:
    - "Make me an LCARdS button for `light.kitchen` that turns red when it's on."
    - "Build an engineering dashboard with my `sensor.power_*` entities."
