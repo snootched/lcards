@@ -14,6 +14,7 @@ const ROOT = path.resolve(import.meta.dirname, '../..');
 /** Pages written to the formula */
 const FORMATTED = [
   'doc/cards/layout-view/index.md',
+  'doc/getting-started/dashboard-strategies.md',
   'doc/cards/common.md',
   'doc/cards/slider-card/index.md',
   'doc/cards/slider-card/styles.md',

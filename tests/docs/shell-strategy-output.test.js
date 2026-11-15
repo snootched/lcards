@@ -144,8 +144,9 @@ test('shell strategy: room lights come from the registries, no auto-entities', a
             [[{ condition: 'state', entity: selector, state: ['bridge', 'Bridge'] }], ['light.a', 'light.b']],
             [[{ condition: 'state', entity: selector, state: ['engineering', 'Engineering'] }], ['light.c']],
         ], selector);
-        const empty = cards.find(c => c.type === 'custom:lcards-button' && c.visibility);
-        assert.deepEqual(empty?.visibility, [{ condition: 'state', entity: selector, state: ['cargo', 'Cargo Bay'] }]);
+        // the note shows for every other state: an empty area, an option naming no area, nothing picked
+        const note = cards.find(c => c.type === 'custom:lcards-button' && c.visibility);
+        assert.deepEqual(note?.visibility, [{ condition: 'state', entity: selector, state_not: ['bridge', 'Bridge', 'engineering', 'Engineering'] }]);
         // the wrapper in the list cell has no condition, so the column never collapses
         const wrapper = cards.find(c => c.view_layout?.['grid-area'] === 'list');
         assert.equal(wrapper?.visibility, undefined);

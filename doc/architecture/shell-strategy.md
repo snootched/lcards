@@ -12,7 +12,7 @@ A dashboard strategy is a class Home Assistant asks for a dashboard config: the 
 
 The LCARS shell strategy returns one view (`path: lcars`, type `custom:lcards-layout-view`) whose grid draws the LCARS frame. Its nested panels are `custom:lcards-layout-card`s, its chrome is `lcards-elbow` and `lcards-button` cards, navigation is an `lcards-select-menu`, and the content panel is a room light controller. The grid machinery it relies on (visibility-driven row sizing, media queries, per-area surfaces) is described in [Layout View and Layout Card](layout-view.md).
 
-The user-facing description is the strategy's entry in Home Assistant's New Dashboard picker ("LCARS Dashboard") and its configure dialog; the docs mention it on [Layout View](../cards/layout-view/), [Select Menu: Layout](../cards/select-menu/layout.md) (the sidebar pattern) and [LCARS Patterns](../getting-started/lcars-patterns.md). The published schema is in `lcards-schema.json` ([AI Assistance](../getting-started/ai-assistance.md)).
+The user-facing page is [Dashboard Strategies](../getting-started/dashboard-strategies.md) (the picker entry's `documentationURL`); the docs also mention it on [Layout View](../cards/layout-view/), [Select Menu: Layout](../cards/select-menu/layout.md) (the sidebar pattern) and [LCARS Patterns](../getting-started/lcars-patterns.md). The published schema is in `lcards-schema.json` ([AI Assistance](../getting-started/ai-assistance.md)).
 
 ---
 
@@ -41,7 +41,7 @@ Home Assistant turns `strategy.type: custom:lcars-shell` of a dashboard into the
 
 ## Configuration
 
-The schema (`shellStrategySchema`, `additionalProperties: false`) is the single source of the options. `shellStrategyEditorSchema()` derives the configure dialog's `ha-form` schema from it (name, `title` as label, `description` as helper, the `x-ui-hints.selector`), so the form and the published schema cannot drift. `scripts/lib/card-schemas.js` registers it with `kind: 'strategy'` for the published schema and the config checker; the doc example validator skips strategies, because doc examples never contain a dashboard `strategy:` block.
+The schema (`shellStrategySchema`, `additionalProperties: false`) is the single source of the options. `shellStrategyEditorSchema()` derives the configure dialog's `ha-form` schema from it (name, `title` as label, `description` as helper, the `x-ui-hints.selector`), so the form and the published schema cannot drift. `scripts/lib/card-schemas.js` registers it with `kind: 'strategy'` for the published schema, the config checker and the doc example validator (the example on [Dashboard Strategies](../getting-started/dashboard-strategies.md#settings)).
 
 | Key | Selector | What it does |
 |---|---|---|
@@ -82,7 +82,7 @@ Both room controllers are a `lcards-layout-card` in the `content-panel` area (`v
 
 | Mode | Room list | Selection stored in | Light list |
 |---|---|---|---|
-| Entity (`input_select` / `select`) | The entity's own options (the select menu reads them) | The entity (the select menu's default action) | One single-column `lcards-layout-card` per area with lights, holding one `lcards-slider` per light (`pills-left-border`, `match-light` gradient, toggle and more-info actions), shown by a Visibility condition while the entity's state is the area's id or name; a "No lights in this room" note for areas without lights. All in one wrapper `lcards-layout-card` with no condition, so the list column keeps its width |
+| Entity (`input_select` / `select`) | The entity's own options (the select menu reads them) | The entity (the select menu's default action) | One single-column `lcards-layout-card` per area with lights, holding one `lcards-slider` per light (`pills-left-border`, `match-light` gradient, toggle and more-info actions), shown by a Visibility condition while the entity's state is the area's id or name; a "No lights in this room" note shown by `state_not` over the areas with lights (so also for an option that names no area, or nothing picked). All in one wrapper `lcards-layout-card` with no condition, so the list column keeps its width |
 | Auto-areas (`input_text`) | `hass.areas`, as explicit select menu `options` (`value: area_id`, `label: name`, `icon`) | The `input_text`, through each option's `tap_action` (`input_text.set_value`; `select_option` for the select domains) | The same lists, conditioned on the `input_text`'s state |
 | Placeholder | | | An `outline` button with a hint |
 
@@ -102,13 +102,13 @@ The lights per area come from `roomLightsFromRegistries(hass)`: every `light.*` 
 "footer-left    footer-left    footer-left    .              footer-border  footer-border  footer-border  sidebar-right"
 ```
 
-- **Tracks.** Columns `45px clamp(100px, 12vw, 180px) 5px 40px 1fr 40px 5px minmax(0, auto)`; rows `<header-border> clamp(25px, 5vh, 95px) 5px 40px 1fr 40px 5px clamp(25px, 5vh, 95px) 45px`, where the first row is `minmax(0,auto)` with a `top_bar_entity` and `0px` without one (a definite `0px`, so the view's row measurement cannot mistake it for free space). `layout.height` is `calc(100dvh - var(--header-height, 56px))`; `grid-gap` 5px, no margins or padding.
+- **Tracks.** Columns `45px clamp(100px, 12vw, 180px) 5px 40px 1fr 40px 5px minmax(0, auto)`; rows `<header-border> clamp(25px, 5vh, 95px) 5px 40px 1fr 40px 5px clamp(25px, 5vh, 95px) 45px`, where the first row is `auto`: it takes the top bar card's height, and is 0 when there is no top bar or it is hidden (the layout view collapses a row whose only cards are hidden). `layout.height` is `calc(100dvh - var(--header-height, 56px))`; `grid-gap` 5px, no margins or padding.
 - **Narrow screens.** `layout.mediaquery['(max-width: 1010px)']` narrows the column before the right sidebar to 1px.
 - **Surfaces.** `layout.areas['content-panel']` sets a 20px margin.
 
 | Area | Cards |
 |---|---|
-| `header-border` | Only with `top_bar_entity`: a `lcards-layout-card` (`height: 10vh`) with a segmented `header-left` elbow and a two-row banner (a `panel-light` strip and a text button), with `visibility: state on` of `top_bar_entity`; the view's visibility row sizing then writes that row as `10vh` or `0px` |
+| `header-border` | Only with `top_bar_entity`: a `lcards-layout-card` (`height: 10vh`) with a segmented `header-left` elbow and a two-row banner (a `panel-light` strip and a text button), with `visibility: state on` of `top_bar_entity`; the `auto` row follows it |
 | `header-left` | An `lcards-alert-overlay` (`dismiss_mode: dismiss`, blur backdrop, no canvas; visible only during an alert) and a `lcards-layout-card` with two `panel-dark` buttons on `top_bar_entity` and `right_sidebar_entity` (their default tap action toggles them) |
 | `border-left` | A `panel-light` strip button |
 | `header` | An `outline` button labelled "header" |

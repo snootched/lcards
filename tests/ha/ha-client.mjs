@@ -305,14 +305,23 @@ export async function setInputNumberMax(client, objectId, max) {
 export const TEST_ROOMS = {
     areas: { bridge: 'LCARdS Test Bridge', cargo: 'LCARdS Test Cargo' },
     lamps: {
-        'light.lcards_test_lamp': { name: 'LCARdS Test Lamp', boolean: 'input_boolean.lcards_test_lamp_power' },
-        'light.lcards_test_lamp_2': { name: 'LCARdS Test Lamp 2', boolean: 'input_boolean.lcards_test_lamp_2_power' },
+        'light.lcards_test_lamp': {
+            name: 'LCARdS Test Lamp', boolean: 'input_boolean.lcards_test_lamp_power',
+            level: 'input_number.lcards_test_lamp_level', hue: 'input_number.lcards_test_lamp_hue',
+        },
+        'light.lcards_test_lamp_2': {
+            name: 'LCARdS Test Lamp 2', boolean: 'input_boolean.lcards_test_lamp_2_power',
+            level: 'input_number.lcards_test_lamp_2_level', hue: 'input_number.lcards_test_lamp_2_hue',
+        },
     },
 };
 
 /**
  * Create the TEST_ROOMS areas and lamps when missing, put the first lamp in the
- * bridge area and take the second out of any area.
+ * bridge area and take the second out of any area. Each lamp is a template light
+ * over three helpers (power, brightness level 0-255, hue 0-360 at 80 % saturation),
+ * so sliders and match-light colours have something to show. A lamp made before
+ * the level and hue helpers existed is deleted and made again.
  * @param {HAClient} client
  * @returns {Promise<{ bridge: string, cargo: string }>} the two area ids
  */
@@ -325,21 +334,36 @@ export async function ensureTestRooms(client) {
         if (!res.ok) throw new Error(`${path}: ${res.status} ${await res.text()}`);
         return res.json();
     };
-    await ensureHelpers(client, Object.fromEntries(Object.values(TEST_ROOMS.lamps).map(l => [
-        l.boolean, { type: 'input_boolean/create', name: `${l.name} Power` },
+    await ensureHelpers(client, Object.fromEntries(Object.values(TEST_ROOMS.lamps).flatMap(l => [
+        [l.boolean, { type: 'input_boolean/create', name: `${l.name} Power` }],
+        [l.level, { type: 'input_number/create', name: `${l.name} Level`, min: 0, max: 255, step: 1, initial: 180, mode: 'slider' }],
+        [l.hue, { type: 'input_number/create', name: `${l.name} Hue`, min: 0, max: 360, step: 1, initial: 30, mode: 'slider' }],
     ])));
     const states = await client.call({ type: 'get_states' });
-    const ids = new Set(states.map((/** @type {any} */ s) => s.entity_id));
+    const byId = new Map(states.map((/** @type {any} */ s) => [s.entity_id, s]));
     for (const [entityId, lamp] of Object.entries(TEST_ROOMS.lamps)) {
-        if (ids.has(entityId)) continue;
-        const boolean = lamp.boolean;
+        const current = byId.get(entityId);
+        if (current?.attributes?.supported_color_modes?.includes('hs')) continue;
+        if (current) {
+            const entry = await client.call({ type: 'config/entity_registry/get', entity_id: entityId });
+            const res = await fetch(`${HA_URL}/api/config/config_entries/entry/${entry.config_entry_id}`, {
+                method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error(`delete ${entityId}: ${res.status}`);
+        }
+        const { boolean, level, hue } = lamp;
+        const on = { action: 'input_boolean.turn_on', target: { entity_id: boolean } };
         const flow = await rest('/api/config/config_entries/flow', { handler: 'template', show_advanced_options: false });
         const step = await rest(`/api/config/config_entries/flow/${flow.flow_id}`, { next_step_id: 'light' });
         await rest(`/api/config/config_entries/flow/${step.flow_id}`, {
             name: lamp.name,
             state: `{{ is_state('${boolean}', 'on') }}`,
-            turn_on: [{ action: 'input_boolean.turn_on', target: { entity_id: boolean } }],
+            turn_on: [on],
             turn_off: [{ action: 'input_boolean.turn_off', target: { entity_id: boolean } }],
+            level: `{{ states('${level}') | int(0) }}`,
+            set_level: [{ action: 'input_number.set_value', target: { entity_id: level }, data: { value: '{{ brightness }}' } }, on],
+            hs: `{{ (states('${hue}') | float(0), 80) }}`,
+            set_hs: [{ action: 'input_number.set_value', target: { entity_id: hue }, data: { value: '{{ h }}' } }, on],
         });
     }
     const areas = await client.call({ type: 'config/area_registry/list' });

@@ -521,8 +521,8 @@ if (!window.customStrategies.some(s => s.type === 'lcars-shell')) {
     type: 'lcars-shell',
     strategyType: 'dashboard',
     name: 'LCARS Dashboard',
-    description: 'Star Trek LCARS-style full-screen shell with sidebar nav, header/footer chrome, and room light controller. Includes a WYSIWYG CSS Grid layout editor.',
-    documentationURL: docsUrl(DOCS.home),
+    description: 'A full-screen LCARS frame with a page menu, header and footer bars, and a room light panel built from your areas. Take control to make it your own.',
+    documentationURL: docsUrl(DOCS.dashboardStrategies),
   });
 }
 

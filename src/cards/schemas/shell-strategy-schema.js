@@ -23,30 +23,31 @@ export const shellStrategySchema = {
         },
         room_selector_entity: {
             type: 'string',
-            title: 'Room Controller Entity',
-            description: 'Controls the room light controller. '
-                + 'input_select or select: its options become the room list (entity mode). '
-                + 'input_text: room list is built from your Home Assistant area registry automatically; '
-                + 'the selected area is stored in this entity (auto-areas mode). '
-                + 'Leave blank to show a placeholder.',
+            title: 'Room selector',
+            description: 'The room the light panel shows. An input_select or select lists its own options as the rooms '
+                + '(name each option after an area). An input_text lists every area in Home Assistant and stores the one picked. '
+                + 'Leave it empty to show a placeholder.',
             'x-ui-hints': { selector: { entity: { domain: ['input_select', 'select', 'input_text'] } } },
         },
         page_selector_entity: {
             type: 'string',
-            title: 'Page Selector Entity',
-            description: 'input_select entity used for sidebar page/section navigation',
+            title: 'Page selector',
+            description: 'An input_select or select whose options become the page menu in the left sidebar. '
+                + 'Picking a page sets the entity; use its state in Visibility conditions after you take control.',
             'x-ui-hints': { selector: { entity: { domain: ['input_select', 'select'] } } },
         },
         top_bar_entity: {
             type: 'string',
-            title: 'Top Bar Toggle',
-            description: 'input_boolean that shows/hides the top header bar (also bound to the first header-left button)',
+            title: 'Top bar toggle',
+            description: 'An input_boolean that shows or hides the top bar. '
+                + 'The first button under the top left corner toggles it.',
             'x-ui-hints': { selector: { entity: { domain: ['input_boolean'] } } },
         },
         right_sidebar_entity: {
             type: 'string',
-            title: 'Right Sidebar Toggle',
-            description: 'input_boolean that shows/hides the right sidebar (also bound to the second header-left button)',
+            title: 'Right sidebar toggle',
+            description: 'An input_boolean that shows or hides the right sidebar. '
+                + 'The second button under the top left corner toggles it.',
             'x-ui-hints': { selector: { entity: { domain: ['input_boolean'] } } },
         },
     },

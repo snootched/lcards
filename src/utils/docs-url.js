@@ -71,6 +71,8 @@ export const DOCS = Object.freeze({
   selectMenu: '/cards/select-menu/',
   alertOverlay: '/cards/alert-overlay/',
   layoutCard: '/cards/layout-card/',
+  // The New Dashboard picker entry for the lcars-shell strategy.
+  dashboardStrategies: '/getting-started/dashboard-strategies',
 });
 
 /** Docs page per LCARdS config panel tab, by tab index (lcards-config-panel.js). */

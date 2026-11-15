@@ -212,8 +212,8 @@ function _lightSlider(entityId) {
 /**
  * The light list cell: one single-column list per area, each shown by a Visibility
  * condition while the room selector names that area (its id or its name, so
- * input_select options may use either). An area with no lights shows a note. The
- * lists sit in one wrapper with no condition, so the list column keeps its width
+ * input_select options may use either). Any other state (an area with no lights,
+ * an option that names no area, nothing picked) shows a note. The lists sit in one wrapper with no condition, so the list column keeps its width
  * while no room is picked.
  *
  * @param {string} selectorEntity
@@ -221,9 +221,9 @@ function _lightSlider(entityId) {
  */
 function _roomLightLists(selectorEntity, rooms) {
     const states = (/** @type {RoomLights} */ room) => [...new Set([room.area_id, room.name])];
-    const empty = rooms.filter(r => r.lights.length === 0);
+    const lit = rooms.filter(r => r.lights.length > 0);
     /** @type {any[]} */
-    const cards = rooms.filter(r => r.lights.length > 0).map(room => ({
+    const cards = lit.map(room => ({
         type: 'custom:lcards-layout-card',
         layout: {
             'grid-template-columns': '1fr',
@@ -237,16 +237,14 @@ function _roomLightLists(selectorEntity, rooms) {
         visibility: [{ condition: 'state', entity: selectorEntity, state: states(room) }],
         cards: room.lights.map(_lightSlider),
     }));
-    if (empty.length) {
-        cards.push({
-            type: 'custom:lcards-button',
-            preset: 'outline',
-            interactive: false,
-            height: '56px',
-            text: { label: { show: true, content: 'No lights in this room' } },
-            visibility: [{ condition: 'state', entity: selectorEntity, state: empty.flatMap(states) }],
-        });
-    }
+    cards.push({
+        type: 'custom:lcards-button',
+        preset: 'outline',
+        interactive: false,
+        height: '56px',
+        text: { label: { show: true, content: 'No lights in this room' } },
+        ...(lit.length ? { visibility: [{ condition: 'state', entity: selectorEntity, state_not: lit.flatMap(states) }] } : {}),
+    });
     return {
         type: 'custom:lcards-layout-card',
         layout: {
@@ -263,7 +261,7 @@ function _roomLightLists(selectorEntity, rooms) {
     };
 }
 
-function _contentPlaceholderCard(message = 'Content Area: select a Room Selector Entity in the dashboard settings to enable the room light controller.') {
+function _contentPlaceholderCard(message = 'Pick a room selector in the dashboard settings to show the room light panel.') {
     return {
         type: 'custom:lcards-button',
         preset: 'outline',
@@ -321,7 +319,7 @@ function _autoAreasRoomCard(areas, stateEntity, rooms) {
         type: 'custom:lcards-button',
         preset: 'outline',
         interactive: false,
-        text: { label: { show: true, content: 'Tap a room to select it; add an input_text helper entity in dashboard settings to enable light filtering.' } },
+        text: { label: { show: true, content: 'Pick a room selector in the dashboard settings to show its lights.' } },
         view_layout: { 'grid-area': 'list' },
     };
 
@@ -570,7 +568,7 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                 }] : [{
                     type: 'custom:lcards-button',
                     preset: 'panel-dark',
-                    text: { label: { show: true, content: 'Set Page Selector Entity in dashboard settings' } },
+                    text: { label: { show: true, content: 'Pick a page selector in the dashboard settings' } },
                 }]),
                 {
                     type: 'custom:lcards-button',
@@ -734,7 +732,7 @@ export class LCARdSShellDashboardStrategy extends HTMLElement {
                 // Auto-areas mode: build room list from HA area registry, store selection in input_text.
                 contentCard = rooms.length > 0
                     ? _autoAreasRoomCard(rooms, roomEntity, rooms)
-                    : _contentPlaceholderCard('No areas found: add rooms in Settings → Areas & Zones.');
+                    : _contentPlaceholderCard('No areas found: create areas in Settings → Areas, labels & zones.');
             } else {
                 // Entity mode: input_select / select options drive the room list.
                 contentCard = _roomLightControllerCard(roomEntity, rooms);

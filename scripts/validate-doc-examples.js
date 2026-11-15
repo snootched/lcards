@@ -162,10 +162,10 @@ async function main() {
     process.exit(2);
   }
 
-  // Cards and views appear in YAML as `type: custom:lcards-*`; the strategy only in a
-  // dashboard `strategy:` block, which doc examples don't contain.
+  // Cards and views appear in YAML as `type: custom:lcards-*`, a strategy in a
+  // dashboard `strategy:` block (Dashboard Strategies page).
   const checker = createConfigValidator({
-    entries: getSchemaEntries().filter(e => e.kind !== 'strategy'),
+    entries: getSchemaEntries(),
     registries: await buildRegistries(),
   });
 
