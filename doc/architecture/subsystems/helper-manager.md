@@ -52,7 +52,7 @@ Run `window.lcards.core.helperManager.getAllHelpers()` for the full list, or see
 
 On the first `updateHass()` with a HASS (`_autoSwitchInitialized` guards it), the manager:
 
-1. **Subscribes once** to `state_changed` (`_setupStateListeners()`): one subscription for all helpers, looked up through `_helperKeyByEntity`. One subscription per helper multiplied the event traffic per tab enough to overflow Home Assistant's pending-message queue at startup.
+1. **Listens once per helper entity** through the page's one shared `state_changed` subscription (`_setupStateListeners()`, `src/core/state-change-hub.js`), which data sources and the rules engine share too. One subscription per helper (and per data source) multiplied the event traffic per tab enough to overflow Home Assistant's pending-message queue (#405, #408; `tests/core/state-change-hub.test.js`).
 2. **Sets up the alert-mode auto-switch** (`_setupAlertModeAutoSwitch()`).
 
 Each change event updates `_valueCache` with the new state string and calls the key's subscribers with `(newValue, oldValue)`. Later `updateHass()` calls refresh the cache from `hass.states` (`_updateValueCache()`).

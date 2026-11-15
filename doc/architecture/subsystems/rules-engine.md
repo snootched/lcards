@@ -14,7 +14,7 @@ The engine:
 
 - keeps the rule list (`rules`, `rulesById`) and a compiled condition tree per rule (`compiledRules`);
 - keeps a dependency index (entity id to rule ids) so a state change marks only the affected rules dirty;
-- subscribes once to Home Assistant `state_changed` events and calls every registered card's re-evaluation callback when a rule entity changes;
+- listens to Home Assistant `state_changed` events through the page's one shared subscription (`src/core/state-change-hub.js`, `'*'` listener) and calls every registered card's re-evaluation callback when a rule entity changes;
 - evaluates dirty rules in priority order, keeps the latest result of every matching rule, and returns the patches of **all** currently matching rules to every caller;
 - starts rule animations when a rule starts matching and stops its looping ones when it stops matching.
 
@@ -225,7 +225,7 @@ sequenceDiagram
     participant HA as Home Assistant
     participant RE as RulesEngine
     participant CB as Card callbacks (one per registered card)
-    HA->>RE: state_changed (subscribeEvents in setupHassMonitoring)
+    HA->>RE: state_changed (onStateChanged('*') in setupHassMonitoring)
     RE->>RE: entityToRules.has(entity_id)?
     RE->>RE: _handleRuleEntityChange: cache new_state, markEntitiesDirty([id])
     alt at least one rule marked dirty

@@ -198,6 +198,8 @@ test('DS5: a card-created source stops after its last card leaves', async () => 
     mock.timers.tick(SOURCE_RELEASE_DELAY_MS);
     assert.equal(manager.getSource('temp'), undefined);
     assert.equal(manager.entityIndex.has(ENTITY), false);
+    // the shared subscription (state-change-hub) closes once Home Assistant has acknowledged it
+    await new Promise((resolve) => setImmediate(resolve));
     assert.equal(sub?.active, false, 'HA subscription released');
     assert.equal(source._destroyed, true);
 });

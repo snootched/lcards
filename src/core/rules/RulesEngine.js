@@ -6,6 +6,7 @@
 
 import { globalTraceBuffer } from './RuleTraceBuffer.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { onStateChanged } from '../state-change-hub.js';
 import { BaseService } from '../../core/BaseService.js';
 import { compileRule, evalCompiled } from './compileConditions.js';  // ✨ NEW
 import { UnifiedTemplateEvaluator } from '../templates/UnifiedTemplateEvaluator.js';  // ✨ NEW
@@ -1807,15 +1808,12 @@ export class RulesEngine extends BaseService {
       // NOTE: The listener consults dependencyIndex.entityToRules live (not a
       // frozen snapshot) so that entities added by cards that load after this
       // subscription is created are automatically covered. Map.has() is O(1).
-      this.hassUnsubscribe = await hass.connection.subscribeEvents((event) => {
-        if (event.event_type === 'state_changed' && event.data?.entity_id) {
-          const entityId = event.data.entity_id;
-
-          if (this.dependencyIndex?.entityToRules.has(entityId)) {
-            this._handleRuleEntityChange(entityId, event.data);
-          }
+      // Through the page's one shared state_changed subscription (#408).
+      this.hassUnsubscribe = onStateChanged(hass.connection, '*', (data) => {
+        if (this.dependencyIndex?.entityToRules.has(data.entity_id)) {
+          this._handleRuleEntityChange(data.entity_id, data);
         }
-      }, 'state_changed');
+      });
 
       lcardsLog.debug('[RulesEngine] ✅ HASS state monitoring enabled');
     } catch (error) {

@@ -17,6 +17,7 @@
 
 import { BaseService } from '../BaseService.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { onStateChanged } from '../state-change-hub.js';
 import {
   HELPER_REGISTRY,
   getAllHelpers,
@@ -66,7 +67,7 @@ export class LCARdSHelperManager extends BaseService {
     /** @type {Map<string, string>} Helper key by entity id, for the shared state listener */
     this._helperKeyByEntity = new Map();
 
-    /** @type {Promise<Function>|null} Unsubscribe for the one shared state_changed subscription */
+    /** @type {(() => void)|null} Removes the helper listeners from the shared state_changed subscription */
     this._stateUnsubscribe = null;
 
     /** @type {Map<string, *>} Cached helper values */
@@ -114,23 +115,15 @@ export class LCARdSHelperManager extends BaseService {
       this._helperKeyByEntity.set(helper.entity_id, helper.key);
     });
 
-    // One subscription for all helpers: every state_changed subscription gets
-    // every state change in Home Assistant, so one per helper multiplied the
-    // event traffic per tab (enough to overflow HA's 4096 pending-message
-    // queue during a startup burst).
-    const subscription = this.hass.connection.subscribeEvents((event) => {
-      const entityId = event?.data?.entity_id;
-      const key = this._helperKeyByEntity.get(entityId);
-      if (key) {
-        this._handleStateChange(key, entityId, event);
-      }
-    }, 'state_changed');
-    this._stateUnsubscribe = subscription;
-
-    subscription.catch((error) => {
-      lcardsLog.error('[HelperManager] Failed to subscribe to helper state changes:', error);
-      this._stateUnsubscribe = null;
-    });
+    // Through the page's one shared state_changed subscription (state-change-hub):
+    // every state_changed subscription gets every state change in Home Assistant,
+    // so one per helper multiplied the event traffic per tab, enough to overflow
+    // HA's 4096 pending-message queue during a burst (#405, #408).
+    const removers = [...this._helperKeyByEntity].map(([entityId, key]) =>
+      onStateChanged(this.hass.connection, entityId, (data) => {
+        this._handleStateChange(key, entityId, { event_type: 'state_changed', data });
+      }));
+    this._stateUnsubscribe = () => removers.forEach((remove) => remove());
 
     lcardsLog.debug(`[HelperManager] Subscribed to state changes for ${this._helperKeyByEntity.size} helpers`);
   }
@@ -870,13 +863,7 @@ export class LCARdSHelperManager extends BaseService {
   destroy() {
     lcardsLog.debug('[HelperManager] Destroying service, cleaning up subscriptions');
 
-    // subscribeEvents resolves to the unsubscribe function
-    this._stateUnsubscribe
-      ?.then((unsubscribe) => unsubscribe())
-      .catch((error) => {
-        lcardsLog.error('[HelperManager] Error unsubscribing from helper state changes:', error);
-      });
-
+    this._stateUnsubscribe?.();
     this._stateUnsubscribe = null;
     this._helperKeyByEntity.clear();
     this._subscriptions.clear();

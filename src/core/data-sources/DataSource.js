@@ -1,4 +1,5 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { onStateChanged } from '../state-change-hub.js';
 import { haFormatNumber } from '../../utils/ha-entity-display.js';
 
 /**
@@ -270,13 +271,12 @@ export class DataSource {
       }
 
       // STEP 3: Setup real-time subscriptions
-      this.haUnsubscribe = await this.hass.connection.subscribeEvents((event) => {
-        if (event.event_type === 'state_changed' &&
-            event.data?.entity_id === this.cfg.entity) {
-          lcardsLog.trace(`[DataSource] 📊 HA event received for ${this.cfg.entity}:`, event.data.new_state?.state);
-          this._handleStateChange(event.data);
-        }
-      }, 'state_changed');
+      // Through the page's one shared state_changed subscription (#408): one per
+      // source sent every state change in Home Assistant once per source.
+      this.haUnsubscribe = onStateChanged(this.hass.connection, this.cfg.entity, (data) => {
+        lcardsLog.trace(`[DataSource] 📊 HA event received for ${this.cfg.entity}:`, data.new_state?.state);
+        this._handleStateChange(data);
+      });
 
       this._started = true;
       lcardsLog.trace(`[DataSource] ✅ Full initialization complete for ${this.cfg.entity} - Buffer: ${this.buffer.size()} points`);
