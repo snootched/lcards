@@ -2,7 +2,7 @@
 description: "Something not working in LCARdS? Check your config, run the health check in the LCARdS Config panel, look through common problems, then report an issue with your support info filled in."
 ---
 
-# Getting Help
+# Troubleshooting
 
 **Something not working? Work through these in order: most problems are a config typo or a setup issue, and both are quick to rule out.**
 

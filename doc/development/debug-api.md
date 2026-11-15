@@ -7,7 +7,7 @@ Browser console tools for LCARdS development: the log level, the `window.lcards.
 window.lcards.info()   // version (frontend and integration), build date, Home Assistant version and theme,
                        // UIX / card-mod, log level, preview flag, registered cards, core status
 ```
-For a bug report, `await window.lcards.support.copy()` copies the full checked support info as markdown ([Getting Help](/getting-started/getting-help#other-ways-to-collect-info)).
+For a bug report, `await window.lcards.support.copy()` copies the full checked support info as markdown ([Troubleshooting](/getting-started/getting-help#other-ways-to-collect-info)).
 :::
 
 ---
@@ -187,7 +187,7 @@ window.lcards.debug.datasources.getStats('temp_sensor')
 |---|---|
 | `version` | The frontend version string |
 | `info()` | Runtime snapshot (above) |
-| `support.collect(opts?)`, `report(opts?)`, `copy(opts?)`, `openIssue(opts?)` | Support info for bug reports; `{ includeConfig: true }` adds data source names and entity IDs. See [Getting Help](/getting-started/getting-help#other-ways-to-collect-info) |
+| `support.collect(opts?)`, `report(opts?)`, `copy(opts?)`, `openIssue(opts?)` | Support info for bug reports; `{ includeConfig: true }` adds data source names and entity IDs. See [Troubleshooting](/getting-started/getting-help#other-ways-to-collect-info) |
 | `await refreshOptions()` | Re-reads the integration options (`lcards/info`) after changing them, without a reload |
 | `alert.set(mode)`, `get()`, `red()`, `yellow()`, `blue()`, `gray()`, `black()`, `green()`, `off()`, `borg(opts?)` | Alert mode control. See [Alert Mode: From the browser console](/core/alert-mode#from-the-browser-console) |
 | `alert.config` (also `alertConfig`) | Alert colour transforms: `setParam(mode, parameter, value, applyNow?)`, `getTransform(mode)`, `reset(mode, applyNow?)`, `resetAll(applyNow?)`, `export()`, `import(overrides)` |

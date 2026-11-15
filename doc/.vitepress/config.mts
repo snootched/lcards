@@ -414,7 +414,8 @@ export default withMermaid(defineConfig({
     nav: [
       {
         text: 'Getting Started',
-        activeMatch: '/getting-started/',
+        // The Help & Tools pages share the /getting-started/ folder (their URLs predate the split).
+        activeMatch: '/getting-started/(?!(ai-assistance|config-checker|preview|getting-help)(\\.html)?$)',
         items: [
           { text: 'What is LCARdS?',      link: '/getting-started/what-is-lcards' },
           { text: 'Installation',          link: '/getting-started/installation' },
@@ -423,10 +424,16 @@ export default withMermaid(defineConfig({
           { text: 'LCARS Patterns',       link: '/getting-started/lcars-patterns' },
           { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
           { text: 'Live Demo',            link: '/getting-started/live-demo' },
+        ],
+      },
+      {
+        text: 'Help & Tools',
+        activeMatch: '/getting-started/(ai-assistance|config-checker|preview|getting-help)',
+        items: [
           { text: 'Getting AI Help',      link: '/getting-started/ai-assistance' },
           { text: 'Check Your Config',    link: '/getting-started/config-checker' },
           { text: 'Preview Your YAML',    link: '/getting-started/preview' },
-          { text: 'Getting Help',         link: '/getting-started/getting-help' },
+          { text: 'Troubleshooting',      link: '/getting-started/getting-help' },
         ],
       },
       {
@@ -609,10 +616,15 @@ export default withMermaid(defineConfig({
               ],
             },
             { text: 'Dashboard Gallery',       link: '/getting-started/dashboard-gallery' },
+          ],
+        },
+        {
+          text: 'Help & Tools',
+          items: [
             { text: 'Getting AI Help',         link: '/getting-started/ai-assistance' },
             { text: 'Check Your Config',       link: '/getting-started/config-checker' },
             { text: 'Preview Your YAML',       link: '/getting-started/preview' },
-            { text: 'Getting Help',            link: '/getting-started/getting-help' },
+            { text: 'Troubleshooting',         link: '/getting-started/getting-help' },
           ],
         },
         {

@@ -1,86 +1,83 @@
 ---
-description: "Get Claude, ChatGPT or another AI assistant to write LCARdS YAML that works: the LCARdS skill for Claude, what to give other assistants, and how to check the result."
+description: "Get Claude to design and write LCARdS dashboards with you using the LCARdS skill: setup for Claude Code and claude.ai, what to ask, previews and checks, connecting Home Assistant with ha-mcp, and what to give other assistants."
+moved_anchors:
+  if-it-still-makes-things-up: /getting-started/ai-assistance#check-what-it-wrote
 ---
 
 # Getting AI Help
 
-**An AI assistant can write LCARdS cards and whole dashboards for you; it just needs to know LCARdS first.**
+**Claude with the LCARdS skill can plan a dashboard with you, write the YAML and check it before you paste anything.**
 
-- Out of the box, a chatbot has never seen LCARdS. It guesses, and guessed options are silently ignored.
-- Give it the real list of LCARdS options and it stops guessing.
-- Check what it wrote before you paste it into Home Assistant.
+- Out of the box, a chatbot has never seen LCARdS. It guesses option names, and LCARdS silently ignores the guesses.
+- The skill gives Claude the real options, presets, colours, docs, gallery dashboards and config checker for your LCARdS version.
+- The skill is made for Claude. Other assistants can still help if you give them the option list (see [With other assistants](#with-other-assistants)).
 
 ## With Claude (easiest)
 
-**The LCARdS skill teaches Claude everything for your LCARdS version: every option, every built-in preset and colour, the docs, the gallery dashboards and the config checker.**
+**Install the LCARdS skill once, then ask in plain words.**
 
-- It also knows [HA-LCARS](https://github.com/th3jesta/ha-lcars): its themes, its `--lcars-*` colour variables and its classes for stock cards.
-- It knows the [UIX](https://github.com/Lint-Free-Technology/uix) styling HA-LCARS runs on too, so it can tell you which job belongs to an LCARdS option, the theme or UIX.
+- The skill also knows [HA-LCARS](https://github.com/th3jesta/ha-lcars) (its themes and `--lcars-*` colours) and the [UIX](https://github.com/Lint-Free-Technology/uix) styling it runs on, so Claude can tell you whether a job belongs to an LCARdS option, the theme or UIX.
+- Claude uses your real entity ids: tell it them, or connect it to Home Assistant with [ha-mcp](#give-claude-your-home-s-context-ha-mcp).
 
-1. Add the skill to Claude:
-   - **Claude Code:** install the LCARdS plugin. In a Claude Code session, run:
+| Where you use Claude | How to add the skill |
+|---|---|
+| **Claude Code** | Run `/plugin marketplace add https://lcards.unimatrix01.ca/marketplace.json`, then `/plugin install lcards@lcards` |
+| **claude.ai or the Claude apps** | Download [`lcards-skill.zip`](/tools/lcards-skill.zip) and upload it as a custom skill under **Settings**. Turn on code execution |
 
-     ```
-     /plugin marketplace add https://lcards.unimatrix01.ca/marketplace.json
-     /plugin install lcards@lcards
-     ```
-
-   - **claude.ai or the Claude apps:** download [`lcards-skill.zip`](/tools/lcards-skill.zip) and upload it as a custom skill in **Settings** (needs code execution turned on). To let Claude show you pictures of gallery screens while you plan, allow network access to `lcards.unimatrix01.ca` in the code execution settings (add it to the allowed domains, or allow all domains). Without it, Claude gives you the links.
-2. Ask. For example:
-   - "Make me an LCARdS button for `light.kitchen` that turns red when it's on."
-   - "Build an engineering dashboard with my `sensor.power_*` entities."
-   - "I want a Star Trek engineering screen for my house. What could I do?"
-
-Claude uses your real entity ids instead of inventing them: give it them, or connect it to Home Assistant with [ha-mcp](#give-claude-your-home-s-context-ha-mcp). It also checks its own YAML before handing it over.
-
-In Claude Code the plugin goes further:
-
-- The config checker **runs by itself** every time Claude writes a YAML file with LCARdS cards in it, and Claude fixes whatever it reports before handing the file over.
-- **`/lcards:check`** followed by a file or pasted YAML checks it and explains each problem.
-- **`/lcards:dashboard`** designs a whole dashboard with you: a few questions to pick from, then two or three concepts side by side with a layout sketch each, then the YAML.
-
-::: details Keeping the Claude Code plugin up to date
-Each LCARdS release comes with a new version of the plugin. To get it, run `/plugin marketplace update lcards`, or open `/plugin`, go to **Marketplaces**, select **lcards** and turn on **Enable auto-update**. Run `/reload-plugins` (or start a new session) to load the new version.
-
-- The plugin needs Claude Code 2.1.224 or newer.
+::: details More about setup
+- **Pictures in claude.ai:** to see pictures of gallery screens while you plan, allow network access to `lcards.unimatrix01.ca` in the code execution settings (add it to the allowed domains, or allow all domains). Without it, Claude gives you the links instead.
+- **Updating the Claude Code plugin:** each LCARdS release comes with a new version. Run `/plugin marketplace update lcards`, or open `/plugin`, go to **Marketplaces**, select **lcards** and turn on **Enable auto-update**. Then run `/reload-plugins` or start a new session. The plugin needs Claude Code 2.1.224 or newer.
 - **Installed the skill by hand before?** Delete `~/.claude/skills/lcards/` first, so only the plugin copy loads.
-- **Prefer a manual install?** Unzip [`lcards-skill.zip`](/tools/lcards-skill.zip) into `~/.claude/skills/`, so you have `~/.claude/skills/lcards/SKILL.md`. It won't update itself.
-- **Running a dev build of LCARdS?** Use the dev channel instead, which follows the [dev docs](https://lcards.unimatrix01.ca/dev/): `/plugin marketplace add https://lcards.unimatrix01.ca/dev/marketplace.json`, then `/plugin install lcards@lcards-dev`. Install one channel, not both.
+- **Manual install in Claude Code:** unzip [`lcards-skill.zip`](/tools/lcards-skill.zip) into `~/.claude/skills/`, so you have `~/.claude/skills/lcards/SKILL.md`. It won't update itself.
+- **Running a dev build of LCARdS?** Use the dev channel, which follows the [dev docs](https://lcards.unimatrix01.ca/dev/): `/plugin marketplace add https://lcards.unimatrix01.ca/dev/marketplace.json`, then `/plugin install lcards@lcards-dev`. Install one channel, not both.
+- **Other tools:** the skill follows the open [Agent Skills](https://agentskills.io) standard, so other tools may load the zip. We build and test it with Claude only.
 :::
 
-::: info The skill is made for Claude
-The LCARdS skill follows the open [Agent Skills](https://agentskills.io) standard, so other tools that support Agent Skills may load the zip, but we build and test it with Claude only. Other assistants may skip the questions, leave out the preview link or the checker, or draw a picture that isn't LCARdS; for them, use the option list [below](#with-other-assistants) and check the result yourself.
+## What to ask
+
+**Ask for what you want; Claude works out the rest with you.**
+
+| You ask | Claude |
+|---|---|
+| *"I want a Star Trek engineering screen for my house. What could I do?"* | Asks what the screen is for, where it runs, the look, how colours should work and which entities to use. Then offers two or three concepts, each with a layout sketch and pictures of similar gallery screens |
+| *"Build an engineering dashboard with my `sensor.power_*` entities."* | Proposes a design for those entities, builds it once you agree, and checks it |
+| *"Make me an LCARdS button for `light.kitchen` that turns red when it's on."* | Writes the card straight away |
+| *"Just the YAML."* | Skips the questions and picks sensible defaults |
+| *"Can I see it first?"* | Gives you a file that opens the draft on [Preview Your YAML](preview), as real cards |
+| *"Check this LCARdS config and fix it."* | Runs the same checker as [Check Your Config](config-checker) and explains each problem |
+| *"Restyle this to the LCARS design rules."* | Keeps your entities, controls and labels, rebuilds the dashboard with [Designing LCARS Screens](lcars-design), then lists what changed |
+
+::: details More about designing with Claude
+- **Features you didn't know about:** each concept names the features that suit your devices, such as a yellow alert and a chirp when the door opens, a starfield that speeds up with the fan, or a schematic of your house with a light switch in every room.
+- **After the build:** Claude checks its YAML with the config checker before handing it over, and adds a few ideas for later.
+- **Restyling:** Claude asks about anything the YAML doesn't settle (the look, how colours work, the schematic's leader style), then grades the result against the guide's [Check a screen](lcars-design#check-a-screen) list.
+- **Screenshots:** when Claude can reach your Home Assistant and a browser (for example Claude Code with ha-mcp and a browser tool), it can offer to put the draft on a separate dashboard and show you a screenshot.
 :::
 
-::: tip Talk it through first
-Ask for a dashboard without the details and Claude works it out with you instead of guessing. It asks what the screen is for, where it runs, the look and your entities, then offers two or three concepts. Each concept has a layout sketch and the features that suit your devices, including ones you may not know about: a yellow alert and a chirp when the door opens, a starfield that speeds up with the fan, a schematic of your house with a light switch in every room. Pick one, change what you like, and Claude builds it, checks it and adds a few ideas for later. It can also give you a link to [Preview Your YAML](preview) that shows the draft as real cards before you paste anything. When Claude can reach your Home Assistant and a browser (for example Claude Code with ha-mcp and a browser tool), it can also offer to put the draft on a separate dashboard and show you a screenshot before you paste anything. Ask for "just the YAML" to skip the questions.
-:::
+## In Claude Code
 
-::: tip Claude can check YAML too
-Already have a config, from you or from another tool? Paste it into Claude with the skill loaded and ask *"check this LCARdS config and fix it"*. Claude runs the same checker as the [Check Your Config](config-checker) page and explains each problem.
-:::
+**The plugin adds an automatic check and two commands.**
 
-::: tip Claude can restyle a dashboard you already have
-Paste a whole dashboard and ask *"restyle this to the LCARS design rules"*. Claude keeps your entities, controls and labels, asks about anything the YAML doesn't settle (the look, how colours work, the schematic's leader style), rebuilds it with [Designing LCARS Screens](lcars-design) and the [patterns](lcars-patterns), then grades it against the guide's [Check a screen](lcars-design#check-a-screen) list and the config checker. You get the new YAML with each check marked met, fixed or left as is, and a short list of what changed.
-:::
+| Feature | What it does |
+|---|---|
+| Automatic check | Runs the config checker whenever Claude writes a YAML file with LCARdS cards in it; Claude fixes what it reports before handing the file over |
+| `/lcards:check` | Checks a file or pasted YAML and explains each problem |
+| `/lcards:dashboard` | Designs a whole dashboard with you: a few questions to pick from, then two or three concepts side by side with a layout sketch each, then the YAML |
 
 ## Give Claude your home's context (ha-mcp)
 
-**On its own, Claude doesn't know your Home Assistant: you tell it your entity ids.** The community [**ha-mcp**](https://github.com/homeassistant-ai/ha-mcp) server connects Claude to your Home Assistant, so together with the LCARdS skill Claude can look things up for itself:
+**The community [ha-mcp](https://github.com/homeassistant-ai/ha-mcp) server connects Claude to your Home Assistant, so it can look up your setup instead of asking.**
 
-- your **areas and floors**, to group a dashboard by room;
-- your **entities** and their current **states**, so it uses your real entity ids;
-- which devices are lights, sensors, switches and so on, to pick the right card for each.
-
-Then ask, for example: *"Build an LCARdS engineering dashboard for the devices in my garage"* or *"Make a bridge view with a button for every light on the ground floor."*
+- Claude sees your areas and floors (to group a dashboard by room), your entities and their states (so it uses your real ids), and what each device is (to pick the right card).
+- Then ask, for example, *"Build an LCARdS engineering dashboard for the devices in my garage."*
 
 ::: warning ha-mcp is not part of LCARdS
-ha-mcp is a separate community project; we don't make, support or take responsibility for it. It can also change your Home Assistant (automations, dashboards, settings and more). If you only want Claude to read your setup, turn on its **Read Only Mode**, or connect with its read-only URL (append `/readonly` to the server address). Install and set it up by following [its own instructions](https://github.com/homeassistant-ai/ha-mcp).
+It is a separate community project that can also change your Home Assistant. To let Claude only read your setup, turn on its **Read Only Mode**, or append `/readonly` to the server address. Set it up with [its own instructions](https://github.com/homeassistant-ai/ha-mcp).
 :::
 
 ## With other assistants
 
-**Other assistants don't get the skill's conversation, preview links or checker: attach the option list for your card, and expect more rounds than with Claude.**
+**Other assistants don't get the skill's conversation, previews or checker: attach the option list for your card, and expect more rounds than with Claude.**
 
 1. **Download the option list for your card**, for example [`lcards-button.json`](/schema/cards/lcards-button.json). Every card is listed in [`schema/index.json`](/schema/index.json).
 2. **Attach it** to your chat and paste this first:
@@ -91,22 +88,15 @@ ha-mcp is a separate community project; we don't make, support or take responsib
    If something I ask for isn't there, tell me instead of inventing a key.
    ```
 
-3. **Describe the card you want.**
+3. **Describe the card you want**, then [check what it wrote](#check-what-it-wrote).
 
 ## Check what it wrote
 
-**Check what an assistant wrote before it goes on a dashboard.**
+**Check any YAML an assistant wrote before it goes on a dashboard.**
 
-- Paste the YAML into [Check Your Config](config-checker). It runs in your browser and points at each problem.
-- Or ask Claude with the skill to check it (see the tip above).
+- Paste it into [Check Your Config](config-checker). It runs in your browser and points at each problem. [Preview Your YAML](preview) shows it as real cards.
 - Prefer the command line? Download [`lcards-validate.mjs`](/tools/lcards-validate.mjs) and run `node lcards-validate.mjs my-dashboard.yaml` (Node.js 20 or newer).
-
-## If it still makes things up
-
-**Give the assistant the checker's results and the schema again.**
-
-- Paste the checker's output back into the chat and ask it to fix exactly those lines.
-- Remind it to re-read the attached schema and not to guess. Most assistants correct themselves once told.
+- If the assistant still makes things up, paste the checker's results back into the chat, ask it to fix exactly those lines, and remind it to re-read the attached schema instead of guessing.
 
 ## Additional Context
 

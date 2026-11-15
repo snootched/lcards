@@ -7,7 +7,7 @@ description: "Install LCARdS from the Home Assistant Marketplace (HACS), add the
 **Install LCARdS from the Home Assistant Marketplace, add the LCARdS integration, then create its helpers in the LCARdS Config panel.** There is nothing else to install: the integration loads the cards on every dashboard.
 
 - **Needs Home Assistant 2026.11 or newer.** LCARdS relies on 2026.11's chip styling and dashboard card paths, and on 2026.10's dashboard visibility handling and validation library. The Marketplace doesn't offer it to older versions, and on an older version the integration logs an error and does not load.
-- Something not working after installing? See [Getting Help](getting-help). The LCARdS Config panel's **Welcome** tab also has a health check for common installation problems.
+- Something not working after installing? See [Troubleshooting](getting-help). The LCARdS Config panel's **Welcome** tab also has a health check for common installation problems.
 
 ::: tip Pair it with HA-LCARS
 LCARdS is designed to pair with the [HA-LCARS themes](https://github.com/th3jesta/ha-lcars). HA-LCARS includes LCARdS theme profiles (**LCARS Picard [LCARdS Red Accent]** and **[LCARdS Blue Accent]**): choose one as your Home Assistant theme and Home Assistant's own screens match your LCARdS cards. See [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles).
@@ -55,7 +55,7 @@ The [Configuration](../configuration/) section covers every panel tab in detail.
 
 - **[Build a dashboard](building-dashboards)**: pick cards and lay out your first LCARS screen.
 - **[Browse the gallery](dashboard-gallery)**: start from a complete dashboard.
-- Stuck? See **[Getting Help](getting-help)**.
+- Stuck? See **[Troubleshooting](getting-help)**.
 
 ## Integration options
 

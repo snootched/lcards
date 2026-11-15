@@ -526,7 +526,7 @@ One collector, two consumers: `async_collect_backend_diagnostics(hass)` in `supp
 | `backend` | status | backend checks skipped (needs an admin) or unavailable (info) |
 | `ha_lcars` | no | HA-LCARS theme active or not (info) |
 
-The tab can copy the report as Markdown or open a prefilled GitHub issue (`openIssueForReport()`); the console has the same through `window.lcards.support.collect/report/copy/openIssue` (`src/lcards-main.js:142-147`). The user-facing side is described in [Getting Help](/getting-started/getting-help).
+The tab can copy the report as Markdown or open a prefilled GitHub issue (`openIssueForReport()`); the console has the same through `window.lcards.support.collect/report/copy/openIssue` (`src/lcards-main.js:142-147`). The user-facing side is described in [Troubleshooting](/getting-started/getting-help).
 
 ---
 
