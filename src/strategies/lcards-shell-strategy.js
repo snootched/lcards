@@ -468,13 +468,13 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                 {
                     type: 'custom:lcards-button',
                     preset: 'filled',
-                    tap_action: { action: 'toggle' },
+                    interactive: true,  // hover colour and pulse; v1's footer has no actions yet
                     min_height: 10,
                 },
                 {
                     type: 'custom:lcards-button',
                     preset: 'filled',
-                    tap_action: { action: 'toggle' },
+                    interactive: true,  // hover colour and pulse; v1's footer has no actions yet
                     min_height: 10,
                     animations: [{
                         trigger: 'on_hover',
@@ -541,7 +541,6 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                     type: 'custom:lcards-button',
                     preset: 'panel-dark',
                     min_height: 1,
-                    tap_action: { action: 'toggle' },
                 },
             ]),
 
@@ -552,7 +551,6 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
             {
                 type: 'custom:lcards-button',
                 preset: 'outline',
-                tap_action: { action: 'toggle' },
                 min_width: 10,
                 min_height: 10,
                 text: { label: { show: true, content: 'header' } },
@@ -563,7 +561,6 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
             {
                 type: 'custom:lcards-button',
                 preset: 'outline',
-                tap_action: { action: 'toggle' },
                 text: { label: { show: true, content: 'sidebar-right' } },
                 style: { border: { color: { default: 'var(--lcards-blue)' } } },
                 view_layout: { 'grid-area': 'sidebar-right' },
@@ -643,7 +640,6 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                         {
                             type: 'custom:lcards-button',
                             preset: 'text-only',
-                            tap_action: { action: 'toggle' },
                             min_height: 10,
                             interactive: false,
                             text: { label: { show: true, content: 'Banner/ticker/message area' } },
@@ -653,15 +649,6 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                                     width: 3,
                                 },
                             },
-                            animations: [{
-                                trigger: 'on_hover',
-                                preset: 'pulse',
-                                duration: 1000,
-                                ease: 'inOutQuad',
-                                loop: true,
-                                alternate: true,
-                                params: { max_scale: 1.15, max_brightness: 1.4 },
-                            }],
                             view_layout: { 'grid-area': 'banner-bottom' },
                         },
                     ],

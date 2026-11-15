@@ -78,3 +78,24 @@ test('shell strategy actions use the current Home Assistant grammar (perform-act
         data: { value: 'bridge' },
     });
 });
+
+/** Every LCARdS card config anywhere in the generated dashboard. */
+function collectCards(node, out = []) {
+    if (Array.isArray(node)) { node.forEach(n => collectCards(n, out)); return out; }
+    if (!node || typeof node !== 'object') return out;
+    if (typeof node.type === 'string' && node.type.startsWith('custom:lcards-')) out.push(node);
+    for (const value of Object.values(node)) collectCards(value, out);
+    return out;
+}
+
+test('shell strategy: no top bar row trick, and no dead taps (a toggle on a card with no entity)', async () => {
+    for (const config of [{}, { top_bar_entity: 'input_boolean.top', right_sidebar_entity: 'input_boolean.right' }]) {
+        const dashboard = await strategy.generate(config, hass);
+        const view = dashboard.views[0];
+        // One auto top bar row; the layout view collapses it (strategies-plan.md S1.1)
+        assert.equal(view.layout['grid-template-rows'].split(' ')[0], 'auto');
+        for (const card of collectCards(dashboard)) {
+            if (card.tap_action?.action === 'toggle') assert.ok(card.entity, `toggle with no entity: ${JSON.stringify(card).slice(0, 120)}`);
+        }
+    }
+});
