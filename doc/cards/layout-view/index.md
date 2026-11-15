@@ -110,7 +110,7 @@ views:
 
 - `grid-template-areas` names the cells: one quoted string per row, one name per column, and `.` for a cell with no area. A name repeated across neighbouring cells makes one larger area.
 - Track sizes take any CSS value: `1fr` shares the free space, `auto` fits the content, and px, % and `vh` are fixed.
-- A button, elbow or slider placed straight in a cell of a fixed height (px or `vh` rows, or `fr` rows in a grid with a height) fills that cell even when it is shorter than the button's usual 56 px; in an `auto` row it keeps that minimum so it stays visible.
+- A button, elbow or slider placed straight in a cell of a fixed height fills that cell even when it is shorter than the button's usual 56 px. Fixed means px or `vh` rows and sizes built from them (`clamp(25px, 5vh, 95px)`), or `fr` rows and `minmax(40px, 1fr)` in a grid with a height. This holds for cards placed by area and for cards placed in order, and inside a layout card that fills a fixed cell. In an `auto` or `max-content` row a card keeps that minimum so it stays visible.
 
 ```yaml live
 # Three columns, the middle one twice as wide; a button-high top row

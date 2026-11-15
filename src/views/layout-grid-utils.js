@@ -790,29 +790,61 @@ export function resolveVisibilityTracks({ rows, columns, areas }, cards, editMod
 }
 
 /**
+ * Whether a card's view_layout leaves it to auto-placement (no area, row or column).
+ * @param {Record<string, any>|undefined} viewLayout
+ * @returns {boolean}
+ */
+export function isAutoPlaced(viewLayout) {
+    return !viewLayout?.['grid-area'] && !viewLayout?.['grid-row'] && !viewLayout?.['grid-column'];
+}
+
+/**
  * Whether a card placed by `view_layout.grid-area` sits in rows of a definite
  * height, so a card that fills its cell can follow it (a button then drops its
  * preset's minimum height, which spilled out of short rows). Fixed lengths
- * (px, vh, rem, ...) always are; fr and % only in a grid whose own height is
- * set (not `auto`, not a %); `auto`, `min-content` and the like never are.
- * A card placed by grid lines, or in no area, is treated as not definite.
+ * (px, vh, rem, ...) and functions of them (`clamp()`, `calc()`, `minmax()`)
+ * always are; with fr or % only in a grid whose own height is set (not `auto`,
+ * not a %, unless the grid fills a definite cell itself); anything that reads
+ * content (`auto`, `min-content`, `max-content`, `fit-content`) never is.
+ * A card with no placement at all (no grid-area, grid-row or grid-column) in a
+ * grid with no named areas is auto-placed: with `auto` given, the n-th such card
+ * sits in row floor(n / columns), an explicit row or else a `grid-auto-rows` row.
+ * A card placed by grid lines, or in an unnamed cell of a grid with areas, is
+ * treated as not definite.
  * @param {string[]} rows - the grid's row tracks
  * @param {string[][]} areas - the area matrix
  * @param {Record<string, any>} viewLayout - the card's view_layout
  * @param {boolean} gridHeightDefinite - the grid has a definite height
+ * @param {{ index: number, columns: number, autoRows?: string|null }|null} [auto] -
+ *   the card's position among the auto-placed cards, the column count and the
+ *   grid's `grid-auto-rows`
  * @returns {boolean}
  */
-export function cellHeightDefinite(rows, areas, viewLayout, gridHeightDefinite) {
+export function cellHeightDefinite(rows, areas, viewLayout, gridHeightDefinite, auto = null) {
+    // A track sized without its content: lengths and functions of lengths (clamp,
+    // calc, min, max, minmax) always; with fr or % only in a grid of a set height;
+    // anything that reads content (auto, min-/max-/fit-content) never.
+    const definite = (/** @type {string} */ track) => {
+        const t = String(track ?? '').trim().toLowerCase();
+        if (!t || /\b(auto|min-content|max-content|fit-content)\b/.test(t)) return false;
+        if (!/^[\w\s.,()%+*\/-]+$/.test(t)) return false;
+        if (/\d(fr|%)|\d\s*%/.test(t)) return gridHeightDefinite;
+        return /\d/.test(t);
+    };
     const name = viewLayout?.['grid-area'];
-    if (!name || !Array.isArray(rows) || !Array.isArray(areas)) return false;
+    if (!name) {
+        const named = Array.isArray(areas) && areas.some(r => r.some(n => n && n !== '.'));
+        if (!auto || !Array.isArray(rows) || named) return false;
+        if (viewLayout?.['grid-row'] || viewLayout?.['grid-column']) return false;
+        const row = Math.floor(auto.index / Math.max(1, auto.columns));
+        if (row < rows.length) return definite(rows[row]);
+        // implicit rows: one grid-auto-rows track (a repeating pattern is not followed)
+        const autoRows = String(auto.autoRows ?? '').trim();
+        return !!autoRows && !/\s/.test(autoRows) && definite(autoRows);
+    }
+    if (!Array.isArray(rows) || !Array.isArray(areas)) return false;
     const spanned = areas.map((row, r) => (row.includes(name) ? r : -1)).filter(r => r >= 0);
     if (!spanned.length) return false;
-    const definite = (/** @type {string} */ track) => {
-        const t = String(track ?? '').trim();
-        if (/^[\d.]+(px|vh|vw|svh|dvh|lvh|vmin|vmax|rem|em|cm|mm|in|pt)$/.test(t)) return true;
-        if (/^[\d.]+(fr|%)$/.test(t)) return gridHeightDefinite;
-        return false;
-    };
     return spanned.every(r => definite(rows[r]));
 }
 

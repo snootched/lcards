@@ -300,9 +300,44 @@ test('cellHeightDefinite: fixed rows always, fr and % only in a grid of a set he
     assert.equal(L.cellHeightDefinite(['40px', '1fr', '1fr'], areas, area('side'), true), true);
     assert.equal(L.cellHeightDefinite(['auto', '1fr', '1fr'], areas, area('bar'), true), false);
     assert.equal(L.cellHeightDefinite(['minmax(40px, auto)', '1fr', '1fr'], areas, area('bar'), true), false);
+    assert.equal(L.cellHeightDefinite(['minmax(0, max-content)', '1fr', '1fr'], areas, area('bar'), true), false);
+    assert.equal(L.cellHeightDefinite(['fit-content(40px)', '1fr', '1fr'], areas, area('bar'), true), false);
+    // functions of lengths (the LCARS shell's clamp rows)
+    assert.equal(L.cellHeightDefinite(['clamp(25px, 5vh, 95px)', '1fr', '1fr'], areas, area('bar'), false), true);
+    assert.equal(L.cellHeightDefinite(['calc(10vh - 5px)', '1fr', '1fr'], areas, area('bar'), false), true);
+    assert.equal(L.cellHeightDefinite(['minmax(40px, 1fr)', '1fr', '1fr'], areas, area('bar'), false), false);
+    assert.equal(L.cellHeightDefinite(['minmax(40px, 1fr)', '1fr', '1fr'], areas, area('bar'), true), true);
+    assert.equal(L.cellHeightDefinite(['calc(50% - 5px)', '1fr', '1fr'], areas, area('bar'), false), false);
+    assert.equal(L.cellHeightDefinite(['var(--row)', '1fr', '1fr'], areas, area('bar'), true), false);
     // no area, or one not in the grid
     assert.equal(L.cellHeightDefinite(['40px'], areas, { 'grid-row': '1' }, true), false);
     assert.equal(L.cellHeightDefinite(['40px'], areas, area('nope'), true), false);
+});
+
+test('cellHeightDefinite: auto-placed cards in a grid with no named areas', () => {
+    const none = [['.']];
+    const at = (index, columns = 1, autoRows = null) => ({ index, columns, autoRows });
+    // the shell's header-left panel: rows 1fr, grid-auto-rows 1fr, one column
+    assert.equal(L.cellHeightDefinite(['1fr'], none, {}, true, at(0, 1, '1fr')), true);
+    assert.equal(L.cellHeightDefinite(['1fr'], none, {}, true, at(1, 1, '1fr')), true, 'implicit row from grid-auto-rows');
+    assert.equal(L.cellHeightDefinite(['1fr'], none, {}, false, at(1, 1, '1fr')), false, 'fr in a grid of no set height');
+    // the selector column: rows auto 1fr
+    assert.equal(L.cellHeightDefinite(['auto', '1fr'], none, {}, true, at(0)), false);
+    assert.equal(L.cellHeightDefinite(['auto', '1fr'], none, {}, true, at(1)), true);
+    // two columns: the third card is on row 2
+    assert.equal(L.cellHeightDefinite(['40px', 'auto'], none, {}, true, at(1, 2)), true);
+    assert.equal(L.cellHeightDefinite(['40px', 'auto'], none, {}, true, at(2, 2)), false);
+    // implicit rows: no grid-auto-rows, a content size or a pattern are not followed
+    assert.equal(L.cellHeightDefinite(['40px'], none, {}, true, at(1)), false);
+    assert.equal(L.cellHeightDefinite(['40px'], none, {}, true, at(1, 1, 'minmax(40px, auto)')), false);
+    assert.equal(L.cellHeightDefinite(['40px'], none, {}, true, at(1, 1, '40px 1fr')), false);
+    // no auto position given, a grid with named areas, or a card placed by lines
+    assert.equal(L.cellHeightDefinite(['40px'], none, {}, true, null), false);
+    assert.equal(L.cellHeightDefinite(['40px'], grid('"a"'), {}, true, at(0)), false);
+    assert.equal(L.cellHeightDefinite(['40px'], none, { 'grid-row': '1' }, true, at(0)), false);
+    assert.equal(L.isAutoPlaced({}), true);
+    assert.equal(L.isAutoPlaced({ 'overflow-y': 'auto' }), true);
+    assert.equal(L.isAutoPlaced({ 'grid-column': '1' }), false);
 });
 
 test('gridHeightIsDefinite: a set length, not auto or a percentage', () => {

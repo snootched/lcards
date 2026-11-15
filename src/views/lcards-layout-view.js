@@ -58,7 +58,7 @@ import {
     parseTrackList,
     parseAreasString,
     EDIT_BAR_HEIGHT,
-    cellHeightDefinite, gridHeightIsDefinite,
+    cellHeightDefinite, gridHeightIsDefinite, isAutoPlaced,
 } from './layout-grid-utils.js';
 import {
     buildGridStyle,
@@ -734,6 +734,7 @@ export class LCARdSLayoutView extends LitElement {
             for (const [area, list] of stacks) if (list.length < 2) stacks.delete(area);
         }
 
+        let autoIndex = 0;
         (this._cardElements ?? []).forEach((cardEl, cardIndex) => {
             const viewLayout = cardEl.config?.view_layout ?? {};
             // Per-card visibility is handled by HA's hui-card wrapper (the card's
@@ -741,8 +742,10 @@ export class LCARdSLayoutView extends LitElement {
 
             const areaSettings = layout.areas?.[viewLayout['grid-area']] ?? {};
             // The view's own height (default: the screen below the header) makes fr rows definite
+            const auto = isAutoPlaced(viewLayout)
+                ? { index: autoIndex++, columns: this._columns?.length ?? 1, autoRows: layout['grid-auto-rows'] ?? null } : null;
             const cellFits = cellHeightDefinite(this._rows, this._areas, viewLayout,
-                gridHeightIsDefinite(layout.height ?? 'calc(100dvh - var(--header-height, 56px))'));
+                gridHeightIsDefinite(layout.height ?? 'calc(100dvh - var(--header-height, 56px))'), auto);
 
             // In edit mode the card is inert (HA does the same): a click selects or
             // edits it and never runs its tap action. Restored outside edit mode.

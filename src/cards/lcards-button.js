@@ -77,6 +77,7 @@ import { CanvasTextureRenderer } from '../core/packs/textures/CanvasTextureRende
 import { getButtonSchema } from './schemas/button-schema.js';
 import { TEXT_POSITIONS } from './schemas/schema-options.js';
 import { buttonGridOptions, mergeSegmentLayers, spreadBorderShorthands } from './button-config.js';
+import { inFittedCell } from '../views/layout-render.js';
 
 
 /**
@@ -6948,18 +6949,12 @@ export class LCARdSButton extends LCARdSCard {
     }
 
     /**
-     * Whether this card sits directly in a layout card / layout view cell of a
-     * definite height (marked data-lcards-cell-fits by layout-render's
-     * applyCardPlacement): itself, or through Home Assistant's hui-card wrapper.
-     * A card inside a stack in such a cell is not (stacks size cards to content).
+     * Whether this card sits directly in a layout cell of a definite height
+     * (layout-render's inFittedCell).
      * @returns {boolean}
      */
     _inFittedCell() {
-        const marked = (/** @type {Element|null} */ el) => !!el?.hasAttribute?.('data-lcards-cell-fits');
-        if (marked(this)) return true;
-        const parent = this.parentElement;
-        if (marked(parent)) return true;
-        return parent?.localName === 'hui-card' && marked(parent.parentElement);
+        return inFittedCell(this);
     }
 
     /**

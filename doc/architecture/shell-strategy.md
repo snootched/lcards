@@ -112,14 +112,14 @@ The lights per area come from `roomLightsFromRegistries(hass)`: every `light.*` 
 | `header-left` | An `lcards-alert-overlay` (`dismiss_mode: dismiss`, blur backdrop, no canvas; visible only during an alert) and a `lcards-layout-card` with two `panel-dark` buttons on `top_bar_entity` and `right_sidebar_entity` (their default tap action toggles them) |
 | `border-left` | A `panel-light` strip button |
 | `header` | An `outline` button labelled "header" |
-| `sidebar-left` | A 2 by 2 `lcards-layout-card`: `panel-light` strips in the 45px column, the page `lcards-select-menu` (`grid.height: fit`, so it publishes a definite height for the `minmax(0, max-content)` row) or a placeholder button, and a `panel-dark` filler in the `minmax(40px, 1fr)` row. The strips and the filler set `min_height: 1`, so they do not paint past a collapsed row |
+| `sidebar-left` | A 2 by 2 `lcards-layout-card`: `panel-light` strips in the 45px column, the page `lcards-select-menu` (`grid.height: fit`, so it publishes a definite height for the `minmax(0, max-content)` row) or a placeholder button, and a `panel-dark` filler in the `minmax(40px, 1fr)` row. The strip in the `max-content` row sets `min_height: 1` (that row is not definite); the others follow their definite rows |
 | `content-panel` | The room controller or the placeholder |
 | `sidebar-right` | An `outline` button (`width: clamp(100px,16vw,230px)`), with `visibility: state on` of `right_sidebar_entity` when set |
 | `footer-left` | A segmented `footer-left` elbow (`outer_curve: 160`, `inner_curve: 115`, `var(--lcars-ui-primary)` / `var(--lcars-ui-quaternary)`) |
 | `footer` | A `lcards-layout-card` with two `filled` toggle buttons (the second pulses on hover) |
 | `footer-border` | A `lcards-layout-card` with one `panel-light` button |
 
-The sizing choices (definite heights for content-sized tracks, `minmax(0, ...)` tracks, `min_height: 1` fillers) follow the rules in `.claude/rules/cards.md`, "Sizing in Nested Grids".
+The sizing choices (definite heights for content-sized tracks, `minmax(0, ...)` tracks, buttons following definite cells and `min_height: 1` only in content-sized rows) follow the rules in `.claude/rules/cards.md`, "Sizing in Nested Grids".
 
 ---
 

@@ -152,3 +152,20 @@ test('shell strategy: room lights come from the registries, no auto-entities', a
         assert.equal(wrapper?.cards.length, 3);
     }
 });
+
+test('shell strategy: buttons in definite cells follow them (no min_height workarounds)', async () => {
+    const dashboard = await strategy.generate({
+        room_selector_entity: 'input_select.rooms', page_selector_entity: 'input_select.rooms',
+        top_bar_entity: 'input_boolean.top', right_sidebar_entity: 'input_boolean.right',
+    }, hass);
+    const view = dashboard.views[0];
+    const panel = (area) => view.cards.find(c => c.view_layout?.['grid-area'] === area && (c.cards || c.type === 'custom:lcards-button'));
+    // these panels fill definite cells (clamp / px rows), so their buttons drop the
+    // preset's 56px floor on their own (cellHeightDefinite, inFittedCell)
+    for (const area of ['header-left', 'footer', 'footer-border']) {
+        for (const b of panel(area).cards) assert.equal('min_height' in b, false, `${area}: ${JSON.stringify(b)}`);
+    }
+    assert.equal('min_height' in panel('header'), false);
+    // the sidebar: only the strip in the max-content row keeps min_height: 1
+    assert.deepEqual(panel('sidebar-left').cards.map(c => c.min_height ?? null), [1, null, null, null]);
+});

@@ -491,11 +491,11 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                 'grid-auto-rows': '1fr',
             }, [
                 {
-                    type: 'custom:lcards-button', preset: 'panel-dark', min_height: 10,
+                    type: 'custom:lcards-button', preset: 'panel-dark',
                     ...(topBarEntity ? { entity: topBarEntity } : {}),
                 },
                 {
-                    type: 'custom:lcards-button', preset: 'panel-dark', min_height: 10,
+                    type: 'custom:lcards-button', preset: 'panel-dark',
                     ...(rightSidebarEntity ? { entity: rightSidebarEntity } : {}),
                 },
             ]),
@@ -511,13 +511,11 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                     type: 'custom:lcards-button',
                     preset: 'filled',
                     interactive: true,  // hover colour and pulse; v1's footer has no actions yet
-                    min_height: 10,
                 },
                 {
                     type: 'custom:lcards-button',
                     preset: 'filled',
                     interactive: true,  // hover colour and pulse; v1's footer has no actions yet
-                    min_height: 10,
                     animations: [{
                         trigger: 'on_hover',
                         preset: 'pulse',
@@ -543,9 +541,10 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
             // container; view_layout overflow-y scrolls the squeezed case).
             // Row 2 (minmax(40px, 1fr)) absorbs whatever is left, keeping at
             // least a 40px filler strip visible when the menu needs the rest.
-            // The strips/filler need min_height: 1 — without it the button's
-            // theme minimum (--lcars-button-min-height, ~56px) keeps painting
-            // past a collapsed row into the areas below.
+            // Row 2 is definite (the sidebar fills a definite cell), so its strip
+            // and filler follow it. Row 1 sizes to the menu (max-content), which is
+            // not definite: its strip keeps min_height: 1, or the button's preset
+            // minimum (56px) would set the row's height without a page menu.
             _layoutCard('sidebar-left', {
                 'grid-template-columns': '45px 1fr',
                 'grid-template-rows': 'minmax(0, max-content)',
@@ -576,13 +575,11 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                 {
                     type: 'custom:lcards-button',
                     preset: 'panel-light',
-                    min_height: 1,
                     text: { label: { show: false } },
                 },
                 {
                     type: 'custom:lcards-button',
                     preset: 'panel-dark',
-                    min_height: 1,
                 },
             ]),
 
@@ -594,7 +591,6 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                 type: 'custom:lcards-button',
                 preset: 'outline',
                 min_width: 10,
-                min_height: 10,
                 text: { label: { show: true, content: 'header' } },
                 view_layout: { 'grid-area': 'header' },
             },
@@ -619,7 +615,7 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                 'grid-template-rows': '1fr',
                 'grid-auto-rows': '1fr',
             }, [
-                { type: 'custom:lcards-button', preset: 'panel-light', min_height: 1 },
+                { type: 'custom:lcards-button', preset: 'panel-light' },
             ]),
 
             // ── Header border (elbow + banner row) ───────────────────────────
@@ -676,13 +672,11 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                         {
                             type: 'custom:lcards-button',
                             preset: 'panel-light',
-                            min_height: 10,
                             view_layout: { 'grid-area': 'banner-top' },
                         },
                         {
                             type: 'custom:lcards-button',
                             preset: 'text-only',
-                            min_height: 10,
                             interactive: false,
                             text: { label: { show: true, content: 'Banner/ticker/message area' } },
                             style: {

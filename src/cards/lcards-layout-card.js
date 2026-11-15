@@ -32,13 +32,14 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
-import { parseLayoutConfig, cellHeightDefinite, gridHeightIsDefinite, resolveVisibilityTracks } from '../views/layout-grid-utils.js';
+import { parseLayoutConfig, cellHeightDefinite, gridHeightIsDefinite, resolveVisibilityTracks, isAutoPlaced } from '../views/layout-grid-utils.js';
 import {
     buildGridStyle,
     applyCardPlacement,
     applyGridItemHeight,
     renderAreaSurfaces,
     placeGridChildren,
+    inFittedCell,
 } from '../views/layout-render.js';
 
 import { layoutCardSchema } from './schemas/layout-card-schema.js';
@@ -83,6 +84,7 @@ export class LCARdSLayoutCard extends LitElement {
     connectedCallback() {
         super.connectedCallback();
         this._setupMediaQueries();
+
         this.addEventListener('card-visibility-changed', this._onCardVisibilityChanged);
     }
 
@@ -297,7 +299,10 @@ export class LCARdSLayoutCard extends LitElement {
             for (const el of this._cardElements ?? []) el.preview = this.preview;
         }
 
-        if (changed.has('_config') || changed.has('_columns') || changed.has('_rows')
+        // The parent grid's fitted-cell mark (inFittedCell) changed since the last
+        // placement: applyCardPlacement asked for this update.
+        const fitChanged = this._placedInFittedCell !== undefined && this._placedInFittedCell !== inFittedCell(this);
+        if (fitChanged || changed.has('_config') || changed.has('_columns') || changed.has('_rows')
             || changed.has('_areas') || changed.has('_gap') || changed.has('editing')) {
             this._placeCards();
         }
@@ -326,13 +331,22 @@ export class LCARdSLayoutCard extends LitElement {
         const active = this._activeGrid();
         const surfaces = document.createDocumentFragment();
         renderAreaSurfaces(surfaces, layout, active.areas);
-        const gridDefinite = gridHeightIsDefinite(layout.height);
+        // A % height (100% by default) is definite when this card's own cell is: a
+        // layout card filling a fixed cell gives its fr and % rows a definite height.
+        const height = layout.height ?? '100%';
+        const gridDefinite = gridHeightIsDefinite(height)
+            || (String(height).trim().endsWith('%') && inFittedCell(this));
+        this._placedInFittedCell = inFittedCell(this);
 
+        const autoRows = layout['grid-auto-rows'] ?? null;
+        let autoIndex = 0;
         (this._cardElements ?? []).forEach((cardEl, i) => {
             const childCfg     = this._config?.cards?.[i];
             const viewLayout   = childCfg?.view_layout ?? {};
             const areaSettings = layout.areas?.[viewLayout['grid-area']] ?? {};
-            const cellFits     = cellHeightDefinite(active.rows, active.areas, viewLayout, gridDefinite);
+            const auto         = isAutoPlaced(viewLayout)
+                ? { index: autoIndex++, columns: active.columns?.length ?? 1, autoRows } : null;
+            const cellFits     = cellHeightDefinite(active.rows, active.areas, viewLayout, gridDefinite, auto);
             applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings, { cellFits });
             applyGridItemHeight(cardEl, childCfg);
         });

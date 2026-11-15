@@ -124,10 +124,30 @@ export function measureGridFrame(grid, overlay) {
  * @param {object} [areaSettings]
  * @param {{ cellFits?: boolean }} [opts] - cellFits: the cell has a definite height
  */
+/**
+ * Whether a card sits directly in a layout card / layout view cell of a definite
+ * height (marked data-lcards-cell-fits by applyCardPlacement): itself, or through
+ * Home Assistant's hui-card wrapper. A card inside a stack in such a cell is not
+ * (stacks size cards to content).
+ * @param {Element} el
+ * @returns {boolean}
+ */
+export function inFittedCell(el) {
+    const marked = (/** @type {Element|null} */ e) => !!e?.hasAttribute?.('data-lcards-cell-fits');
+    if (marked(el)) return true;
+    const parent = el.parentElement;
+    if (marked(parent)) return true;
+    return parent?.localName === 'hui-card' && marked(parent.parentElement);
+}
+
 export function applyCardPlacement(gridItem, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings = {}, { cellFits = false } = {}) {
     // A cell of a definite height (cellHeightDefinite): an LCARdS card directly in it
-    // follows the cell instead of its preset's minimum height (LCARdSButton._inFittedCell).
-    gridItem.toggleAttribute('data-lcards-cell-fits', cellFits);
+    // follows the cell instead of its preset's minimum height (inFittedCell). Cards
+    // read the mark when they render, so a change asks the card to render again.
+    if (gridItem.hasAttribute('data-lcards-cell-fits') !== cellFits) {
+        gridItem.toggleAttribute('data-lcards-cell-fits', cellFits);
+        /** @type {any} */ (cardEl).requestUpdate?.();
+    }
     // Clear previously-applied item styles so removed keys don't persist on a
     // reused element.
     for (const k of ['grid-area', 'grid-column', 'grid-row',

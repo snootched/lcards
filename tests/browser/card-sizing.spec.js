@@ -99,3 +99,26 @@ test('a button in a layout cell of a definite height follows the cell, not its p
     expect(auto.drawn).toBeGreaterThanOrEqual(40);
     await expectNoErrors(page);
 });
+
+test('a layout card filling a definite cell gives its rows a definite height (nested buttons follow them)', async ({ page }) => {
+    await mountCase(page, 'layout-card-nested-short-row', { width: '400' });
+    const heights = () => page.evaluate(() => {
+        const outer = document.querySelector('lcards-layout-card');
+        return [...outer.shadowRoot.querySelectorAll('lcards-layout-card')].map((inner) => ({
+            fits: inner.hasAttribute('data-lcards-cell-fits'),
+            buttons: [...inner.shadowRoot.querySelectorAll('lcards-button')].map((b) => ({
+                fits: b.hasAttribute('data-lcards-cell-fits'),
+                drawn: Math.round(b.shadowRoot.querySelector('svg')?.getBoundingClientRect().height ?? 0),
+            })),
+        }));
+    });
+    // the 40px row: two 18px rows (4px gap); before, the inner layout card's 100% did not
+    // count as definite, both buttons kept 56px and spilled out of the row
+    await expect.poll(heights).toEqual([
+        { fits: true, buttons: [{ fits: true, drawn: 18 }, { fits: true, drawn: 18 }] },
+        { fits: false, buttons: [expect.objectContaining({ fits: false }), expect.objectContaining({ fits: false })] },
+    ]);
+    const [, auto] = await heights();
+    for (const b of auto.buttons) expect(b.drawn).toBeGreaterThanOrEqual(40);
+    await expectNoErrors(page);
+});
