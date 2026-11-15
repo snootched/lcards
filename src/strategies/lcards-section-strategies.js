@@ -13,7 +13,7 @@
 
 import { LitElement, html } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
-import { docsUrl, DOCS } from '../utils/docs-url.js';
+import { LCARS_SECTION_CATALOG } from './strategy-catalog.js';
 
 const ACCENT = 'theme:colors.ui.tertiary';
 const STRUCTURE = 'theme:colors.ui.secondary';
@@ -162,8 +162,7 @@ const isToggle = (/** @type {string} */ id) => TOGGLE_DOMAINS.includes(id.split(
  */
 export const LCARS_SECTIONS = {
     'lcars-readings': {
-        name: 'LCARS readings',
-        description: 'A title bar over a readings table: the sensors of an area or other target, with their values.',
+        ...LCARS_SECTION_CATALOG['lcars-readings'],
         fallbackTitle: 'READINGS', domains: ['sensor'], max: 12,
         match: isReading,
         build: (hass, ids) => {
@@ -184,8 +183,7 @@ export const LCARS_SECTIONS = {
         },
     },
     'lcars-gauges': {
-        name: 'LCARS gauges',
-        description: 'Upright Picard gauges with a value cap and a name cap: percentages, temperatures and number helpers of a target.',
+        ...LCARS_SECTION_CATALOG['lcars-gauges'],
         fallbackTitle: 'LEVELS', domains: ['sensor', 'input_number', 'number'], max: 8,
         match: isGauge,
         build: (hass, ids) => { const labels = sectionLabels(hass, ids); return [...ids].sort(byName(hass)).map(id => ({
@@ -197,8 +195,7 @@ export const LCARS_SECTIONS = {
         })); },
     },
     'lcars-controls': {
-        name: 'LCARS controls',
-        description: 'Rounded LCARS pills that toggle the lights, switches, fans and toggle helpers of a target.',
+        ...LCARS_SECTION_CATALOG['lcars-controls'],
         fallbackTitle: 'CONTROLS', domains: TOGGLE_DOMAINS, max: 16,
         match: () => isToggle,
         build: (hass, ids) => { const labels = sectionLabels(hass, ids); return [...ids].sort(byName(hass)).map(id => ({
@@ -209,8 +206,7 @@ export const LCARS_SECTIONS = {
         })); },
     },
     'lcars-blocks': {
-        name: 'LCARS blocks',
-        description: 'A Picard code-block panel: a small block per light, switch or toggle helper of a target, lit in the accent while it is on.',
+        ...LCARS_SECTION_CATALOG['lcars-blocks'],
         fallbackTitle: 'SYSTEMS', domains: TOGGLE_DOMAINS, max: 24,
         match: () => isToggle,
         build: (hass, ids) => {
@@ -310,43 +306,19 @@ export class LCARdSSectionStrategyEditor extends LitElement {
 }
 
 /**
- * The strategy class for one section kind.
+ * The new section's start config, and the preview in the chooser: the area with the
+ * most matching entities, as Home Assistant's Entities section does for lights.
  * @param {string} key
+ * @param {any} hass
  */
-function sectionStrategyClass(key) {
-    const def = LCARS_SECTIONS[key];
-    return class extends HTMLElement {
-        static registryDependencies = /** @type {const} */ (['entities', 'devices', 'areas', 'floors', 'labels']);
-
-        static getConfigElement() {
-            return document.createElement('lcards-section-strategy-editor');
-        }
-
-        /** The new section's start, and the preview in the chooser: the area with the most matching entities. */
-        static getStubConfig(hass) {
-            const area = busiestArea(hass, def.match(hass)) ?? Object.keys(hass?.areas ?? {})[0];
-            return { type: `custom:${key}`, ...(area ? { target: { area_id: area } } : {}) };
-        }
-
-        /** @param {SectionConfig} config @param {any} hass */
-        static async generate(config, hass) {
-            return generateLcarsSection(key, config, hass);
-        }
-    };
+export function sectionStubConfig(key, hass) {
+    const area = busiestArea(hass, LCARS_SECTIONS[key].match(hass)) ?? Object.keys(hass?.areas ?? {})[0];
+    return { type: `custom:${key}`, ...(area ? { target: { area_id: area } } : {}) };
 }
 
-/** Define the section strategy elements and list them in Home Assistant's chooser. Call at module top level. */
-export function registerLcarsSections() {
+/** Define the settings form element (getConfigElement() calls it first). */
+export function defineSectionEditor() {
     if (!customElements.get('lcards-section-strategy-editor')) {
         customElements.define('lcards-section-strategy-editor', LCARdSSectionStrategyEditor);
-    }
-    const w = /** @type {any} */ (window);
-    w.customStrategies = w.customStrategies || [];
-    for (const [key, def] of Object.entries(LCARS_SECTIONS)) {
-        const tag = `ll-strategy-section-${key}`;
-        if (!customElements.get(tag)) customElements.define(tag, sectionStrategyClass(key));
-        if (!w.customStrategies.some((/** @type {any} */ s) => s.type === key && s.strategyType === 'section')) {
-            w.customStrategies.push({ type: key, strategyType: 'section', name: def.name, description: def.description, documentationURL: docsUrl(`${DOCS.sectionStrategies}#${key}`) });
-        }
     }
 }

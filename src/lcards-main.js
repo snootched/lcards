@@ -47,8 +47,7 @@ import * as anchorHelpers from './utils/lcards-anchor-helpers.js';
 import './msd/index.js';
 
 // LCARdS strategy imports
-import { LCARdSShellDashboardStrategy, LCARdSShellStrategyEditor, LCARdSShellPicardDashboardStrategy } from './strategies/index.js';
-import { registerLcarsSections } from './strategies/lcards-section-strategies.js';
+import { LCARdSShellDashboardStrategy, LCARdSShellStrategyEditor, LCARdSShellPicardDashboardStrategy, registerLcarsSections } from './strategies/index.js';
 
 // LCARdS view imports
 import { LCARdSLayoutView } from './views/index.js';

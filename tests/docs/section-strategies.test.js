@@ -110,8 +110,12 @@ test('every section kind generates valid LCARdS config, and its strategy config 
 });
 
 test('the stub targets the area with the most matching entities', async () => {
-    await import('../../src/strategies/lcards-section-strategies.js').then((m) => m.registerLcarsSections());
+    (await import('../../src/strategies/strategy-registration.js')).registerLcarsSections();
     const cls = customElements.get('ll-strategy-section-lcars-controls');
-    assert.deepEqual(cls.getStubConfig(hass), { type: 'custom:lcars-controls', target: { area_id: 'bridge' } });
+    // the registered class loads the generator module on first use
+    assert.deepEqual(await cls.getStubConfig(hass), { type: 'custom:lcars-controls', target: { area_id: 'bridge' } });
+    assert.equal((await cls.generate({ type: 'custom:lcars-controls', target: { area_id: 'bridge' } }, hass)).type, 'grid');
+    const editor = await cls.getConfigElement();
+    assert.equal(editor.localName, 'lcards-section-strategy-editor');
     assert.ok(window.customStrategies.some((s) => s.type === 'lcars-readings' && s.strategyType === 'section'));
 });
