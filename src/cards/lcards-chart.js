@@ -60,6 +60,29 @@ const FIRST_DATA_WAIT_MS = 2500;
 let apexChartsPromise = null;
 
 /**
+ * ApexCharts' updateOptions()/updateSeries() return promises, so a try/catch
+ * around them misses a failure, which surfaced as "Uncaught (in promise)" with
+ * no hint of the caller. Log it with where it came from instead.
+ * @param {any} promise
+ * @param {string} where - which update (series, window, bands, resize, options, alert)
+ */
+function settleUpdate(promise, where) {
+  promise?.catch?.((/** @type {any} */ error) => lcardsLog.warn(`[LCARdSChart] Chart update failed (${where}):`, error));
+}
+
+/**
+ * Drop undefined keys from an updateOptions() patch. ApexCharts merges an
+ * undefined value over its own: `plotOptions: undefined` (a line chart has no
+ * plotOptions of ours) wiped its plotOptions, and every later update threw
+ * "reading 'radar'" (a resize, e.g. entering edit mode, set it off).
+ * @param {Record<string, any>} patch
+ * @returns {Record<string, any>}
+ */
+export function definedOptions(patch) {
+  return Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
+}
+
+/**
  * Load ApexCharts on first use. It is built into its own chunk, so pages
  * without a chart never download it. A failed load is not cached.
  * @returns {Promise<any>} The ApexCharts constructor
@@ -357,10 +380,10 @@ export class LCARdSChart extends LCARdSCard {
         // with the zoomed range, which ApexCharts then keeps as that range. The
         // last argument keeps the window as the range a reset returns to.
         const { min, max } = /** @type {any} */ (this._chart).w.config.xaxis;
-        this._chart.updateOptions({ xaxis: { min, max }, series: this._buildApexSeries() }, false, false, false, false);
+        settleUpdate(this._chart.updateOptions(definedOptions({ xaxis: { min, max }, series: this._buildApexSeries() }), false, false, false, false), 'series (zoomed)');
       } else {
-        this._chart.updateOptions({ xaxis: this._windowAxis() }, false, false, false);
-        this._chart.updateSeries(this._buildApexSeries(), false);
+        settleUpdate(this._chart.updateOptions(definedOptions({ xaxis: this._windowAxis() }), false, false, false), 'window');
+        settleUpdate(this._chart.updateSeries(this._buildApexSeries(), false), 'series');
       }
     } catch (error) {
       lcardsLog.error('[LCARdSChart] Error updating chart data:', error);
@@ -378,7 +401,7 @@ export class LCARdSChart extends LCARdSCard {
     this._bandPoints[index] = points;
     if (!this._chart || !this._chartReady) return;
     try {
-      this._chart.updateOptions({ annotations: this._buildChartOptions().annotations }, false, false, false);
+      settleUpdate(this._chart.updateOptions(definedOptions({ annotations: this._buildChartOptions().annotations }), false, false, false), 'bands');
     } catch (error) {
       lcardsLog.error('[LCARdSChart] Error updating state bands:', error);
     }
@@ -463,7 +486,7 @@ export class LCARdSChart extends LCARdSCard {
     if (this._chart && this._chartReady) {
       this._updateChartOptions();
       // Timeline bars carry their state colours in the series data
-      if (this.config.chart_type === 'rangeBar') this._chart.updateSeries(this._buildApexSeries(), false);
+      if (this.config.chart_type === 'rangeBar') settleUpdate(this._chart.updateSeries(this._buildApexSeries(), false), 'alert series');
     }
   }
 
@@ -557,8 +580,15 @@ export class LCARdSChart extends LCARdSCard {
       if (generation !== this._chartGeneration || !container.isConnected) {
         return;
       }
-      this._chart = new ApexCharts(container, this._chartOptions);
-      await this._chart.render();
+      const chart = new ApexCharts(container, this._chartOptions);
+      this._chart = chart;
+      await chart.render();
+      // A config change or disconnect during the render destroyed this chart and
+      // may have started a new one: marking it ready would let updates reach the
+      // new chart mid-render (ApexCharts throws "reading 'radar'").
+      if (generation !== this._chartGeneration || this._chart !== chart) {
+        return;
+      }
       this._observeChartSize(container);
       this._joinSyncGroup(container);
 
@@ -566,6 +596,8 @@ export class LCARdSChart extends LCARdSCard {
       this._error = null;
       lcardsLog.debug(`[LCARdSChart] Chart initialized for ${this.config?.id || this._cardGuid}`);
     } catch (error) {
+      // a chart destroyed mid-render can reject: that is not this config's error
+      if (generation !== this._chartGeneration) return;
       lcardsLog.error(`[LCARdSChart] Error initializing chart:`, error);
       this._error = `Chart initialization failed: ${error.message}`;
       this.requestUpdate();
@@ -617,7 +649,7 @@ export class LCARdSChart extends LCARdSCard {
       if (!this._chart || !this._chartReady || this._isZoomed()) return;
       this._fetcher?.refreshSpan();
       try {
-        this._chart.updateOptions({ xaxis: this._windowAxis() }, false, false, false);
+        settleUpdate(this._chart.updateOptions(definedOptions({ xaxis: this._windowAxis() }), false, false, false), 'sync_group window');
       } catch (error) {
         lcardsLog.warn('[LCARdSChart] sync_group: axis update failed', error);
       }
@@ -732,11 +764,11 @@ export class LCARdSChart extends LCARdSCard {
         last = size;
         const options = this._buildChartOptions(size[0], size[1]);
         this._chartOptions = options;
-        this._chart.updateOptions({
+        settleUpdate(this._chart.updateOptions(definedOptions({
           chart: { width: size[0], height: size[1] },
           plotOptions: options.plotOptions,
           grid: options.grid
-        }, false, false, false);
+        }), false, false, false), 'resize');
       }, 100);
     });
     this._resizeObserverChart.observe(box);
@@ -835,7 +867,7 @@ export class LCARdSChart extends LCARdSCard {
 
     try {
       const newOptions = this._buildChartOptions();
-      this._chart.updateOptions({
+      settleUpdate(this._chart.updateOptions(definedOptions({
         colors: newOptions.colors,
         stroke: newOptions.stroke,
         fill: newOptions.fill,
@@ -849,7 +881,7 @@ export class LCARdSChart extends LCARdSCard {
         yaxis: newOptions.yaxis,
         // thresholds and state bands (their colours follow the alert mode)
         annotations: newOptions.annotations
-      }, false, false, false, !this._isZoomed());
+      }), false, false, false, !this._isZoomed()), 'options');
     } catch (error) {
       lcardsLog.error(`[LCARdSChart] Error updating chart options:`, error);
     }

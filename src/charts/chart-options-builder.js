@@ -8,6 +8,7 @@
  * @module charts/chart-options-builder
  */
 
+import { lcardsLog } from '../utils/lcards-logging.js';
 import { ApexChartsAdapter } from './ApexChartsAdapter.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import {
@@ -359,7 +360,8 @@ function zoomSiblings(chart, xaxis) {
       if (!w?.interact || w.globals?.isDestroyed) continue;
       w.interact.zoomed = true;
       if (w.config?.xaxis?.min !== xaxis?.min || w.config?.xaxis?.max !== xaxis?.max) {
-        sibling.updateOptions({ xaxis: { min: xaxis?.min, max: xaxis?.max } }, false, false, false, false);
+        sibling.updateOptions({ xaxis: { min: xaxis?.min, max: xaxis?.max } }, false, false, false, false)
+          ?.catch?.((/** @type {any} */ error) => lcardsLog.warn('[ChartOptions] sync_group zoom update failed:', error));
       }
       // The reset control a mount draws for a zoomed chart without a toolbar
       // (ApexCharts' mount(): createToolbar({ resetOnly: true }))

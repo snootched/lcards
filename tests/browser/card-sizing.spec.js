@@ -65,6 +65,20 @@ test('a chart reconfigured on a slow machine does not resize the new chart while
     await expectNoErrors(page);
 });
 
+test('a line chart keeps working after it is resized (no plotOptions wiped)', async ({ page }) => {
+    // The resize update sent plotOptions: undefined for a line chart, which wiped
+    // ApexCharts' own plotOptions; every later update threw "reading 'radar'"
+    // (entering edit mode on a layout view resized it; tests/ha/issues.spec.js).
+    const card = await mountCase(page, 'chart-line', { width: '400', height: '300' });
+    await page.waitForFunction(() => document.querySelector('lcards-chart')?._chartReady === true, null, { timeout: 15_000 });
+    await page.evaluate(() => { document.getElementById('mount').style.width = '520px'; });
+    await page.waitForTimeout(600);
+    await page.evaluate(() => window.__setState('sensor.demo_temperature', '23.5'));
+    await page.waitForTimeout(600);
+    expect(await card.evaluate((el) => !!el._chart?.w?.config?.plotOptions)).toBe(true);
+    await expectNoErrors(page);
+});
+
 test('a button in a layout cell of a definite height follows the cell, not its preset floor', async ({ page }) => {
     await mountCase(page, 'layout-card-short-row', { width: '400' });
     const heights = () => page.evaluate(() => {
