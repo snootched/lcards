@@ -48,8 +48,8 @@ Each LCARdS release comes with a new version of the plugin. To get it, run `/plu
 - **Running a dev build of LCARdS?** Use the dev channel instead, which follows the [dev docs](https://lcards.unimatrix01.ca/dev/): `/plugin marketplace add https://lcards.unimatrix01.ca/dev/marketplace.json`, then `/plugin install lcards@lcards-dev`. Install one channel, not both.
 :::
 
-::: info Other tools that support skills
-The LCARdS skill follows the open [Agent Skills](https://agentskills.io) standard, so any tool that supports Agent Skills can load the same zip. We build and test it with Claude.
+::: info The skill is made for Claude
+The LCARdS skill follows the open [Agent Skills](https://agentskills.io) standard, so other tools that support Agent Skills may load the zip, but we build and test it with Claude only. Other assistants may skip the questions, leave out the preview link or the checker, or draw a picture that isn't LCARdS; for them, use the option list [below](#with-other-assistants) and check the result yourself.
 :::
 
 ::: tip Talk it through first
@@ -80,7 +80,7 @@ ha-mcp is a separate community project; we don't make, support or take responsib
 
 ## With other assistants
 
-**If your assistant supports Agent Skills, use the skill above; otherwise attach the option list for your card.**
+**Other assistants don't get the skill's conversation, preview links or checker: attach the option list for your card, and expect more rounds than with Claude.**
 
 1. **Download the option list for your card**, for example [`lcards-button.json`](/schema/cards/lcards-button.json). Every card is listed in [`schema/index.json`](/schema/index.json).
 2. **Attach it** to your chat and paste this first:

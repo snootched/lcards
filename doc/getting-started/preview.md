@@ -19,10 +19,10 @@ description: "See LCARdS YAML (a card, a view or a whole dashboard) as real card
 
 ## Preview links from an AI assistant
 
-**When an AI assistant with the [LCARdS skill](ai-assistance) designs a dashboard with you, it can give you a link to this page with the YAML inside.** Open it to see the draft before you paste anything.
+**When Claude with the [LCARdS skill](ai-assistance) designs a dashboard with you, it can give you a link to this page with the YAML inside.** Open it to see the draft before you paste anything.
 
-- The assistant makes the link when it can run code (Claude with code execution, Claude Code, ChatGPT with its Python tool). Without that, it gives you the YAML: paste it above.
-- A link for a big dashboard is long. If a chat app cuts it off, the page says the link couldn't be read; paste the YAML instead.
+- Claude makes the link when it can run code (Claude Code, or claude.ai and the Claude apps with code execution turned on). Without that, it gives you the YAML: paste it above.
+- A link for a big dashboard is long. If the chat cuts it off, the page says the link couldn't be read; paste the YAML instead.
 - **Copy link to this preview** makes a link for whatever is in the editor, to share or keep.
 
 ## What a preview can't show
