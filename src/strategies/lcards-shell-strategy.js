@@ -11,7 +11,6 @@
  * Uses LCARdS's own grid system — custom:lcards-layout-view for the shell and
  * custom:lcards-layout-card for nested panels (no lovelace-layout-card / card-mod).
  *
- * Requires: auto-entities (HACS) — only for the dynamic room light list.
  */
 
 import { LitElement, html } from 'lit';
@@ -84,10 +83,14 @@ function _layoutCard(viewArea, layout, cards, extra = {}) {
 // CONTENT PANEL CARDS
 // ============================================================================
 
-function _roomLightControllerCard(roomEntity) {
+/**
+ * @param {string} roomEntity
+ * @param {RoomLights[]} rooms
+ */
+function _roomLightControllerCard(roomEntity, rooms) {
     // A sub-grid (lcards-layout-card) placed directly in the content-panel area:
     // header elbow, selector column (room select-menu + filler panel), scrollable
-    // auto-entities light list, and a footer elbow.
+    // light lists (one per area, see _roomLightLists), and a footer elbow.
     return {
         type: 'custom:lcards-layout-card',
         layout: {
@@ -141,42 +144,7 @@ function _roomLightControllerCard(roomEntity) {
                 ],
                 view_layout: { 'grid-area': 'selector' },
             },
-            // Slider list — overflow-y: auto gives isolated scrolling within the 1fr cell
-            {
-                type: 'custom:auto-entities',
-                filter: {
-                    template: `[{% for e in
-                        area_entities(states('${roomEntity}')) %}
-                        {% if e.startswith('light.') %}
-                            {
-                            'entity': '{{ e }}',
-                            'type': 'custom:lcards-slider',
-                            'preset': 'pills-left-border',
-                            'view_layout': {'grid-column': '1'},
-                            'text': {'name': {'show': 'true'}},
-                            'tap_action': {'action': 'toggle'},
-                            'hold_action': {'action': 'more-info', 'entity': '{{ e }}'},
-                            'style': { 'track': { 'segments': { 'gradient': { 'end': { 'active': 'match-light' }, 'start': { 'active': 'darken(match-light,0.6)' } } } } },
-                            },
-                        {% endif %}
-                        {% endfor %}]`,
-                },
-                card_param: 'cards',
-                card: {
-                    type: 'custom:lcards-layout-card',
-                    layout: {
-                        'grid-template-columns': '1fr',
-                        'grid-template-rows': 'minmax(45px, 56px)',
-                        'grid-auto-rows': 'minmax(45px, 56px)',
-                        'grid-gap': '5px',
-                        padding: 0,
-                        card_margin: 0,
-                        margin: 0,
-                        height: 'auto',
-                    },
-                },
-                view_layout: { 'grid-area': 'list', 'overflow-y': 'auto' },
-            },
+            _roomLightLists(roomEntity, rooms),
             {
                 type: 'custom:lcards-elbow',
                 elbow: {
@@ -188,6 +156,110 @@ function _roomLightControllerCard(roomEntity) {
             },
         ],
         view_layout: { 'grid-area': 'content-panel', margin: '20' },
+    };
+}
+
+/**
+ * @typedef {{ area_id: string, name: string, lights: string[] }} RoomLights
+ */
+
+/**
+ * The lights in each area, read from the entity and device registries at generation
+ * time (an entity's own area, else its device's). Home Assistant regenerates a
+ * strategy dashboard when those registries or the area registry change, so the lists
+ * stay current without auto-entities. Hidden lights and lights with an entity
+ * category are left out, like Home Assistant's own area cards do.
+ *
+ * @param {any} hass
+ * @returns {RoomLights[]} every area, sorted by name, lights sorted by name
+ */
+export function roomLightsFromRegistries(hass) {
+    const entities = hass?.entities ?? {};
+    const devices = hass?.devices ?? {};
+    const states = hass?.states ?? {};
+    /** @type {Record<string, string[]>} */
+    const byArea = {};
+    for (const [entityId, entry] of Object.entries(entities)) {
+        if (!entityId.startsWith('light.') || entry?.hidden || entry?.entity_category) continue;
+        const areaId = entry?.area_id ?? (entry?.device_id ? devices[entry.device_id]?.area_id : null);
+        if (!areaId) continue;
+        (byArea[areaId] ??= []).push(entityId);
+    }
+    const label = (/** @type {string} */ id) => String(states[id]?.attributes?.friendly_name ?? id);
+    return Object.values(hass?.areas ?? {})
+        .filter(a => a?.area_id && a?.name)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(a => ({
+            area_id: a.area_id,
+            name: a.name,
+            lights: (byArea[a.area_id] ?? []).sort((x, y) => label(x).localeCompare(label(y))),
+        }));
+}
+
+/** @param {string} entityId */
+function _lightSlider(entityId) {
+    return {
+        type: 'custom:lcards-slider',
+        entity: entityId,
+        preset: 'pills-left-border',
+        text: { name: { show: true } },
+        tap_action: { action: 'toggle' },
+        hold_action: { action: 'more-info', entity: entityId },
+        style: { track: { segments: { gradient: { end: { active: 'match-light' }, start: { active: 'darken(match-light,0.6)' } } } } },
+    };
+}
+
+/**
+ * The light list cell: one single-column list per area, each shown by a Visibility
+ * condition while the room selector names that area (its id or its name, so
+ * input_select options may use either). An area with no lights shows a note. The
+ * lists sit in one wrapper with no condition, so the list column keeps its width
+ * while no room is picked.
+ *
+ * @param {string} selectorEntity
+ * @param {RoomLights[]} rooms
+ */
+function _roomLightLists(selectorEntity, rooms) {
+    const states = (/** @type {RoomLights} */ room) => [...new Set([room.area_id, room.name])];
+    const empty = rooms.filter(r => r.lights.length === 0);
+    /** @type {any[]} */
+    const cards = rooms.filter(r => r.lights.length > 0).map(room => ({
+        type: 'custom:lcards-layout-card',
+        layout: {
+            'grid-template-columns': '1fr',
+            'grid-auto-rows': 'minmax(45px, 56px)',
+            'grid-gap': '5px',
+            padding: 0,
+            card_margin: 0,
+            margin: 0,
+            height: 'auto',
+        },
+        visibility: [{ condition: 'state', entity: selectorEntity, state: states(room) }],
+        cards: room.lights.map(_lightSlider),
+    }));
+    if (empty.length) {
+        cards.push({
+            type: 'custom:lcards-button',
+            preset: 'outline',
+            interactive: false,
+            height: '56px',
+            text: { label: { show: true, content: 'No lights in this room' } },
+            visibility: [{ condition: 'state', entity: selectorEntity, state: empty.flatMap(states) }],
+        });
+    }
+    return {
+        type: 'custom:lcards-layout-card',
+        layout: {
+            'grid-template-columns': '1fr',
+            'grid-auto-rows': 'auto',
+            'align-content': 'start',
+            padding: 0,
+            card_margin: 0,
+            margin: 0,
+            height: 'auto',
+        },
+        cards,
+        view_layout: { 'grid-area': 'list', 'overflow-y': 'auto' },
     };
 }
 
@@ -231,12 +303,13 @@ function _areaSelectAction(entityId, areaId) {
  * Room controller variant for auto-areas mode. Same chrome as _roomLightControllerCard
  * but the select-menu options come from the HA area registry (not entity options).
  *
- * @param {Array<{area_id: string, name: string, icon: string|null}>} areas
+ * @param {Array<{area_id: string, name: string, icon?: string|null}>} areas
  * @param {string|null} stateEntity  Entity used to track the selected area (ideally input_text).
  *                                   When null the area buttons are rendered but tapping does nothing
  *                                   and the light list shows a setup prompt.
+ * @param {RoomLights[]} rooms
  */
-function _autoAreasRoomCard(areas, stateEntity) {
+function _autoAreasRoomCard(areas, stateEntity, rooms) {
     const options = areas.map(area => ({
         value: area.area_id,
         label: area.name,
@@ -244,38 +317,7 @@ function _autoAreasRoomCard(areas, stateEntity) {
         tap_action: stateEntity ? _areaSelectAction(stateEntity, area.area_id) : { action: 'none' },
     }));
 
-    const listCard = stateEntity ? {
-        type: 'custom:auto-entities',
-        filter: {
-            template: `[{% for e in
-                area_entities(states('${stateEntity}')) %}
-                {% if e.startswith('light.') %}
-                    {
-                    'entity': '{{ e }}',
-                    'type': 'custom:lcards-slider',
-                    'preset': 'pills-left-border',
-                    'view_layout': {'grid-column': '1'},
-                    'text': {'name': {'show': 'true'}}
-                    },
-                {% endif %}
-                {% endfor %}]`,
-        },
-        card_param: 'cards',
-        card: {
-            type: 'custom:lcards-layout-card',
-            layout: {
-                'grid-template-columns': '1fr',
-                'grid-template-rows': 'minmax(45px, 56px)',
-                'grid-auto-rows': 'minmax(45px, 56px)',
-                'grid-gap': '5px',
-                padding: 0,
-                card_margin: 0,
-                margin: 0,
-                height: 'auto',
-            },
-        },
-        view_layout: { 'grid-area': 'list', 'overflow-y': 'auto' },
-    } : {
+    const listCard = stateEntity ? _roomLightLists(stateEntity, rooms) : {
         type: 'custom:lcards-button',
         preset: 'outline',
         interactive: false,
@@ -349,7 +391,7 @@ function _autoAreasRoomCard(areas, stateEntity) {
 }
 
 // ============================================================================
-// SHELL VIEW (wip-layout-next3)
+// SHELL VIEW
 // ============================================================================
 
 function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEntity }) {
@@ -693,17 +735,15 @@ export class LCARdSShellDashboardStrategy extends HTMLElement {
 
         let contentCard;
         if (roomEntity && roomEntity in (hass?.states ?? {})) {
+            const rooms = roomLightsFromRegistries(hass);
             if (roomEntityDomain === 'input_text') {
                 // Auto-areas mode: build room list from HA area registry, store selection in input_text.
-                const areas = Object.values(hass?.areas ?? {})
-                    .filter(a => a?.area_id && a?.name)
-                    .sort((a, b) => a.name.localeCompare(b.name));
-                contentCard = areas.length > 0
-                    ? _autoAreasRoomCard(areas, roomEntity)
-                    : _contentPlaceholderCard('No areas found: add rooms in Settings → Areas & Zones, then reload.');
+                contentCard = rooms.length > 0
+                    ? _autoAreasRoomCard(rooms, roomEntity, rooms)
+                    : _contentPlaceholderCard('No areas found: add rooms in Settings → Areas & Zones.');
             } else {
                 // Entity mode: input_select / select options drive the room list.
-                contentCard = _roomLightControllerCard(roomEntity);
+                contentCard = _roomLightControllerCard(roomEntity, rooms);
             }
         } else {
             contentCard = _contentPlaceholderCard();

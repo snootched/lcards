@@ -12,7 +12,7 @@
 export const shellStrategySchema = {
     type: 'object',
     title: 'LCARS Shell Dashboard Strategy',
-    description: 'Dashboard strategy that generates a full LCARS shell (header, sidebars, content panel) on a custom:lcards-layout-view. Set it as the dashboard\'s `strategy:` block. The room light list needs auto-entities (HACS).',
+    description: 'Dashboard strategy that generates a full LCARS shell (header, sidebars, content panel) on a custom:lcards-layout-view. Set it as the dashboard\'s `strategy:` block.',
     required: ['type'],
     additionalProperties: false,
     properties: {

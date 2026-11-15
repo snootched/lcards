@@ -293,3 +293,63 @@ export async function setInputNumberMax(client, objectId, max) {
         name: item.name, min: item.min, max, step: item.step, mode: item.mode,
     });
 }
+
+/**
+ * Test rooms for the LCARS shell's room lights (tests/ha/shell-rooms.spec.js): two
+ * areas and two template lights, so the shell's registry-built light lists have
+ * something to show without touching the dev Home Assistant's real lights or areas.
+ * Each lamp follows an lcards_test_* boolean (turn_on / turn_off switch it).
+ * `light.lcards_test_lamp` sits in the bridge area; `light.lcards_test_lamp_2`
+ * starts with no area (the spec moves it to show the dashboard regenerating).
+ */
+export const TEST_ROOMS = {
+    areas: { bridge: 'LCARdS Test Bridge', cargo: 'LCARdS Test Cargo' },
+    lamps: {
+        'light.lcards_test_lamp': { name: 'LCARdS Test Lamp', boolean: 'input_boolean.lcards_test_lamp_power' },
+        'light.lcards_test_lamp_2': { name: 'LCARdS Test Lamp 2', boolean: 'input_boolean.lcards_test_lamp_2_power' },
+    },
+};
+
+/**
+ * Create the TEST_ROOMS areas and lamps when missing, put the first lamp in the
+ * bridge area and take the second out of any area.
+ * @param {HAClient} client
+ * @returns {Promise<{ bridge: string, cargo: string }>} the two area ids
+ */
+export async function ensureTestRooms(client) {
+    const token = /** @type {any} */ (client)._token;
+    const rest = async (/** @type {string} */ path, /** @type {any} */ body) => {
+        const res = await fetch(`${HA_URL}${path}`, {
+            method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`${path}: ${res.status} ${await res.text()}`);
+        return res.json();
+    };
+    await ensureHelpers(client, Object.fromEntries(Object.values(TEST_ROOMS.lamps).map(l => [
+        l.boolean, { type: 'input_boolean/create', name: `${l.name} Power` },
+    ])));
+    const states = await client.call({ type: 'get_states' });
+    const ids = new Set(states.map((/** @type {any} */ s) => s.entity_id));
+    for (const [entityId, lamp] of Object.entries(TEST_ROOMS.lamps)) {
+        if (ids.has(entityId)) continue;
+        const boolean = lamp.boolean;
+        const flow = await rest('/api/config/config_entries/flow', { handler: 'template', show_advanced_options: false });
+        const step = await rest(`/api/config/config_entries/flow/${flow.flow_id}`, { next_step_id: 'light' });
+        await rest(`/api/config/config_entries/flow/${step.flow_id}`, {
+            name: lamp.name,
+            state: `{{ is_state('${boolean}', 'on') }}`,
+            turn_on: [{ action: 'input_boolean.turn_on', target: { entity_id: boolean } }],
+            turn_off: [{ action: 'input_boolean.turn_off', target: { entity_id: boolean } }],
+        });
+    }
+    const areas = await client.call({ type: 'config/area_registry/list' });
+    /** @type {Record<string, string>} */
+    const areaIds = {};
+    for (const [key, name] of Object.entries(TEST_ROOMS.areas)) {
+        const found = areas.find((/** @type {any} */ a) => a.name === name);
+        areaIds[key] = found ? found.area_id : (await client.call({ type: 'config/area_registry/create', name })).area_id;
+    }
+    await client.call({ type: 'config/entity_registry/update', entity_id: 'light.lcards_test_lamp', area_id: areaIds.bridge });
+    await client.call({ type: 'config/entity_registry/update', entity_id: 'light.lcards_test_lamp_2', area_id: null });
+    return /** @type {{ bridge: string, cargo: string }} */ (areaIds);
+}

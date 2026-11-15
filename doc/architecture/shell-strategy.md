@@ -1,6 +1,6 @@
 # Shell Strategy
 
-> **`custom:lcars-shell`**: a Home Assistant dashboard strategy that generates a complete LCARS shell (frame, sidebars, header and footer, content panel) as one `custom:lcards-layout-view`, built from LCARdS cards only (plus auto-entities for the room light list).
+> **`custom:lcars-shell`**: a Home Assistant dashboard strategy that generates a complete LCARS shell (frame, sidebars, header and footer, content panel) as one `custom:lcards-layout-view`, built from LCARdS cards only.
 > **Source**: `src/strategies/lcards-shell-strategy.js`, `src/cards/schemas/shell-strategy-schema.js`, registration in `src/lcards-main.js`
 > **Test**: `tests/docs/shell-strategy-output.test.js`
 
@@ -74,7 +74,7 @@ flowchart TD
     V --> O["return { views: [view] }"]
 ```
 
-`generate()` reads `hass.states` and `hass.areas` once. A new area, or a changed helper, shows up the next time Home Assistant generates the dashboard (a reload, or a change in the configure dialog).
+`generate()` reads `hass.states`, `hass.areas`, `hass.entities` and `hass.devices` once. Home Assistant generates a strategy dashboard again whenever the entity, device, area or floor registry changes (`checkStrategyShouldRegenerate`, the default dependencies), so a new area or a light added to a room shows up without a reload. A changed helper shows up after a reload or a change in the configure dialog; state changes never regenerate (the room picked is a Visibility condition).
 
 ### Content panel modes
 
@@ -82,11 +82,11 @@ Both room controllers are a `lcards-layout-card` in the `content-panel` area (`v
 
 | Mode | Room list | Selection stored in | Light list |
 |---|---|---|---|
-| Entity (`input_select` / `select`) | The entity's own options (the select menu reads them) | The entity (the select menu's default action) | `custom:auto-entities` with a Jinja2 filter over `area_entities(states(entity))`, one `lcards-slider` (`pills-left-border`, `match-light` gradient, toggle and more-info actions) per light, inside a single-column `lcards-layout-card` |
-| Auto-areas (`input_text`) | `hass.areas`, as explicit select menu `options` (`value: area_id`, `label: name`, `icon`) | The `input_text`, through each option's `tap_action` (`input_text.set_value`; `select_option` for the select domains) | The same auto-entities list on the `input_text`'s state |
+| Entity (`input_select` / `select`) | The entity's own options (the select menu reads them) | The entity (the select menu's default action) | One single-column `lcards-layout-card` per area with lights, holding one `lcards-slider` per light (`pills-left-border`, `match-light` gradient, toggle and more-info actions), shown by a Visibility condition while the entity's state is the area's id or name; a "No lights in this room" note for areas without lights. All in one wrapper `lcards-layout-card` with no condition, so the list column keeps its width |
+| Auto-areas (`input_text`) | `hass.areas`, as explicit select menu `options` (`value: area_id`, `label: name`, `icon`) | The `input_text`, through each option's `tap_action` (`input_text.set_value`; `select_option` for the select domains) | The same lists, conditioned on the `input_text`'s state |
 | Placeholder | | | An `outline` button with a hint |
 
-The light list needs the auto-entities card from HACS; without it Home Assistant shows its "custom element doesn't exist" error card in that cell.
+The lights per area come from `roomLightsFromRegistries(hass)`: every `light.*` registry entry with an area of its own, or else its device's area; hidden lights and lights with an entity category are left out. (Before 2026.11 the lists were `custom:auto-entities` cards with a Jinja2 `area_entities()` filter, which needed HACS.)
 
 ### The shell view
 
