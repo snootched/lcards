@@ -77,6 +77,8 @@ topics:
         views: [chart-sources, chart-types, chart-styling, chart-timeline]
       - title: Data grid
         views: [datagrid-data, datagrid-decorative]
+      - title: Section strategies
+        views: [sections-strategies]
   - id: data
     title: Data and rules
     views: [rules, templates, data-sources]
@@ -99,6 +101,13 @@ releases:
         session: "E1.2 rangeBar timeline, E1.1 state bands, E1.3 sync_group"
         docs: /cards/chart/types#timelines
         public: true
+      - file: sections-strategies
+        summary: "LCARS section strategies: readings, gauges, controls and code blocks that fill themselves"
+        description: "Four automatic sections, each built from a target (here test helpers; usually an area): a readings table, a bank of Picard gauges (drag one), toggle pills and a code-block panel lit while each toggle is on. In edit mode, Create section then Automatic section lists them under Community sections with live previews."
+        session: "S5 section strategies"
+        docs: /getting-started/section-strategies
+        # dev board only: the docs Live Demo page renders cards without Home Assistant's strategies
+        public: false
       - file: actions-confirmation
         summary: "Actions that ask first: Home Assistant's confirmation on any action"
         description: "LIGHTS asks Home Assistant's own question before it toggles (confirmation: true). AIRLOCK sets its own heading, question and buttons (Cycle, Stay). RED ALERT names the action in the question from Home Assistant's translations; hold it to clear the alert without being asked. Stay, Esc or a tap outside runs nothing."

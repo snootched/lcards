@@ -1,0 +1,40 @@
+# LCARS section strategies (S5, 2026-11-15): four automatic sections that fill
+# themselves from a target. Here the targets are lcards_test_* helpers; in edit mode,
+# Create section → Automatic section lists them under Community sections.
+title: Section strategies
+path: sections-strategies
+type: sections
+max_columns: 4
+sections:
+  - strategy:
+      type: custom:lcars-readings
+      title: READINGS
+      target:
+        entity_id:
+          - sensor.desk_sensor_temperature
+  - strategy:
+      type: custom:lcars-gauges
+      title: LEVELS
+      target:
+        entity_id:
+          - input_number.lcards_test_power
+          - input_number.lcards_test_shields
+          - input_number.lcards_test_humidity
+          - input_number.lcards_test_temperature
+  - strategy:
+      type: custom:lcars-controls
+      title: CONTROLS
+      target:
+        entity_id:
+          - input_boolean.lcards_test_lights
+          - input_boolean.lcards_test_doors
+          - input_boolean.lcards_test_warp
+  - strategy:
+      type: custom:lcars-blocks
+      title: SYSTEMS
+      target:
+        entity_id:
+          - input_boolean.lcards_test_lights
+          - input_boolean.lcards_test_doors
+          - input_boolean.lcards_test_warp
+          - input_boolean.lcards_test_warp_travel

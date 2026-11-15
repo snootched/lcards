@@ -261,6 +261,8 @@ export function frameGroups(cards) {
  * @returns {{ section: any, frames: number }}
  */
 export function frameSection(section, n) {
+    // a section strategy makes its own cards: it stays as it is
+    if (section.strategy) return { section, frames: 0 };
     const all = section.cards ?? [];
     const groups = frameGroups(all.filter(card => !UNFRAMED.has(card.type)));
     return {

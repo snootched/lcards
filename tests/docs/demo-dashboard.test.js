@@ -199,7 +199,7 @@ test('frameGroups: a frame per scene, the controls before it with it', () => {
 });
 
 /** Every frame card of a built view, in order */
-const framesOf = (view) => view.sections.slice(1).flatMap(sec => sec.cards).filter(c => c.type === 'custom:lcards-layout-card');
+const framesOf = (view) => view.sections.slice(1).flatMap(sec => sec.cards ?? []).filter(c => c.type === 'custom:lcards-layout-card');
 
 test('every view: its cards sit in numbered LCARS frames (sweep, bar, content, footer), placed at every width', () => {
     const board = buildDashboard(demo, { board: 'dev' });
@@ -208,7 +208,9 @@ test('every view: its cards sit in numbered LCARS frames (sweep, bar, content, f
         const source = views.find(v => v.path === view.path);
         const own = (source.config.sections ?? []).flatMap(sec => sec.cards ?? []).filter(c => c.type !== 'custom:lcards-alert-overlay');
         const frames = framesOf(view);
-        assert.ok(frames.length >= 1, view.path);
+        // section strategies (a section's own `strategy:`) make their cards in Home Assistant
+        const allStrategies = (source.config.sections ?? []).every(sec => sec.strategy);
+        assert.ok(frames.length >= 1 || allStrategies, view.path);
         assert.deepEqual(frames.map(f => f.cards[1].text.label.content), frames.map((_, i) => String(i + 1).padStart(2, '0')), `${view.path}: numbered in order`);
         const placed = [];
         for (const f of frames) {
@@ -250,7 +252,7 @@ test('headers: the title and plain segments are not buttons; Index and Docs are;
                 if (c.cards.some(x => x.preset === 'text-only') && c.cards[0].elbow) headers.push(c);
                 else find(c.cards);
             }
-        })(isLayoutView(view) ? view.cards : view.sections.flatMap(sec => sec.cards));
+        })(isLayoutView(view) ? view.cards : view.sections.flatMap(sec => sec.cards ?? []));
         assert.ok(headers.length, view.path);
         for (const h of headers) {
             for (const c of h.cards.filter(x => x.type === 'custom:lcards-button')) {
