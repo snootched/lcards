@@ -1348,6 +1348,22 @@ export function textFieldProperties(options = {}) {
                 helper: 'Expand or compress glyph spacing to fill the specified width fraction'
             }
         },
+        fit: {
+            oneOf: [
+                { type: 'boolean', description: 'true = shrink the text to fit its zone, then wrap it to two lines, then end it with an ellipsis' },
+                {
+                    type: 'object',
+                    additionalProperties: false,
+                    description: 'Fit with your own limits',
+                    properties: {
+                        min_font_size: { type: 'number', minimum: 1, description: 'Smallest size the text shrinks to (px; viewBox units in a component zone). Default: 60% of the font size, not below 8' },
+                        max_lines: { type: 'integer', minimum: 1, description: 'Most lines the text wraps to (at spaces). 1 = shrink only. Default 2' },
+                        overflow: { type: 'string', enum: ['ellipsis', 'clip'], description: 'Text still too long at the smallest size: end it with an ellipsis (default) or cut it' },
+                    },
+                },
+            ],
+            description: 'Keep the text inside its zone: shrink it, then wrap it, then cut it. Off by default. Ignored with stretch.',
+        },
         font_size_percent: {
             type: 'number',
             minimum: 1,

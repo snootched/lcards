@@ -65,6 +65,7 @@ import { TemplateDetector } from '../core/templates/TemplateDetector.js';
 import { LCARdSCardTemplateEvaluator } from '../core/templates/LCARdSCardTemplateEvaluator.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
 import { letterSpacingCss, letterSpacingPx } from '../utils/css-length-utils.js';
+import { fitText, fitOptions, FIT_LINE_HEIGHT } from '../utils/text-fit.js';
 import { sanitizeSvg, extractViewBox, extractDataUriContent, escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
 import { applyBaseSvgFilters } from '../msd/utils/BaseSvgFilters.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
@@ -5226,6 +5227,8 @@ export class LCARdSButton extends LCARdSCard {
                 // In component mode uses the text_area width; in standard mode uses container width.
                 // Renders via SVG textLength + lengthAdjust="spacingAndGlyphs".
                 stretch: pick('stretch', null),
+                // fit: shrink, then wrap, then cut the text to its zone (_fitTextMarkup)
+                fit: pick('fit', null),
 
                 // Text background properties for "bar label" effect
                 // Priority: field-specific config > text.default (config) > preset field config > text.default (preset) > null
@@ -5628,6 +5631,9 @@ export class LCARdSButton extends LCARdSCard {
                 // stretch: true → fill 100% of available width; number (0–1) → fraction.
                 // Must be forwarded here so _generateTextElements can emit textLength/lengthAdjust.
                 stretch: field.stretch ?? null,
+                // fit: shrink, then wrap, then cut to the zone (_fitTextMarkup)
+                fit: field.fit ?? null,
+                padding: field.padding ?? null,
 
                 // Carry the container/zone dimensions so _generateTextElements uses
                 // the correct bounds rather than this._containerSize (which may still
@@ -5646,6 +5652,48 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         return processedFields;
+    }
+
+    /**
+     * `fit` on a text field (reports/text-fit-plan.md): the font size and the inner
+     * markup (one line, or a <tspan> per line) that fit the field's area, or null
+     * when the field has no fit, stretches, or has no numeric size.
+     * @param {{ content: any, x: number, y: number, anchor: string, baseline: string, fontSize: any,
+     *   field: any, area: { x: number, y: number, width: number, height: number } }} args
+     * @returns {{ fontSize: number, markup: string }|null}
+     * @protected
+     */
+    _fitTextMarkup({ content, x, y, anchor, baseline, fontSize, field, area }) {
+        const size = typeof fontSize === 'number' ? fontSize : Number(fontSize);
+        const options = field?.stretch ? null : fitOptions(field?.fit, size);
+        if (!options || !(size > 0) || !area || !(area.width > 0)) return null;
+        const pad = field.padding;
+        const side = (/** @type {string} */ k) => (pad != null && typeof pad === 'object' ? Number(pad[k]) || 0 : Number(pad) || 0);
+        const left = area.x + side('left');
+        const right = area.x + area.width - side('right');
+        const width = anchor === 'start' ? right - x : anchor === 'end' ? x - left : 2 * Math.min(x - left, right - x);
+        const height = area.height - side('top') - side('bottom');
+        // Canvas widths grow with the size: measure once, scale.
+        let family = field.font_family || 'Antonio, Helvetica Neue, sans-serif';
+        if (family.includes('var(')) family = ColorUtils.resolveCssVariable(family);
+        if (!family || family.includes('var(') || family.startsWith('#')) family = 'Antonio, Helvetica Neue, sans-serif';
+        const font = `${field.font_weight || 'normal'} ${size}px ${family}`;
+        /** @type {Map<string, number>} */
+        const base = new Map();
+        const measure = (/** @type {string} */ text, /** @type {number} */ s) => {
+            if (!base.has(text)) base.set(text, RendererUtils.measureText(text, font).width);
+            return (base.get(text) ?? 0) * s / size + letterSpacingPx(field.letter_spacing, s) * text.length;
+        };
+        const result = fitText({ text: String(content ?? ''), width: Math.max(0, width), height: Math.max(0, height), fontSize: size, options, measure });
+        const lines = result.lines;
+        if (lines.length === 1) return { fontSize: result.fontSize, markup: escapeHtml(lines[0]) };
+        // Lines round the position: centred on it, below it (top baselines) or above it (bottom).
+        const lh = result.fontSize * FIT_LINE_HEIGHT;
+        const top = baseline === 'hanging' || baseline === 'text-before-edge';
+        const bottom = baseline === 'alphabetic' || baseline === 'text-after-edge' || baseline === 'ideographic';
+        const first = top ? 0 : bottom ? -(lines.length - 1) * lh : -((lines.length - 1) * lh) / 2;
+        const markup = lines.map((line, i) => `<tspan x="${x}" dy="${(i === 0 ? first : lh).toFixed(2)}">${escapeHtml(line)}</tspan>`).join('');
+        return { fontSize: result.fontSize, markup };
     }
 
     /**
@@ -5739,11 +5787,18 @@ export class LCARdSButton extends LCARdSCard {
                 textElements.push(bgRect);
             }
 
+            // fit: shrink, then wrap, then cut to the field's zone
+            const fitted = this._fitTextMarkup({
+                content: field.content, x: field.x, y: field.y, anchor: field.anchor, baseline: field.baseline,
+                fontSize: field.font_size, field,
+                area: { x: 0, y: 0, width: field._container_width ?? this._containerSize?.width ?? 0, height: field._container_height ?? this._containerSize?.height ?? 0 },
+            });
+
             // Build SVG <text> element
             const textAttrs = [
                 `x="${field.x}"`,
                 `y="${field.y}"`,
-                `font-size="${field.font_size}"`,
+                `font-size="${fitted ? fitted.fontSize.toFixed(2) : field.font_size}"`,
                 `fill="${escapeXmlAttribute(field.color)}"`,
                 `text-anchor="${field.anchor}"`,
                 `dominant-baseline="${field.baseline}"`,
@@ -5783,7 +5838,7 @@ export class LCARdSButton extends LCARdSCard {
             textAttrs.push(`data-field-id="${field.id}"`);
 
             // Build complete text element
-            const textElement = `<text ${textAttrs.join(' ')}>${escapeHtml(field.content)}</text>`;
+            const textElement = `<text ${textAttrs.join(' ')}>${fitted ? fitted.markup : escapeHtml(field.content)}</text>`;
             textElements.push(textElement);
         }
 
@@ -5965,11 +6020,14 @@ export class LCARdSButton extends LCARdSCard {
             // Full pipeline required: SVG fill attributes cannot handle var() or match-light.
             resolvedColor = this._resolveColorValue(String(resolvedColor), String(resolvedColor));
 
+            // fit: shrink, then wrap, then cut to the zone's text area
+            const fitted = this._fitTextMarkup({ content, x, y, anchor, baseline, fontSize, field, area: ta });
+
             // ── Build <text> element ──────────────────────────────────────────
             const textAttrs = [
                 `x="${x}"`,
                 `y="${y}"`,
-                `font-size="${fontSize}"`,
+                `font-size="${fitted ? fitted.fontSize.toFixed(2) : fontSize}"`,
                 `fill="${escapeXmlAttribute(/** @type {string} */(resolvedColor))}"`,
                 `text-anchor="${anchor}"`,
                 `dominant-baseline="${baseline}"`,
@@ -5990,7 +6048,7 @@ export class LCARdSButton extends LCARdSCard {
                 textAttrs.push('lengthAdjust="spacingAndGlyphs"');
             }
 
-            textElements.push(`<text ${textAttrs.join(' ')}>${escapeHtml(content)}</text>`);
+            textElements.push(`<text ${textAttrs.join(' ')}>${fitted ? fitted.markup : escapeHtml(content)}</text>`);
         }
 
         if (textElements.length === 0) return '';

@@ -75,7 +75,7 @@ grid_options:
 
 - A field's own key wins over `text.default`, and `text.default` wins over the preset's defaults.
 - Padding is merged side by side: a field that sets only `padding.top` keeps the left and right padding from `text.default`.
-- What a field inherits is its style and alignment: the font keys, `color`, `position`, `padding`, `anchor`, `baseline`, `rotation`, `stretch`, `display_format` and the background keys. `content`, `show`, `zone`, `x` and `y` are set per field.
+- What a field inherits is its style and alignment: the font keys, `color`, `position`, `padding`, `anchor`, `baseline`, `rotation`, `stretch`, `fit`, `display_format` and the background keys. `content`, `show`, `zone`, `x` and `y` are set per field.
 
 ```yaml live controls
 type: custom:lcards-button
@@ -174,5 +174,6 @@ text:
 | [Placement keys](./text-fields-placement) | | | `position`, `padding`, `x`, `y`, `x_percent`, `y_percent`, `anchor`, `baseline`, `rotation` |
 | [Font keys](./text-fields-style#fonts) | | | `font_size`, `font_family`, `font_weight`, `text_transform`, `letter_spacing` |
 | [Zone-filling keys](./text-fields-style#filling-a-zone) | | | `font_size_percent`, `cap_height_ratio`, `stretch` |
+| [`fit`](./text-fields-style#fit) | boolean / object | - | Shrink, then wrap, then cut a long text to its zone |
 | [`color`](./text-fields-style#color) | colour / state map | the theme's text colour | Text colour, by state if you like |
 | [Background keys](./text-fields-style#text-background) | | | `background`, `background_padding`, `background_radius`, `background_width`, `background_min_width` |

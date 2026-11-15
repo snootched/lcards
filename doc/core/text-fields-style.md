@@ -1,5 +1,5 @@
 ---
-description: "Styling LCARdS text fields: font keys, sizing text to fill its zone (font_size_percent, cap_height_ratio, stretch), colour by entity state, and the background box behind a bar label."
+description: "Styling LCARdS text fields: font keys, sizing text to fill its zone (font_size_percent, cap_height_ratio, stretch), fitting long text into it (fit), colour by entity state, and the background box behind a bar label."
 ---
 
 # Fonts, Colour and Backgrounds
@@ -77,6 +77,68 @@ grid_options:
 | `font_size_percent` | number | - | Font size as a percentage of the zone's height, `1` to `100` |
 | `cap_height_ratio` | number | `0.86`, from the theme | Height of the font's capitals as a share of its size, `0.1` to `1.0`. `1.0` means no correction |
 | `stretch` | boolean / number | - | Fill a share of the zone's width: `true` for all of it, or a fraction from `0` to `1` |
+
+## fit
+
+**`fit` keeps a long text inside its zone: it shrinks the text first, wraps it onto a second line if shrinking is not enough, and ends it with an ellipsis as a last resort.** Use it for names you don't control, such as an entity's name in a small block or a gauge cap.
+
+- `fit: true` uses the defaults: down to 60 % of the font size (not below 8), two lines, then an ellipsis. Give an object to set your own limits.
+- Text that already fits keeps its size, so `fit` changes nothing until the content is too long.
+- The width is the room from the text's position to the zone's edge (both edges for centred text), inside the padding; wrapped lines stay round the position, within the zone's height.
+
+```yaml live
+type: custom:lcards-layout-card
+layout:
+  height: 64px
+  grid-gap: 6px
+  grid-template-columns: repeat(3, 120px)
+  grid-template-rows: 48px
+cards:
+  # too long: runs out of the block
+  - type: custom:lcards-button
+    preset: panel-light
+    min_height: 0
+    text:
+      label:
+        content: PRIMARY SYSTEMS DISPLAY
+        position: center-right
+        font_size: 20
+  # shrinks, then wraps
+  - type: custom:lcards-button
+    preset: panel-light
+    min_height: 0
+    text:
+      label:
+        content: PRIMARY SYSTEMS DISPLAY
+        position: center-right
+        font_size: 20
+        fit: true
+  # one line only: shrinks, then the ellipsis
+  - type: custom:lcards-button
+    preset: panel-light
+    min_height: 0
+    text:
+      label:
+        content: PRIMARY SYSTEMS DISPLAY
+        position: center-right
+        font_size: 20
+        fit:
+          max_lines: 1
+          min_font_size: 14
+```
+
+::: details More about fit
+- **With stretch:** `stretch` already sets the width, so a field with `stretch` ignores `fit`.
+- **Component zones:** in a component's zone (a gauge cap, the D-pad) the sizes are in the component's own units, like its `font_size`.
+- **Sizes in CSS:** a `font_size` that isn't a number (a `var()` or `clamp()`) can't be measured, so the text is drawn as it is.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `fit` | boolean / object | - | `true` to fit with the defaults, or an object with the limits below |
+| `fit.min_font_size` | number | 60 % of `font_size`, at least `8` | The smallest size the text shrinks to |
+| `fit.max_lines` | integer | `2` | The most lines it wraps to, at spaces; `1` shrinks only |
+| `fit.overflow` | string | `ellipsis` | Text still too long at the smallest size: `ellipsis` ends it with …, `clip` cuts it |
 
 ## color
 
