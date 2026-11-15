@@ -2,7 +2,8 @@
  * @fileoverview LCARdS Shell Dashboard Strategy
  *
  * Registers as a community dashboard in HA's New Dashboard picker via
- * window.customStrategies. Generates the full wip-layout-next3 shell.
+ * window.customStrategies. Generates the full LCARS shell (v1, the original tablet
+ * design ported from CB-LCARS): frame, sidebars, header, footer and content panel.
  *
  * configRequired = true opens a configure dialog before creation where the
  * user can pick their helper entities. Values flow into generate() as config.
@@ -363,12 +364,10 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
             margin: 0,
             padding: 0,
             'grid-template-columns': '45px clamp(100px, 12vw, 180px) 5px 40px 1fr 40px 5px minmax(0, auto)',
-            // Row 0 (header-border): minmax(0,auto) when the top bar entity is set so
-            // the row can expand to the card's height (managed by _applyVisibilityRowHeights).
-            // Without an entity the card is absent — use 0px (definite) so the measurement
-            // pass in _applyVisibilityRowHeights cannot mistake it for free space (auto-max
-            // tracks absorb remaining space when fr tracks are zeroed during measurement).
-            'grid-template-rows': `${topBarEntity ? 'minmax(0,auto)' : '0px'} clamp(25px, 5vh, 95px) 5px 40px 1fr 40px 5px clamp(25px, 5vh, 95px) 45px`,
+            // Row 0 (header-border) is auto: it takes the top bar card's height, and is 0
+            // when there is no top bar (no card) or it is hidden (the layout view's
+            // visibility collapse). The 1fr row takes the space either way.
+            'grid-template-rows': 'auto clamp(25px, 5vh, 95px) 5px 40px 1fr 40px 5px clamp(25px, 5vh, 95px) 45px',
             'grid-template-areas': `
 "header-border  header-border  header-border  header-border  header-border  header-border  header-border  header-border"
 "border-left    header-left    .              header         header         header         header         sidebar-right"
@@ -383,7 +382,7 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
             mediaquery: {
                 '(max-width: 1010px)': {
                     'grid-template-columns': '45px clamp(100px, 12vw, 180px) 5px 40px 1fr 40px 1px minmax(0,auto)',
-                    'grid-template-rows': `${topBarEntity ? 'minmax(0,auto)' : '0px'} clamp(25px, 5vh, 95px) 5px 40px 1fr 40px 5px clamp(25px, 5vh, 95px) 45px`,
+                    'grid-template-rows': 'auto clamp(25px, 5vh, 95px) 5px 40px 1fr 40px 5px clamp(25px, 5vh, 95px) 45px',
                     'grid-gap': '5px',
                 },
             },
@@ -585,14 +584,10 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
             ]),
 
             // ── Header border (elbow + banner row) ───────────────────────────
-            // Omitted entirely when topBarEntity is unset. With no card in the
-            // header-border area, the minmax(0,auto) row collapses cleanly to 0.
-            // When included, the visibility condition feeds _collectVisibilityRows
-            // so _applyVisibilityRowHeights can write the row height explicitly
-            // ('10vh' or '0px') — without that, the auto track can size to the
-            // inner content's intrinsic height and steal space from the 1fr row.
-            // height must be a DEFINITE value: applyGridItemHeight forwards it to
-            // the hui-card wrapper so the auto row has something to resolve to.
+            // Omitted when topBarEntity is unset (the auto row is then empty, 0).
+            // Its Visibility condition collapses the row while the helper is off,
+            // and its definite height (10vh) is what the auto row sizes to while
+            // shown (applyGridItemHeight forwards it to the hui-card wrapper).
             ...(topBarEntity ? [_layoutCard('header-border', {
                 'grid-template-columns': 'auto 1fr',
                 'grid-gap': '5px',

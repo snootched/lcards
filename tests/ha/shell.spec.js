@@ -126,3 +126,27 @@ test('shell strategy: top bar and right sidebar collapse and come back', async (
     expect(report['both shown again']).toEqual(report['both shown']);
     for (const state of Object.keys(report)) expect(report[state].host).toEqual(report['both shown'].host);
 });
+
+test('shell strategy without a top bar entity: no top bar row, the content panel takes the space', async ({ page }) => {
+    const save = (config) => client.call({ type: 'lovelace/config/save', url_path: SHELL_DASHBOARD, config: { strategy: { type: 'custom:lcars-shell', ...config } } });
+    await save({ page_selector_entity: 'input_select.lcards_test_mode', right_sidebar_entity: RIGHT });
+    try {
+        await set(RIGHT, true);
+        await page.addInitScript(({ token, hassUrl }) => {
+            localStorage.setItem('hassTokens', JSON.stringify({
+                access_token: token, token_type: 'Bearer', expires_in: 1e9, hassUrl,
+                clientId: `${hassUrl}/`, expires: Date.now() + 1e12, refresh_token: '',
+            }));
+        }, { token: TOKEN, hassUrl: HA_URL });
+        await page.goto(`/${SHELL_DASHBOARD}/lcars`);
+        await page.waitForFunction(() => customElements.get('lcards-layout-view'), null, { timeout: 30_000 });
+        await page.waitForTimeout(4000);
+        const m = await measure(page);
+        console.log(`no top bar           rows: ${m.rows}\n${''.padEnd(20)} content-panel ${m.areas['content-panel'].w}x${m.areas['content-panel'].h}`);
+        expect(m.areas['header-border']).toBeUndefined();
+        expect(m.rows.split(' ')[0]).toBe('0px');
+        expect(m.rows.split(' ')[4], 'the 1fr row takes the top bar space').toBe('595px');
+    } finally {
+        await save({ page_selector_entity: 'input_select.lcards_test_mode', top_bar_entity: TOP, right_sidebar_entity: RIGHT });
+    }
+});
