@@ -314,6 +314,11 @@ export const TEST_ROOMS = {
             level: 'input_number.lcards_test_lamp_2_level', hue: 'input_number.lcards_test_lamp_2_hue',
         },
     },
+    // Template sensors over the gallery's input_numbers, in the bridge (room readings).
+    sensors: {
+        'sensor.lcards_test_bridge_temperature': { name: 'LCARdS Test Bridge Temperature', source: 'input_number.lcards_test_temperature', device_class: 'temperature', unit: '°C' },
+        'sensor.lcards_test_bridge_humidity': { name: 'LCARdS Test Bridge Humidity', source: 'input_number.lcards_test_humidity', device_class: 'humidity', unit: '%' },
+    },
 };
 
 /**
@@ -321,7 +326,8 @@ export const TEST_ROOMS = {
  * bridge area and take the second out of any area. Each lamp is a template light
  * over three helpers (power, brightness level 0-255, hue 0-360 at 80 % saturation),
  * so sliders and match-light colours have something to show. A lamp made before
- * the level and hue helpers existed is deleted and made again.
+ * the level and hue helpers existed is deleted and made again. Two template sensors
+ * (temperature, humidity) over the gallery's input_numbers sit in the bridge.
  * @param {HAClient} client
  * @returns {Promise<{ bridge: string, cargo: string }>} the two area ids
  */
@@ -366,6 +372,18 @@ export async function ensureTestRooms(client) {
             set_hs: [{ action: 'input_number.set_value', target: { entity_id: hue }, data: { value: '{{ h }}' } }, on],
         });
     }
+    for (const [entityId, sensor] of Object.entries(TEST_ROOMS.sensors)) {
+        if (byId.has(entityId)) continue;
+        const flow = await rest('/api/config/config_entries/flow', { handler: 'template', show_advanced_options: false });
+        const step = await rest(`/api/config/config_entries/flow/${flow.flow_id}`, { next_step_id: 'sensor' });
+        await rest(`/api/config/config_entries/flow/${step.flow_id}`, {
+            name: sensor.name,
+            state: `{{ states('${sensor.source}') | float(0) }}`,
+            device_class: sensor.device_class,
+            state_class: 'measurement',
+            unit_of_measurement: sensor.unit,
+        });
+    }
     const areas = await client.call({ type: 'config/area_registry/list' });
     /** @type {Record<string, string>} */
     const areaIds = {};
@@ -375,5 +393,8 @@ export async function ensureTestRooms(client) {
     }
     await client.call({ type: 'config/entity_registry/update', entity_id: 'light.lcards_test_lamp', area_id: areaIds.bridge });
     await client.call({ type: 'config/entity_registry/update', entity_id: 'light.lcards_test_lamp_2', area_id: null });
+    for (const entityId of Object.keys(TEST_ROOMS.sensors)) {
+        await client.call({ type: 'config/entity_registry/update', entity_id: entityId, area_id: areaIds.bridge });
+    }
     return /** @type {{ bridge: string, cargo: string }} */ (areaIds);
 }

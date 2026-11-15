@@ -67,3 +67,18 @@ export function shellStrategyEditorSchema() {
             selector: prop['x-ui-hints'].selector,
         }));
 }
+
+/**
+ * The Picard shell (`custom:lcars-shell-picard`, shell v2): the same options as the
+ * v1 shell, with its own type and description. One form serves both
+ * (lcards-shell-strategy-editor).
+ */
+export const shellPicardStrategySchema = {
+    ...shellStrategySchema,
+    title: 'LCARS Shell Dashboard Strategy (Picard)',
+    description: 'Dashboard strategy that generates a Picard-style LCARS screen (a code-block column, a display sweep round the room light panel, the room\'s readings and gauges, utility pills and page tabs) on a custom:lcards-layout-view. Set it as the dashboard\'s `strategy:` block.',
+    properties: {
+        ...shellStrategySchema.properties,
+        type: { type: 'string', const: 'custom:lcars-shell-picard', description: 'Strategy identifier.' },
+    },
+};

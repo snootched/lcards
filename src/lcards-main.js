@@ -47,7 +47,7 @@ import * as anchorHelpers from './utils/lcards-anchor-helpers.js';
 import './msd/index.js';
 
 // LCARdS strategy imports
-import { LCARdSShellDashboardStrategy, LCARdSShellStrategyEditor } from './strategies/index.js';
+import { LCARdSShellDashboardStrategy, LCARdSShellStrategyEditor, LCARdSShellPicardDashboardStrategy } from './strategies/index.js';
 
 // LCARdS view imports
 import { LCARdSLayoutView } from './views/index.js';
@@ -510,6 +510,9 @@ if (!customElements.get('lcards-layout-view')) {
 if (!customElements.get('ll-strategy-dashboard-lcars-shell')) {
     customElements.define('ll-strategy-dashboard-lcars-shell', LCARdSShellDashboardStrategy);
 }
+if (!customElements.get('ll-strategy-dashboard-lcars-shell-picard')) {
+    customElements.define('ll-strategy-dashboard-lcars-shell-picard', LCARdSShellPicardDashboardStrategy);
+}
 if (!customElements.get('lcards-shell-strategy-editor')) {
     customElements.define('lcards-shell-strategy-editor', LCARdSShellStrategyEditor);
 }
@@ -522,6 +525,15 @@ if (!window.customStrategies.some(s => s.type === 'lcars-shell')) {
     strategyType: 'dashboard',
     name: 'LCARS Dashboard',
     description: 'A full-screen LCARS frame with a page menu, header and footer bars, and a room light panel built from your areas. Take control to make it your own.',
+    documentationURL: docsUrl(DOCS.dashboardStrategies),
+  });
+}
+if (!window.customStrategies.some(s => s.type === 'lcars-shell-picard')) {
+  window.customStrategies.push({
+    type: 'lcars-shell-picard',
+    strategyType: 'dashboard',
+    name: 'LCARS Dashboard (Picard)',
+    description: 'A Picard-style LCARS screen: code-block columns, a display sweep round the room light panel, each room\'s readings and gauges, utility pills and page tabs, all built from your areas.',
     documentationURL: docsUrl(DOCS.dashboardStrategies),
   });
 }

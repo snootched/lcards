@@ -284,7 +284,7 @@ function _contentPlaceholderCard(message = 'Pick a room selector in the dashboar
  * input_text → set_value (accepts any string, no option registration needed).
  * input_select / select → select_option (only works if area_id is a registered option).
  */
-function _areaSelectAction(entityId, areaId) {
+export function areaSelectAction(entityId, areaId) {
     const domain = entityId.split('.')[0];
     if (domain === 'input_text') {
         return { action: 'perform-action', perform_action: 'input_text.set_value',
@@ -312,7 +312,7 @@ function _autoAreasRoomCard(areas, stateEntity, rooms) {
         value: area.area_id,
         label: area.name,
         ...(area.icon ? { icon: area.icon } : {}),
-        tap_action: stateEntity ? _areaSelectAction(stateEntity, area.area_id) : { action: 'none' },
+        tap_action: stateEntity ? areaSelectAction(stateEntity, area.area_id) : { action: 'none' },
     }));
 
     const listCard = stateEntity ? _roomLightLists(stateEntity, rooms) : {

@@ -22,7 +22,7 @@ import { getSelectMenuSchema }   from '../../src/cards/schemas/select-menu-schem
 import { layoutCardSchema, layoutViewSchema } from '../../src/cards/schemas/layout-card-schema.js';
 import { getMsdSchema }          from '../../src/cards/schemas/msd-schema.js';
 import { astrometricsSchema }    from '../../src/cards/schemas/astrometrics-schema.js';
-import { shellStrategySchema }   from '../../src/cards/schemas/shell-strategy-schema.js';
+import { shellStrategySchema, shellPicardStrategySchema } from '../../src/cards/schemas/shell-strategy-schema.js';
 import { TEXT_POSITIONS }        from '../../src/cards/schemas/schema-options.js';
 import { withCardPlumbing }      from '../../src/cards/schemas/card-plumbing.js';
 import { BUTTON_PRESETS }        from '../../src/core/packs/style-presets/buttons/index.js';
@@ -61,5 +61,6 @@ export function getSchemaEntries() {
     { kind: 'card',     tag: 'lcards-astrometrics-card', schema: astrometricsSchema },
     { kind: 'view',     tag: 'lcards-layout-view',   schema: layoutViewSchema },
     { kind: 'strategy', tag: 'lcars-shell',          schema: shellStrategySchema },
+    { kind: 'strategy', tag: 'lcars-shell-picard',   schema: shellPicardStrategySchema },
   ]).map(e => (e.kind === 'card' ? { ...e, schema: withCardPlumbing(e.schema) } : e));
 }

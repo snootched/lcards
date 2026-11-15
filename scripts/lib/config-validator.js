@@ -175,10 +175,10 @@ export function unknownKeys(value, schema, pathPrefix = '', out = [], isCardRoot
 }
 
 // ── Finding LCARdS nodes ───────────────────────────────────────────────────────
-/** `custom:<tag>` of an LCARdS card/view (custom:lcards-*) or strategy (custom:lcars-shell). */
+/** `custom:<tag>` of an LCARdS card/view (custom:lcards-*) or strategy (custom:lcars-shell, custom:lcars-shell-picard). */
 export function lcardsTag(type) {
   if (typeof type !== 'string') return null;
-  const m = /^custom:(lcards-[a-z0-9-]+|lcars-shell)$/.exec(type.trim());
+  const m = /^custom:(lcards-[a-z0-9-]+|lcars-shell(?:-picard)?)$/.exec(type.trim());
   return m ? m[1] : null;
 }
 

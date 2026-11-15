@@ -107,5 +107,6 @@ declare global {
         'lcards-yaml-options-panel': import('../editor/components/yaml/lcards-yaml-options-panel.js').LCARdSYamlOptionsPanel;
         'lcards-zone-list-editor': import('../editor/components/lcards-zone-list-editor.js').LCARdSZoneListEditor;
         'll-strategy-dashboard-lcars-shell': import('../strategies/index.js').LCARdSShellDashboardStrategy;
+        'll-strategy-dashboard-lcars-shell-picard': import('../strategies/index.js').LCARdSShellPicardDashboardStrategy;
     }
 }
