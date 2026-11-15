@@ -86,6 +86,27 @@ export function countTracks(tracks) {
 }
 
 /**
+ * One entry per grid track: `repeat(N, a b)` becomes N copies of `a b`, so a grid
+ * line index reads the right track. Returns null when a `repeat(auto-fill / auto-fit,
+ * ...)` makes the count unknowable.
+ *
+ * @param {string[]} tracks  from parseTrackList
+ * @returns {string[]|null}  e.g. ['40px', 'repeat(2, 1fr 2fr)'] -> ['40px', '1fr', '2fr', '1fr', '2fr']
+ */
+export function expandTracks(tracks) {
+    /** @type {string[]} */
+    const out = [];
+    for (const t of tracks ?? []) {
+        if (/^repeat\(\s*auto-(fill|fit)/.test(t)) return null;
+        const m = /^repeat\(\s*(\d+)\s*,(.*)\)$/s.exec(t);
+        if (!m) { out.push(t); continue; }
+        const inner = parseTrackList(m[2].trim());
+        for (let i = 0; i < Number(m[1]); i++) out.push(...inner);
+    }
+    return out;
+}
+
+/**
  * Serialize a track array back to a CSS string.
  * @param {string[]} tracks
  * @returns {string}
@@ -756,8 +777,9 @@ function parsePxValue(str) {
  * @returns {{ rows: string[], columns: string[] }}
  */
 export function resolveVisibilityTracks({ rows, columns, areas }, cards, editMode) {
-    const out = { rows: [...rows], columns: [...columns] };
-    if (editMode) return out;
+    if (editMode) return { rows: [...rows], columns: [...columns] };
+    // Index by grid track: repeat(N, ...) is N tracks (uncountable lists stay as given).
+    const out = { rows: expandTracks(rows) ?? [...rows], columns: expandTracks(columns) ?? [...columns] };
     /** @typedef {{conditional: boolean, open: boolean, size: string|null}} TrackState */
     /** @type {Map<number, TrackState>} */
     const rowState = new Map();
@@ -831,6 +853,13 @@ export function cellHeightDefinite(rows, areas, viewLayout, gridHeightDefinite, 
         if (/\d(fr|%)|\d\s*%/.test(t)) return gridHeightDefinite;
         return /\d/.test(t);
     };
+    // One entry per grid track (repeat(N, ...) is N tracks); an uncountable
+    // repeat(auto-fill, ...) leaves the rows unknown.
+    if (Array.isArray(rows)) {
+        const expanded = expandTracks(rows);
+        if (!expanded) return false;
+        rows = expanded;
+    }
     const name = viewLayout?.['grid-area'];
     if (!name) {
         const named = Array.isArray(areas) && areas.some(r => r.some(n => n && n !== '.'));

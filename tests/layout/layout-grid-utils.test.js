@@ -347,3 +347,40 @@ test('gridHeightIsDefinite: a set length, not auto or a percentage', () => {
     assert.equal(L.gridHeightIsDefinite('100%'), false);
     assert.equal(L.gridHeightIsDefinite(undefined), false);
 });
+
+test('expandTracks: one entry per grid track; auto-fill / auto-fit are unknowable', () => {
+    assert.deepEqual(L.expandTracks(['40px', 'repeat(2, 1fr 2fr)', 'auto']), ['40px', '1fr', '2fr', '1fr', '2fr', 'auto']);
+    assert.deepEqual(L.expandTracks(['repeat(3, minmax(0, 40px))']), ['minmax(0, 40px)', 'minmax(0, 40px)', 'minmax(0, 40px)']);
+    assert.equal(L.expandTracks(['repeat(auto-fill, 40px)']), null);
+    assert.deepEqual(L.expandTracks([]), []);
+});
+
+test('cellHeightDefinite reads the right row after a repeat()', () => {
+    // rows 40px repeat(3, 40px) 1fr: the area in grid row 3 is a 40px row, not past the end
+    const { rows, areas } = L.parseLayoutConfig({
+        'grid-template-rows': '40px repeat(3, 40px) auto',
+        'grid-template-areas': '"t" "a" "b" "c" "d"',
+    });
+    for (const name of ['t', 'a', 'b', 'c']) assert.equal(L.cellHeightDefinite(rows, areas, { 'grid-area': name }, true), true, name);
+    assert.equal(L.cellHeightDefinite(rows, areas, { 'grid-area': 'd' }, true), false, 'auto row');
+    // auto-placed: the 4th card (index 3) sits in the last repeated row
+    const plain = L.parseLayoutConfig({ 'grid-template-columns': '1fr', 'grid-template-rows': 'repeat(4, 30px) auto' });
+    assert.equal(L.cellHeightDefinite(plain.rows, plain.areas, {}, true, { index: 3, columns: 1 }), true);
+    assert.equal(L.cellHeightDefinite(plain.rows, plain.areas, {}, true, { index: 4, columns: 1 }), false);
+    // an uncountable repeat leaves the rows unknown
+    assert.equal(L.cellHeightDefinite(['repeat(auto-fill, 40px)'], [['a']], { 'grid-area': 'a' }, true), false);
+});
+
+test('resolveVisibilityTracks collapses the right row after a repeat()', () => {
+    const { rows, columns, areas } = L.parseLayoutConfig({
+        'grid-template-columns': '1fr',
+        'grid-template-rows': '40px repeat(2, 30px) 1fr',
+        'grid-template-areas': '"t" "a" "b" "main"',
+    });
+    const out = L.resolveVisibilityTracks({ rows, columns, areas }, [
+        { area: 't', conditional: false, hidden: false },
+        { area: 'b', conditional: true, hidden: true },
+        { area: 'main', conditional: false, hidden: false },
+    ], false);
+    assert.deepEqual(out.rows, ['40px', '30px', '0px', '1fr']);
+});

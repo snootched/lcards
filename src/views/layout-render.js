@@ -125,19 +125,24 @@ export function measureGridFrame(grid, overlay) {
  * @param {{ cellFits?: boolean }} [opts] - cellFits: the cell has a definite height
  */
 /**
- * Whether a card sits directly in a layout card / layout view cell of a definite
- * height (marked data-lcards-cell-fits by applyCardPlacement): itself, or through
- * Home Assistant's hui-card wrapper. A card inside a stack in such a cell is not
+ * Whether a card sits directly in a cell of a definite height: a layout card /
+ * layout view cell (marked data-lcards-cell-fits by applyCardPlacement), or a
+ * Home Assistant sections grid cell with a number of rows (`div.card.fit-rows` in
+ * hui-grid-section). Itself, or through Home Assistant's hui-card wrapper (and
+ * hui-card-edit-mode in edit mode). A card inside a stack in such a cell is not
  * (stacks size cards to content).
  * @param {Element} el
  * @returns {boolean}
  */
 export function inFittedCell(el) {
-    const marked = (/** @type {Element|null} */ e) => !!e?.hasAttribute?.('data-lcards-cell-fits');
-    if (marked(el)) return true;
+    const fits = (/** @type {Element|null|undefined} */ e) => !!e && (e.hasAttribute?.('data-lcards-cell-fits')
+        || (e.localName === 'div' && e.classList?.contains('card') && e.classList.contains('fit-rows')));
+    if (fits(el)) return true;
     const parent = el.parentElement;
-    if (marked(parent)) return true;
-    return parent?.localName === 'hui-card' && marked(parent.parentElement);
+    if (fits(parent)) return true;
+    if (parent?.localName !== 'hui-card') return false;
+    const outer = parent.parentElement;
+    return fits(outer) || (outer?.localName === 'hui-card-edit-mode' && fits(outer.parentElement));
 }
 
 export function applyCardPlacement(gridItem, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings = {}, { cellFits = false } = {}) {
