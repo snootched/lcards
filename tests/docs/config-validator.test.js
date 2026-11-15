@@ -508,6 +508,10 @@ test('actions with Home Assistant\'s older names (call-service, service, service
     assert.deepEqual(check(button({ action: 'perform-action', service: 'lcards.red_alert' })).filter(i => i.code === 'legacy-action').map(i => i.path), ['tap_action.service']);
     assert.deepEqual(messages(check(button({ action: 'perform-action', perform_action: 'light.turn_on', target: { entity_id: 'light.desk' }, data: { brightness: 10 } }))), []);
     assert.deepEqual(messages(check(button({ action: 'fire-dom-event', browser_mod: { service: 'browser_mod.popup', data: { title: 'Hi' } } }))), []);
+    // #407: a fire-dom-event carries any integration's payload (Local Conditional Card)
+    assert.deepEqual(messages(check(button({ action: 'fire-dom-event', local_conditional_card: { action: 'set', ids: [{ test_daily: 'hide' }] } }))), []);
+    // ...but other actions still report unknown keys
+    assert.deepEqual(check(button({ action: 'navigate', navigation_path: '/x', local_conditional_card: {} })).filter(i => i.code === 'unknown-key').map(i => i.path), ['tap_action.local_conditional_card']);
 });
 
 test('grid-template-areas: an area that is not one rectangle is an error (the browser drops the whole template)', () => {

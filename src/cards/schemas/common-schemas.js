@@ -285,6 +285,10 @@ export const dataSourcesSchema = {
 export const actionSchema = {
     type: 'object',
     description: 'Action to perform on interaction (tap, hold, or double-tap). Supports toggle, service calls, navigation, more-info dialog, or no action.',
+    // A fire-dom-event action carries any keys an integration reads from the
+    // ll-custom event (browser_mod, Local Conditional Card's local_conditional_card,
+    // #407), as in Home Assistant: the config checker allows extra keys on it only.
+    openWhen: { action: 'fire-dom-event' },
     examples: [
         {
             action: 'toggle',

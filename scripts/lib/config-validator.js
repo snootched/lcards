@@ -153,10 +153,14 @@ export function unknownKeys(value, schema, pathPrefix = '', out = [], isCardRoot
     const branch = [...(schema.oneOf ?? []), ...(schema.anyOf ?? [])].filter(b => b?.properties?.type?.const === value.type);
     if (branch.length === 1) schema = branch[0];
   }
+  // `openWhen: { field: value }`: an object that takes any extra keys when a sibling
+  // field has that value (a fire-dom-event action's integration payload, #407).
+  const open = !!schema.openWhen && Object.entries(schema.openWhen).every(([k, want]) => value[k] === want);
   for (const [key, v] of Object.entries(value)) {
     if (isCardRoot && CARD_PLUMBING_KEYS.has(key)) continue;
     const sub = discriminatedSchema(schemaForKey(schema, key), value);
     const p = pathPrefix ? `${pathPrefix}.${key}` : key;
+    if (sub === false && open) continue;
     if (sub === false) {
       out.push(p);
       if (hints) {

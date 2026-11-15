@@ -61,7 +61,7 @@ tap_action:
 | `navigate` | Go to another dashboard or view (`navigation_path`) |
 | `url` | Open an address in a new browser tab (`url_path`) |
 | `assist` | Open Home Assistant's Assist dialog |
-| `fire-dom-event` | Fire Home Assistant's `ll-custom` event with the action, for integrations that listen for it such as [browser_mod](/configuration/browser-mod) |
+| `fire-dom-event` | Fire Home Assistant's `ll-custom` event with the whole action, for integrations that listen for it such as [browser_mod](/configuration/browser-mod) or Local Conditional Card. Add whatever keys the integration reads (`browser_mod:`, `local_conditional_card:`) |
 | `fly-to`, `set-clock`, `set-model-scale`, `point-card` | Move the camera, the scene date or the model size of an astrometrics card, or open a card on one of its points: see [Scene actions](/cards/astrometrics/points#scene-actions) and [Opening cards from other cards](/cards/astrometrics/points#opening-cards-from-other-cards) |
 | `none` | Do nothing, in place of the card's default |
 

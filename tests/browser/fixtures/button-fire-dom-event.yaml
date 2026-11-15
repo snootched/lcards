@@ -1,0 +1,18 @@
+# #407: tap_action fire-dom-event (Local Conditional Card's payload) on the main button (the report used preset: base, not a preset)
+type: custom:lcards-button
+preset: lozenge
+interactive: true
+show_icon: false
+text:
+  label:
+    content: HOURLY
+    show: true
+    zone: body
+    position: center
+tap_action:
+  action: fire-dom-event
+  local_conditional_card:
+    action: set
+    ids:
+      - test_daily: hide
+      - test_hourly: show
