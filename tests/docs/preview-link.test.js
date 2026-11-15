@@ -42,16 +42,27 @@ test("the skill's Node script makes a link the page reads", async () => {
     assert.equal(await decodePreview(url.slice(url.indexOf('#'))), YAML);
 });
 
-test("SKILL.md's Python one-liner makes a link the page reads", async (t) => {
+test("the skill's Python script makes the same link", async (t) => {
     if (spawnSync('python3', ['--version']).status !== 0) return t.skip('no python3');
-    const md = readFileSync(join(ROOT, 'skills/lcards/SKILL.md'), 'utf8');
-    const code = /python3 -c "([^"]+)"/.exec(md)?.[1];
-    assert.ok(code, 'SKILL.md has the Python one-liner');
-    const r = spawnSync('python3', ['-c', code, file], { encoding: 'utf8' });
+    const r = spawnSync('python3', [join(ROOT, 'skills/lcards/scripts/lcards-preview-link.py'), file], { encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr);
     const url = r.stdout.trim();
     assert.match(url, /^__PREVIEW_URL__#yaml=/);
     assert.equal(await decodePreview(url.slice(url.indexOf('#'))), YAML);
+});
+
+test('--html writes a page that opens the same link, from Node and Python', async (t) => {
+    const runs = [[process.execPath, 'lcards-preview-link.mjs']];
+    if (spawnSync('python3', ['--version']).status === 0) runs.push(['python3', 'lcards-preview-link.py']);
+    for (const [bin, name] of runs) {
+        const out = join(dir, `${name}.html`);
+        const r = spawnSync(bin, [join(ROOT, 'skills/lcards/scripts', name), file, '--html', out], { encoding: 'utf8' });
+        assert.equal(r.status, 0, r.stderr);
+        const url = r.stdout.trim();
+        const page = readFileSync(out, 'utf8');
+        assert.ok(page.includes(`href="${url}"`), `${name}: the page links the printed URL`);
+        assert.ok(page.includes(`location.replace(${JSON.stringify(url)})`), `${name}: and opens it`);
+    }
 });
 
 test('a gallery dashboard fits in a link under the size the page warns about', async () => {

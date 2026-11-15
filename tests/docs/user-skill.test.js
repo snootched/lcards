@@ -103,7 +103,8 @@ test('features.md points at real files and covers every card and built-in name t
 test("the preview link points at this docs channel's preview page", () => {
     const md = readFileSync(join(skill, 'SKILL.md'), 'utf8');
     const script = readFileSync(join(skill, 'scripts/lcards-preview-link.mjs'), 'utf8');
-    for (const text of [md, script]) {
+    const py = readFileSync(join(skill, 'scripts/lcards-preview-link.py'), 'utf8');
+    for (const text of [md, script, py]) {
         assert.ok(!text.includes('__PREVIEW_URL__'), 'placeholder filled in');
         assert.ok(text.includes('https://lcards.unimatrix01.ca/getting-started/preview.html'));
     }

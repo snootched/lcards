@@ -155,7 +155,7 @@ async function fromHash() {
     fromLink.value = true
     return true
   } catch {
-    problem.value = 'This preview link could not be read; it may have been cut off. Ask for the link again, or paste the YAML above.'
+    problem.value = 'This preview link could not be read: it was cut off or copied wrong. Ask for the preview file or the link again, or paste the YAML above.'
     fromLink.value = false
     return false
   }

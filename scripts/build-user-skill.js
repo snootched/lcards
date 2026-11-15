@@ -127,8 +127,10 @@ for (const page of uix.pages) {
 mkdirSync(join(skill, 'scripts'), { recursive: true });
 execFileSync(process.execPath, [join(ROOT, 'scripts/build-validator.js'), `--out=${join(skill, 'scripts/lcards-validate.mjs')}`], { stdio: 'ignore' });
 // The preview link maker, pointed at this docs channel's preview page.
-writeFileSync(join(skill, 'scripts/lcards-preview-link.mjs'), readFileSync(join(ROOT, 'skills/lcards/scripts/lcards-preview-link.mjs'), 'utf8')
-  .replace('__PREVIEW_URL__', previewUrl));
+for (const name of ['lcards-preview-link.mjs', 'lcards-preview-link.py']) {
+  writeFileSync(join(skill, 'scripts', name), readFileSync(join(ROOT, 'skills/lcards/scripts', name), 'utf8')
+    .replace('__PREVIEW_URL__', previewUrl));
+}
 
 const zipDir = (cwd, out, ...entries) => {
   mkdirSync(dirname(out), { recursive: true });
