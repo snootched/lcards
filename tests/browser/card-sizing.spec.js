@@ -54,6 +54,17 @@ test('a chart keeps its configured height after it first measures its cell', asy
     await expectNoErrors(page);
 });
 
+test('a chart reconfigured on a slow machine does not resize the new chart while it is still rendering', async ({ page }) => {
+    // CI runners are slow enough that the old chart's resize timer fired on the new chart
+    // mid-render, and ApexCharts threw "reading 'radar'". 8x CPU throttling reproduces it.
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 8 });
+    await mountCase(page, 'chart-line', { width: '400', height: '300' });
+    await page.evaluate(() => window.__reconfigure({ type: 'custom:lcards-chart', sources: [{ entity: 'sensor.demo_temperature' }], height: 150 }));
+    await page.waitForTimeout(1500);
+    await expectNoErrors(page);
+});
+
 test('a button in a layout cell of a definite height follows the cell, not its preset floor', async ({ page }) => {
     await mountCase(page, 'layout-card-short-row', { width: '400' });
     const heights = () => page.evaluate(() => {

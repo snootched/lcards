@@ -718,12 +718,17 @@ export class LCARdSChart extends LCARdSCard {
     const box = container.parentElement ?? container;
     let last = [box.offsetWidth, box.offsetHeight];
     let timer = null;
+    // The timer can outlive this chart: a config change destroys it and starts a new
+    // one, and updateOptions() on a chart that is still rendering throws inside
+    // ApexCharts. Only the chart this observer was made for, once it is ready.
+    const chart = this._chart;
     this._resizeObserverChart = new ResizeObserver(() => {
       clearTimeout(timer);
       timer = setTimeout(() => {
         const size = [box.offsetWidth, box.offsetHeight];
+        if (!this._chart || this._chart !== chart || !this._chartReady) return;
         // 2 px hysteresis absorbs sub-pixel jitter (see LCARdSCard._setupAutoSizing)
-        if (!this._chart || !size[0] || !size[1] || (Math.abs(size[0] - last[0]) < 2 && Math.abs(size[1] - last[1]) < 2)) return;
+        if (!size[0] || !size[1] || (Math.abs(size[0] - last[0]) < 2 && Math.abs(size[1] - last[1]) < 2)) return;
         last = size;
         const options = this._buildChartOptions(size[0], size[1]);
         this._chartOptions = options;
@@ -825,7 +830,8 @@ export class LCARdSChart extends LCARdSCard {
    * @private
    */
   _updateChartOptions() {
-    if (!this._chart) return;
+    // a chart still rendering takes its options from _buildChartOptions() already
+    if (!this._chart || !this._chartReady) return;
 
     try {
       const newOptions = this._buildChartOptions();
