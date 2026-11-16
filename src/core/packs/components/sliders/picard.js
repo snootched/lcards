@@ -23,9 +23,11 @@ import { PICARD_OPTIONS } from './component-options.js';
  * Scales from original 365×601 viewBox to actual container dimensions
  * @param {number} width - Container width in pixels
  * @param {number} height - Container height in pixels
+ * @param {{ config?: any }} [context] - the card's zone context (shape: column picks the Titan zones)
  * @returns {Object} Zone definitions with bounds
  */
-export function calculateZones(width, height) {
+export function calculateZones(width, height, context) {
+    if (context?.config?.shape === 'column') return columnZones(width, height);
     // Scale from original 365×601 viewBox
     const scaleX = width / 365;
     const scaleY = height / 601;
@@ -70,6 +72,84 @@ export function calculateZones(width, height) {
     };
 }
 
+// ── shape: column ────────────────────────────────────────────────────────
+// The Titan.DS column gauge (reference L026, M131, M183): a number cap at each
+// end, a thin bracket line down the left, the fill bar with its thumb, a narrow
+// range strip, a tick axis, then the ticks with their numbers. Fixed px parts
+// (a bank of these sits in narrow columns), so nothing squashes with the width.
+
+/** Sizes of the column's parts, px. @param {number} height */
+function columnMetrics(height) {
+    const cap = Math.max(14, Math.min(26, Math.round(height * 0.08)));
+    // the scanning lights sit in a row between the top cap and the bracket
+    const lightsRow = 8;
+    const top = cap + 4 + lightsRow;
+    const bottom = height - cap - 6;
+    return { cap, lightsY: cap + 4, top, bottom, bar: { x: 8, width: 8 }, range: { x: 19, width: 5 }, axis: { x: 26, width: 2 }, lights: 6 };
+}
+
+/**
+ * Zones of the column: caps as text zones `top` and `bottom` (the value and the
+ * name), the bar, the range strip, the axis and the ticks.
+ * @param {number} width
+ * @param {number} height
+ */
+export function columnZones(width, height) {
+    const m = columnMetrics(height);
+    const y = m.top + m.lights;
+    const h = Math.max(0, m.bottom - y);
+    return {
+        top: { x: 0, y: 0, width, height: m.cap },
+        bottom: { x: 0, y: height - m.cap, width, height: m.cap },
+        progress: { x: m.bar.x, y, width: m.bar.width, height: h },
+        // a wider hit area than the bar, so it is easy to drag
+        control: { x: 0, y, width: Math.min(width, 44), height: h },
+        range: { x: m.range.x, y, width: m.range.width, height: h },
+        solidBar: { x: m.axis.x, y, width: m.axis.width, height: h },
+        // the ticks and numbers stop short of the right bracket
+        track: { x: m.axis.x + m.axis.width, y, width: Math.max(0, width - m.axis.x - m.axis.width - 6), height: h },
+        text: { x: 0, y: 0, width, height }
+    };
+}
+
+/** @param {any} context */
+function renderColumn(context) {
+    const { width, height, colors, config, style, zones: contextZones } = context;
+    const zones = contextZones || columnZones(width, height);
+    const m = columnMetrics(height);
+    const showAnimation = config.show_animation !== false;
+    const animationSpeed = config.animation_speed || 2;
+    const pulse = (/** @type {number} */ begin) => prefersReducedMotion() ? ''
+        : `<animate attributeName="opacity" values="1;0.3;1" dur="${animationSpeed}s"${begin ? ` begin="${begin}s"` : ''} repeatCount="indefinite" />`;
+    const hasRanges = style?.ranges && style.ranges.length > 0;
+    return `
+<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${width}" height="${height}" fill="transparent" />
+  <!-- Number caps (value on top, name below; the card writes their text) -->
+  <rect x="0" y="0" width="${width}" height="${m.cap}" fill="${colors.borderTop}" />
+  <rect x="0" y="${height - m.cap}" width="${width}" height="${m.cap}" fill="${colors.borderBottom}" />
+  <!-- Bracket lines down both sides, with feet: the column is a closed [ ] box -->
+  <path fill="${colors.solidBar}" d="M0,${m.top} L12,${m.top} L12,${m.top + 3} L3,${m.top + 3} L3,${m.bottom - 3} L12,${m.bottom - 3} L12,${m.bottom} L0,${m.bottom} Z" />
+  <path fill="${colors.solidBar}" d="M${width},${m.top} L${width - 12},${m.top} L${width - 12},${m.top + 3} L${width - 3},${m.top + 3} L${width - 3},${m.bottom - 3} L${width - 12},${m.bottom - 3} L${width - 12},${m.bottom} L${width},${m.bottom} Z" />
+  ${showAnimation ? [0, 1, 2].map(i => `
+  <rect x="${i * 8}" y="${m.lightsY}" width="6" height="5" fill="${colors.animationIndicator}">${pulse((animationSpeed * i) / 3)}</rect>`).join('') : ''}
+  <!-- Tick axis -->
+  <rect x="${zones.solidBar.x}" y="${zones.solidBar.y}" width="${zones.solidBar.width}" height="${zones.solidBar.height}" fill="${colors.solidBar}" />
+  ${hasRanges ? '' : `<!-- Range strip, dim without ranges -->
+  <rect x="${zones.range.x}" y="${zones.range.y}" width="${zones.range.width}" height="${zones.range.height}" fill="${colors.rangeFrame}" opacity="0.35" />`}
+  <g id="range-zone" data-zone="range" transform="translate(${zones.range.x}, ${zones.range.y})"
+     data-bounds="${zones.range.x},${zones.range.y},${zones.range.width},${zones.range.height}"></g>
+  <g id="progress-zone" data-zone="progress" transform="translate(${zones.progress.x}, ${zones.progress.y})"
+     data-bounds="${zones.progress.x},${zones.progress.y},${zones.progress.width},${zones.progress.height}"></g>
+  <rect id="control-zone" data-zone="control" x="${zones.control.x}" y="${zones.control.y}"
+        width="${zones.control.width}" height="${zones.control.height}" fill="none" stroke="none" pointer-events="all"
+        data-bounds="${zones.control.x},${zones.control.y},${zones.control.width},${zones.control.height}" />
+  <g id="track-zone" data-zone="track" transform="translate(${zones.track.x}, ${zones.track.y})"
+     data-bounds="${zones.track.x},${zones.track.y},${zones.track.width},${zones.track.height}"></g>
+  <g id="text-zone" data-zone="text" transform="translate(0, 0)" data-bounds="0,0,${width},${height}"></g>
+</svg>`.trim();
+}
+
 /**
  * Render Picard component shell SVG
  * @param {Object} context - Full render context
@@ -84,6 +164,7 @@ export function calculateZones(width, height) {
  * @returns {string} Complete SVG markup with zones marked for content injection
  */
 export function render(context) {
+    if (context.config?.shape === 'column') return renderColumn(context);
     const { width, height, colors, config, style, zones: contextZones } = context;
     // Use pre-calculated zones from context (already adjusted for borders) or calculate fresh
     const zones = contextZones || calculateZones(width, height);
@@ -187,6 +268,7 @@ export const metadata = {
     displayName: 'Picard',
     orientation: 'vertical',
     features: [
+        'column-shape',
         'state-aware-borders',
         'animated-indicator',
         'progress-bar',

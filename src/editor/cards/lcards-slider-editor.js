@@ -286,6 +286,24 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      * @returns {TemplateResult}
      * @private
      */
+    /**
+     * Commit a preset; when it does not run on the current component (a family
+     * preset such as picard-gauge-column picked under 'picard'), switch to the
+     * component it runs on.
+     * @param {string|undefined} name
+     * @private
+     */
+    _selectPreset(name) {
+        const presetData = name ? window.lcards?.core?.stylePresetManager?.getPreset('slider', name) : null;
+        const compatible = presetData?.compatibleComponents;
+        const current = this.config?.component || '';
+        if (current && compatible && !compatible.includes(current)) {
+            this._updateConfig({ preset: name, component: presetData.component ?? compatible[0] });
+            return;
+        }
+        this._setConfigValue('preset', name);
+    }
+
     _renderPresetSelector() {
         const stylePresetManager = window.lcards?.core?.stylePresetManager;
         if (!stylePresetManager) return html``;
@@ -342,7 +360,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 .helper=${helperText}
                 .selector=${{ select: { mode: 'dropdown', options } }}
                 .value=${currentPreset}
-                @value-changed=${(e) => this._setConfigValue('preset', e.detail.value || undefined)}>
+                @value-changed=${(e) => this._selectPreset(e.detail.value || undefined)}>
             </ha-selector>
             ${isIncompatible ? html`
                 <lcards-message type="warning">
@@ -1696,6 +1714,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         ${FormField.renderField(this, 'style.gauge.scale.labels.padding', {
                         label: 'Padding',
                         helper: 'Space between tick and label in pixels'
+                    })}
+
+                        ${FormField.renderField(this, 'style.gauge.scale.labels.align', {
+                        label: 'Label position',
+                        helper: 'Beside the ticks, or at the far edge of the track'
                     })}
                     </lcards-grid-layout>
 

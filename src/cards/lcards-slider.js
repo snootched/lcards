@@ -2749,8 +2749,21 @@ export class LCARdSSlider extends LCARdSButton {
         // Labels need space at the bottom - use height minus label space
         const labelFontSize = Number(labelConfig?.font_size) || 14; // px (scale.labels.font_size)
         const labelBottomMargin = 5; // px breathing room
-        const labelY = trackHeight - labelBottomMargin; // Position labels near bottom with margin (horizontal)
-        const labelX = trackWidth - labelBottomMargin; // Position labels near right edge with margin (vertical)
+        // scale.labels.align: 'end' (default) puts the labels at the far edge of the
+        // track zone, 'start' right beside the ticks (and a start-aligned bar), so a
+        // narrow gauge stays one compact column in a wide cell.
+        const labelsAtStart = labelConfig?.align === 'start';
+        const tickExtent = Math.max(Number(tickConfig?.major?.height) || 0, Number(tickConfig?.minor?.height) || 10);
+        const barConfig = gaugeConfig?.progress_bar;
+        const barExtent = barConfig?.align === 'start' && Number(barConfig?.height) > 0
+            ? (Number(barConfig?.padding?.left ?? barConfig?.padding_left) || 0) + Number(barConfig.height) : 0;
+        const besideTicks = Math.max(tickExtent, barExtent) + labelPadding;
+        const labelY = labelsAtStart
+            ? Math.min(trackHeight - labelBottomMargin, besideTicks + labelFontSize) // just under the ticks (horizontal)
+            : trackHeight - labelBottomMargin; // Position labels near bottom with margin (horizontal)
+        const labelX = labelsAtStart
+            ? besideTicks // just right of the ticks (vertical)
+            : trackWidth - labelBottomMargin; // Position labels near right edge with margin (vertical)
 
         // Calculate current value percentage. targetEnabled=false when
         // value_tween.targets.track is off — see _effectiveSliderValue() — so a
@@ -2931,15 +2944,17 @@ export class LCARdSSlider extends LCARdSButton {
                         const estimatedLabelWidth = labelText.length * labelFontSize * 0.57;
                         const labelLeftEdge = labelX - estimatedLabelWidth;
 
-                        // Ensure label doesn't extend past left edge
+                        // Ensure label doesn't extend past left edge (or, beside the ticks, the right edge)
                         // Position labels below tick line for better readability
                         const labelVerticalOffset = labelFontSizeVertical + 2; // Position below tick, not at tick
-                        const shouldRenderLabel = labelLeftEdge >= edgeClearance;
+                        const shouldRenderLabel = labelsAtStart
+                            ? labelX + estimatedLabelWidth <= trackWidth
+                            : labelLeftEdge >= edgeClearance;
 
                         if (shouldRenderLabel) {
                             svg += `
                         <text x="${labelX}" y="${y}" font-size="${labelFontSizeVertical}px" font-weight="400" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif"
-                              fill="${tickLabelColor}" text-anchor="end"
+                              fill="${tickLabelColor}" text-anchor="${labelsAtStart ? 'start' : 'end'}"
                               dx="0" dy="${labelVerticalOffset}">${labelText}</text>
                     `;
                         }

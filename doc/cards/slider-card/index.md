@@ -95,7 +95,7 @@ style:
 | `ring` | Three-quarter ring, name above a large value ([ring](./components#ring-gauge)) |
 | `picard-ring` | Near-full thick ring with flat ends ([ring](./components#ring-gauge)) |
 | `picard-gauge-vertical` | Picard-style upright gauge ([Picard](./components#picard-component)) |
-| `picard-gauge-column` | Picard-era column gauge: number caps at both ends, a thin value bar and a small oval thumb ([gauge](./styles#style-gauge)) |
+| `picard-gauge-column` | Picard Titan column gauge: number caps at both ends, a thin value bar, a range strip and a small oval thumb ([Picard component](./components#picard-component), `shape: column`) |
 
 ## Card options
 

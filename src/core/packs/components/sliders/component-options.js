@@ -10,6 +10,21 @@
 /** `component: picard` */
 export const PICARD_OPTIONS = [
         {
+            key: 'shape',
+            type: 'string',
+            enum: ['console', 'column'],
+            default: 'console',
+            description: 'The Picard gauge drawn: console (the wide console slider with notched caps, range column and solid bar) or column (the narrow Titan gauge: a number cap at each end, a bracket line, the bar, a range strip and ticks with their numbers)',
+            'x-ui-hints': {
+                label: 'Shape',
+                helper: 'Console: the wide console slider. Column: the narrow Titan gauge with number caps (text zones top and bottom)',
+                selector: { select: { mode: 'dropdown', options: [
+                    { value: 'console', label: 'Console' },
+                    { value: 'column', label: 'Column (Titan)' }
+                ] } }
+            }
+        },
+        {
             key: 'show_animation',
             type: 'boolean',
             default: true,

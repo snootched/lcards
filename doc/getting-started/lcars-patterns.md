@@ -1130,7 +1130,7 @@ style:
 
 - A slider keeps a minimum height of about 40 px so it stays easy to drag. A thin readout gauge in a shorter row sets `height` to the row (24 here); otherwise it spills into the next row.
 - In rows this small, turn the gauge's scale labels off (`style.gauge.scale.labels.enabled: false`): at their default size they cover the fill. The ticks stay.
-- On a full screen, a thin bar reads better than a full-height fill, which turns each row into a large accent slab: set `style.gauge.progress_bar.height` to about 8 with the ticks in a structure tone, as the `picard-gauge-column` preset does.
+- On a full screen, a thin bar reads better than a full-height fill, which turns each row into a large accent slab: set `style.gauge.progress_bar.height` to about 8 with the ticks in a structure tone.
 
 ```yaml live controls
 type: custom:lcards-layout-card
@@ -1192,12 +1192,12 @@ cards:
 
 ## Gauge bank
 
-**A row of upright gauges, as on the Picard consoles: a number cap at each end, a thin value bar and a short ruler.** Good for several readings of the same kind: each is a slider with the `picard-gauge-column` preset, which shows the value in its top cap.
+**A row of upright gauges, as on the Picard consoles: a number cap at each end, a thin value bar, a range strip and a short ruler.** Good for several readings of the same kind: each is a slider with the `picard-gauge-column` preset (the Picard component's column shape), which shows the value in its top cap.
 
 - The bottom cap shows the entity's name; give `text.name.content` a code or a short label instead when the name is too long for the cap.
-- Keep the gauges narrow (about 60 px) and side by side; a bank of them sits beside a code-block column. Under about 56 px, turn the scale numbers off (`style.gauge.scale.labels.enabled: false`).
+- Keep the gauges narrow (about 70 px) and side by side; a bank of them sits beside a code-block column. Under about 60 px, turn the scale numbers off (`style.gauge.scale.labels.enabled: false`).
 - The ticks are in the entity's units (a major tick every 10, a minor every 2). For another range, such as 10 to 35 °C, set `style.gauge.scale.tick_marks.major.interval` and `minor.interval` to suit.
-- For the framed gauge with scanning lights, use the `picard-gauge-vertical` preset instead ([Picard component](../cards/slider-card/components#picard-component)).
+- For the wide console gauge, use the `picard-gauge-vertical` preset instead ([Picard component](../cards/slider-card/components#picard-component)).
 
 ```yaml live controls
 type: custom:lcards-layout-card

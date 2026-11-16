@@ -150,6 +150,7 @@ style:
 | `scale.labels.color` | colour | theme | Label colour |
 | `scale.labels.font_size` | number | `14` | Label size, px |
 | `scale.labels.padding` | number | `3` | Space round the labels, px |
+| `scale.labels.align` | string | `end` | `end`: at the far edge (right of an upright gauge, under a level one). `start`: beside the ticks, so a narrow gauge stays one column in a wide card |
 | `indicator.enabled` | boolean / string | off | Show the value indicator. Setting `type`, `color` or `size` also turns it on |
 | `indicator.type` | string | `line` | `line`, `round` or `triangle` |
 | `indicator.color` | colour | theme | Indicator colour; a [state map](/core/colours) works |

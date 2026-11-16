@@ -282,10 +282,11 @@ style:
 
 ## Picard component
 
-**The Picard-era upright gauge: a framed range column, a solid value bar and three scanning lights.** Use it for a tall readout with a ruler, such as a temperature or a power level.
+**The Picard-era upright gauge in two shapes: the wide console slider (a framed range column, a solid value bar and three scanning lights) or the narrow Titan column (a number cap at each end, a bracket line, the value bar, a range strip and a ruler).** Use it for a tall readout with a ruler, such as a temperature or a power level; a row of columns makes a gauge bank.
 
-- Pick it with the `picard-gauge-vertical` preset, which sets `component: picard` and an upright track. The ruler on the right is the gauge's [`scale`](./styles#style-gauge).
-- The frame and the value bar take the top border's colour unless you set their own.
+- `shape: console` (the `picard-gauge-vertical` preset) is the default. `shape: column` (the `picard-gauge-column` preset) draws the column at fixed sizes, so it stays crisp in a narrow card, and shows the value in its top cap and the name in its bottom one (text zones `top` and `bottom`).
+- The ruler is the gauge's [`scale`](./styles#style-gauge); the column puts its numbers beside the ticks (`scale.labels.align: start`).
+- The frame and the value bar take the top border's colour unless you set their own; the column's caps take `style.border.top.color` and `style.border.bottom.color`.
 - With [ranges](./ranges), the frame becomes a notched outline and the ranges fill the column inside it. Without ranges, the frame is a solid bar.
 
 ```yaml live
@@ -317,8 +318,23 @@ style:
       opacity: 0.7
 ```
 
+```yaml live
+type: custom:lcards-slider
+entity: sensor.temperature
+preset: picard-gauge-column
+style:
+  # a band in the range strip and a marker pointing at it
+  ranges:
+    - min: 70
+      max: 100
+      color: var(--lcards-orange)
+      opacity: 0.8
+    - value: 75
+      color: var(--lcards-orange)
+```
+
 ::: details More about Picard
-- **Scanning lights:** the three lights at the top left pulse one after another, every `animation_speed` seconds. They stand still when the device asks for reduced motion, and `show_animation: false` removes them.
+- **Scanning lights:** the three lights at the top left (small squares under the top cap on a column) pulse one after another, every `animation_speed` seconds. They stand still when the device asks for reduced motion, and `show_animation: false` removes them.
 - **Range opacity:** like any gauge band, a range in the column is drawn at `0.3` opacity unless it sets `opacity`.
 :::
 
@@ -329,5 +345,6 @@ style:
 | `style.range.border.gap` | number | `2` | Width of those lines, px |
 | `style.solid_bar.color` | colour / state map | `style.border.top.color` | The solid value bar |
 | `style.animation.indicator.color` | colour / state map | theme | The scanning lights |
+| `shape` | string | `console` | `console`: the wide console slider. `column`: the narrow Titan column with number caps |
 | `show_animation` | boolean | `true` | Show the scanning lights |
 | `animation_speed` | number | `2` | Seconds for one pulse of the lights, `0.1` to `10` |

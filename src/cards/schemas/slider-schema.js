@@ -94,6 +94,7 @@ function componentOptionProperties() {
             props[opt.key] = {
                 type: opt.type === 'color' ? 'string' : opt.type,
                 ...(opt.default !== undefined ? { default: opt.default } : {}),
+                ...(opt.enum ? { enum: opt.enum } : {}),
                 ...(num?.min !== undefined ? { minimum: num.min } : {}),
                 ...(num?.max !== undefined ? { maximum: num.max } : {}),
                 description: opt.description,
@@ -745,7 +746,12 @@ export function getSliderSchema(options = {}) {
                                             },
                                             color: stateColorSchema,
                                             font_size: { type: 'number', minimum: 1, default: 14, description: 'Label size, px.' },
-                                            padding: { type: 'number', default: 3, description: 'Space between a tick and its label, px.' }
+                                            padding: { type: 'number', default: 3, description: 'Space between a tick and its label, px.' },
+                                            align: {
+                                                type: 'string', enum: ['start', 'end'], default: 'end',
+                                                description: 'Where the labels sit across the track: end at the far edge (right of an upright gauge, bottom of a level one), start beside the ticks, so a narrow gauge stays one column in a wide card.',
+                                                enumDescriptions: { start: 'Beside the ticks', end: 'At the far edge' }
+                                            }
                                         }
                                     }
                                 }

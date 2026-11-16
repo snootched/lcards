@@ -69,9 +69,13 @@ test('slider: picard-gauge-vertical draws the picard component without component
 
 test('slider: picard-gauge-column draws both caps, the value in the top one and the entity name (or your content) in the bottom one', async ({ page }) => {
     await mountCase(page, 'slider-picard-column', { height: '400' });
-    const caps = () => page.locator('lcards-slider').evaluate(el => ['border-top', 'border-bottom']
-        .map(id => el.shadowRoot.getElementById(id)?.getBoundingClientRect().height ?? 0));
-    await expect.poll(caps).toEqual([24, 24]);
+    // the picard component's column shape: a cap rect at the top and bottom, the full card width
+    const caps = () => page.locator('lcards-slider').evaluate(el => {
+        const box = el.getBoundingClientRect();
+        return [...el.shadowRoot.querySelectorAll('rect')].filter(r => Math.abs(r.getBoundingClientRect().width - box.width) < 1 && r.getBoundingClientRect().height < 40)
+            .map(r => Math.round(r.getBoundingClientRect().top - box.top) < 2 ? 'top' : 'bottom');
+    });
+    await expect.poll(async () => (await caps()).sort()).toEqual(['bottom', 'top']);
     const texts = () => page.locator('lcards-slider').evaluate(el => [...el.shadowRoot.querySelectorAll('text')].map(t => t.textContent.trim()));
     await expect.poll(async () => (await texts()).some(t => /^demo level$/i.test(t))).toBe(true); // the name, by default
     await expect.poll(async () => (await texts()).some(t => /^40/.test(t))).toBe(true); // demo_level starts at 40
@@ -79,6 +83,45 @@ test('slider: picard-gauge-column draws both caps, the value in the top one and 
     await page.evaluate(() => window.__reconfigure({ type: 'custom:lcards-slider', entity: 'input_number.demo_level', preset: 'picard-gauge-column', text: { name: { content: '3788' } } }));
     await expect.poll(texts).toContain('3788');
     await expectNoErrors(page);
+});
+
+test('slider: picard-gauge-column keeps its scale numbers beside the ticks in a wide card (scale.labels.align: start)', async ({ page }) => {
+    await mountCase(page, 'slider-picard-column', { width: '480', height: '300' });
+    const labels = () => page.locator('lcards-slider').evaluate(el => [...el.shadowRoot.querySelectorAll('text')]
+        .filter(t => /^\d+$/.test(t.textContent.trim()) && t.getAttribute('text-anchor') === 'start')
+        .map(t => t.getBoundingClientRect().left - el.getBoundingClientRect().left));
+    await expect.poll(async () => (await labels()).length).toBeGreaterThan(5);
+    // right of the ticks and the bar, nowhere near the far edge of a 480 px card
+    expect(Math.max(...await labels())).toBeLessThan(60);
+    // align: end keeps the old place, at the far edge
+    await page.evaluate(() => window.__reconfigure({ type: 'custom:lcards-slider', entity: 'input_number.demo_level', preset: 'picard-gauge-column',
+        style: { gauge: { scale: { labels: { align: 'end' } } } } }));
+    const atEnd = () => page.locator('lcards-slider').evaluate(el => [...el.shadowRoot.querySelectorAll('text')]
+        .filter(t => /^\d+$/.test(t.textContent.trim()) && t.getAttribute('text-anchor') === 'end').length);
+    await expect.poll(atEnd).toBeGreaterThan(5);
+    await expectNoErrors(page);
+});
+
+test('slider editor: picard-gauge-column is listed under the picard component, and picking it keeps the component', async ({ page }) => {
+    await mountCase(page, 'slider-picard-column', { height: '400' });
+    const result = await page.evaluate(async () => {
+        const editor = /** @type {any} */ (await customElements.get('lcards-slider').getConfigElement());
+        editor.hass = window.__hass;
+        editor.setConfig({ type: 'custom:lcards-slider', entity: 'input_number.demo_level', component: 'picard' });
+        document.body.appendChild(editor);
+        await editor.updateComplete;
+        /** @type {any[]} */
+        const changes = [];
+        editor.addEventListener('config-changed', (/** @type {any} */ e) => changes.push(e.detail.config));
+        const options = (/** @type {any} */ tpl) => JSON.stringify(tpl.values ?? []).match(/"value":"[a-z-]+"/g) ?? [];
+        const listed = options(editor._renderPresetSelector());
+        editor._selectPreset('picard-gauge-column');
+        await new Promise((r) => setTimeout(r, 100));
+        const last = changes.at(-1);
+        return { listed, preset: last?.preset, component: last?.component };
+    });
+    expect(result.listed).toEqual(expect.arrayContaining(['"value":"picard-gauge-vertical"', '"value":"picard-gauge-column"']));
+    expect(result).toMatchObject({ preset: 'picard-gauge-column', component: 'picard' });
 });
 
 test('slider: the value text is formatted by Home Assistant for the user locale (comma decimals), without its unit', async ({ page }) => {

@@ -550,37 +550,45 @@ export const SLIDER_PRESETS = {
 
   'picard-gauge-column': {
     extends: 'slider.gauge-basic',
-    description: 'Picard-era column gauge: number caps at both ends, a thin value bar, short ticks and a small oval thumb',
-    compatibleComponents: ['default'],
+    description: 'Picard Titan column gauge: number caps at both ends, a bracket line, a thin value bar, a range strip, short ticks with their numbers beside them and a small oval thumb',
+    compatibleComponents: ['picard'],
+
+    component: 'picard',
+    shape: 'column',
 
     style: {
       track: {
         orientation: 'vertical'
       },
       border: {
-        top:    { enabled: true, size: 24, color: 'theme:colors.card.topColor' },
-        bottom: { enabled: true, size: 24, color: 'theme:colors.card.topColor' }
+        top:    { color: 'theme:colors.card.topColor' },
+        bottom: { color: 'theme:colors.card.topColor' }
       },
       gauge: {
         progress_bar: {
-          height:  8,
-          align:   'start',
-          padding: { left: 6 },
           radius:  0,
-          background: { color: 'theme:colors.card.topColor', height: 8, radius: 0 }
+          background: { color: 'theme:colors.card.topColor', radius: 0 }
         },
         scale: {
           tick_marks: {
-            major: { interval: 10, height: 12, width: 2, color: 'theme:colors.ui.secondary' },
-            minor: { interval: 2, height: 6, width: 1, color: 'theme:colors.card.topColor' }
+            major: { interval: 10, height: 10, width: 2, color: 'theme:colors.ui.secondary' },
+            minor: { interval: 2, height: 5, width: 1, color: 'theme:colors.card.topColor' }
           },
-          labels: { show_unit: false, font_size: 11, color: 'theme:colors.ui.secondary' }
+          labels: { show_unit: false, font_size: 11, align: 'start', padding: 3, color: 'theme:colors.ui.secondary' }
         },
         indicator: {
           enabled: true,
           type:    'round',
           color:   'theme:colors.ui.secondary',
-          size:    { width: 22, height: 9 }
+          size:    { width: 28, height: 11 }
+        },
+        // Value markers point left at the bar from the tick side
+        marker_indicator: {
+          type:     'triangle',
+          size:     { width: 10, height: 10 },
+          rotation: 180,
+          align:    'start',
+          border:   { enabled: false }
         }
       }
     },
