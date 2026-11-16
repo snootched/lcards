@@ -199,17 +199,23 @@ test('frameGroups: a frame per scene, the controls before it with it', () => {
 });
 
 /** Every frame card of a built view, in order */
-const framesOf = (view) => view.sections.slice(1).flatMap(sec => sec.cards ?? []).filter(c => c.type === 'custom:lcards-layout-card');
+/** A view's demo frames; sections marked demo_frame: false (they draw their own) are left out. */
+const framesOf = (view) => {
+    const source = views.find(v => v.path === view.path)?.config.sections ?? [];
+    return view.sections.slice(1).filter((_, i) => source[i]?.demo_frame !== false)
+        .flatMap(sec => sec.cards ?? []).filter(c => c.type === 'custom:lcards-layout-card');
+};
 
 test('every view: its cards sit in numbered LCARS frames (sweep, bar, content, footer), placed at every width', () => {
     const board = buildDashboard(demo, { board: 'dev' });
     // a layout view is its own frame
     for (const view of board.views.slice(1).filter(v => !isLayoutView(v))) {
         const source = views.find(v => v.path === view.path);
-        const own = (source.config.sections ?? []).flatMap(sec => sec.cards ?? []).filter(c => c.type !== 'custom:lcards-alert-overlay');
+        const own = (source.config.sections ?? []).filter(sec => sec.demo_frame !== false).flatMap(sec => sec.cards ?? []).filter(c => c.type !== 'custom:lcards-alert-overlay');
         const frames = framesOf(view);
-        // section strategies (a section's own `strategy:`) make their cards in Home Assistant
-        const allStrategies = (source.config.sections ?? []).every(sec => sec.strategy);
+        // section strategies (a section's own `strategy:`) make their cards in Home Assistant;
+        // demo_frame: false sections draw their own frame
+        const allStrategies = (source.config.sections ?? []).every(sec => sec.strategy || sec.demo_frame === false);
         assert.ok(frames.length >= 1 || allStrategies, view.path);
         assert.deepEqual(frames.map(f => f.cards[1].text.label.content), frames.map((_, i) => String(i + 1).padStart(2, '0')), `${view.path}: numbered in order`);
         const placed = [];
@@ -228,6 +234,13 @@ test('every view: its cards sit in numbered LCARS frames (sweep, bar, content, f
         }
         assert.equal(placed.length, own.length, `${view.path}: every card framed once`);
     }
+});
+
+test('demo_frame: false leaves a section unframed and the key out of the pushed view', () => {
+    const view = buildDashboard(demo, { board: 'dev' }).views.find(v => v.path === 'section-bracket-ratios');
+    assert.ok(view.sections.slice(1).every(sec => !('demo_frame' in sec)));
+    assert.equal(framesOf(view).length, 0);
+    assert.equal(view.sections[1].cards[0].cards[0].elbow.type, 'header-left', 'the section keeps its own cards (the bracket, not a demo frame)');
 });
 
 test('every scene has a frame of its own (cards never run together)', () => {
@@ -292,7 +305,7 @@ test('a view\'s description sits in a frame headed by the view\'s header bar', (
 });
 
 /** Views whose sliders are the feature itself (they drive nothing else) */
-const SLIDER_FEATURE_VIEWS = new Set(['ring-gauge', 'slider-presets', 'slider-drag-badge']);
+const SLIDER_FEATURE_VIEWS = new Set(['ring-gauge', 'slider-presets', 'slider-drag-badge', 'slider-picard-shapes']);
 
 test('controls drive their own view: alert buttons only where something reacts to the alert mode; every slider bound to another card', () => {
     for (const v of views) {

@@ -263,6 +263,12 @@ export function frameGroups(cards) {
 export function frameSection(section, n) {
     // a section strategy makes its own cards: it stays as it is
     if (section.strategy) return { section, frames: 0 };
+    // demo_frame: false (a section that draws its own frame, e.g. a review of a strategy's
+    // generated cards): left unframed; the key is the builder's, not Home Assistant's
+    if (section.demo_frame === false) {
+        const { demo_frame: _skip, ...rest } = section;
+        return { section: rest, frames: 0 };
+    }
     const all = section.cards ?? [];
     const groups = frameGroups(all.filter(card => !UNFRAMED.has(card.type)));
     return {

@@ -1,0 +1,194 @@
+# Picard slider shapes (2026-11-16): the picard component's two shapes side by side.
+# console: the wide console slider (picard-gauge-vertical). column: the narrow Titan
+# gauge with number caps (picard-gauge-column), with ranges, value markers, labels at
+# the far edge, no lights, inverted, a small range and a wide card. Drag any of them.
+title: Picard slider shapes
+path: slider-picard-shapes
+type: sections
+max_columns: 4
+sections:
+- type: grid
+  column_span: 2
+  cards:
+  - type: custom:lcards-button
+    preset: text-only
+    interactive: false
+    text:
+      label:
+        content: 'shape: console (picard-gauge-vertical)'
+        show: true
+        position: center-left
+        font_size: 18
+    grid_options:
+      columns: full
+      rows: 1
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_power
+    preset: picard-gauge-vertical
+    grid_options:
+      columns: 12
+      rows: 6
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_power
+    preset: picard-gauge-vertical
+    style:
+      ranges: &id005
+      - &id001
+        min: 0
+        max: 30
+        color: var(--lcards-blue)
+        opacity: 0.8
+      - &id002
+        min: 70
+        max: 100
+        color: var(--lcards-orange)
+        opacity: 0.8
+    grid_options:
+      columns: 12
+      rows: 6
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_power
+    preset: picard-gauge-vertical
+    style:
+      ranges: &id006
+      - &id003
+        value: 75
+        color: var(--lcards-orange)
+      - &id004
+        value: 25
+        color: var(--lcards-blue)
+    grid_options:
+      columns: 12
+      rows: 6
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_power
+    preset: picard-gauge-vertical
+    style:
+      ranges:
+      - *id001
+      - *id002
+      - *id003
+      - *id004
+    grid_options:
+      columns: 12
+      rows: 6
+- type: grid
+  column_span: 2
+  cards:
+  - type: custom:lcards-button
+    preset: text-only
+    interactive: false
+    text:
+      label:
+        content: 'shape: column (picard-gauge-column)'
+        show: true
+        position: center-left
+        font_size: 18
+    grid_options:
+      columns: full
+      rows: 1
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_power
+    preset: picard-gauge-column
+    text:
+      name:
+        content: COLUMN
+    grid_options:
+      columns: 6
+      rows: 6
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_power
+    preset: picard-gauge-column
+    style:
+      ranges: *id005
+    text:
+      name:
+        content: RANGES
+    grid_options:
+      columns: 6
+      rows: 6
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_power
+    preset: picard-gauge-column
+    style:
+      ranges: *id006
+    text:
+      name:
+        content: MARKERS
+    grid_options:
+      columns: 6
+      rows: 6
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_power
+    preset: picard-gauge-column
+    style:
+      ranges:
+      - *id001
+      - *id002
+      - *id003
+      - *id004
+    text:
+      name:
+        content: BOTH
+    grid_options:
+      columns: 6
+      rows: 6
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_power
+    preset: picard-gauge-column
+    style:
+      gauge:
+        scale:
+          labels:
+            align: end
+    text:
+      name:
+        content: EDGE
+    grid_options:
+      columns: 6
+      rows: 6
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_power
+    preset: picard-gauge-column
+    show_animation: false
+    text:
+      name:
+        content: NO LIGHTS
+    grid_options:
+      columns: 6
+      rows: 6
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_shields
+    preset: picard-gauge-column
+    control:
+      invert_value: true
+    text:
+      name:
+        content: INVERTED
+    grid_options:
+      columns: 6
+      rows: 6
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_temperature
+    preset: picard-gauge-column
+    text:
+      name:
+        content: TEMP
+    grid_options:
+      columns: 6
+      rows: 6
+  - type: custom:lcards-slider
+    entity: input_number.lcards_test_shields
+    preset: picard-gauge-column
+    style:
+      ranges:
+      - *id001
+      - *id002
+      - *id003
+      - *id004
+    text:
+      name:
+        content: WIDE
+    grid_options:
+      columns: 12
+      rows: 6

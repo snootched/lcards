@@ -68,7 +68,7 @@ topics:
     title: Cards
     groups:
       - title: Slider
-        views: [slider-presets, slider-labels-tween, slider-drag-badge, ring-gauge, slider-ring-fit]
+        views: [slider-presets, slider-picard-shapes, slider-labels-tween, slider-drag-badge, ring-gauge, slider-ring-fit]
       - title: Select menu
         views: [select-menu]
       - title: Layouts
@@ -78,7 +78,7 @@ topics:
       - title: Data grid
         views: [datagrid-data, datagrid-decorative]
       - title: Section strategies
-        views: [sections-strategies]
+        views: [sections-strategies, section-bracket-ratios]
   - id: data
     title: Data and rules
     views: [rules, templates, data-sources]
@@ -108,11 +108,17 @@ releases:
         docs: /core/text-fields-style#fit
         public: true
       - file: sections-strategies
-        summary: "LCARS section strategies: readings, gauges, controls and code blocks that fill themselves"
-        description: "Four automatic sections, each built from a target (here test helpers; usually an area): a readings table, a bank of Picard gauges (drag one), toggle pills and a code-block panel lit while each toggle is on. In edit mode, Create section then Automatic section lists them under Community sections with live previews."
+        summary: "LCARS section strategies: readings, gauges and controls that fill themselves, classic or Picard, framed or not"
+        description: "Three automatic sections, each built from a target (here test helpers; usually an area). Rows: classic, classic with a frame, Picard, Picard with a frame, then the other readings modes (a classic table, Picard numbers) and controls with wider spacing. The framed classic levels and the spaced controls show codes on the blocks of the bracket's side. The last row gives readings, gauges and controls the same item_height, so their rows line up. Drag a gauge or toggle a control. In edit mode, Create section then Automatic section lists them under Community sections; the Strategy tab sets the look, frame, codes, items per row and their height, readings mode and spacing."
         session: "S5 section strategies"
         docs: /getting-started/section-strategies
         # dev board only: the docs Live Demo page renders cards without Home Assistant's strategies
+        public: false
+      - file: section-bracket-ratios
+        summary: "Classic bracket ratios: the controls bracket built in pieces, six sizes (review)"
+        description: "The classic controls section's bracket built in pieces like the demo board's frames: a top sweep with the title in its bar, a break, a bar down the left, a break, a closing sweep. A: the default (72 px side, 28 px top bar, 14 px foot). B: demo-like (90 / 28 / 12). C: slim (56 / 24 / 12). D: even bars (72 / 28 / 28). E and F: wider and tighter padding and header gap."
+        session: "J section strategies"
+        docs: /getting-started/section-strategies
         public: false
       - file: actions-confirmation
         summary: "Actions that ask first: Home Assistant's confirmation on any action"
@@ -839,6 +845,12 @@ releases:
         session: "D1c"
         docs: /cards/slider-card/#presets
         public: true
+      - file: slider-picard-shapes
+        summary: "Picard slider shapes: the console and the Titan column, with ranges and markers"
+        description: "The picard component's two shapes side by side. Left: console (picard-gauge-vertical) plain, with ranges, with value markers and with both. Right: column (picard-gauge-column), the narrow Titan gauge with number caps: plain, ranges, markers, both, scale numbers at the far edge, no scanning lights, inverted, a small temperature range and a wide card. Drag any of them."
+        session: "J section strategies"
+        docs: /cards/slider-card/components#picard-component
+        public: false
       - file: select-menu
         summary: "Select menu: one button per option, the selected one lit"
         description: "The select menu shows an input_select's options as buttons and lights the selected one; tap one to select it. Top: the six rates in a row of capped tiles, then lozenge, bullet, outline and toggle-tab columns on the look and colour selects (menus on the same select change together). Below, the options list renaming and reordering the colours, and one showing only two of the six rates."
