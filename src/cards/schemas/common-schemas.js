@@ -943,10 +943,20 @@ export const gridOptionsSchema = {
             description: 'Number of grid columns (12 per section column; Home Assistant clamps to the section width) or "full" to span all columns'
         },
         rows: {
-            type: 'number',
-            minimum: 1,
-            maximum: 100,
-            description: 'Number of rows this card spans (1-100)'
+            oneOf: [
+                {
+                    type: 'string',
+                    enum: ['auto'],
+                    description: 'Set to "auto" to size the cell to the card\'s own height'
+                },
+                {
+                    type: 'number',
+                    minimum: 1,
+                    maximum: 100,
+                    description: 'Number of rows this card spans (1-100)'
+                }
+            ],
+            description: 'Number of rows this card spans (1-100), or "auto" for the card\'s own height'
         }
     }
 };

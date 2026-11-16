@@ -422,9 +422,9 @@ export default withMermaid(defineConfig({
           { text: 'Building a Dashboard', link: '/getting-started/building-dashboards' },
           { text: 'Dashboard Strategies', link: '/getting-started/dashboard-strategies' },
           { text: 'Section Strategies', link: '/getting-started/section-strategies' },
+          { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
           { text: 'Designing LCARS Screens', link: '/getting-started/lcars-design' },
           { text: 'LCARS Patterns',       link: '/getting-started/lcars-patterns' },
-          { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
           { text: 'Live Demo',            link: '/getting-started/live-demo' },
         ],
       },
@@ -608,9 +608,17 @@ export default withMermaid(defineConfig({
           items: [
             { text: 'What is LCARdS?',           link: '/getting-started/what-is-lcards' },
             { text: 'Installation',               link: '/getting-started/installation' },
-            { text: 'Building a Dashboard',    link: '/getting-started/building-dashboards' },
-            { text: 'Dashboard Strategies',    link: '/getting-started/dashboard-strategies' },
-            { text: 'Section Strategies',    link: '/getting-started/section-strategies' },
+            // Building first (get a screen up: a strategy or a gallery sample), then the design reference
+            {
+              text: 'Building a Dashboard',
+              collapsed: true,
+              items: [
+                { text: 'Overview',             link: '/getting-started/building-dashboards' },
+                { text: 'Dashboard Strategies', link: '/getting-started/dashboard-strategies' },
+                { text: 'Section Strategies',   link: '/getting-started/section-strategies' },
+                { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
+              ],
+            },
             {
               text: 'Designing LCARS Screens',
               collapsed: true,
@@ -619,7 +627,6 @@ export default withMermaid(defineConfig({
                 { text: 'LCARS Patterns', link: '/getting-started/lcars-patterns' },
               ],
             },
-            { text: 'Dashboard Gallery',       link: '/getting-started/dashboard-gallery' },
           ],
         },
         {

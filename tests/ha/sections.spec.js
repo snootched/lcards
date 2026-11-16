@@ -3,7 +3,7 @@
  * on a sections view of the hidden `lcards-test-sections` dashboard, targeting the
  * test bridge (TEST_ROOMS in ha-client.mjs: template lamps and sensors) plus some
  * gallery helpers. Each section renders its LCARdS cards for the right entities, and
- * Home Assistant lists all four under Community sections in Create section.
+ * Home Assistant lists all three under Community sections in Create section.
  */
 import { test, expect } from '@playwright/test';
 import { HAClient, HA_URL, readToken, ensureHelpers, ensureTestRooms, GALLERY_HELPERS } from './ha-client.mjs';
@@ -13,7 +13,7 @@ const DASH = 'lcards-test-sections';
 
 test.skip(!TOKEN, 'HA_TOKEN (or .ha-token) not set: skipping real-HA checks');
 
-test('LCARS sections: each renders its entities; all four are in the chooser', async ({ page }) => {
+test('LCARS sections: each renders its entities, in both looks; all three are in the chooser', async ({ page }) => {
     test.setTimeout(120_000);
     const client = await HAClient.connect(TOKEN);
     await ensureHelpers(client, GALLERY_HELPERS);
@@ -28,7 +28,7 @@ test('LCARS sections: each renders its entities; all four are in the chooser', a
         { strategy: { type: 'custom:lcars-readings', target: { area_id: areas.bridge } } },
         { strategy: { type: 'custom:lcars-gauges', title: 'LEVELS', target: { entity_id: numbers } } },
         { strategy: { type: 'custom:lcars-controls', target: { entity_id: toggles, area_id: areas.bridge } } },
-        { strategy: { type: 'custom:lcars-blocks', target: { entity_id: toggles } } },
+        { strategy: { type: 'custom:lcars-controls', look: 'picard', frame: true, target: { entity_id: toggles } } },
     ] }] } });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.addInitScript(({ token, hassUrl }) => {
@@ -59,25 +59,27 @@ test('LCARS sections: each renders its entities; all four are in the chooser', a
             inner(sec.shadowRoot ?? sec);
             const title = found.find((el) => el.config?.preset === 'bar-label-left')?.config?.text?.label?.content;
             const entities = [...new Set(found.map((el) => el.config?.entity).filter(Boolean))].sort();
-            const rows = found.find((el) => el.tagName === 'LCARDS-DATA-GRID')?.config?.rows?.map((r) => r.values[2]) ?? [];
+            // classic readings: the number column, a pill per sensor (bullet), in order
+            const rows = found.filter((el) => el.config?.preset === 'bullet').map((el) => el.config.entity);
             return { title, entities, rows };
         });
     });
     await expect.poll(async () => (await read()).length, { timeout: 30_000 }).toBe(4);
     await expect.poll(async () => (await read())[1].entities.length, { timeout: 15_000 }).toBe(2);
-    const [readings, gauges, controls, blocks] = await read();
+    const [readings, gauges, controls, picardControls] = await read();
     expect(readings.title).toBe('LCARDS TEST BRIDGE');
     expect(readings.rows).toEqual(['sensor.lcards_test_bridge_temperature', 'sensor.lcards_test_bridge_humidity']);
     expect(gauges).toMatchObject({ title: 'LEVELS', entities: numbers });
     expect(controls.entities).toEqual([...toggles, 'light.lcards_test_lamp']);
-    expect(blocks.entities).toEqual(toggles);
+    expect(picardControls.entities).toEqual(toggles);
 
     // the chooser: Create section → Automatic section lists the four under Community sections
     await page.goto(`/${DASH}/s?edit=1`);
     await page.locator('button.create-section').last().click({ timeout: 15_000 });
     await page.locator('hui-dialog-create-section').getByText('Automatic section').click();
-    for (const name of ['LCARS readings', 'LCARS gauges', 'LCARS controls', 'LCARS blocks']) {
+    for (const name of ['LCARS readings', 'LCARS gauges', 'LCARS controls']) {
         await expect(page.getByRole('button', { name, exact: true })).toBeVisible({ timeout: 15_000 });
     }
+    await expect(page.getByRole('button', { name: 'LCARS blocks', exact: true })).toHaveCount(0);
     client.close();
 });

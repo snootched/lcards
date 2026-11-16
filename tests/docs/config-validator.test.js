@@ -170,6 +170,8 @@ test('schema fixes found by checking real configs: CSS functions for sizes, 0 sp
         } } },
     ])), []);
     assert.ok(messages(check({ type: 'custom:lcards-layout-card', layout: { margin: 10 } })).length > 0, 'a bare number other than 0 is not CSS');
+    // Home Assistant sizes a sections cell to the card with rows: auto (2026-11-16)
+    assert.deepEqual(messages(check({ type: 'custom:lcards-button', preset: 'bar-label-left', height: 28, grid_options: { columns: 'full', rows: 'auto' } })), []);
 });
 
 test('segmented elbow segments take what the card reads: entity_id, actions, outer_curve_clamp, diagonal_angle, theme bars; frame lengths take CSS', () => {

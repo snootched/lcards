@@ -7,6 +7,7 @@ description: "How to compose an LCARS dashboard from LCARdS cards: which card fo
 **Go from single cards to a whole LCARS screen: pick the cards for each job, then lay them out on a layout view.**
 
 Feeling stuck?  Don't know where to start:
+- Let LCARdS build it: a [dashboard strategy](dashboard-strategies) generates a whole LCARS dashboard from your areas, and [section strategies](section-strategies) fill LCARS sections for an area on any sections dashboard. Take control of either to edit the cards.
 - The [Dashboard Gallery](dashboard-gallery) has examples of what can be built to help inspire you.
 - For some core LCARS principles around the look (colour roles, frames, screen shapes and ready-made patterns) see [Designing LCARS Screens](lcars-design).
 - Chat with an LLM that can use the [LCARdS AI skill](ai-assistance) - it follows the same guide and can help you write YAML or even generate really cool dashboard layouts for you.

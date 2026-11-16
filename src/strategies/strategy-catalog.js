@@ -8,18 +8,14 @@
 export const LCARS_SECTION_CATALOG = {
     'lcars-readings': {
         name: 'LCARS readings',
-        description: 'A title bar over a readings table: the sensors of an area or other target, with their values.',
+        description: 'The sensors of an area or other target with their values: a number column or a table, classic or Picard, framed if you like.',
     },
     'lcars-gauges': {
         name: 'LCARS gauges',
-        description: 'Upright Picard gauges with a value cap and a name cap: percentages, temperatures and number helpers of a target.',
+        description: 'Levels of a target (percentages, temperatures, number helpers): classic pill bars or Picard column gauges, framed if you like.',
     },
     'lcars-controls': {
         name: 'LCARS controls',
-        description: 'Rounded LCARS pills that toggle the lights, switches, fans and toggle helpers of a target.',
-    },
-    'lcars-blocks': {
-        name: 'LCARS blocks',
-        description: 'A Picard code-block panel: a small block per light, switch or toggle helper of a target, lit in the accent while it is on.',
+        description: 'Toggles for the lights, switches, fans and toggle helpers of a target: classic pills or Picard filled buttons, framed if you like.',
     },
 };
