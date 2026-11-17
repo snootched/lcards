@@ -29,7 +29,6 @@ import './components/lcards-sound-config-tab.js';
 import './components/lcards-storage-explorer-tab.js';
 import './components/lcards-about-tab.js';
 import './components/lcards-users-devices-tab.js';
-import './components/lcards-layouts-tab.js';
 import './components/lcards-connectivity-tab.js';
 import { surfaceStyles } from '../editor/base/surface-styles.js';
 import { renderFilterChips } from '../editor/components/shared/filter-chips.js';
@@ -44,7 +43,7 @@ const CATEGORY_ICONS = {
 
 export class LCARdSConfigPanel extends LitElement {
   /** Tab names for links (?tab=theme); the value is the tab index. */
-  static TAB_NAMES = { welcome: 0, helpers: 1, theme: 2, connectivity: 3, sounds: 4, users: 5, packs: 6, storage: 7, layouts: 8 };
+  static TAB_NAMES = { welcome: 0, helpers: 1, theme: 2, connectivity: 3, sounds: 4, users: 5, packs: 6, storage: 7 };
 
   static properties = {
     hass: { type: Object },
@@ -667,12 +666,6 @@ export class LCARdSConfigPanel extends LitElement {
             Storage
           </ha-tab-group-tab>
           ` : ''}
-          ${this._isDevFeaturesEnabled() ? html`
-          <ha-tab-group-tab value="8" ?active=${this._selectedTab === 8}>
-            <ha-icon icon="mdi:view-grid-plus-outline"></ha-icon>
-            Layouts
-          </ha-tab-group-tab>
-          ` : ''}
         </ha-tab-group>
 
         <div class="tab-content">
@@ -703,11 +696,6 @@ export class LCARdSConfigPanel extends LitElement {
     return this.hass?.user?.is_admin === true;
   }
 
-  /** True when the dev-only features URL parameter is present (?lcards_dev_features=true). */
-  _isDevFeaturesEnabled() {
-    return new URLSearchParams(window.location.search).get('lcards_dev_features') === 'true';
-  }
-
   _renderTabContent() {
     switch (this._selectedTab) {
       case 0:
@@ -726,8 +714,6 @@ export class LCARdSConfigPanel extends LitElement {
         return this._renderPackExplorerTab();
       case 7:
         return this._isAdmin() ? this._renderStorageTab() : html``;
-      case 8:
-        return this._isDevFeaturesEnabled() ? this._renderLayoutsTab() : html``;
       default:
         return html`<div>Unknown tab</div>`;
     }
@@ -1070,14 +1056,6 @@ export class LCARdSConfigPanel extends LitElement {
       <lcards-pack-explorer-tab
         .hass=${this.hass}
       ></lcards-pack-explorer-tab>
-    `;
-  }
-
-  _renderLayoutsTab() {
-    return html`
-      <lcards-layouts-tab
-        .hass=${this.hass}
-      ></lcards-layouts-tab>
     `;
   }
 

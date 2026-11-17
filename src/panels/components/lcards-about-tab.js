@@ -239,11 +239,6 @@ export class LCARdSAboutTab extends LitElement {
   // NAVIGATION
   // ============================================================================
 
-  /** True when the dev-only features URL parameter is present (?lcards_dev_features=true). */
-  _isDevFeaturesEnabled() {
-    return new URLSearchParams(window.location.search).get('lcards_dev_features') === 'true';
-  }
-
   /**
    * Fire a bubbling event so the parent config panel switches to the given tab.
    * @param {number} tabIndex
@@ -338,24 +333,6 @@ export class LCARdSAboutTab extends LitElement {
               </div>
               <ha-icon icon="mdi:arrow-right" class="tab-guide-arrow"></ha-icon>
             </div>
-          ${this._isDevFeaturesEnabled() ? html`
-            <div
-                class="tab-guide-card"
-                role="button"
-                tabindex="0"
-                @click=${() => this._navigateToTab(8)}
-                @keydown=${(e) => e.key === 'Enter' && this._navigateToTab(8)}
-              >
-              <div class="tab-guide-icon">
-                <ha-icon icon="mdi:view-grid-plus-outline"></ha-icon>
-              </div>
-              <div class="tab-guide-body">
-                <span class="tab-guide-title">Layouts</span>
-                <span class="tab-guide-desc">Dev preview: compose reusable card layouts with a WYSIWYG grid editor (enabled via the ?lcards_dev_features=true URL parameter).</span>
-              </div>
-              <ha-icon icon="mdi:arrow-right" class="tab-guide-arrow"></ha-icon>
-            </div>
-          ` : ''}
         </div>
       </div>
 

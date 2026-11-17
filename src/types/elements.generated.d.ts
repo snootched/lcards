@@ -62,7 +62,6 @@ declare global {
         'lcards-layout-card-editor': import('../editor/cards/lcards-layout-card-editor.js').LCARdSLayoutCardEditor;
         'lcards-layout-studio-dialog': import('../editor/dialogs/lcards-layout-studio-dialog.js').LCARdSLayoutStudioDialog;
         'lcards-layout-view': import('../views/index.js').LCARdSLayoutView;
-        'lcards-layouts-tab': import('../panels/components/lcards-layouts-tab.js').LCARdSLayoutsTab;
         'lcards-message': import('../editor/components/shared/lcards-message.js').LCARdSMessage;
         'lcards-msd-card': import('../cards/lcards-msd.js').LCARdSMSDCard;
         'lcards-msd-editor': import('../editor/cards/lcards-msd-editor.js').LCARdSMSDEditor;
