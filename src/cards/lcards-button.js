@@ -339,6 +339,15 @@ export class LCARdSButton extends LCARdSCard {
                         }
                     });
                 }
+            } else if (this._styleFollowsAttributes() && oldHass?.states?.[this.config.entity] !== this._entity) {
+                // Same state, new attributes (a light's colour, brightness or effect):
+                // colours keyed by state_attribute or ranges_attribute follow them. Light
+                // buttons used to get this from _onLightColorChanged() re-resolving on
+                // every update; that now runs only when the light's colour or brightness
+                // changed (LCARdSCard._updateLightColorVariable), so the card's own
+                // attributes are handled here, for every entity (once: not again when
+                // the light hook already resolved for this update). 2026-11-17
+                if (this._lightResolvedFor !== this._entity) this._resolveButtonStyleSync();
             }
 
             // Range-based preset switching: evaluate on EVERY hass update, not just state
@@ -2521,12 +2530,24 @@ export class LCARdSButton extends LCARdSCard {
     }
 
     /**
+     * Whether a change to the card's own entity's attributes (state unchanged)
+     * re-resolves the button style. The slider resolves its own style and opts out.
+     * @returns {boolean}
+     * @protected
+     */
+    _styleFollowsAttributes() {
+        return true;
+    }
+
+    /**
      * Re-resolve button style whenever the light-colour CSS variable changes
      * so the button immediately reflects the current light colour.
      * @protected
      * @override
      */
     _onLightColorChanged() {
+        // the entity update this resolve answers (see _handleHassUpdate)
+        this._lightResolvedFor = this._entity;
         this._resolveButtonStyleSync();
     }
 

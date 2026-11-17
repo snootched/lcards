@@ -583,22 +583,29 @@ export class LCARdSSlider extends LCARdSButton {
      * @protected
      */
     /**
+     * The slider resolves its own style (_resolveSliderStyleSync) and follows its
+     * entity's value itself: no button style resolve on attribute changes.
+     * @returns {boolean}
+     * @protected
+     * @override
+     */
+    _styleFollowsAttributes() {
+        return false;
+    }
+
+    /**
      * Bust the SVG memoization cache whenever the light-colour CSS variable
      * changes so subsequent renders pick up the new resolved colour instead
      * of the stale cached SVG (which may have been built before the variable
      * was set on the first render after a card reload).
      *
-     * This hook fires far more often than "this light changed": the base class's
-     * _updateLightColorVariable() (LCARdSCard.js) calls it unconditionally from
-     * _onHassChanged(), which itself runs on EVERY HASS object change reaching this
-     * card — any entity anywhere in the install, not just this card's own tracked
-     * entities — and never compares the newly-resolved colour against the previous
-     * one first. Left unguarded, this forces a full gauge SVG rebuild (bypassing the
-     * configHash memoization entirely, since _invalidateMemoization() nulls the cache
-     * directly) on basically every unrelated HASS push — e.g. a once-per-second clock
-     * sensor — landing inside nearly every value_tween animation window and causing a
-     * very consistently-timed jank. Dedupe against the last colour that actually
-     * triggered an invalidation so only genuine colour/brightness changes rebuild.
+     * This hook used to fire on every Home Assistant update (any entity in the
+     * install), which forced a full gauge SVG rebuild (bypassing the configHash
+     * memoization, since _invalidateMemoization() nulls the cache directly) on
+     * every unrelated push, e.g. a once-per-second clock sensor, landing inside
+     * nearly every value_tween window as a consistently timed jank. The base class
+     * now calls it only when the colour or brightness changed (2026-11-17); the
+     * dedupe below stays, so a brightness-only change doesn't rebuild either.
      * @protected
      * @override
      */

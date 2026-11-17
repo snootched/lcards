@@ -1,0 +1,27 @@
+# A light button whose colours follow the light's attributes while its state stays
+# "on": match-light (rgb_color), match-brightness (brightness) and state_attribute
+# (effect). tests/browser/light-colour.spec.js
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+state_attribute: effect
+text:
+  name:
+    content: LIGHT
+    show: true
+    color:
+      default: var(--lcars-white)
+      rainbow: var(--lcars-yellow)
+  label:
+    content: LEVEL
+    show: true
+    position: top-left
+    color:
+      active: alpha(rgb(255, 255, 255), match-brightness)
+      inactive: var(--lcars-white)
+style:
+  card:
+    color:
+      background:
+        active: match-light
+        inactive: var(--lcards-gray)

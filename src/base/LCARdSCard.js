@@ -282,6 +282,8 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Light colour CSS variable state (populated by _updateLightColorVariable)
         this._lightColorValue = null;   // Cached resolved colour string, or null when light is off
         this._lightAlphaValue = null;   // Cached brightness scalar (0.0–1.0), or null when light is off
+        /** @type {string|null} what the light variables on the page hold ('off' or 'colour|alpha'); null = not written */
+        this._lightVarsKey = null;
 
         lcardsLog.trace(`[LCARdSCard] Constructor called for ${this._getDisplayId()}`);
     }
@@ -3959,6 +3961,9 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Check if light is on
         if (this._entity.state !== 'on') {
+            // Already cleared: nothing changed (see the note at the end)
+            if (this._lightVarsKey === 'off') return;
+            this._lightVarsKey = 'off';
             // Light is off, remove variables
             document.documentElement.style.removeProperty(varName);
             document.documentElement.style.removeProperty(`--lcards-light-alpha-${this._cardGuid}`);
@@ -3997,6 +4002,17 @@ export class LCARdSCard extends LCARdSNativeCard {
             const level = Math.round((b / 255) * 255);
             color = `rgb(${level}, ${Math.round(level * 0.97)}, ${Math.round(level * 0.85)})`;
         }
+
+        // This runs on every Home Assistant update (any entity in the house). When the
+        // colour and brightness are what the page already holds, stop: no writes to the
+        // document's style (each one restyles the page) and no _onLightColorChanged(),
+        // which made every light button resolve its whole style on every update. A
+        // disconnect clears the variables and the key, so a reconnect writes them again.
+        // 2026-11-17
+        const brightnessForKey = this._entity.attributes.brightness ?? 255;
+        const key = `${color}|${(brightnessForKey / 255).toFixed(3)}`;
+        if (key === this._lightVarsKey) return;
+        this._lightVarsKey = key;
 
         // Set the CSS variable and cache the value on the instance so subclasses
         // can embed the resolved colour directly in generated markup (e.g. slider
@@ -4042,6 +4058,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             const varName = `--lcards-light-color-${this._cardGuid}`;
             document.documentElement.style.removeProperty(varName);
             document.documentElement.style.removeProperty(`--lcards-light-alpha-${this._cardGuid}`);
+            this._lightVarsKey = null;
             lcardsLog.trace(`[LCARdSCard] Cleaned up light color variable ${varName}`);
         }
     }
