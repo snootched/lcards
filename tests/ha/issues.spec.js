@@ -8,6 +8,9 @@
  * - #409: opening the view by in-app navigation connects each LCARdS element
  *   about once (Home Assistant assigns the view's cards several times); an MSD in
  *   it shows on every reload; edit mode raises no chart errors.
+ * - #410: on a view whose only LCARdS card is the alert overlay (the
+ *   `issue-410` view), the overlay shows an alert raised after a page refresh
+ *   (core reads HASS from <home-assistant> while no card feeds it).
  *
  * Measurements go to reports/ha-issues/<ISSUE_RUN_LABEL or "run">.json for the
  * issue replies (run once on a build without the fixes as "before").
@@ -271,4 +274,25 @@ test('edit mode on the layout view raises no chart errors', async ({ page }) => 
     report.editMode = { problems };
     console.log('edit mode', JSON.stringify(report.editMode));
     if (STRICT) expect(problems).toEqual([]);
+});
+
+test('#410: an alert overlay alone on a view shows an alert raised after a refresh', async ({ page }) => {
+    const problems = await open(page, 'issue-410');
+    // a normal refresh, as in the report
+    await page.reload();
+    await page.waitForFunction(() => !!(document.querySelector('home-assistant')?.hass?.states && window.lcards?.core?.portalOverlayManager), null, { timeout: 30_000 });
+    await page.evaluate(() => customElements.whenDefined('lcards-alert-overlay'));
+    const state = () => page.evaluate(() => {
+        const core = /** @type {any} */ (window).lcards.core;
+        return { cards: core._cardInstances.size, mode: core.themeManager?.getAlertMode?.(), shown: !!core.portalOverlayManager?._slots?.has('alert-overlay') };
+    });
+    // no other LCARdS card registered on the view
+    expect((await state()).cards).toBe(0);
+    await client.callService('lcards', 'red_alert');
+    await expect.poll(async () => (await state()).mode, { timeout: 15_000 }).toBe('red_alert');
+    await expect.poll(async () => (await state()).shown, { timeout: 15_000 }).toBe(true);
+    report.issue410 = await state();
+    await client.callService('lcards', 'clear_alert');
+    await expect.poll(async () => (await state()).shown, { timeout: 15_000 }).toBe(false);
+    expect(problems).toEqual([]);
 });

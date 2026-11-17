@@ -360,6 +360,14 @@ views:
 
   # #400 checks (tests/ha/issue400.spec.js): visibility and conditional children of a
   # layout card, by row sizing; and whether a hidden nav column collapses. One case per card.
+  # #410: a view whose only LCARdS card is the alert overlay
+  - title: Issue 410
+    path: issue-410
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: custom:lcards-alert-overlay
   - title: Issue 400
     path: issue-400
     cards:
