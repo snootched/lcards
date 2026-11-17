@@ -36,6 +36,24 @@ export async function openDashboardView(page, dashboard, viewPath, settle = 3000
     await page.waitForFunction(() => !!window.lcards?.core?.themeManager, null, { timeout: 30_000 });
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.waitForTimeout(settle);
+    // A fixed wait is not always enough: an MSD can still show "Initializing" and
+    // Jinja templates (a round trip to Home Assistant) their raw text. Wait (bounded)
+    // until every MSD has drawn and no LCARdS text still holds {{ }} or {% %}.
+    await page.waitForFunction(() => {
+        let ready = true;
+        const walk = (/** @type {Document|ShadowRoot} */ root) => {
+            for (const el of root.querySelectorAll('*')) {
+                if (!ready) return;
+                const any = /** @type {any} */ (el);
+                if (el.tagName === 'LCARDS-MSD-CARD' && any._msdRevealed !== true) ready = false;
+                if (el.tagName.startsWith('LCARDS-') && el.shadowRoot
+                    && [...el.shadowRoot.querySelectorAll('text, tspan')].some(t => /\{\{|\{%/.test(t.textContent ?? ''))) ready = false;
+                if (el.shadowRoot) walk(el.shadowRoot);
+            }
+        };
+        walk(document);
+        return ready;
+    }, null, { timeout: 20_000, polling: 500 }).catch(() => {});
 }
 
 /** Collect LCARdS page errors (message plus the top stack frames). HA's own frontend throws one on load with service workers blocked. */
