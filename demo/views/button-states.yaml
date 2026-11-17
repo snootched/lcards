@@ -30,7 +30,7 @@ sections:
         preset: lozenge
         text:
           name: { content: ON OR OFF, show: true }
-          state: { content: "{entity.state}", show: true, position: center-right }
+          state: { content: "{entity.state}", show: true }
         style:
           card:
             color:
@@ -72,7 +72,7 @@ sections:
         preset: lozenge
         text:
           name: { content: LEVEL, show: true }
-          state: { content: "{entity.state}", show: true, position: center-right }
+          state: { content: "{entity.state}", show: true }
         style:
           card:
             color:
@@ -89,7 +89,7 @@ sections:
         preset: lozenge
         text:
           name: { content: 40 TO 60, show: true }
-          state: { content: "{entity.state}", show: true, position: center-right }
+          state: { content: "{entity.state}", show: true }
         style:
           card:
             color:
@@ -107,5 +107,5 @@ sections:
             content: BY RANGE
             show: true
             color: { below:20: var(--lcars-alert-red), above:90: var(--lcars-yellow), default: var(--lcards-gray) }
-          state: { content: "{entity.state}", show: true, position: center-right }
+          state: { content: "{entity.state}", show: true }
         grid_options: { columns: 8, rows: 1 }

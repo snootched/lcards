@@ -15,7 +15,7 @@ sections:
         preset: lozenge
         text:
           name: { content: LIGHTS, show: true }
-          state: { content: "{entity.state}", show: true, position: center-right }
+          state: { content: "{entity.state}", show: true }
         tap_action:
           action: toggle
           confirmation: true
@@ -26,7 +26,7 @@ sections:
         preset: lozenge
         text:
           name: { content: AIRLOCK, show: true }
-          state: { content: "{entity.state}", show: true, position: center-right }
+          state: { content: "{entity.state}", show: true }
         tap_action:
           action: toggle
           confirmation:
@@ -40,8 +40,8 @@ sections:
         entity: input_select.lcards_alert_mode
         preset: lozenge
         text:
-          label: { content: RED ALERT, show: true }
-          state: { content: "{entity.state}", show: true, position: center-right }
+          name: { content: RED ALERT, show: true }
+          state: { content: "{entity.state}", show: true }
         tap_action:
           action: perform-action
           perform_action: lcards.red_alert

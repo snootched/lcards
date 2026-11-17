@@ -18,7 +18,7 @@ sections:
         preset: lozenge
         text:
           name: { content: LIGHTS, show: true }
-          state: { content: "{entity.state}", show: true, position: center-right }
+          state: { content: "{entity.state}", show: true }
         tap_action: { action: toggle }
         grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
@@ -26,7 +26,7 @@ sections:
         preset: lozenge
         text:
           name: { content: DOORS, show: true }
-          state: { content: "{entity.state}", show: true, position: center-right }
+          state: { content: "{entity.state}", show: true }
         tap_action: { action: toggle }
         grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-select-menu
