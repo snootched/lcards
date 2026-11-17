@@ -1,0 +1,15 @@
+# A dpad whose segments follow entities: each state change re-runs the segment
+# setup on the same SVG elements (tests/browser/listener-leaks.spec.js)
+type: custom:lcards-button
+component: dpad
+entity: light.demo
+dpad:
+  segments:
+    up:
+      entity: light.demo
+      tap_action:
+        action: toggle
+    down:
+      entity: light.demo
+      tap_action:
+        action: toggle

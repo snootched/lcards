@@ -12,14 +12,18 @@ function fakeFrames(frameMs) {
     let now = 0;
     /** @type {Function[]} */
     let queue = [];
-    const saved = { now: performance.now, raf: globalThis.requestAnimationFrame, dispatch: globalThis.dispatchEvent };
+    let ids = 0;
+    const saved = { now: performance.now, raf: globalThis.requestAnimationFrame, caf: globalThis.cancelAnimationFrame, dispatch: globalThis.dispatchEvent };
     /** @type {any[]} */
     const checks = [];
     performance.now = () => now;
-    globalThis.requestAnimationFrame = (cb) => { queue.push(cb); return queue.length; };
+    globalThis.requestAnimationFrame = (cb) => { const id = ++ids; queue.push(Object.assign((/** @type {number} */ t) => cb(t), { id })); return id; };
+    globalThis.cancelAnimationFrame = (id) => { queue = queue.filter(f => /** @type {any} */ (f).id !== id); };
     globalThis.dispatchEvent = (event) => { checks.push(/** @type {any} */ (event).detail); return true; };
     return {
         checks,
+        /** frames queued right now: one per running loop */
+        pending: () => queue.length,
         run(frames) {
             for (let i = 0; i < frames; i++) {
                 now += frameMs;
@@ -30,6 +34,7 @@ function fakeFrames(frameMs) {
         restore() {
             performance.now = saved.now;
             globalThis.requestAnimationFrame = saved.raf;
+            globalThis.cancelAnimationFrame = saved.caf;
             globalThis.dispatchEvent = saved.dispatch;
         },
     };
@@ -68,6 +73,32 @@ test('M6: a restart does not count the stopped time as a frame', () => {
         monitor.start();
         assert.ok(monitor.frames.length <= 1, 'window starts over');
         assert.ok(Math.max(0, ...monitor.frames) < 1000, 'no 60 s frame');
+    } finally {
+        clock.restore();
+    }
+});
+
+// 2026-11-17: stop() left its queued frame. While a tab is hidden that frame doesn't
+// run; start() on show then began a second loop beside it, one more per hide/show,
+// and the near-zero frame times made the FPS read high, so the fallbacks never fired.
+test('hide/show cycles keep one measurement loop and a true FPS', () => {
+    const clock = fakeFrames(100); // 10 fps
+    try {
+        const monitor = new AnimationPerformanceMonitor();
+        monitor._settleMs = 0;
+        monitor.start();
+        clock.run(3);
+        for (let i = 0; i < 5; i++) {
+            monitor.stop();  // tab hidden: no frames run
+            monitor.start(); // tab shown
+        }
+        assert.equal(clock.pending(), 1, 'one loop');
+        clock.run(130);
+        assert.equal(clock.pending(), 1, 'still one loop');
+        assert.equal(clock.checks.at(-1).fps, 10, 'the FPS is the real one');
+        assert.equal(clock.checks.at(-1).shouldReduceEffects, true);
+        monitor.stop();
+        assert.equal(clock.pending(), 0, 'stop cancels the queued frame');
     } finally {
         clock.restore();
     }

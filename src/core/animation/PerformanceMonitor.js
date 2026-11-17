@@ -15,6 +15,8 @@ export class AnimationPerformanceMonitor {
     this._consecutiveLow = 0;   // Consecutive checks below disable3D threshold
     this._framesSinceCheck = 0; // Frames since the last FPS check (one check per 60 frames)
     this._lowRequiredCount = 3; // Require 3 consecutive low-FPS checks (about 3 s at 60 fps) before triggering disable
+    /** @type {number | null} the queued measurement frame */
+    this._rafId = null;
     this._refCount = 0;          // Number of active subscribers (Canvas2DRenderer instances)
     this.thresholds = {
       disable3D: 12,      // Stop renderer entirely if FPS < 12 (3 consecutive checks required)
@@ -45,6 +47,7 @@ export class AnimationPerformanceMonitor {
     this.lastTime = performance.now();
     this.frames = [];
     this._framesSinceCheck = 0;
+    if (this._rafId != null) cancelAnimationFrame(this._rafId);
     this._measure();
   }
 
@@ -57,6 +60,12 @@ export class AnimationPerformanceMonitor {
     this._refCount = Math.max(0, this._refCount - 1);
     if (this._refCount > 0) return; // other subscribers still active
     this.isMonitoring = false;
+    // Cancel the queued frame: while the tab is hidden it doesn't run, and a
+    // start() on show would then run beside it, one more loop per hide/show
+    // (the extra near-zero frame times also made currentFPS read high, so the
+    // low-FPS fallbacks never fired). 2026-11-17
+    if (this._rafId != null) cancelAnimationFrame(this._rafId);
+    this._rafId = null;
   }
 
   /**
@@ -88,7 +97,7 @@ export class AnimationPerformanceMonitor {
       }
     }
 
-    requestAnimationFrame(() => this._measure());
+    this._rafId = requestAnimationFrame(() => this._measure());
   }
 
   /**

@@ -1965,13 +1965,11 @@ export class LCARdSButton extends LCARdSCard {
         element.addEventListener('mouseup', handleMouseUp);
         element.addEventListener('click', handleClick);
 
-        // Touch support
-        element.addEventListener('touchstart', (e) => {
-            handleMouseDown(e);
-        }, { passive: true });
-        element.addEventListener('touchend', (e) => {
-            handleMouseUp(e);
-        });
+        // Touch support (named, so the cleanup can remove them)
+        const handleTouchStart = (/** @type {TouchEvent} */ e) => { handleMouseDown(e); };
+        const handleTouchEnd = (/** @type {TouchEvent} */ e) => { handleMouseUp(e); };
+        element.addEventListener('touchstart', handleTouchStart, { passive: true });
+        element.addEventListener('touchend', handleTouchEnd);
         element.addEventListener('touchcancel', handleHoldCancel);
 
         // Make element pointer-interactive
@@ -1994,8 +1992,12 @@ export class LCARdSButton extends LCARdSCard {
             element.removeEventListener('mousedown', handleMouseDown);
             element.removeEventListener('mouseup', handleMouseUp);
             element.removeEventListener('click', handleClick);
-            // Note: anonymous functions for touch events can't be removed exactly,
-            // but the element will be garbage collected when the SVG is regenerated
+            // The same element is set up again on every update when the SVG markup
+            // didn't change (Lit keeps it), so every listener must go: leaving the
+            // touch ones leaked 3 listeners per segment per update (2026-11-17)
+            element.removeEventListener('touchstart', handleTouchStart);
+            element.removeEventListener('touchend', handleTouchEnd);
+            element.removeEventListener('touchcancel', handleHoldCancel);
             if (holdTimer) clearTimeout(holdTimer);
         };
     }

@@ -91,9 +91,24 @@ export class HATemplateEvaluator extends TemplateEvaluator {
     }
 
     return new Promise((resolve, reject) => {
+      /** @type {(() => any) | undefined} */
       let unsubscribe;
+      // Set once a result or the timeout ends this render. Home Assistant can send
+      // the subscribe result and the first event in one websocket frame, so the
+      // callback may run before subscribeMessage() resolves with the unsubscribe:
+      // then .then() unsubscribes. Without this the subscription stayed open in
+      // connection.commands and on the server for good (2026-11-17).
+      let done = false;
+      const end = () => {
+        done = true;
+        if (unsubscribe) {
+          const unsub = unsubscribe;
+          unsubscribe = undefined;
+          Promise.resolve().then(unsub).catch(() => {});
+        }
+      };
       const timeout = setTimeout(() => {
-        if (unsubscribe) unsubscribe();
+        end();
         reject(new Error('Template rendering timed out after 5 seconds'));
       }, 5000);
 
@@ -103,8 +118,9 @@ export class HATemplateEvaluator extends TemplateEvaluator {
       // {{ variables.x }} work the same way inside Jinja2 templates too.
       hass.connection.subscribeMessage(
         (result) => {
+          if (done) return;
           clearTimeout(timeout);
-          if (unsubscribe) unsubscribe();
+          end();
 
           lcardsLog.trace('[HATemplateEvaluator] Received result:', result);
 
@@ -124,7 +140,8 @@ export class HATemplateEvaluator extends TemplateEvaluator {
           }
         }
       ).then((unsub) => {
-        unsubscribe = unsub;
+        if (done) Promise.resolve().then(unsub).catch(() => {});
+        else unsubscribe = unsub;
       }).catch((error) => {
         clearTimeout(timeout);
         reject(error);
