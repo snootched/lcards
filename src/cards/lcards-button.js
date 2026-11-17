@@ -430,7 +430,7 @@ export class LCARdSButton extends LCARdSCard {
             lcardsLog.error(`[LCARdSButton] Component not found: ${componentName}`);
             this._processedSvg = null;
             this._processedSegments = null;
-            this.style.aspectRatio = '';
+            this._setHostAspect('');
             return;
         }
 
@@ -541,7 +541,7 @@ export class LCARdSButton extends LCARdSCard {
             lcardsLog.error(`[LCARdSButton] Component "${componentName}" has no SVG content`);
             this._processedSvg = null;
             this._processedSegments = null;
-            this.style.aspectRatio = '';
+            this._setHostAspect('');
             return;
         }
 
@@ -663,21 +663,42 @@ export class LCARdSButton extends LCARdSCard {
             // Apply aspect-ratio to the host element derived from the SVG's viewBox.
             // This allows the card to size correctly from width alone when placed in a
             // container with height: auto (e.g. the alert overlay with width: 500px but
-            // no explicit height). On a normal HA grid cell the parent height is definite,
-            // so height: 100% resolves to an explicit value and takes precedence — the
-            // aspect-ratio has no effect there.
+            // no explicit height). In a grid cell of definite height the browser derives
+            // the width from the ratio instead, which ran a wide symbol past its cell
+            // (the alert symbol in a square cell); _setHostAspect caps the host at its
+            // cell, and the SVG (meet) fits and centres the symbol inside.
             const vbParts = this._processedSvg.viewBox?.trim().split(/\s+/);
             if (vbParts?.length >= 4) {
                 const vbW = parseFloat(vbParts[2]);
                 const vbH = parseFloat(vbParts[3]);
                 if (vbW > 0 && vbH > 0) {
-                    this.style.aspectRatio = `${vbW} / ${vbH}`;
+                    this._setHostAspect(`${vbW} / ${vbH}`);
                 }
             }
         } else {
             // SVG processing failed — clear any stale ratio so the element
             // falls back to normal block sizing.
-            this.style.aspectRatio = '';
+            this._setHostAspect('');
+        }
+    }
+
+    /**
+     * Set (or clear, with '') the host's aspect ratio for a component or SVG
+     * button, capped at its container so a definite cell height can't widen the
+     * host past the cell (or a definite width make it taller than its cell).
+     * @param {string} ratio CSS aspect-ratio value, '' to clear
+     */
+    _setHostAspect(ratio) {
+        this.style.aspectRatio = ratio;
+        // Only the caps this method set: max_width / max_height config also live
+        // on the host and must survive a plain button's clear
+        if (ratio) {
+            if (!this.style.maxWidth) { this.style.maxWidth = '100%'; this._aspectCapW = true; }
+            if (!this.style.maxHeight) { this.style.maxHeight = '100%'; this._aspectCapH = true; }
+        } else {
+            if (this._aspectCapW && this.style.maxWidth === '100%') this.style.maxWidth = '';
+            if (this._aspectCapH && this.style.maxHeight === '100%') this.style.maxHeight = '';
+            this._aspectCapW = this._aspectCapH = false;
         }
     }
 
@@ -752,7 +773,7 @@ export class LCARdSButton extends LCARdSCard {
         if (!this.config?.svg && !this.config?.component) {
             this._processedSvg = null;
             this._processedSegments = null;
-            this.style.aspectRatio = '';
+            this._setHostAspect('');
             return;
         }
 

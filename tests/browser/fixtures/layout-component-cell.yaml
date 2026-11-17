@@ -1,0 +1,21 @@
+# Component buttons in cells narrower and shorter than their symbol: the alert
+# symbol (wider than tall) in a square cell, and in a short wide cell. The host
+# keeps the symbol's aspect ratio but must stay inside its cell.
+type: custom:lcards-layout-card
+layout:
+  grid-template-columns: 200px 300px
+  grid-template-rows: 200px
+  grid-template-areas: '"square wide"'
+  grid-gap: 0px
+  height: 200px
+cards:
+  - type: custom:lcards-button
+    component: alert
+    preset: default
+    view_layout:
+      grid-area: square
+  - type: custom:lcards-button
+    component: alert
+    preset: condition_blue
+    view_layout:
+      grid-area: wide

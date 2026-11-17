@@ -135,3 +135,16 @@ test('outside Home Assistant (no hui-card) a layout card hides a child whose Vis
     await page.evaluate(() => window.__setState('light.demo', 'off'));
     await expect.poll(state).toEqual({ navHidden: true, navShown: false, mainWidth: 600 });
 });
+
+// A component button keeps its symbol's aspect ratio but stays inside its cell:
+// in a cell of definite height the ratio widened the alert symbol past a square
+// cell into its neighbours (2026-11-17, Button components demo view).
+test('a component button stays inside a cell narrower than its symbol', async ({ page }) => {
+    const card = await mountCase(page, 'layout-component-cell', { width: '500' });
+    const boxes = () => card.evaluate((host) => /** @type {any[]} */ (host._cardElements).map((el) => {
+        const r = el.getBoundingClientRect();
+        return [Math.round(r.width), Math.round(r.height)];
+    }));
+    // square: capped at the cell; wide: full height, width from the ratio (200 x 100/73.49)
+    await expect.poll(boxes).toEqual([[200, 200], [272, 200]]);
+});
