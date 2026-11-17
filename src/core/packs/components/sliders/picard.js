@@ -1,5 +1,23 @@
 import { prefersReducedMotion } from '../../../../utils/reduced-motion.js';
 import { PICARD_OPTIONS } from './component-options.js';
+
+/**
+ * The indicator lights' pulse, as an inline CSS animation on the light (keyframes
+ * `lcards-slider-pulse` in the slider's styles). It was an SVG <animate>, which
+ * runs on the main thread and repaints the gauge every frame (36 lights: 36 ms/s
+ * of main thread, 129 ms/s at a quarter CPU speed); a CSS opacity animation runs
+ * on the compositor (about 1 ms/s). Measured 2026-11-17. None under reduced motion.
+ * @param {number} seconds one pulse
+ * @param {number} begin delay before the first pulse, in seconds
+ * @returns {string} a style attribute, or ''
+ */
+export function pulseStyle(seconds, begin = 0) {
+    if (prefersReducedMotion()) return '';
+    // numbers only into the style attribute (animation_speed comes from config)
+    const dur = Number(seconds) > 0 ? +Number(seconds).toFixed(3) : 2;
+    const delay = Number(begin) > 0 ? +Number(begin).toFixed(3) : 0;
+    return `style="animation: lcards-slider-pulse ${dur}s linear ${delay}s infinite"`;
+}
 /**
  * Picard Slider Component
  *
@@ -119,8 +137,7 @@ function renderColumn(context) {
     const m = columnMetrics(height);
     const showAnimation = config.show_animation !== false;
     const animationSpeed = config.animation_speed || 2;
-    const pulse = (/** @type {number} */ begin) => prefersReducedMotion() ? ''
-        : `<animate attributeName="opacity" values="1;0.3;1" dur="${animationSpeed}s"${begin ? ` begin="${begin}s"` : ''} repeatCount="indefinite" />`;
+    const pulse = (/** @type {number} */ begin) => pulseStyle(animationSpeed, begin);
     const hasRanges = style?.ranges && style.ranges.length > 0;
     return `
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
@@ -132,7 +149,7 @@ function renderColumn(context) {
   <path fill="${colors.solidBar}" d="M0,${m.top} L12,${m.top} L12,${m.top + 3} L3,${m.top + 3} L3,${m.bottom - 3} L12,${m.bottom - 3} L12,${m.bottom} L0,${m.bottom} Z" />
   <path fill="${colors.solidBar}" d="M${width},${m.top} L${width - 12},${m.top} L${width - 12},${m.top + 3} L${width - 3},${m.top + 3} L${width - 3},${m.bottom - 3} L${width - 12},${m.bottom - 3} L${width - 12},${m.bottom} L${width},${m.bottom} Z" />
   ${showAnimation ? [0, 1, 2].map(i => `
-  <rect x="${i * 8}" y="${m.lightsY}" width="6" height="5" fill="${colors.animationIndicator}">${pulse((animationSpeed * i) / 3)}</rect>`).join('') : ''}
+  <rect x="${i * 8}" y="${m.lightsY}" width="6" height="5" fill="${colors.animationIndicator}" ${pulse((animationSpeed * i) / 3)} />`).join('') : ''}
   <!-- Tick axis -->
   <rect x="${zones.solidBar.x}" y="${zones.solidBar.y}" width="${zones.solidBar.width}" height="${zones.solidBar.height}" fill="${colors.solidBar}" />
   ${hasRanges ? '' : `<!-- Range strip, dim without ranges -->
@@ -175,10 +192,8 @@ export function render(context) {
 
     // User-configurable options with defaults
     const showAnimation = config.show_animation !== false;
-    // SVG <animate> ignores prefers-reduced-motion: the lights then stand still
-    const pulse = (/** @type {number} */ begin) => prefersReducedMotion() ? ''
-        : `<animate attributeName="opacity" values="1;0.3;1" dur="${animationSpeed}s"${begin ? ` begin="${begin}s"` : ''} repeatCount="indefinite" />`;
     const animationSpeed = config.animation_speed || 2;
+    const pulse = (/** @type {number} */ begin) => pulseStyle(animationSpeed, begin);
     const hasRanges = style?.ranges && style.ranges.length > 0;
 
     return `
@@ -212,15 +227,9 @@ export function render(context) {
 
   <!-- Animation indicators (3 squares with staggered timing) -->
   ${showAnimation ? `
-  <rect x="${2*sx}" y="${28*sy}" width="${26*sx}" height="${24*sy}" fill="${colors.animationIndicator}">
-    ${pulse(0)}
-  </rect>
-  <rect x="${38*sx}" y="${28*sy}" width="${26*sx}" height="${24*sy}" fill="${colors.animationIndicator}">
-    ${pulse(animationSpeed / 3)}
-  </rect>
-  <rect x="${74*sx}" y="${28*sy}" width="${26*sx}" height="${24*sy}" fill="${colors.animationIndicator}">
-    ${pulse((animationSpeed * 2) / 3)}
-  </rect>
+  <rect x="${2*sx}" y="${28*sy}" width="${26*sx}" height="${24*sy}" fill="${colors.animationIndicator}" ${pulse(0)} />
+  <rect x="${38*sx}" y="${28*sy}" width="${26*sx}" height="${24*sy}" fill="${colors.animationIndicator}" ${pulse(animationSpeed / 3)} />
+  <rect x="${74*sx}" y="${28*sy}" width="${26*sx}" height="${24*sy}" fill="${colors.animationIndicator}" ${pulse((animationSpeed * 2) / 3)} />
   ` : ''}
 
   <!-- Range indicators zone (render first so progress thumb appears on top) -->

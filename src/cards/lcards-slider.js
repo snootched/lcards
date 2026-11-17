@@ -150,6 +150,14 @@ export class LCARdSSlider extends LCARdSButton {
         return [
             super.styles,
             css`
+                /* Indicator lights of the Picard components (pulseStyle() in
+                 * components/sliders/picard.js): a CSS opacity animation runs on the
+                 * compositor, where SVG <animate> repainted the gauge every frame */
+                @keyframes lcards-slider-pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.3; }
+                }
+
                 :host {
                     display: block;
                     /* width: 100% omitted — see LCARdSCard base comment (overflows with card_margin).
