@@ -152,6 +152,8 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
 
     const base = createFakeHass({
         states,
+        // a long-lived page (the docs Live Demo cycles through views): ended subscriptions go
+        pruneEnded: true,
         replies: (msg) => {
             switch (msg.type) {
                 case 'lcards/info': return { version: 'demo', available: true };
@@ -214,7 +216,8 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
             delete merged.last_updated;
             const newState = makeStates({ [entityId]: merged })[entityId];
             current = { ...current, states: { ...current.states, [entityId]: newState } };
-            for (const sub of base.connection.subs) {
+            // a copy: a subscriber may end its subscription from inside its callback (pruneEnded splices)
+            for (const sub of [...base.connection.subs]) {
                 const m = sub.message;
                 if (sub.active && m?.type === 'subscribe_events' && (!m.event_type || m.event_type === 'state_changed')) {
                     sub.cb({ event_type: 'state_changed', data: { entity_id: entityId, old_state: oldState, new_state: newState }, time_fired: new Date().toISOString() });

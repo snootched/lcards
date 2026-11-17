@@ -43,8 +43,11 @@ export function makeStates(states = {}) {
  * @param {Function} [opts.onSubscribe] - `(message, push) => void`, called after each
  *   subscribeMessage so the fake can answer it (e.g. history/stream); `push(payload)`
  *   delivers to that subscription while it is active.
+ * @param {boolean} [opts.pruneEnded] - remove a subscription from `subs` when it ends
+ *   (long-lived pages: the docs and the browser harness). Tests that look subscriptions
+ *   up by index leave it off; an ended one keeps its message and `active: false`.
  */
-export function createFakeConnection({ replies, onSubscribe } = {}) {
+export function createFakeConnection({ replies, onSubscribe, pruneEnded = false } = {}) {
     const subs = [];
     const sent = [];
     const listeners = new Map();
@@ -72,9 +75,19 @@ export function createFakeConnection({ replies, onSubscribe } = {}) {
             const sub = { cb, message, options, active: true };
             subs.push(sub);
             if (onSubscribe) {
-                queueMicrotask(() => onSubscribe(message, (payload) => { if (sub.active) cb(payload); }));
+                // through `sub`, not `cb`: an ended subscription must not keep its card alive
+                queueMicrotask(() => onSubscribe(message, (payload) => { if (sub.active) sub.cb(payload); }));
             }
-            return async () => { sub.active = false; };
+            return async () => {
+                sub.active = false;
+                // drop the callback: it closes over the subscriber (a card and its whole tree),
+                // which a page cycling through views would otherwise keep in memory
+                sub.cb = () => {};
+                if (pruneEnded) {
+                    const i = subs.indexOf(sub);
+                    if (i >= 0) subs.splice(i, 1);
+                }
+            };
         },
         async subscribeEvents(cb, eventType) {
             return this.subscribeMessage(cb, { type: 'subscribe_events', event_type: eventType });
@@ -98,9 +111,10 @@ export function createFakeConnection({ replies, onSubscribe } = {}) {
  * @param {Function} [opts.onSubscribe] - see createFakeConnection
  * @param {boolean} [opts.darkMode=true]
  * @param {object} [opts.user]
+ * @param {boolean} [opts.pruneEnded] - see createFakeConnection
  */
-export function createFakeHass({ states = {}, replies, onSubscribe, darkMode = true, user } = {}) {
-    const connection = createFakeConnection({ replies, onSubscribe });
+export function createFakeHass({ states = {}, replies, onSubscribe, darkMode = true, user, pruneEnded = false } = {}) {
+    const connection = createFakeConnection({ replies, onSubscribe, pruneEnded });
     const serviceCalls = [];
 
     const hass = {

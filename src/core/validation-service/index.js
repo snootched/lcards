@@ -198,6 +198,9 @@ class CoreErrorFormatter {
  * configuration validation, entity checking, and error reporting.
  */
 export class CoreValidationService {
+  /** Most validation results kept (least recently used dropped first). */
+  static MAX_CACHED = 500;
+
   constructor(config = {}) {
     // Configuration
     this.config = {
@@ -218,9 +221,14 @@ export class CoreValidationService {
     this.initialized = false;
     this.hass = null;
 
-    // Caching
+    // Caching. Results are kept for the most recent MAX_CACHED keys (least recently
+    // used first out): every config a card validates is a new key, so an unbounded cache
+    // grew with every dashboard opened and crashed long-lived tabs.
     this.validationCache = new Map();
     this.entityCache = new Map();
+    /** Short ids for inline schema objects (their JSON was megabytes per cache key). */
+    this._schemaIds = new WeakMap();
+    this._schemaSeq = 0;
 
     // Statistics
     this.stats = {
@@ -274,7 +282,11 @@ export class CoreValidationService {
     // Check cache
     if (this.config.cacheResults && this.validationCache.has(cacheKey)) {
       this.stats.cacheHits++;
-      return this.validationCache.get(cacheKey);
+      const hit = this.validationCache.get(cacheKey);
+      // most recently used last (Map keeps insertion order)
+      this.validationCache.delete(cacheKey);
+      this.validationCache.set(cacheKey, hit);
+      return hit;
     }
 
     const result = {
@@ -325,6 +337,9 @@ export class CoreValidationService {
       // Cache result
       if (this.config.cacheResults) {
         this.validationCache.set(cacheKey, result);
+        while (this.validationCache.size > CoreValidationService.MAX_CACHED) {
+          this.validationCache.delete(this.validationCache.keys().next().value);
+        }
       }
 
     } catch (error) {
@@ -888,9 +903,25 @@ export class CoreValidationService {
    */
   _generateCacheKey(data, schema, context) {
     const dataStr = JSON.stringify(data);
-    const schemaStr = typeof schema === 'string' ? schema : JSON.stringify(schema);
+    // An inline schema (a card's own) is a large object: key it by identity, not its JSON
+    const schemaStr = typeof schema === 'string' ? schema : this._schemaId(schema);
     const contextStr = JSON.stringify(context);
     return `${dataStr}:${schemaStr}:${contextStr}`;
+  }
+
+  /**
+   * A short id for an inline schema object, the same for the same object.
+   * @param {any} schema
+   * @returns {string}
+   */
+  _schemaId(schema) {
+    if (!schema || typeof schema !== 'object') return String(schema);
+    let id = this._schemaIds.get(schema);
+    if (!id) {
+      id = `inline#${++this._schemaSeq}`;
+      this._schemaIds.set(schema, id);
+    }
+    return id;
   }
 
   /**
