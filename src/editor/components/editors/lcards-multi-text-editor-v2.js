@@ -616,7 +616,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
      * @private
      */
     _emitChange(text) {
-        lcardsLog.info('[MultiTextEditorV2] _emitChange called');
+        lcardsLog.debug('[MultiTextEditorV2] _emitChange called');
         lcardsLog.debug('[MultiTextEditorV2] New text value:', text);
         lcardsLog.debug('[MultiTextEditorV2] Event will bubble:', true, 'composed:', true);
 
@@ -628,7 +628,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
             composed: true
         });
 
-        lcardsLog.info('[MultiTextEditorV2] Dispatching text-changed event');
+        lcardsLog.debug('[MultiTextEditorV2] Dispatching text-changed event');
         this.dispatchEvent(event);
         this.requestUpdate();
     }

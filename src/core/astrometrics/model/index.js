@@ -278,7 +278,7 @@ export function buildModel(cfg, ctx) {
     const triangles = triangleCount(scene);
     const edgesByDefault = triangles <= EDGE_TRIANGLE_BUDGET;
     if (!edgesByDefault && cfg.edges === undefined) {
-      lcardsLog.info(`[Astrometrics] model '${cfg.id}': ${triangles.toLocaleString('en-US')} triangles, so no feature edges (edges: true draws them, slowly)`);
+      lcardsLog.debug(`[Astrometrics] model '${cfg.id}': ${triangles.toLocaleString('en-US')} triangles, so no feature edges (edges: true draws them, slowly)`);
     }
 
     /**

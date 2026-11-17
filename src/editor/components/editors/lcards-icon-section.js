@@ -617,7 +617,7 @@ export class LCARdSIconSection extends LitElement {
         this._addState(stateName);
         this._customStateInput = '';
 
-        lcardsLog.info('[IconSection] Added custom state', { state: stateName });
+        lcardsLog.debug('[IconSection] Added custom state', { state: stateName });
     }
 
     _handleRangeOperatorChange(e) {
@@ -675,7 +675,7 @@ export class LCARdSIconSection extends LitElement {
         this._rangeMin = '';
         this._rangeMax = '';
 
-        lcardsLog.info('[IconSection] Added range condition', { key });
+        lcardsLog.debug('[IconSection] Added range condition', { key });
     }
 
     /**
@@ -698,7 +698,7 @@ export class LCARdSIconSection extends LitElement {
         this._expandedStates.add(state);
         this.requestUpdate();
 
-        lcardsLog.info('[IconSection] Added state', { state });
+        lcardsLog.debug('[IconSection] Added state', { state });
     }
 
     /**
@@ -724,7 +724,7 @@ export class LCARdSIconSection extends LitElement {
         this._expandedStates.delete(state);
         this.requestUpdate();
 
-        lcardsLog.info('[IconSection] Deleted state', { state });
+        lcardsLog.debug('[IconSection] Deleted state', { state });
     }
 
     // ─── Utilities ───────────────────────────────────────────────────────────────

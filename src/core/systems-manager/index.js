@@ -555,6 +555,6 @@ export class CoreSystemsManager {
     this._initialized = false;
     this._hass = null;
 
-    lcardsLog.info('[CoreSystemsManager] ✅ Destroyed');
+    lcardsLog.debug('[CoreSystemsManager] ✅ Destroyed');
   }
 }

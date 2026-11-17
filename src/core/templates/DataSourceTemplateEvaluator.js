@@ -260,7 +260,7 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
         const processorData = currentData.processing[processorKey];
 
         if (processorData !== undefined) {
-          lcardsLog.info(
+          lcardsLog.debug(
             `[DataSourceTemplateEvaluator] ℹ️ Found processor '${processorKey}' in new 'processing' field. ` +
             `Update template from {datasource.transformations.${processorKey}} to {datasource.processing.${processorKey}}`
           );
@@ -294,7 +294,7 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
         const processorData = currentData.processing[processorKey];
 
         if (processorData !== undefined) {
-          lcardsLog.info(
+          lcardsLog.debug(
             `[DataSourceTemplateEvaluator] ℹ️ Found processor '${processorKey}' in new 'processing' field. ` +
             `Update template from {datasource.aggregations.${processorKey}} to {datasource.processing.${processorKey}}`
           );

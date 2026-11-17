@@ -55,8 +55,8 @@ export class MSDCardPickerManager {
 
         // Card picker didn't load - editor can function without it
         if (!this._isLoaded) {
-            lcardsLog.info('[MSDCardPickerManager] ℹ️ Card picker not available');
-            lcardsLog.info('[MSDCardPickerManager] 💡 To enable: Close this dialog, click dashboard "Add Card" button, then cancel and reopen MSD Studio');
+            lcardsLog.debug('[MSDCardPickerManager] ℹ️ Card picker not available');
+            lcardsLog.debug('[MSDCardPickerManager] 💡 To enable: Close this dialog, click dashboard "Add Card" button, then cancel and reopen MSD Studio');
         }
 
         return false;

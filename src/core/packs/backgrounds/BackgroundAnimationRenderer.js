@@ -847,7 +847,7 @@ export class BackgroundAnimationRenderer {
       if (!entry || !this.renderer || handle.effects.length === 0) return;
       const fresh = this._buildEntry(entry.effectConfig, handle);
       if (fresh) this._swapEntry(handle, fresh);
-      lcardsLog.info(`[BackgroundAnimation] ${handle.presetId}: drawing its Canvas2D fallback`);
+      lcardsLog.debug(`[BackgroundAnimation] ${handle.presetId}: drawing its Canvas2D fallback`);
     });
   }
 

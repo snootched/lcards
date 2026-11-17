@@ -1279,7 +1279,7 @@ export class AdvancedRenderer {
   injectSvgContent(svgContent) {
     const svg = this.mountEl.querySelector('svg');
     if (!svg) {
-      lcardsLog.info('[AdvancedRenderer] No SVG element found for overlay injection');
+      lcardsLog.debug('[AdvancedRenderer] No SVG element found for overlay injection');
       return;
     }
 
@@ -1315,7 +1315,7 @@ export class AdvancedRenderer {
       });
 
     } catch (error) {
-      lcardsLog.info('[AdvancedRenderer] Failed to inject SVG content:', error);
+      lcardsLog.warn('[AdvancedRenderer] Failed to inject SVG content:', error);
     }
   }
 

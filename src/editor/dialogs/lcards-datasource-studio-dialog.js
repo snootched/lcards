@@ -651,7 +651,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
             delete cleanConfig.processing;
         }
 
-        lcardsLog.info('[DataSourceStudio] Saving DataSource:', {
+        lcardsLog.debug('[DataSourceStudio] Saving DataSource:', {
             name: this._name,
             config: cleanConfig
         });

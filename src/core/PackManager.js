@@ -57,7 +57,7 @@ export class PackManager {
 
     // Log the actual pack IDs that were loaded (not just the requested ones)
     const loadedPackIds = packs.map(p => p.id);
-    lcardsLog.info('[PackManager] ✅ Loaded and registered builtin packs:', loadedPackIds);
+    lcardsLog.debug('[PackManager] ✅ Loaded and registered builtin packs:', loadedPackIds);
   }
 
   /**

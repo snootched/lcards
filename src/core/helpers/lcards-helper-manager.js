@@ -205,7 +205,7 @@ export class LCARdSHelperManager extends BaseService {
     // Subscribe to alert mode changes — always apply theme when the input_select changes.
     // auto_switch toggle no longer gates this; it is reserved for future HA automation use.
     this.subscribeToHelper('alert_mode', (newMode, oldMode) => {
-      lcardsLog.info(`[HelperManager] Alert mode changed to: ${newMode}`);
+      lcardsLog.debug(`[HelperManager] Alert mode changed to: ${newMode}`);
 
       // A real change event means the entity has already settled — the
       // initial-load check (timed retries + per-HASS-update fallback) is moot.
@@ -238,7 +238,7 @@ export class LCARdSHelperManager extends BaseService {
       if ((newValue === 'on' || newValue === true) && (oldValue === 'off' || oldValue === false)) {
         // Auto-switch just got enabled - apply current alert mode
         const currentMode = this.getHelperValue('alert_mode');
-        lcardsLog.info(`[HelperManager] Auto-switch enabled, applying current mode: ${currentMode}`);
+        lcardsLog.debug(`[HelperManager] Auto-switch enabled, applying current mode: ${currentMode}`);
 
         // Ensure HASS is available (critical for green_alert)
         if (this.hass && window.lcards?.core) {
@@ -317,7 +317,7 @@ export class LCARdSHelperManager extends BaseService {
     }
 
     this._initialAlertModePending = false;
-    lcardsLog.info(`[HelperManager] ✓ Auto-switch enabled on initial load, applying mode: ${currentMode}`);
+    lcardsLog.debug(`[HelperManager] ✓ Auto-switch enabled on initial load, applying mode: ${currentMode}`);
 
     // Ensure HASS is available (critical for green_alert)
     if (this.hass && window.lcards?.core) {
@@ -325,7 +325,7 @@ export class LCARdSHelperManager extends BaseService {
     }
 
     if (window.lcards?.setAlertMode) {
-      lcardsLog.info(`[HelperManager] Calling setAlertMode('${currentMode}') on initial load (no transition)`);
+      lcardsLog.debug(`[HelperManager] Calling setAlertMode('${currentMode}') on initial load (no transition)`);
       // Skip transition on initial load — there is nothing visible to transition from.
       window.lcards.setAlertMode(currentMode, { skipTransition: true }).catch(error => {
         lcardsLog.error('[HelperManager] Failed to apply initial alert mode:', error);
@@ -370,7 +370,7 @@ export class LCARdSHelperManager extends BaseService {
       lcardsLog.warn('[HelperManager] Helper API may not be available, attempting anyway...');
     }
 
-    lcardsLog.info('[HelperManager] Ensuring all helpers exist...');
+    lcardsLog.debug('[HelperManager] Ensuring all helpers exist...');
 
     const results = {
       total: 0,
@@ -403,7 +403,7 @@ export class LCARdSHelperManager extends BaseService {
       }
     }
 
-    lcardsLog.info(`[HelperManager] Ensure complete: ${results.created} created, ${results.existing} existing, ${results.failed} failed`);
+    lcardsLog.debug(`[HelperManager] Ensure complete: ${results.created} created, ${results.existing} existing, ${results.failed} failed`);
 
     return results;
   }
@@ -445,7 +445,7 @@ export class LCARdSHelperManager extends BaseService {
         // Small delay to let HA register the entity before we write to it
         await new Promise(resolve => setTimeout(resolve, 300));
         await apiSetHelperValue(this.hass, definition.entity_id, definition.default_value);
-        lcardsLog.info(`[HelperManager] Set default value for new helper ${key}: ${definition.default_value}`);
+        lcardsLog.debug(`[HelperManager] Set default value for new helper ${key}: ${definition.default_value}`);
       } catch (error) {
         lcardsLog.warn(`[HelperManager] Could not set default value for ${key}:`, error);
       }

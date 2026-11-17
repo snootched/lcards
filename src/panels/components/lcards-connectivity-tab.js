@@ -379,7 +379,7 @@ export class LCARdSConnectivityTab extends LitElement {
         const configToSave = this._buildSparseConfig(this._editConfig, content, reconnectedContent);
         this._saving = true;
         this._error  = null;
-        lcardsLog.info('[ConnectivityTab] _saveConfig start', { savedScope, savedOpts, dirtyKeys: [...this._dirtyServiceKeys] });
+        lcardsLog.debug('[ConnectivityTab] _saveConfig start', { savedScope, savedOpts, dirtyKeys: [...this._dirtyServiceKeys] });
         try {
             // Delegate nested→flat mapping to the service; it writes each key individually.
             // Use captured scope/opts so we always write to the target that was selected
@@ -389,13 +389,13 @@ export class LCARdSConnectivityTab extends LitElement {
                 this._error = this._writeErrorText(savedScope, 'Could not save settings.');
                 return;
             }
-            lcardsLog.info('[ConnectivityTab] _saveConfig write complete — force-reloading');
+            lcardsLog.debug('[ConnectivityTab] _saveConfig write complete — force-reloading');
             // Force-reload scoped values (bypasses any in-flight load guard) and
             // rebuild the effective config for badges + form.  Pass the same opts used
             // for the write so we read back from the correct scope target.
             this._scopedValues = null;
             await this._loadScopedValues(true, savedOpts);
-            lcardsLog.info('[ConnectivityTab] _saveConfig reload complete', {
+            lcardsLog.debug('[ConnectivityTab] _saveConfig reload complete', {
                 enabledSv: this._scopedValues?.[CONN_OVERLAY_ENABLED],
                 scope: this._scope,
             });

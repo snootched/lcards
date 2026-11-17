@@ -266,7 +266,7 @@ export class DeviceIdentityManager extends BaseService {
             if (!id) {
                 id = generateUUID();
                 localStorage.setItem(LOCALSTORAGE_DEVICE_ID, id);
-                lcardsLog.info(`[DeviceIdentityManager] New device UUID generated → ${id}`);
+                lcardsLog.debug(`[DeviceIdentityManager] New device UUID generated → ${id}`);
             } else {
                 lcardsLog.debug(`[DeviceIdentityManager] Device UUID loaded from localStorage → ${id}`);
             }

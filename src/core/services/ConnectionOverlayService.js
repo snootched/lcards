@@ -266,11 +266,11 @@ export class ConnectionOverlayService extends BaseService {
         // after a real disconnect, which would cause a spurious _onReconnected().
         if (!this._subscribedConnection) {
             if (!nowConnected && wasConnected) {
-                lcardsLog.info('[ConnectionOverlayService] hass.connected → false (pre-subscription) — triggering overlay');
+                lcardsLog.debug('[ConnectionOverlayService] hass.connected → false (pre-subscription) — triggering overlay');
                 this._isConnected = false;
                 this._onDisconnected();
             } else if (nowConnected && !wasConnected) {
-                lcardsLog.info('[ConnectionOverlayService] hass.connected → true (pre-subscription) — clearing overlay');
+                lcardsLog.debug('[ConnectionOverlayService] hass.connected → true (pre-subscription) — clearing overlay');
                 this._isConnected = true;
                 this._onReconnected();
             } else {
@@ -440,7 +440,7 @@ export class ConnectionOverlayService extends BaseService {
             return false;
         }
 
-        lcardsLog.info('[ConnectionOverlayService] saveConfig start', { scope, opts, enabled: config.enabled });
+        lcardsLog.debug('[ConnectionOverlayService] saveConfig start', { scope, opts, enabled: config.enabled });
 
         // Map the nested config shape to individual flat keys and write each one.
         // Only keys present in the config object are written — callers may pass a
@@ -734,7 +734,7 @@ export class ConnectionOverlayService extends BaseService {
         }
 
         if (!this._config.enabled) {
-            lcardsLog.info('[ConnectionOverlayService] _onDisconnected: overlay disabled — skipping (enabled=false)');
+            lcardsLog.debug('[ConnectionOverlayService] _onDisconnected: overlay disabled — skipping (enabled=false)');
             return;
         }
 
@@ -758,7 +758,7 @@ export class ConnectionOverlayService extends BaseService {
 
         const delayMs = this._config.disconnect_delay_ms ?? 0;
         if (delayMs > 0) {
-            lcardsLog.info(`[ConnectionOverlayService] Connection lost — ${delayMs}ms tolerance first`);
+            lcardsLog.debug(`[ConnectionOverlayService] Connection lost — ${delayMs}ms tolerance first`);
             this._disconnectDelayTimer = setTimeout(() => {
                 this._disconnectDelayTimer = null;
                 // If the connection was restored during the delay, do nothing.
@@ -790,7 +790,7 @@ export class ConnectionOverlayService extends BaseService {
         // Cancel any pending disconnect-delay show — if we reconnected before the
         // tolerance window expired, the overlay should never appear.
         if (this._disconnectDelayTimer !== null) {
-            lcardsLog.info('[ConnectionOverlayService] _doReconnected: transient reconnect — cancelling tolerance timer (overlay suppressed)');
+            lcardsLog.debug('[ConnectionOverlayService] _doReconnected: transient reconnect — cancelling tolerance timer (overlay suppressed)');
         }
         this._clearDisconnectDelayTimer();
 
@@ -990,13 +990,13 @@ export class ConnectionOverlayService extends BaseService {
         this._unsubscribeConnectionEvents();
 
         this._handleConnDisconnected = () => {
-            lcardsLog.info('[ConnectionOverlayService] WS "disconnected" event — triggering overlay');
+            lcardsLog.debug('[ConnectionOverlayService] WS "disconnected" event — triggering overlay');
             this._isConnected = false;
             this._onDisconnected();
         };
 
         this._handleConnReconnected = () => {
-            lcardsLog.info('[ConnectionOverlayService] WS "ready" event — scheduling overlay clear');
+            lcardsLog.debug('[ConnectionOverlayService] WS "ready" event — scheduling overlay clear');
             this._isConnected = true;
             this._onReconnected();
         };

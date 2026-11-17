@@ -254,7 +254,7 @@ export class CoreValidationService {
       this.hass = hass;
       this.initialized = true;
 
-      lcardsLog.info('[CoreValidationService] ✅ Core validation system initialized:', {
+      lcardsLog.debug('[CoreValidationService] ✅ Core validation system initialized:', {
         hasHASS: !!this.hass,
         schemaCount: this.schemaRegistry.listSchemas().length,
         validateEntities: this.config.validateEntities

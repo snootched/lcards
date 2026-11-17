@@ -275,7 +275,7 @@ export class SoundManager extends BaseService {
    */
   async initialize(core) {
     this._core = core;
-    lcardsLog.info('[SoundManager] Initialized');
+    lcardsLog.debug('[SoundManager] Initialized');
   }
 
   /**
@@ -336,7 +336,7 @@ export class SoundManager extends BaseService {
     ).then((unsubscribe) => {
       this._notificationPending     = false;
       this._notificationUnsubscribe = unsubscribe;
-      lcardsLog.info('[SoundManager] Subscribed to persistent notifications');
+      lcardsLog.debug('[SoundManager] Subscribed to persistent notifications');
     }).catch((err) => {
       this._notificationPending = false;
       lcardsLog.warn('[SoundManager] Could not subscribe to persistent notifications:', err);
@@ -446,7 +446,7 @@ export class SoundManager extends BaseService {
     };
     document.addEventListener('dialog-closed', this._dialogClosedHandler, { passive: true });
 
-    lcardsLog.info('[SoundManager] Global UI listeners mounted');
+    lcardsLog.debug('[SoundManager] Global UI listeners mounted');
   }
 
   /**
@@ -479,7 +479,7 @@ export class SoundManager extends BaseService {
       const event = EVENT_MAP[newMode];
       if (event) this.play(event);
     });
-    lcardsLog.info('[SoundManager] Alert mode subscription active');
+    lcardsLog.debug('[SoundManager] Alert mode subscription active');
   }
 
   /**
@@ -541,7 +541,7 @@ export class SoundManager extends BaseService {
       this._notificationUnsubscribe = null;
     }
     this._audioCache.clear();
-    lcardsLog.info('[SoundManager] Destroyed');
+    lcardsLog.debug('[SoundManager] Destroyed');
   }
 
   // ============================================================================

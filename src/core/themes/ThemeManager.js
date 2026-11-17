@@ -155,7 +155,7 @@ export class ThemeManager extends BaseService {
 
     this.initialized = true;
 
-    lcardsLog.info('[ThemeManager] ✅ Theme system initialized:', {
+    lcardsLog.debug('[ThemeManager] ✅ Theme system initialized:', {
       themeCount: this.themes.size,
       activeTheme: this.activeThemeId,
       availableThemes: Array.from(this.themes.keys())
@@ -230,7 +230,7 @@ export class ThemeManager extends BaseService {
       lcardsLog.debug('[ThemeManager] Alert mode baseline colors re-captured (deferred pass)');
     }, 150);
 
-    lcardsLog.info('[ThemeManager] ✅ Theme activated:', {
+    lcardsLog.debug('[ThemeManager] ✅ Theme activated:', {
       id: themeId,
       name: theme.name,
       description: theme.description,
@@ -788,7 +788,7 @@ export class ThemeManager extends BaseService {
       for (const scope of ['global', 'user', 'device']) {
         for (const key of Object.keys(allScopes[scope] ?? {})) scopes[key] = scope;
       }
-      lcardsLog.info('[ThemeManager] Token overrides loaded', { count: Object.keys(merged).length });
+      lcardsLog.debug('[ThemeManager] Token overrides loaded', { count: Object.keys(merged).length });
     } catch (e) {
       lcardsLog.warn('[ThemeManager] Failed to load token overrides:', e);
     }

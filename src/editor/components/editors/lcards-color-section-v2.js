@@ -675,7 +675,7 @@ export class LCARdSColorSectionV2 extends LitElement {
         // Clear input
         this._customStateInput = '';
 
-        lcardsLog.info('[ColorSectionV2] Added custom state', { state: stateName });
+        lcardsLog.debug('[ColorSectionV2] Added custom state', { state: stateName });
     }
 
     /**
@@ -764,7 +764,7 @@ export class LCARdSColorSectionV2 extends LitElement {
         this._rangeMin = '';
         this._rangeMax = '';
 
-        lcardsLog.info('[ColorSectionV2] Added range condition', { key });
+        lcardsLog.debug('[ColorSectionV2] Added range condition', { key });
     }
 
     /**
@@ -789,7 +789,7 @@ export class LCARdSColorSectionV2 extends LitElement {
         this._expandedStates.add(state);
         this.requestUpdate();
 
-        lcardsLog.info('[ColorSectionV2] Added state', { state });
+        lcardsLog.debug('[ColorSectionV2] Added state', { state });
     }
 
     /**
@@ -815,7 +815,7 @@ export class LCARdSColorSectionV2 extends LitElement {
         this._expandedStates.delete(state);
         this.requestUpdate();
 
-        lcardsLog.info('[ColorSectionV2] Deleted state', { state });
+        lcardsLog.debug('[ColorSectionV2] Deleted state', { state });
     }
 
 

@@ -3501,7 +3501,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         // Pass skipHelperLoad:true so the ThemeManager does NOT reload values from
         // the saved HA helpers — we want the live in-editor parameters to take effect.
         await window.lcards.core.themeManager.setAlertMode(this._selectedAlertMode, { skipHelperLoad: true });
-        lcardsLog.info('[AlertLab] Alert mode applied successfully');
+        lcardsLog.debug('[AlertLab] Alert mode applied successfully');
 
         // Force preview update
         this.requestUpdate();

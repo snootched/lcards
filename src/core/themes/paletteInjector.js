@@ -130,7 +130,7 @@ export function injectPalette(palette = GREEN_ALERT_PALETTE, rootElement = null)
     injectedCount++;
   });
 
-  lcardsLog.info(`[PaletteInjector] ✅ Injected ${injectedCount} palette variables as --lcards-*`);
+  lcardsLog.debug(`[PaletteInjector] ✅ Injected ${injectedCount} palette variables as --lcards-*`);
   lcardsLog.debug('[PaletteInjector] Sample injected variables:', {
     '--lcards-orange-medium': palette['orange-medium'],
     '--lcards-gray-medium-light': palette['gray-medium-light'],
@@ -207,14 +207,14 @@ export async function reloadHATheme(hass) {
   }
 
   try {
-    lcardsLog.info('[PaletteInjector] Reloading HA theme...');
+    lcardsLog.debug('[PaletteInjector] Reloading HA theme...');
     await hass.callService('frontend', 'reload_themes');
 
     // CRITICAL: Wait for theme to actually apply in the DOM
     // The service call returns immediately but theme application is async
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    lcardsLog.info('[PaletteInjector] ✅ Theme reloaded and applied');
+    lcardsLog.debug('[PaletteInjector] ✅ Theme reloaded and applied');
   } catch (error) {
     // Log but do not re-throw — this service requires admin privileges in HA.
     // The primary restore path uses restoreOriginalColors() instead.
@@ -239,7 +239,7 @@ function restoreOriginalColors(root, colors) {
     /** @type {HTMLElement} */ (root).style.setProperty(varName, value);
     restored++;
   });
-  lcardsLog.info(`[PaletteInjector] ✅ Restored ${restored} original --lcars-* variables from snapshot (no HA service call required)`);
+  lcardsLog.debug(`[PaletteInjector] ✅ Restored ${restored} original --lcars-* variables from snapshot (no HA service call required)`);
 }
 
 /**
@@ -410,7 +410,7 @@ export async function setAlertMode(mode, hass, rootElement = null, opts = {}) {
 
   await runTransitionEffect(transitionStyle, mainView, mode, colorApplyFn);
 
-  lcardsLog.info(`[PaletteInjector] ✅ Alert mode: ${mode}`);
+  lcardsLog.debug(`[PaletteInjector] ✅ Alert mode: ${mode}`);
 }
 
 /**
@@ -450,7 +450,7 @@ async function transformAndApplyAlertMode(mode, root, originalColors) {
     }
   });
 
-  lcardsLog.info(`[PaletteInjector] Alert mode '${mode}': Transformed ${transformCount} variables`);
+  lcardsLog.debug(`[PaletteInjector] Alert mode '${mode}': Transformed ${transformCount} variables`);
 }
 
 /**

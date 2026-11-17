@@ -383,7 +383,7 @@ export class IntegrationService extends BaseService {
             )
             .then((unsub) => {
                 this._eventUnsubscribe = unsub;
-                lcardsLog.info('[IntegrationService] Subscribed to lcards_event push channel');
+                lcardsLog.debug('[IntegrationService] Subscribed to lcards_event push channel');
             })
             .catch((err) => {
                 lcardsLog.warn('[IntegrationService] Failed to subscribe to lcards_event:', err);

@@ -345,7 +345,7 @@ export class Canvas2DRenderer {
     const delayMin = Math.min(5 * Math.pow(2, this._recoveryAttempts - 1), 30);
     const delayMs = delayMin * 60_000;
 
-    lcardsLog.info(`[Canvas2DRenderer] Performance recovery probe in ${delayMin}min (attempt ${this._recoveryAttempts})`);
+    lcardsLog.debug(`[Canvas2DRenderer] Performance recovery probe in ${delayMin}min (attempt ${this._recoveryAttempts})`);
 
     this._recoveryTimer = setTimeout(() => {
       this._recoveryTimer = null;
@@ -359,7 +359,7 @@ export class Canvas2DRenderer {
         return;
       }
 
-      lcardsLog.info(`[Canvas2DRenderer] Attempting performance recovery (attempt ${this._recoveryAttempts})`);
+      lcardsLog.debug(`[Canvas2DRenderer] Attempting performance recovery (attempt ${this._recoveryAttempts})`);
       this._disabledByPerformance = false; // allow stop() to do full cleanup if needed
       this.start(); // PM settle window resets — fresh FPS evaluation after 5s
     }, delayMs);

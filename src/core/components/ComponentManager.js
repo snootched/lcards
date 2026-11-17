@@ -60,7 +60,7 @@ export class ComponentManager {
             });
 
             this.initialized = true;
-            lcardsLog.info(`[ComponentManager] ✅ Initialized with ${registeredCount} components`);
+            lcardsLog.debug(`[ComponentManager] ✅ Initialized with ${registeredCount} components`);
 
         } catch (error) {
             lcardsLog.error('[ComponentManager] Initialization failed:', error);

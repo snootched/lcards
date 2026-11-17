@@ -41,7 +41,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   const scopeSuffix = cardGuid || `msd-${Math.random().toString(36).slice(2, 10)}`;
   const baseSvgScopeId = `__msd_base_svg:${scopeSuffix}`;
   const overlayGroupScopeId = `__msd_animations:${scopeSuffix}`;
-  lcardsLog.info('[PipelineCore] 🚀 Starting MSD pipeline initialization with SVG extraction', {
+  lcardsLog.debug('[PipelineCore] 🚀 Starting MSD pipeline initialization with SVG extraction', {
     hasCardGuid: !!cardGuid,
     cardGuid
   });
@@ -173,7 +173,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       await coordinator.animationManager.initialize(mergedConfig.overlays, {
         suppressMountWarning: true // mountEl already set by core singleton init
       });
-      lcardsLog.info('[PipelineCore] ✅ AnimationManager initialized:', {
+      lcardsLog.debug('[PipelineCore] ✅ AnimationManager initialized:', {
         overlaysWithAnimations: coordinator.animationManager.registeredAnimations.size,
         overlayIds: Array.from(coordinator.animationManager.registeredAnimations.keys()),
         mountEl: !!coordinator.animationManager.mountEl
@@ -213,7 +213,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
    * @returns {Promise<Object|undefined>} Renderer result object
    */
   async function reRender() {
-    lcardsLog.info('[PipelineCore] 🔄 reRender() ENTRY - FULL RE-RENDER TRIGGERED', {
+    lcardsLog.debug('[PipelineCore] 🔄 reRender() ENTRY - FULL RE-RENDER TRIGGERED', {
       timestamp: new Date().toISOString(),
       renderInProgress: coordinator._renderInProgress,
       rulePatches: coordinator.rulesEngine?.getLastEvaluationResult?.()?.overlayPatches?.length || 'N/A'

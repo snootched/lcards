@@ -435,7 +435,7 @@ export class MsdCardCoordinator extends BaseService {
    * @private
    */
   _scheduleFullReRender() {
-    lcardsLog.info('[MsdCardCoordinator] 📅 SCHEDULED full re-render (100ms delay)');
+    lcardsLog.debug('[MsdCardCoordinator] 📅 SCHEDULED full re-render (100ms delay)');
 
     if (this._renderTimeout) {
       lcardsLog.debug('[MsdCardCoordinator] ⏰ Clearing existing render timeout');
@@ -447,7 +447,7 @@ export class MsdCardCoordinator extends BaseService {
       if (this._reRenderCallback && !this._renderInProgress) {
         try {
           this._renderInProgress = true;
-          lcardsLog.info('[MsdCardCoordinator] 🚀 EXECUTING full re-render from rule change timeout');
+          lcardsLog.debug('[MsdCardCoordinator] 🚀 EXECUTING full re-render from rule change timeout');
           this._reRenderCallback();
         } catch (error) {
           lcardsLog.error('[MsdCardCoordinator] ❌ Re-render FAILED in entity change handler:', error);

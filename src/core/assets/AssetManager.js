@@ -189,7 +189,7 @@ export class AssetManager extends BaseService {
       this.registries.set(type, new AssetRegistry(type, config));
     });
 
-    lcardsLog.info('[AssetManager] Ready - supported types:', Object.keys(this.config));
+    lcardsLog.debug('[AssetManager] Ready - supported types:', Object.keys(this.config));
   }
 
   /**
@@ -446,7 +446,7 @@ export class AssetManager extends BaseService {
       model: packDef.model_assets ? Object.keys(packDef.model_assets).length : 0
     };
 
-    lcardsLog.info(`[AssetManager] Preloaded from pack ${packName}:`, assetCounts);
+    lcardsLog.debug(`[AssetManager] Preloaded from pack ${packName}:`, assetCounts);
   }
 
   /**
@@ -779,7 +779,7 @@ export class AssetManager extends BaseService {
     // Find font by legacy name
     for (const [key, asset] of fontRegistry.assets.entries()) {
       if (asset.metadata.legacyName === fontKey) {
-        lcardsLog.info(`[AssetManager] Migrating font: ${fontKey} → ${key}`);
+        lcardsLog.debug(`[AssetManager] Migrating font: ${fontKey} → ${key}`);
         return key;
       }
     }

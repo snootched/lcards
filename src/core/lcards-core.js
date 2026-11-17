@@ -469,7 +469,7 @@ class LCARdSCore {
         this._cardInstances.set(cardId, cardContext);
         this._cardLoadOrder.push(cardId);
 
-        lcardsLog.info(`[LCARdSCore] ✅ Card registered: ${cardId}`);
+        lcardsLog.debug(`[LCARdSCore] ✅ Card registered: ${cardId}`);
         return cardContext;
     }
 
@@ -503,7 +503,7 @@ class LCARdSCore {
             this._cardLoadOrder.splice(loadOrderIndex, 1);
         }
 
-        lcardsLog.info(`[LCARdSCore] ✅ Card unregistered: ${cardId}`);
+        lcardsLog.debug(`[LCARdSCore] ✅ Card unregistered: ${cardId}`);
     }
 
     /**
@@ -788,7 +788,7 @@ class LCARdSCore {
      * Destroy the core and all systems
      */
     destroy() {
-        lcardsLog.info('[LCARdSCore] 🚨 Destroying core systems...');
+        lcardsLog.debug('[LCARdSCore] 🚨 Destroying core systems...');
 
         clearInterval(this._globalHassTimer ?? undefined);
         this._globalHassTimer = null;
@@ -859,7 +859,7 @@ class LCARdSCore {
         this._currentHass = null;
         this._pendingCards = [];
 
-        lcardsLog.info('[LCARdSCore] ✅ Core systems destroyed');
+        lcardsLog.debug('[LCARdSCore] ✅ Core systems destroyed');
     }
 }
 

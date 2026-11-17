@@ -1010,7 +1010,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._zoomWrapper = zoomableWrapper;
 
         lcardsLog.debug('[MSDStudio][ZOOM] Zoom initialization complete with scroll sync');
-        lcardsLog.info('[MSDStudio] 🔍 Zoom behavior initialized on preview container');
+        lcardsLog.debug('[MSDStudio] 🔍 Zoom behavior initialized on preview container');
 
         // Schedule fit-to-viewport after the live-preview 300ms debounce has fired
         // and the card has had a chance to render and establish real dimensions.
@@ -3085,7 +3085,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._setNestedValue(`msd.anchors.${name}`, roundedPosition);
         }
 
-        lcardsLog.info(`[MSDStudio] Promoted ${toPromote.length} base SVG anchors to user anchors`);
+        lcardsLog.debug(`[MSDStudio] Promoted ${toPromote.length} base SVG anchors to user anchors`);
         this._schedulePreviewUpdate();
         this.requestUpdate();
     }
@@ -6165,7 +6165,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // they keep working unchanged. ADD_WAYPOINT mode itself is unchanged
         // and still reachable via its toolbar button for the deliberate
         // click-anywhere-to-append workflow.
-        lcardsLog.info(`[MSDStudio] Selected line: ${lineId} (waypoint markers enabled, static indicator added)`);
+        lcardsLog.debug(`[MSDStudio] Selected line: ${lineId} (waypoint markers enabled, static indicator added)`);
 
         this.requestUpdate();
     }
@@ -6190,7 +6190,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Auto-convert to manual mode if not already
         if (line.route !== 'manual') {
-            lcardsLog.info(`[MSDStudio] Auto-converting line ${line.id} to manual mode`);
+            lcardsLog.debug(`[MSDStudio] Auto-converting line ${line.id} to manual mode`);
             line.route = 'manual';
             line.waypoints = [];
         }
@@ -6209,7 +6209,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._lineFormData.waypoints = [...line.waypoints];
         }
 
-        lcardsLog.info(`[MSDStudio] Added named waypoint "${anchorName}" to line ${line.id} (total: ${line.waypoints.length})`);
+        lcardsLog.debug(`[MSDStudio] Added named waypoint "${anchorName}" to line ${line.id} (total: ${line.waypoints.length})`);
 
         // Trigger re-render
         this.requestUpdate();
@@ -6296,7 +6296,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Auto-convert to manual mode if not already
         if (line.route !== 'manual') {
-            lcardsLog.info(`[MSDStudio] Auto-converting line ${line.id} to manual mode`);
+            lcardsLog.debug(`[MSDStudio] Auto-converting line ${line.id} to manual mode`);
             line.route = 'manual';
             line.waypoints = [];
         }
@@ -6317,7 +6317,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._lineFormData.waypoints = [...line.waypoints];
         }
 
-        lcardsLog.info(`[MSDStudio] Added waypoint to ${line.id} at [${roundedX}, ${roundedY}] (total: ${line.waypoints.length})`);
+        lcardsLog.debug(`[MSDStudio] Added waypoint to ${line.id} at [${roundedX}, ${roundedY}] (total: ${line.waypoints.length})`);
 
         // Save and update preview
         this._schedulePreviewUpdate();
@@ -9229,7 +9229,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._lineFormData.route = 'manual';
         this._lineFormData.waypoints = waypoints;
 
-        lcardsLog.info(`[MSDStudio] Converted line ${lineId} to manual mode with ${waypoints.length} waypoints`);
+        lcardsLog.debug(`[MSDStudio] Converted line ${lineId} to manual mode with ${waypoints.length} waypoints`);
         this.requestUpdate();
     }
 

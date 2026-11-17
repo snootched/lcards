@@ -173,7 +173,7 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         // Check if colors is an array (old format)
         if (Array.isArray(colors)) {
-            lcardsLog.info('[ChartStudio] Migrating old color format to style.colors.series');
+            lcardsLog.debug('[ChartStudio] Migrating old color format to style.colors.series');
             this._workingConfig.style.colors = {
                 series: colors
             };
@@ -1225,7 +1225,7 @@ export class LCARdSChartStudioDialog extends LitElement {
         }
         this._workingConfig = next;
 
-        lcardsLog.info('[ChartStudio] Series configuration updated:',
+        lcardsLog.debug('[ChartStudio] Series configuration updated:',
             { seriesCount: this._workingConfig.sources?.length || 0,
               dataSourceCount: Object.keys(this._workingConfig.data_sources || {}).length });
 

@@ -1780,7 +1780,7 @@ export class AnimationManager extends BaseService {
    * Cleanup all resources
    */
   dispose() {
-    lcardsLog.info('[AnimationManager] 🧹 Disposing animation system');
+    lcardsLog.debug('[AnimationManager] 🧹 Disposing animation system');
 
     this._unsubscribeReducedMotion?.();
     this._unsubscribeReducedMotion = null;
@@ -1812,7 +1812,7 @@ export class AnimationManager extends BaseService {
 
     this.initialized = false;
 
-    lcardsLog.info('[AnimationManager] ✅ Animation system disposed');
+    lcardsLog.debug('[AnimationManager] ✅ Animation system disposed');
   }
 
   // ============================================================================

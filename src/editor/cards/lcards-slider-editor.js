@@ -202,7 +202,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             });
 
             if (this._previousTrackType !== currentTrackType) {
-                lcardsLog.info('[LCARdSSliderEditor] Track type changed - forcing re-render', {
+                lcardsLog.debug('[LCARdSSliderEditor] Track type changed - forcing re-render', {
                     from: this._previousTrackType,
                     to: currentTrackType,
                     preset: this.config?.preset

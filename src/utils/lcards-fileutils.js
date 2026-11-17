@@ -82,5 +82,5 @@ export async function preloadSVGs(svgList, basePath) {
         return loadSVGToCache(key, url);
     });
     await Promise.all(promises);
-    lcardsLog.info(`[preloadSVGs] Preloaded SVGs: ${svgList.join(', ')} from ${basePath}`);
+    lcardsLog.debug(`[preloadSVGs] Preloaded SVGs: ${svgList.join(', ')} from ${basePath}`);
 }
