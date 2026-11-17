@@ -58,14 +58,23 @@ export function StaticEffect(canvas, params = {}) {
         }
     }
 
-    function tick() {
-        if (!running) return;
-        _syncSize();
+    // The noise is generated once into a buffer twice the canvas size (in each
+    // direction); every frame copies a window of it at a random offset, which reads
+    // as fresh static. Generating 100,000 random pixels every frame cost about
+    // 250 ms of main thread a second at a quarter CPU speed (2026-11-17).
+    /** @type {HTMLCanvasElement|null} */
+    let noise = null;
 
-        const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
-        const img = ctx.createImageData(canvas.width, canvas.height);
+    /** Fill the noise buffer for the current canvas size. */
+    function _makeNoise() {
+        const w = canvas.width * 2;
+        const h = canvas.height * 2;
+        if (!noise) noise = document.createElement('canvas');
+        noise.width = w;
+        noise.height = h;
+        const nctx = /** @type {CanvasRenderingContext2D} */ (noise.getContext('2d'));
+        const img = nctx.createImageData(w, h);
         const d   = img.data;
-
         for (let i = 0; i < d.length; i += 4) {
             const v    = Math.random() * 255;
             d[i]       = v + (tr - v) * tintStrength;
@@ -73,7 +82,22 @@ export function StaticEffect(canvas, params = {}) {
             d[i + 2]   = v + (tb - v) * tintStrength;
             d[i + 3]   = 200;
         }
-        ctx.putImageData(img, 0, 0);
+        nctx.putImageData(img, 0, 0);
+    }
+
+    function tick() {
+        if (!running) return;
+        const before = `${canvas.width}x${canvas.height}`;
+        _syncSize();
+        if (!noise || `${canvas.width}x${canvas.height}` !== before) _makeNoise();
+
+        const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
+        const w = canvas.width;
+        const h = canvas.height;
+        const sx = Math.floor(Math.random() * w);
+        const sy = Math.floor(Math.random() * h);
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(/** @type {HTMLCanvasElement} */ (noise), sx, sy, w, h, 0, 0, w, h);
         if (prefersReducedMotion()) return; // reduced motion: hold this frame
         rafId = requestAnimationFrame(tick);
     }
@@ -83,6 +107,7 @@ export function StaticEffect(canvas, params = {}) {
     return () => {
         running = false;
         if (rafId !== null) cancelAnimationFrame(rafId);
+        noise = null;
         // Reset canvas styles
         canvas.style.opacity        = '';
         canvas.style.imageRendering = '';
