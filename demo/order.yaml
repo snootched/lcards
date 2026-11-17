@@ -13,9 +13,7 @@ topics:
     title: Dashboards
     groups:
       - title: Everyday
-        views: [gallery/bridge, gallery/engineering, gallery/environmental, gallery/security, gallery/alert]
-      - title: Picard era
-        views: [gallery/picard-operations, gallery/sciences]
+        views: [gallery/bridge, gallery/engineering, gallery/environmental, gallery/security, gallery/alert, gallery/picard-operations, gallery/sciences]
       - title: Design guide, Picard
         views: [gallery/picard-console, gallery/picard-display, gallery/picard-split, gallery/picard-portrait, gallery/picard-tiles]
       - title: Design guide, classic

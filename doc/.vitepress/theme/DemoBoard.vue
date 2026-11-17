@@ -2,9 +2,8 @@
   <div class="demo-board">
     <p v-if="!data.views.length" class="demo-board-note">There is no live demo for LCARdS {{ data.release }}.</p>
     <div v-else class="demo-board-frame">
-      <!-- an LCARS side menu: the filter, then the topics; an open topic lists its views by group.
-           It folds away while a whole-screen dashboard is open, so the dashboard gets the width. -->
-      <nav v-show="menuShown" id="demo-board-menu" class="demo-board-menu" aria-label="Demo views by topic">
+      <!-- an LCARS side menu: the filter, then the topics; an open topic lists its views by group -->
+      <nav class="demo-board-menu" aria-label="Demo views by topic">
         <label v-if="byRelease" class="demo-board-filter">
           <span class="demo-board-filter-label">Show</span>
           <select v-model="release" @change="setFilter">
@@ -39,14 +38,6 @@
         </template>
       </nav>
       <div class="demo-board-main">
-        <button
-          v-if="isDashboard"
-          type="button"
-          class="demo-board-menu-toggle"
-          aria-controls="demo-board-menu"
-          :aria-expanded="menuShown"
-          @click="menuShown = !menuShown"
-        >{{ menuShown ? 'Hide menu' : 'Show menu' }}</button>
         <div v-if="active" class="demo-board-heading">
           <span class="demo-board-title">{{ active.title }}</span>
           <span v-if="byRelease" class="demo-board-badge demo-board-badge-heading">{{ releaseName(active.release) }}</span>
@@ -100,10 +91,6 @@ const topics = computed(() => data.topics
   .filter(t => t.count))
 const current = ref(data.views[0]?.path ?? '')
 const active = computed(() => byPath.get(current.value))
-/** A whole-screen dashboard (a layout view): shown at its design width, the menu folded away. */
-const isDashboard = computed(() => active.value?.config?.type === 'custom:lcards-layout-view')
-// shown on arrival (the first view may be a dashboard): it folds when a dashboard is picked
-const menuShown = ref(true)
 /** Topics open in the menu (any number): the first view's to begin with. */
 const open = ref([data.views[0]?.topic].filter(Boolean))
 const isOpen = (id) => open.value.includes(id)
@@ -200,8 +187,6 @@ async function show(path) {
 }
 
 watch(current, async (path) => {
-  // fold the menu away for a dashboard, bring it back for any other view
-  menuShown.value = !isDashboard.value
   await nextTick()
   // Leave the page in normal (green) alert when switching views. Not awaited: the
   // theme change waits for a frame, and a busy page must not hold the view switch on it.
@@ -356,23 +341,6 @@ onUnmounted(() => {
   line-height: 1.5;
   text-transform: uppercase;
   vertical-align: 1px;
-}
-/* shows or hides the side menu while a dashboard is open */
-.demo-board-menu-toggle {
-  margin-bottom: 8px;
-  padding: 4px 16px;
-  border-radius: 999px;
-  background: var(--demo-menu);
-  color: var(--demo-on-bar);
-  font-family: Antonio, sans-serif;
-  font-size: 15px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-}
-.demo-board-menu-toggle:focus-visible {
-  outline: 2px solid var(--demo-pick);
-  outline-offset: 2px;
 }
 /* a view with taps only Home Assistant can carry out */
 .demo-board-ha-only {

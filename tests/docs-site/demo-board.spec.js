@@ -31,8 +31,6 @@ async function viewMounted(page, path) {
 
 /** Open a view's topic in the menu (if closed) and pick the view; load it if it is heavy. */
 async function pickView(page, view) {
-    // a dashboard folds the menu away: bring it back first, as a reader would
-    if (await page.locator('.demo-board-menu').isHidden()) await page.locator('.demo-board-menu-toggle').click();
     const topic = page.locator(`.demo-board-topic[data-topic="${view.topic}"]`);
     if (await topic.getAttribute('aria-expanded') !== 'true') await topic.click();
     await page.locator(`.demo-board-topic-views button[data-view="${view.path}"]`).click();
@@ -370,22 +368,4 @@ test('a card with Visibility conditions shows only while they pass (Picard opera
     });
     await expect.poll(hidden).toBe(2);
     expect(await shown()).toBe(before);
-});
-
-test('picking a dashboard folds the side menu away; the toggle brings it back; another view reopens it', async ({ page }) => {
-    const dashboards = VIEWS.filter(v => v.file.startsWith('gallery/'));
-    const other = VIEWS.find(v => !v.file.startsWith('gallery/'));
-    await page.goto(URL_PATH);
-    const menu = page.locator('.demo-board-menu');
-    // on arrival the menu shows, even when the first view is a dashboard
-    await expect(menu).toBeVisible();
-    await pickView(page, dashboards[1]);
-    await expect(menu).toBeHidden();
-    const toggle = page.locator('.demo-board-menu-toggle');
-    await expect(toggle).toHaveText('Show menu');
-    await toggle.click();
-    await expect(menu).toBeVisible();
-    await pickView(page, other);
-    await expect(menu).toBeVisible();
-    await expect(toggle).toHaveCount(0);
 });
