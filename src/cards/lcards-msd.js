@@ -1358,6 +1358,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      */
     _cleanupMsdPipeline() {
         this._msdGeneration++;
+        this._destroyMsdAnimationScopes();
         if (this._msdPipeline?.coordinator?.destroy) {
             this._msdPipeline.coordinator.destroy();
         }
@@ -1370,6 +1371,38 @@ export class LCARdSMSDCard extends LCARdSCard {
             this._backgroundRenderer = null;
         }
         lcardsLog.debug('[LCARdSMSDCard] Pipeline cleaned up');
+    }
+
+    /**
+     * Remove this card's scopes from the shared AnimationManager: the base SVG and
+     * overlay group ones (named with the card's guid) and each animated overlay's
+     * (named with the overlay id, which other MSDs may use too: only those whose
+     * element is in this card). They held the detached SVG, a TriggerManager with
+     * entity subscriptions and loops still running after the card was removed, and
+     * each new card element (every dashboard edit) added more. Runs before the
+     * coordinator clears the DOM, while the elements are still in this card.
+     * Embedded control cards clean up their own scopes. 2026-11-17
+     * @private
+     */
+    _destroyMsdAnimationScopes() {
+        const am = window.lcards?.core?.animationManager;
+        if (!am?.scopes) return;
+        const guid = this._msdInstanceGuid;
+        const root = this.renderRoot;
+        /** @type {string[]} */
+        const ids = [];
+        am.scopes.forEach((/** @type {any} */ scope, /** @type {string} */ id) => {
+            const ownByName = !!guid && (id === `__msd_base_svg:${guid}` || id === `__msd_animations:${guid}`);
+            const ownByElement = !!root && scope?.element?.getRootNode?.() === root;
+            if (ownByName || ownByElement) ids.push(id);
+        });
+        for (const id of ids) {
+            try {
+                am.destroyOverlayScope(id);
+            } catch (error) {
+                lcardsLog.warn(`[LCARdSMSDCard] Could not remove animation scope ${id}:`, error);
+            }
+        }
     }
 
     // ============================================================================
