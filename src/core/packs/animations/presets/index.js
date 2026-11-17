@@ -302,9 +302,12 @@ registerAnimationPreset('march', (def) => {
                         (loopValue === false || loopValue === 0) ? '1' :
                         typeof loopValue === 'number' ? Math.max(1, loopValue) : 'infinite';
 
-  // Generate unique animation name (will be used in setup)
-  const animId = `march_${Math.random().toString(36).substring(2, 9)}`;
-  const animationName = `march_${animId}`;
+  // The keyframes' name is set in setup(), from the pattern length and direction
+  // (the only things in them): the same march shares one rule. It was a random name
+  // per run, and a rule was added on every run and never removed, so a line that
+  // re-renders (state changes, rules) grew its shadow root's stylesheet for good.
+  // 2026-11-17
+  let animationName = 'lcards-march';
 
   // Return CSS animation config with setup function
   return {
@@ -365,6 +368,8 @@ registerAnimationPreset('march', (def) => {
         totalLength = dashLength + gapLength;
       }
 
+      animationName = `lcards-march-${direction === 'reverse' ? 'r' : 'f'}-${String(+Number(totalLength).toFixed(3)).replace(/[^0-9]/g, '_')}`;
+
       // For seamless infinite loop, animate the full pattern length
       // Start at totalLength and animate to 0 (forward) or start at 0 and animate to totalLength (reverse)
       const keyframesStr = direction === 'reverse'
@@ -377,6 +382,12 @@ registerAnimationPreset('march', (def) => {
       }
 
       // Apply the animation (starting offset will be set by keyframe 'from')
+      // The same name again on this element (a trigger playing it again) would not
+      // restart it: the random name used to. Clear it and restyle first.
+      if (element.style.animationName === animationName) {
+        element.style.animation = 'none';
+        void element.getBoundingClientRect();
+      }
       element.style.animation = `${animationName} ${speed}s linear ${iterationCount}`;
 
       // Find the appropriate document to inject styles into
@@ -396,7 +407,11 @@ registerAnimationPreset('march', (def) => {
             targetDoc.adoptedStyleSheets = [...targetDoc.adoptedStyleSheets, styleSheet];
           }
 
-          styleSheet.insertRule(keyframesStr, styleSheet.cssRules.length);
+          if (!styleSheet.marchNames) styleSheet.marchNames = new Set();
+          if (!styleSheet.marchNames.has(animationName)) {
+            styleSheet.insertRule(keyframesStr, styleSheet.cssRules.length);
+            styleSheet.marchNames.add(animationName);
+          }
         } catch (e) {
           lcardsLog.error('[march preset] ❌ Failed to add CSS animation to Shadow DOM:', e);
           fallbackStyleInjection();
@@ -417,7 +432,7 @@ registerAnimationPreset('march', (def) => {
           target.appendChild(styleEl);
         }
 
-        if (!styleEl.textContent.includes(animationName)) {
+        if (!styleEl.textContent.includes(`@keyframes ${animationName} {`)) {
           styleEl.textContent += keyframesStr;
         }
       }

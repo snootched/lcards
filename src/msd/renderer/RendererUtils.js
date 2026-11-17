@@ -4,6 +4,9 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 let _textMeasureCanvas = null;
 let _textMeasureContext = null;
 let _textMeasureCache = null;
+// The key is the text itself, and live text (clocks, sensor values) makes new keys
+// forever: keep the most recently used ones only (2026-11-17)
+const TEXT_MEASURE_CACHE_MAX = 2000;
 
 /**
  * [RendererUtils] Shared renderer utilities - common functionality for all renderers
@@ -82,6 +85,9 @@ export class RendererUtils {
 
     if (useCache && cache && cache.has(cacheKey)) {
       const cached = cache.get(cacheKey);
+      // most recently used goes last (Map keeps insertion order)
+      cache.delete(cacheKey);
+      cache.set(cacheKey, cached);
 
       // Apply coordinate transformation if container provided
       if (containerElement) {
@@ -111,6 +117,7 @@ export class RendererUtils {
 
     if (useCache && cache) {
       cache.set(cacheKey, result);
+      if (cache.size > TEXT_MEASURE_CACHE_MAX) cache.delete(cache.keys().next().value);
     }
 
     // Apply coordinate transformation if container provided
