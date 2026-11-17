@@ -17,17 +17,58 @@ export const COMPONENT_GRID = {
     alert:        { columns: 6, rows: 4 },
 };
 
+/** Pointer states a state map keeps from the layer below when it doesn't set them. */
+const POINTER_STATES = ['hover', 'pressed'];
+
+/**
+ * Before `over` is merged onto `base` (one segment config each): where `over` gives a
+ * style property as a state map without `hover` / `pressed` and `base` had them (as a
+ * map, or a `theme:` token that resolves to one), copy them into `over`. A map
+ * replaces the value under it whole, so a user's `fill: { default, active }` dropped
+ * the theme's pointer colours and the segments stopped reacting to hover and press
+ * (2026-11-17). Only the pointer states: the theme's `inactive` or `unavailable`
+ * would beat the user's own `default`.
+ * @param {Record<string, any>} base
+ * @param {Record<string, any>|undefined} over
+ * @param {(token: string) => any} [resolveToken]
+ * @returns {Record<string, any>|undefined} over, or a copy with the pointer states
+ */
+function keepPointerStates(base, over, resolveToken) {
+    const baseStyle = base?.style;
+    const overStyle = over?.style;
+    if (!baseStyle || typeof baseStyle !== 'object' || !overStyle || typeof overStyle !== 'object') return over;
+    /** @type {Record<string, any>|null} */
+    let style = null;
+    for (const [prop, value] of Object.entries(overStyle)) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+        if (POINTER_STATES.every((k) => value[k] !== undefined)) continue;
+        let under = baseStyle[prop];
+        if (typeof under === 'string' && under.startsWith('theme:') && resolveToken) under = resolveToken(under);
+        if (!under || typeof under !== 'object') continue;
+        /** @type {Record<string, any>} */
+        const add = {};
+        for (const k of POINTER_STATES) if (value[k] === undefined && under[k] !== undefined) add[k] = under[k];
+        if (!Object.keys(add).length) continue;
+        const next = style ?? { ...overStyle };
+        next[prop] = { ...value, ...add };
+        style = next;
+    }
+    return style ? { ...over, style } : over;
+}
+
 /**
  * Merge a component's segment layers (lowest first: component, preset, user, range).
  * Within each layer the `default` entry is a template merged under that layer's own
  * segments and applied to every segment id seen in any layer, so a layer's
  * `segments.default` beats the layers below it but never that layer's own named
  * segment. `default` never becomes a segment itself (there is no SVG element with
- * id="default").
+ * id="default"). A state map keeps the `hover` and `pressed` of the value it
+ * replaces (keepPointerStates).
  * @param {Array<Record<string, any>|null|undefined>} layers
+ * @param {(token: string) => any} [resolveToken] turns a `theme:` token into its value
  * @returns {Record<string, any>} segment id -> merged config
  */
-export function mergeSegmentLayers(layers) {
+export function mergeSegmentLayers(layers, resolveToken) {
     const ids = new Set();
     for (const layer of layers) {
         for (const id of Object.keys(layer || {})) if (id !== 'default') ids.add(id);
@@ -40,8 +81,8 @@ export function mergeSegmentLayers(layers) {
         const def = layer.default;
         for (const id of ids) {
             const own = layer[id];
-            if (def) merged[id] = deepMergeImmutable(merged[id], def);
-            if (own) merged[id] = deepMergeImmutable(merged[id], own);
+            if (def) merged[id] = deepMergeImmutable(merged[id], keepPointerStates(merged[id], def, resolveToken));
+            if (own) merged[id] = deepMergeImmutable(merged[id], keepPointerStates(merged[id], own, resolveToken));
         }
     }
     return merged;

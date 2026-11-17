@@ -182,3 +182,30 @@ test('alert.color.bars shows while the bar sweep runs', async ({ page }) => {
     expect(samples).toContain('rgb(0, 255, 0)');      // the sweep settles on the bars colour
     expect(samples).not.toContain('rgb(204, 0, 0)');   // never on the preset's trail red
 });
+
+// 2026-11-17: segments.default.style.fill as a map without hover/pressed replaced the
+// theme's whole map, so the dpad stopped reacting to hover and press.
+test('a dpad with its own fill map still lightens on hover and press, and keeps its own colours', async ({ page }) => {
+    await mountCase(page, 'button-dpad-fill-map', { width: '400', height: '400' });
+    await page.evaluate(() => window.__setState('light.demo', 'off'));
+    const seg = (id) => page.evaluate((id) => {
+        const el = window.__card.shadowRoot.querySelector(`[data-lcards-segment="${id}"]`);
+        const r = el.getBoundingClientRect();
+        return { fill: getComputedStyle(el).fill, x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }, id);
+    // left follows light.demo: off is the user's default, not the theme's inactive colour
+    await expect.poll(async () => (await seg('left')).fill).toBe('rgb(85, 85, 85)');
+    await page.evaluate(() => window.__setState('light.demo', 'on'));
+    await expect.poll(async () => (await seg('left')).fill).toBe('rgb(255, 153, 0)');
+    const up = await seg('up');
+    expect(up.fill).toBe('rgb(85, 85, 85)');
+    await page.mouse.move(up.x, up.y);
+    await expect.poll(async () => (await seg('up')).fill).not.toBe('rgb(85, 85, 85)');
+    const hover = (await seg('up')).fill;
+    await page.mouse.down();
+    await expect.poll(async () => (await seg('up')).fill).not.toBe(hover);
+    await page.mouse.up();
+    await page.mouse.move(5, 5);
+    await expect.poll(async () => (await seg('up')).fill).toBe('rgb(85, 85, 85)');
+    await expectNoErrors(page);
+});

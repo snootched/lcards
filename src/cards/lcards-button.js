@@ -508,7 +508,7 @@ export class LCARdSButton extends LCARdSCard {
             presetData?.segments,
             this._rawUserComponentSegments,
             rangeColorSegments,
-        ]);
+        ], (token) => this._resolveSegmentThemeTokens({ value: token }).value);
 
         // Provenance: what the component and its preset supplied (the user's own
         // values are already in the config layers)

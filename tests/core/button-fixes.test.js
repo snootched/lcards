@@ -36,6 +36,30 @@ test('component segments: theme < segments.default < the segment\'s own keys, la
     assert.equal(mergeSegmentLayers([{ default: { style: { fill: 'x' } }, up: {} }, { up: { style: { fill: 'y' } } }]).up.style.fill, 'y');
 });
 
+// 2026-11-17: a user's fill map replaced the theme's whole map, so a dpad with
+// segments.default.style.fill: { default, active } lost the theme's hover and pressed
+// colours and stopped reacting to the pointer.
+test('component segments: a state map keeps the pointer colours of the value it replaces', () => {
+    const themeMap = { default: 'g', active: 'a', inactive: 'i', unavailable: 'u', hover: 'h', pressed: 'p' };
+    const resolve = (/** @type {string} */ t) => (t === 'theme:dpad.fill' ? themeMap : undefined);
+    const component = { up: { style: { fill: 'theme:dpad.fill', stroke: 'theme:dpad.fill' } }, left: { style: { fill: themeMap } } };
+    const user = { default: { style: { fill: { default: 'grey', active: 'orange' } } }, right: { style: { fill: { default: 'x', hover: 'mine' } } } };
+    const m = mergeSegmentLayers([component, undefined, user, null], resolve);
+    // through a theme token: hover and pressed come along, and only those (the theme's
+    // inactive and unavailable would beat the user's default)
+    assert.deepEqual(m.up.style.fill, { default: 'grey', active: 'orange', hover: 'h', pressed: 'p' });
+    // over a plain map the deep merge keeps every key, as it always did
+    assert.deepEqual(m.left.style.fill, { ...themeMap, default: 'grey', active: 'orange' });
+    // the user's own hover wins; pressed still comes from below (right has no component entry: from default)
+    assert.equal(m.right.style.fill.hover, 'mine');
+    // what the user left alone stays the theme's
+    assert.equal(m.up.style.stroke, 'theme:dpad.fill');
+    // a plain colour (not a map) still replaces the map below: no pointer states added
+    assert.equal(mergeSegmentLayers([component, { up: { style: { fill: 'red' } } }], resolve).up.style.fill, 'red');
+    // without a resolver a theme token can't be read: the map is used as given
+    assert.deepEqual(mergeSegmentLayers([component, user]).up.style.fill, { default: 'grey', active: 'orange' });
+});
+
 test('border: a per-side object over a single preset value keeps that value on the other sides', () => {
     const preset = { border: { width: 'theme:components.button.border.width', radius: 0, color: 'c' } };
     const user = { border: { width: { left: 6 }, radius: { top_left: 24 } } };
