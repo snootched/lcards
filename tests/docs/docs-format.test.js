@@ -125,6 +125,8 @@ const FORMATTED = [
   'doc/configuration/browser-mod.md',
   'doc/configuration/connectivity.md',
   'doc/getting-started/building-dashboards.md',
+  'doc/getting-started/build-by-hand.md',
+  'doc/getting-started/bring-it-to-life.md',
   'doc/getting-started/lcars-design.md',
   'doc/getting-started/lcars-patterns.md'
 ];

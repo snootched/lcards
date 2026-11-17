@@ -53,7 +53,7 @@ The [Configuration](../configuration/) section covers every panel tab in detail.
 
 ## Next steps
 
-- **[Build a dashboard](building-dashboards)**: pick cards and lay out your first LCARS screen.
+- **[Build a dashboard](building-dashboards)**: generate one, add LCARS sections, design one with Claude or lay out your first LCARS screen by hand.
 - **[Browse the gallery](dashboard-gallery)**: start from a complete dashboard.
 - Stuck? See **[Troubleshooting](getting-help)**.
 

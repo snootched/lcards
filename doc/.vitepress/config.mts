@@ -422,7 +422,10 @@ export default withMermaid(defineConfig({
           { text: 'Building a Dashboard', link: '/getting-started/building-dashboards' },
           { text: 'Dashboard Strategies', link: '/getting-started/dashboard-strategies' },
           { text: 'Section Strategies', link: '/getting-started/section-strategies' },
+          { text: 'Design It with AI',    link: '/getting-started/ai-assistance' },
           { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
+          { text: 'Build by Hand',        link: '/getting-started/build-by-hand' },
+          { text: 'Bring It to Life',     link: '/getting-started/bring-it-to-life' },
           { text: 'Designing LCARS Screens', link: '/getting-started/lcars-design' },
           { text: 'LCARS Patterns',       link: '/getting-started/lcars-patterns' },
           { text: 'Live Demo',            link: '/getting-started/live-demo' },
@@ -616,7 +619,11 @@ export default withMermaid(defineConfig({
                 { text: 'Overview',             link: '/getting-started/building-dashboards' },
                 { text: 'Dashboard Strategies', link: '/getting-started/dashboard-strategies' },
                 { text: 'Section Strategies',   link: '/getting-started/section-strategies' },
+                // the AI route in table order; the page itself lives under Help & Tools
+                { text: 'Design It with AI',    link: '/getting-started/ai-assistance' },
                 { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
+                { text: 'Build by Hand',        link: '/getting-started/build-by-hand' },
+                { text: 'Bring It to Life',     link: '/getting-started/bring-it-to-life' },
               ],
             },
             {

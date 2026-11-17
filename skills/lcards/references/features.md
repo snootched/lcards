@@ -54,7 +54,7 @@ Paths are relative to `references/`. Suggest only what fits the user's entities 
 
 ## Lay out the screen
 
-- **Layout view.** A whole dashboard view as one CSS grid with named areas, edited in place on the dashboard. `docs/cards/layout-view/index.md`, `docs/getting-started/building-dashboards.md`.
+- **Layout view.** A whole dashboard view as one CSS grid with named areas, edited in place on the dashboard. `docs/cards/layout-view/index.md`, `docs/getting-started/build-by-hand.md`.
 - **Layout card.** A sub-grid inside one card, with the visual Layout Studio. `docs/cards/layout-card/index.md`.
 - **The LCARS shell strategy.** A ready-made LCARS frame generated as a whole dashboard (`strategy: { type: custom:lcars-shell }`). `schema/strategies/lcars-shell.json`, `docs/getting-started/lcars-patterns.md`.
 - **Screen archetypes and patterns.** Ready layouts (display, portrait panel, tile wall, ...) and modules to fill them. `docs/getting-started/lcars-design.md`, `docs/getting-started/lcars-patterns.md`, the gallery (`gallery/`).

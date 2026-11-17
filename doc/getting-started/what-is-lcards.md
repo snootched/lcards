@@ -31,7 +31,7 @@ moved_anchors:
 ## Next steps
 
 1. **[Install LCARdS](installation)**: from the Home Assistant Marketplace, then a quick setup.
-2. **[Build a dashboard](building-dashboards)**: pick cards and lay out a screen.
+2. **[Build a dashboard](building-dashboards)**: generate one, add LCARS sections, design one with Claude, borrow a sample layout or lay out a screen by hand.
 3. **[Browse the gallery](dashboard-gallery)**: copy a complete dashboard and make it yours.
 4. **[Get AI help](ai-assistance)**: let an assistant write the YAML for you.
 

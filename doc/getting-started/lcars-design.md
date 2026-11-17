@@ -7,7 +7,7 @@ description: "Guidelines for making a Home Assistant dashboard look like LCARS: 
 **What makes a screen read and feel like LCARS - written down as guidelines you can pick from.** They come from an automated analysis of hundreds of recognizable LCARS screen samples.  They include production panels from *The Next Generation*, *Deep Space Nine* and *Voyager*, and fan-made panels (like meWho's Titan.DS and LCARSlad London.)  Images were generalized into themes and structures to build guidelines (not to reproduce those works.)
 
 - A dashboard that follows just a few of these guidelines already looks more like LCARS than one that follows none: pick the ones that suit your screen and taste.
-- [Building a Dashboard](building-dashboards) covers the mechanics (which card for which job, the layout view); this guide is about the look.
+- [Build by Hand](build-by-hand) covers the mechanics (which card for which job, the layout view); this guide is about the look.
 - The [Dashboard Gallery](dashboard-gallery#generated-from-the-design-guide) has complete screens built from these guidelines.
 
 ## Two looks
