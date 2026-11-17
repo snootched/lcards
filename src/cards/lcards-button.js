@@ -4553,7 +4553,10 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         if (!this._canvasTextureRenderer) {
-            this._canvasTextureRenderer = new CanvasTextureRenderer(hostEl, this._getTextureInstanceId());
+            // Paused off screen through the card itself, except in editor previews (an
+            // observer there can report the card hidden for good, as for backgrounds)
+            this._canvasTextureRenderer = new CanvasTextureRenderer(hostEl, this._getTextureInstanceId(),
+                { visibilityEl: this.isPreviewMode() ? null : this });
             this._canvasTextureRenderer.init(rendererConfig, shapePath, border);
         } else {
             // Re-attach canvas if Lit re-rendered and replaced the foreignObject.

@@ -31,9 +31,15 @@ export class CanvasTextureRenderer {
     /**
      * @param {HTMLElement} hostEl     - Container element (position:relative) to append canvas into
      * @param {string}      instanceId - Stable short ID (for debug logging)
+     * @param {{ visibilityEl?: Element | null }} [options] - visibilityEl: pause the loop while it is off screen
      */
-    constructor(hostEl, instanceId) {
+    constructor(hostEl, instanceId, { visibilityEl = null } = {}) {
         this._hostEl        = hostEl;
+        /** The element whose visibility pauses the loop (the card: its host element is
+         *  replaced on re-renders); null = always run (editor previews). */
+        this._visibilityEl  = visibilityEl;
+        /** @type {IntersectionObserver|null} */
+        this._intersectionObserver = null;
         this._id            = instanceId;
         this._canvas        = null;
         this._renderer      = null;
@@ -125,6 +131,18 @@ export class CanvasTextureRenderer {
 
         // Start the RAF loop only after the clip path is correctly sized.
         this._renderer.start();
+
+        // Pause while the card is off screen (scrolled away, another view), as
+        // background animations do; it kept drawing at 30 fps before (2026-11-17).
+        // The tab hidden/shown case stays with the renderer's own visibilitychange.
+        if (this._visibilityEl && typeof IntersectionObserver !== 'undefined') {
+            this._intersectionObserver = new IntersectionObserver((entries) => {
+                if (document.hidden) return;
+                if (entries[entries.length - 1]?.isIntersecting) this._renderer?.resumeAnimation();
+                else this._renderer?.suspendAnimation();
+            }, { threshold: 0 });
+            this._intersectionObserver.observe(this._visibilityEl);
+        }
 
         lcardsLog.debug(`[CanvasTextureRenderer:${this._id}] Initialized`, { preset });
     }
@@ -236,6 +254,10 @@ export class CanvasTextureRenderer {
      * Stop RAF, disconnect ResizeObserver, and remove the canvas from the DOM.
      */
     destroy() {
+        if (this._intersectionObserver) {
+            this._intersectionObserver.disconnect();
+            this._intersectionObserver = null;
+        }
         if (this._resizeObserver) {
             this._resizeObserver.disconnect();
             this._resizeObserver = null;
