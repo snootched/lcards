@@ -32,6 +32,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { visibilityPasses } from '../utils/visibility-conditions.js';
 import { parseLayoutConfig, cellHeightDefinite, gridHeightIsDefinite, resolveVisibilityTracks, isAutoPlaced } from '../views/layout-grid-utils.js';
 import {
     buildGridStyle,
@@ -263,6 +264,9 @@ export class LCARdSLayoutCard extends LitElement {
                 const el = /** @type {any} */ (document.createElement(tag));
                 el.setConfig?.(cardConfig);
                 el.preview = this.preview;
+                // hui-card checks Visibility conditions; without it, this card does
+                // (_applyFallbackVisibility, on every hass update)
+                if (Array.isArray(cardConfig.visibility) && cardConfig.visibility.length) el._lcardsVisibility = cardConfig.visibility;
                 if (this._hass) el.hass = this._hass;
                 return el;
             }
@@ -278,6 +282,31 @@ export class LCARdSLayoutCard extends LitElement {
         if (!this._hass) return;
         for (const el of this._cardElements ?? []) {
             try { el.hass = this._hass; } catch { /* ignore */ }
+        }
+        this._applyFallbackVisibility();
+    }
+
+    /**
+     * Outside Home Assistant's frontend (no hui-card: the docs, the browser test
+     * harness) a child built directly carries its Visibility conditions here: hide it
+     * as hui-card would (`hidden`, plus display none, since a card's own :host display
+     * outranks the attribute), show every child while editing, and collapse its
+     * track as for a hui-card child.
+     */
+    _applyFallbackVisibility() {
+        let changed = false;
+        for (const el of /** @type {any[]} */ (this._cardElements ?? [])) {
+            if (!el?._lcardsVisibility) continue;
+            const hide = !(this.preview || this.editing) && !visibilityPasses(el._lcardsVisibility, this._hass);
+            if (!!el.hidden !== hide) {
+                el.hidden = hide;
+                el.style.display = hide ? 'none' : '';
+                changed = true;
+            }
+        }
+        if (changed) {
+            cancelAnimationFrame(this._visibilityRaf);
+            this._visibilityRaf = requestAnimationFrame(() => this._applyVisibilityTracks());
         }
     }
 
@@ -298,6 +327,7 @@ export class LCARdSLayoutCard extends LitElement {
         if (changed.has('preview')) {
             for (const el of this._cardElements ?? []) el.preview = this.preview;
         }
+        if (changed.has('preview') || changed.has('editing')) this._applyFallbackVisibility();
 
         // The parent grid's fitted-cell mark (inFittedCell) changed since the last
         // placement: applyCardPlacement asked for this update.

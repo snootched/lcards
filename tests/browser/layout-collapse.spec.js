@@ -57,8 +57,15 @@ async function mount(page, kind) {
         const grid = host.shadowRoot.querySelector('#grid-root');
         [...grid.children].filter((el) => el.tagName === 'COLLAPSE-CARD').forEach((el, i) => {
             el.id = CARDS[i].area;
+            // these stand in for hui-card children, hidden by hand (setHidden): not for the
+            // layout card's own no-hui-card fallback, which would check their conditions
+            delete el._lcardsVisibility;
+            el.hidden = false;
+            el.style.display = '';
             el.style.cssText += `;${CARDS[i].style}`;
+            el.dispatchEvent(new Event('card-visibility-changed', { bubbles: true, composed: true }));
         });
+        await new Promise((r) => setTimeout(r, 100));
         window.__host = host;
     }, { kind, AREAS, ROWS, COLUMNS, CARDS });
 }
@@ -112,3 +119,19 @@ for (const kind of ['view', 'card']) {
         }
     });
 }
+
+test('outside Home Assistant (no hui-card) a layout card hides a child whose Visibility condition fails, and collapses its column', async ({ page }) => {
+    await page.setViewportSize({ width: 1000, height: 400 });
+    const card = await mountCase(page, 'layout-card-visibility', { width: '600' });
+    const state = () => card.evaluate((host) => {
+        const [nav, main] = /** @type {any[]} */ (host._cardElements);
+        return { navHidden: !!nav.hidden, navShown: nav.getBoundingClientRect().width > 0, mainWidth: Math.round(main.getBoundingClientRect().width) };
+    });
+    // light.demo starts off in the harness: NAV hidden, MAIN takes the whole width
+    await page.evaluate(() => window.__setState('light.demo', 'off'));
+    await expect.poll(state).toEqual({ navHidden: true, navShown: false, mainWidth: 600 });
+    await page.evaluate(() => window.__setState('light.demo', 'on'));
+    await expect.poll(state).toEqual({ navHidden: false, navShown: true, mainWidth: 480 });
+    await page.evaluate(() => window.__setState('light.demo', 'off'));
+    await expect.poll(state).toEqual({ navHidden: true, navShown: false, mainWidth: 600 });
+});

@@ -73,7 +73,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 function clear() {
   for (const card of mounted) env?.unmount(card)
   mounted = []
-  stage.value?.querySelectorAll('.demo-board-layout, .demo-board-section, .demo-board-column').forEach(el => el.remove())
+  stage.value?.querySelectorAll('.demo-board-layout-frame, .demo-board-section, .demo-board-column').forEach(el => el.remove())
   if (stage.value) delete stage.value.dataset.ready
 }
 

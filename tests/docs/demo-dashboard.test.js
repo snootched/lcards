@@ -380,3 +380,14 @@ test('the astrometrics showcase: every tour stop is a named view of its card (a 
     for (const [view] of STOPS) assert.ok(views.includes(view), `stop ${view} has no view`);
     assert.deepEqual(card.camera.view.views.map((s) => (typeof s === 'string' ? s : s.view)), STOPS.map(([v]) => v), 'the tour visits the stops in order');
 });
+
+test('homeAssistantOnlyActions: taps the Live Demo cannot carry out, from a view\'s own cards', async () => {
+    const { homeAssistantOnlyActions } = await import('../../scripts/lib/demo-dashboard.js');
+    const view = { cards: [
+        { type: 'custom:lcards-button', tap_action: { action: 'toggle' }, hold_action: { action: 'more-info' } },
+        { type: 'custom:lcards-layout-card', cards: [{ type: 'custom:lcards-button', tap_action: { action: 'navigate', navigation_path: '/x' } }] },
+        { type: 'custom:lcards-button', tap_action: { action: 'perform-action', perform_action: 'lcards.red_alert' } },
+    ] };
+    assert.deepEqual(homeAssistantOnlyActions(view), ['more-info', 'navigate']);
+    assert.deepEqual(homeAssistantOnlyActions({ cards: [{ type: 'custom:lcards-button', tap_action: { action: 'toggle' } }] }), []);
+});

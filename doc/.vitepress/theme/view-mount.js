@@ -4,6 +4,21 @@
 // as a column of cards. Used by the demo board (DemoBoard.vue) and the preview page
 // (PreviewBoard.vue).
 import { sizeMount } from './card-demo-runtime.js'
+import { visibilityPasses } from '../../../src/utils/visibility-conditions.js'
+
+export { visibilityPasses }
+
+/** The window a dashboard (layout view) is designed for: the gallery's 1600 x 1000
+ *  screenshots less Home Assistant's 56 px header. */
+const DESIGN_WIDTH = 1600
+const DESIGN_HEIGHT = 944
+
+/** A layout view's height at its design size: its own px height, else the window's. */
+function designHeight(layout) {
+  const h = String(layout.height ?? layout['min-height'] ?? '')
+  const px = /^\s*(\d+(?:\.\d+)?)\s*(px)?\s*$/.exec(h)
+  return px ? Number(px[1]) : DESIGN_HEIGHT
+}
 
 /** Grid columns a card spans, out of the section's total. */
 function span(card, total) {
@@ -27,7 +42,19 @@ export function mountView(stage, view, env, { maxWidth, stale = () => false, onC
   // Narrow screens: twice the columns per card, as Home Assistant reflows a section
   const narrow = stage.clientWidth < 700
   const mounting = []
+  // cards with `visibility:` conditions: their cells hide and show as the states change
+  /** @type {Array<[HTMLElement, any[]]>} */
+  const conditional = []
+  const applyVisibility = () => {
+    for (const [cell, conditions] of conditional) cell.style.display = visibilityPasses(conditions, env.hass) ? '' : 'none'
+  }
+  stage._lcardsVisibility?.()
+  stage._lcardsVisibility = env.onState?.(applyVisibility)
   const place = (cell, config, after) => {
+    if (Array.isArray(config.visibility) && config.visibility.length) {
+      conditional.push([cell, config.visibility])
+      applyVisibility()
+    }
     env.ensureEntities(config)
     mounting.push(env.mount(cell, config).then((card) => {
       // switched to another view meanwhile: this card's cell is gone
@@ -36,9 +63,17 @@ export function mountView(stage, view, env, { maxWidth, stale = () => false, onC
       after?.(card)
     }))
   }
-  // a layout view: one CSS grid of named areas, as lcards-layout-view lays it out
+  // a layout view: one CSS grid of named areas, as lcards-layout-view lays it out. A
+  // dashboard is designed for a whole window, so it is built at that size (DESIGN_WIDTH,
+  // or the view's max_width for a phone layout; a window-high view at DESIGN_HEIGHT) and
+  // the whole screen is scaled down to the stage, like a screenshot: nothing squeezes.
   if (view.type === 'custom:lcards-layout-view') {
     const l = view.layout ?? {}
+    const width = maxWidth ?? DESIGN_WIDTH
+    const height = designHeight(l)
+    const frame = document.createElement('div')
+    frame.className = 'demo-board-layout-frame'
+    Object.assign(frame.style, { position: 'relative', overflow: 'hidden', margin: '0 auto' })
     const grid = document.createElement('div')
     grid.className = 'demo-board-layout'
     Object.assign(grid.style, {
@@ -47,14 +82,32 @@ export function mountView(stage, view, env, { maxWidth, stale = () => false, onC
       gridTemplateColumns: l['grid-template-columns'] ?? '1fr',
       gridTemplateRows: l['grid-template-rows'] ?? 'auto',
       gridTemplateAreas: l['grid-template-areas'] ?? 'none',
-      // a dashboard's own height (the gallery's calc(100dvh - header) fills the window here too)
-      // and padding; the showcase gives a min-height
-      height: l.height ?? l['min-height'] ?? '900px',
+      width: `${width}px`,
+      height: `${height}px`,
       padding: l.padding ?? '0',
       boxSizing: 'border-box',
-      ...(maxWidth ? { width: '100%', maxWidth: `${maxWidth}px`, margin: '0 auto' } : {}),
+      transformOrigin: '0 0',
     })
-    stage.appendChild(grid)
+    frame.appendChild(grid)
+    stage.appendChild(frame)
+    // fit the stage, now and whenever it resizes (never larger than the design). A grid
+    // whose fixed tracks, gaps and padding add up to more than its width overflows it (as
+    // in Home Assistant, where the view scrolls): fit what it really takes.
+    const fit = () => {
+      const w = Math.max(width, grid.scrollWidth)
+      const h = Math.max(height, grid.scrollHeight)
+      // the stage's content width (clientWidth includes its padding)
+      const cs = getComputedStyle(stage)
+      const room = stage.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0)
+      const scale = Math.min(1, (room > 0 ? room : w) / w)
+      grid.style.transform = scale < 1 ? `scale(${scale})` : ''
+      Object.assign(frame.style, { width: `${w * scale}px`, height: `${h * scale}px` })
+    }
+    fit()
+    stage._lcardsFit?.disconnect()
+    stage._lcardsFit = new ResizeObserver(fit)
+    stage._lcardsFit.observe(stage)
+    stage._lcardsFit.observe(grid)
     for (const config of view.cards ?? []) {
       const cell = document.createElement('div')
       cell.className = 'demo-board-cell'

@@ -4,7 +4,7 @@
 // so /v/<version>/ keeps the views up to that release on that release's code, and /dev/
 // shows the upcoming release.
 import { readFileSync } from 'node:fs'
-import { loadDemo, loadPackage, buildDashboard, boardReleases, helpersPackage } from '../../../scripts/lib/demo-dashboard.js'
+import { homeAssistantOnlyActions, loadDemo, loadPackage, buildDashboard, boardReleases, helpersPackage } from '../../../scripts/lib/demo-dashboard.js'
 import { TEST_HELPERS, GALLERY_HELPERS } from '../../../tests/ha/ha-client.mjs'
 import { DEMO_STATES } from '../../../tests/helpers/demo-states.js'
 
@@ -74,6 +74,8 @@ export default {
         isNew: v.release === release,
         yaml: v.text,
         config: configs[v.path],
+        // taps only Home Assistant can carry out (more-info, navigate, ...): noted under the view
+        haOnly: homeAssistantOnlyActions(v.config),
       })),
     }
   },

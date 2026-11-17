@@ -9,6 +9,9 @@ pageClass: demo-wide
 
 **LCARdS running live: every view below is made of real LCARdS cards from this version, on sample entities, laid out the way a Home Assistant sections view lays them out.** Open a topic in the menu and pick a view, try the controls (the alert buttons, sliders, taps on the cards), then open **YAML of this view** to copy it, or follow the **Docs** button on the view to read about the feature. <span v-if="data.releases.length > 1">**Show** at the top of the menu picks one release: the views of what is new in <span v-text="data.release"></span>, or of an earlier release.</span>
 
+- **Whole-screen dashboards** are built at the window size they were made for (1600 px wide, or a phone's width) and scaled down to fit, like a screenshot, so their layout stays as it is in Home Assistant.
+- **A few taps only work in Home Assistant,** such as opening an entity's details or going to another view. A view that has them says so under it; everything else (toggles, sliders, alert buttons, templates, cards shown only while a condition holds) works here.
+
 The same views make up the demo dashboard the LCARdS developers check every release on.
 
 <DemoBoard />

@@ -79,7 +79,10 @@ test('size budget: tiny loader, main chunk under its ceiling', () => {
     // buttons, editor pick mode) took it to 2.155 MB; the editor and runtime stay lazy.
     // 2,200,000 until 2026-11-01: UX1's card side (the D-pad, the LCARS time slider, the
     // model size button and set-model-scale) took it to 2.224 MB; the runtime stays lazy.
-    expect(size(`chunks/${main}`)).toBeLessThanOrEqual(2_300_000);
+    // 2,300,000 until 2026-11-16: the layout card's Visibility fallback outside Home
+    // Assistant (src/utils/visibility-conditions.js, for the docs and the harness) and the
+    // section strategy registration took it to 2.301 MB; the generators stay lazy.
+    expect(size(`chunks/${main}`)).toBeLessThanOrEqual(2_350_000);
     // 460,000 until 2026-10-23: the main chunk had crept to ~460 KB br; C2's
     // background tier (scene effect classes, two presets, schemas) took it over.
     // 480,000 until 2026-10-30: R4a/R4b's card side (the date slider, set-clock, settings that
@@ -88,7 +91,9 @@ test('size budget: tiny loader, main chunk under its ceiling', () => {
     // actions, select menu grid sizing and rules, the restored pulse texture) took it to 491.1 KB br.
     // 500,000 until 2026-11-13: E2's action confirmation (dialog, Home Assistant's question) and
     // E1.2's rangeBar timeline (Home Assistant's state colours, state runs, schema) took it to 503.4 KB br.
-    expect(size(`chunks/${main}.br`)).toBeLessThanOrEqual(510_000);
+    // 510,000 until 2026-11-16: the layout card's Visibility fallback outside Home Assistant
+    // and the section strategy registration took it to 510.4 KB br.
+    expect(size(`chunks/${main}.br`)).toBeLessThanOrEqual(520_000);
 });
 
 test('size budget: three.js and the anime.js three adapter stay out of the main chunk', () => {

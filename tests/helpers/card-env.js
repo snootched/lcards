@@ -193,6 +193,8 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
     const cards = new Set();
     let current = base;
 
+    /** @type {Set<(hass: any, entityId: string) => void>} */
+    const stateListeners = new Set();
     const env = {
         /** The latest hass snapshot (a new object after every setState). */
         get hass() { return current; },
@@ -223,7 +225,18 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
                 }
             }
             for (const card of cards) card.hass = current;
+            for (const fn of stateListeners) fn(current, entityId);
             return current;
+        },
+
+        /**
+         * Hear every state change (the docs' view mount re-checks `visibility:` with it).
+         * @param {(hass: any, entityId: string) => void} fn
+         * @returns {() => void} stop listening
+         */
+        onState(fn) {
+            stateListeners.add(fn);
+            return () => stateListeners.delete(fn);
         },
 
         /**
@@ -410,6 +423,16 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
                     if (Number.isFinite(Number(a.max))) v = Math.min(Number(a.max), v);
                     if (Number.isFinite(Number(a.min))) v = Math.max(Number(a.min), v);
                     if (Number.isFinite(v)) env.setState(id, String(Number(v.toFixed(6))));
+                    continue;
+                }
+                // input_select/select: the next or previous option (cycle: true wraps, as in Home Assistant)
+                if (service === 'select_next' || service === 'select_previous') {
+                    const options = current.states[id]?.attributes?.options ?? [];
+                    const i = options.indexOf(state);
+                    if (!options.length) continue;
+                    let j = i + (service === 'select_next' ? 1 : -1);
+                    if (j < 0 || j >= options.length) j = data.cycle === false ? Math.max(0, Math.min(options.length - 1, j)) : (j + options.length) % options.length;
+                    env.setState(id, String(options[j]));
                     continue;
                 }
                 // number, select and text helpers have no on/off services in Home Assistant

@@ -5,8 +5,9 @@
  *
  * Functions: states('id') (and states.domain.object.state), state_attr, is_state,
  * is_state_attr, has_value, now() (hour, minute, ..., strftime, isoformat), iif.
- * Filters: float, int (with a default), round (precision, default), plus nunjucks' own
- * (default, lower, upper, title, replace, ...).
+ * Filters: float, int (with a default), round (precision, default), count (length),
+ * plus nunjucks' own (default, lower, upper, title, replace, select, list, ...).
+ * Tests: is_state (for select/reject: `ids | select('is_state', 'on') | list | count`).
  *
  * Not Home Assistant's whole template language: a template using something missing
  * renders an error note instead of hanging. Browser-safe.
@@ -64,6 +65,15 @@ export function createHaJinja(getStates) {
         return fn(n * k) / k;
     });
 
+    // Home Assistant's count: the length of a list (Jinja's own name for it)
+    env.addFilter('count', (v) => (v == null ? 0 : (v.length ?? Object.keys(v).length)));
+    const isState = (/** @type {string} */ id, /** @type {any} */ s) => {
+        const state = getStates()[id]?.state;
+        return Array.isArray(s) ? s.includes(state) : state === String(s);
+    };
+    // is_state as a test, for select('is_state', 'on') and reject('is_state', 'off')
+    env.addTest('is_state', isState);
+
     /** states('id'), and states.domain.object (a state object) */
     function statesGlobal() {
         const all = getStates();
@@ -82,7 +92,7 @@ export function createHaJinja(getStates) {
             ...variables,
             states: statesGlobal(),
             state_attr: (id, attr) => all[id]?.attributes?.[attr] ?? null,
-            is_state: (id, s) => (Array.isArray(s) ? s.includes(all[id]?.state) : all[id]?.state === String(s)),
+            is_state: isState,
             is_state_attr: (id, attr, v) => all[id]?.attributes?.[attr] === v,
             has_value: (id) => !!all[id] && !['unknown', 'unavailable'].includes(all[id].state),
             now: () => haNow(),

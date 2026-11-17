@@ -205,8 +205,12 @@ for (const view of SAMPLES) {
         expect(view).toBeTruthy();
         const errors = watchErrors(page);
         await openView(page, view);
+        // layout height (offsetHeight): a dashboard is scaled down to the stage, so its
+        // on-screen sizes are smaller than the cards' own
         const cards = await page.locator('.demo-board-cell > *').evaluateAll(els => els.map(e => ({
-            tag: e.localName, height: Math.round(e.getBoundingClientRect().height),
+            tag: e.localName, height: /** @type {HTMLElement} */ (e).offsetHeight,
+            // a card whose Visibility conditions fail is hidden, as in Home Assistant
+            hidden: /** @type {HTMLElement} */ (e.parentElement).style.display === 'none',
         })));
         // the generated header (one layout card framing the description), then the view's cards in
         // their LCARS frames (one cell each; an overlay card stays outside them)
@@ -222,7 +226,7 @@ for (const view of SAMPLES) {
         for (const c of cards) {
             expect(c.tag).toMatch(/^lcards-/);
             // the alert overlay has no size until an alert mode is on
-            if (c.tag !== 'lcards-alert-overlay') expect(c.height, c.tag).toBeGreaterThan(10);
+            if (c.tag !== 'lcards-alert-overlay' && !c.hidden) expect(c.height, c.tag).toBeGreaterThan(10);
         }
         await expect(page.locator('.demo-board-error')).toHaveCount(0);
         expect(errors).toEqual([]);
@@ -236,17 +240,33 @@ test('switching views replaces the cards', async ({ page }) => {
     await expect(page.locator('.demo-board-section')).toHaveCount((second.config.sections?.length ?? 0) + 1);
 });
 
-test('a gallery dashboard mounts every card in its layout, at the dashboard\'s own height', async ({ page }) => {
+test('a gallery dashboard mounts every card, built at its design size and scaled to the stage', async ({ page }) => {
     const errors = watchErrors(page);
     const bridge = VIEWS.find(v => v.file === 'gallery/bridge');
     expect(bridge, 'the bridge dashboard is in the demo').toBeTruthy();
     await openView(page, bridge);
     await expect(page.locator('.demo-board-layout > .demo-board-cell')).toHaveCount(bridge.config.cards.length);
-    // calc(100dvh - header): about the window's height, not a fixed 900 px
-    const height = await page.locator('.demo-board-layout').evaluate(el => el.getBoundingClientRect().height);
-    const window = await page.evaluate(() => innerHeight);
-    expect(Math.abs(height - (window - 56))).toBeLessThan(4);
+    // built as a 1600 x 1000 window less the header (calc(100dvh - header)), never squeezed
+    const size = await page.locator('.demo-board-layout').evaluate(el => [el.offsetWidth, el.offsetHeight]);
+    expect(size).toEqual([1600, 944]);
+    // the whole screen scaled to the stage's width, keeping its shape
+    const [box, stage] = await page.evaluate(() => [
+        document.querySelector('.demo-board-layout').getBoundingClientRect(),
+        document.querySelector('.demo-board-stage').getBoundingClientRect(),
+    ].map(r => ({ w: r.width, h: r.height })));
+    // within the stage's content box (it has padding): nothing sticks out on the right
+    const pad = await page.locator('.demo-board-stage').evaluate(el => parseFloat(getComputedStyle(el).paddingLeft) + parseFloat(getComputedStyle(el).paddingRight));
+    expect(Math.abs(box.w - Math.min(1600, stage.w - pad))).toBeLessThan(2);
+    expect(Math.abs(box.h / box.w - 944 / 1600)).toBeLessThan(0.01);
     expect(errors).toEqual([]);
+});
+
+test('a phone dashboard is built at its max_width and its cards are not squeezed', async ({ page }) => {
+    const portrait = VIEWS.find(v => v.file === 'gallery/picard-portrait');
+    expect(portrait?.maxWidth, 'the portrait panel has a max_width').toBeTruthy();
+    await openView(page, portrait);
+    const size = await page.locator('.demo-board-layout').evaluate(el => [el.offsetWidth, el.offsetHeight]);
+    expect(size).toEqual([portrait.maxWidth, 944]);
 });
 
 test('D-pad segments run perform-action: the Voyager arrows step VALUE, the centre toggles the lights', async ({ page }) => {
@@ -334,4 +354,23 @@ test('the charts follow their sliders on the sample entities (a live history str
     await page.mouse.up();
     await expect.poll(last, { timeout: 5_000 }).not.toBe(before);
     expect(await last()).toBeLessThan(before);
+});
+
+test('a card with Visibility conditions shows only while they pass (Picard operations: one panel per mode)', async ({ page }) => {
+    const ops = VIEWS.find(v => v.file === 'gallery/picard-operations');
+    expect(ops).toBeTruthy();
+    await openView(page, ops);
+    // three panels share one cell, one per lcards_test_mode option
+    const shown = () => page.locator('.demo-board-cell').evaluateAll(cells => cells.filter(c => c.querySelector('lcards-layout-card') && c.style.display !== 'none').length);
+    const hidden = () => page.locator('.demo-board-cell').evaluateAll(cells => cells.filter(c => c.style.display === 'none').length);
+    await expect.poll(hidden).toBe(2);
+    const before = await shown();
+    // switch the mode: still two hidden, a different one shown
+    await page.evaluate(async () => {
+        const env = await globalThis.__lcardsDocsEnv;
+        const now = env.hass.states['input_select.lcards_test_mode'].state;
+        env.setState('input_select.lcards_test_mode', now === 'alpha' ? 'gamma' : 'alpha');
+    });
+    await expect.poll(hidden).toBe(2);
+    expect(await shown()).toBe(before);
 });

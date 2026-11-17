@@ -101,6 +101,28 @@ export function viewTexts(demo, dir = DEMO_DIR) {
 
 /** Segment colours along a header bar, in turn (theme roles, so alert modes and themes recolour them). */
 const SEGMENT_COLORS = ['theme:colors.ui.primary', 'theme:colors.ui.tertiary', 'theme:colors.ui.secondary'];
+/** Taps the docs Live Demo cannot carry out: they need Home Assistant's own dialogs or pages. */
+const HA_ONLY_ACTIONS = ['more-info', 'navigate', 'url', 'assist', 'fire-dom-event'];
+
+/**
+ * The actions in a view's own cards that only work in Home Assistant (the Live Demo
+ * notes them under the view), in HA_ONLY_ACTIONS order.
+ * @param {any} config - the view's config (its cards, not the demo frame)
+ * @returns {string[]}
+ */
+export function homeAssistantOnlyActions(config) {
+    const found = new Set();
+    const walk = (/** @type {any} */ v) => {
+        if (!v || typeof v !== 'object') return;
+        for (const key of ['tap_action', 'hold_action', 'double_tap_action']) {
+            if (HA_ONLY_ACTIONS.includes(v[key]?.action)) found.add(v[key].action);
+        }
+        for (const x of Object.values(v)) walk(x);
+    };
+    walk(config);
+    return HA_ONLY_ACTIONS.filter(a => found.has(a));
+}
+
 /** The frame's left column (px): the sweeps' vertical arm and the bar down each section, the touch strip to scroll by */
 const FRAME_WIDTH = 90;
 /** A rounder sweep than the elbow's default (outer = half the arm) */

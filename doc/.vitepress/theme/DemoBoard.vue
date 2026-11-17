@@ -49,6 +49,7 @@
           <button type="button" class="demo-board-load" @click="load">Load this view</button>
         </div>
         <div ref="stage" class="demo-board-stage" :class="{ hidden: poster }" :data-view="current"></div>
+        <p v-if="haOnlyNote" class="demo-board-ha-only">{{ haOnlyNote }}</p>
         <details class="demo-board-yaml">
           <summary>YAML of this view</summary>
           <pre><code>{{ active?.yaml }}</code></pre>
@@ -103,6 +104,22 @@ function load() {
   loaded.value = [...loaded.value, current.value]
   show(current.value)
 }
+
+/** What each Home Assistant-only tap does there (demo.data.js haOnly). */
+const HA_ONLY = {
+  'more-info': "open an entity's details",
+  navigate: 'go to another view',
+  url: 'open a web page',
+  assist: 'open Assist',
+  'fire-dom-event': 'open a browser_mod pop-up',
+}
+/** A note under a view whose cards have taps only Home Assistant can carry out. */
+const haOnlyNote = computed(() => {
+  const what = (active.value?.haOnly ?? []).map(a => HA_ONLY[a]).filter(Boolean)
+  if (!what.length) return ''
+  const list = what.length > 1 ? `${what.slice(0, -1).join(', ')} or ${what.at(-1)}` : what[0]
+  return `In Home Assistant, some taps on this view ${list}. This page can't show that, so those taps do nothing here.`
+})
 
 /** A view's title without its topic's or group's name in front ("Astrometrics comet" -> "Comet"). */
 function shortTitle(view, t, g) {
@@ -324,6 +341,15 @@ onUnmounted(() => {
   line-height: 1.5;
   text-transform: uppercase;
   vertical-align: 1px;
+}
+/* a view with taps only Home Assistant can carry out */
+.demo-board-ha-only {
+  margin: 8px 0 0;
+  padding: 6px 12px;
+  border-left: 4px solid var(--vp-c-warning-1);
+  background: var(--vp-c-warning-soft);
+  color: var(--vp-c-text-1);
+  font-size: 14px;
 }
 /* the open view's release, beside its title */
 .demo-board-badge-heading {

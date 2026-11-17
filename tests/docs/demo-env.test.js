@@ -31,6 +31,19 @@ test('increment and decrement step an input_number and hold inside min and max',
     assert.equal(state(id), '0', 'held at min');
 });
 
+test('select_next and select_previous step an input_select, wrapping round like Home Assistant', async () => {
+    const { env, call, state } = demoEnv();
+    const id = 'input_select.lcards_test_mode';
+    const options = env.hass.states[id].attributes.options;
+    await call('input_select', 'select_option', { entity_id: id, option: options.at(-1) });
+    await call('input_select', 'select_next', { entity_id: id });
+    assert.equal(state(id), options[0], 'wraps to the first');
+    await call('input_select', 'select_previous', { entity_id: id });
+    assert.equal(state(id), options.at(-1), 'wraps back to the last');
+    await call('input_select', 'select_next', { entity_id: id, cycle: false });
+    assert.equal(state(id), options.at(-1), 'held at the end with cycle: false');
+});
+
 test('toggle, turn_on and turn_off do nothing to a number or select helper (Home Assistant has no such services)', async () => {
     const { call, state } = demoEnv();
     const id = 'input_number.lcards_test_value';
@@ -111,6 +124,36 @@ test('Jinja2 templates render without Home Assistant (ha-jinja): states, filters
     assert.equal(render("{{ 'abc' | float(0) }}"), '0');
     assert.match(render("{{ now().strftime('%H:%M') }}"), /^\d\d:\d\d$/);
     assert.equal(render("{{ (7.456 | round(1)) }}"), '7.5');
+    // the gallery's counting (classic wings, Picard tiles): select by state, then count
+    states['input_boolean.a'] = { state: 'on' };
+    states['input_boolean.b'] = { state: 'off' };
+    assert.equal(render("{{ ['input_boolean.a', 'input_boolean.b'] | select('is_state', 'on') | list | count }}"), '1');
+    assert.equal(render("{{ ['input_boolean.a', 'input_boolean.b'] | reject('is_state', 'on') | list | count }}"), '1');
+});
+
+test('every Jinja2 template in the demo views and gallery dashboards renders in the stand-in', async () => {
+    const { createHaJinja } = await import('../helpers/ha-jinja.js');
+    const { readdirSync, readFileSync } = await import('node:fs');
+    const render = createHaJinja(() => DEMO_STATES);
+    const files = [
+        ...readdirSync('demo/views').map((f) => `demo/views/${f}`),
+        ...readdirSync('doc/gallery/dashboards').map((f) => `doc/gallery/dashboards/${f}`),
+    ].filter((f) => f.endsWith('.yaml'));
+    const yaml = (await import('js-yaml')).default;
+    /** every string in a config */
+    const strings = (v, out = []) => {
+        if (typeof v === 'string') out.push(v);
+        else if (v && typeof v === 'object') for (const x of Object.values(v)) strings(x, out);
+        return out;
+    };
+    const failed = [];
+    for (const f of files) {
+        for (const t of strings(yaml.load(readFileSync(f, 'utf8')))) {
+            if (!/\{\{|\{%/.test(t)) continue;
+            try { render(t); } catch (e) { failed.push(`${f}: ${t.slice(0, 60)}: ${String(e.message).split('\n')[0]}`); }
+        }
+    }
+    assert.deepEqual(failed, []);
 });
 
 test('the sample Home Assistant answers render_template subscriptions when given a renderer', async () => {
@@ -125,4 +168,30 @@ test('the sample Home Assistant answers render_template subscriptions when given
         env.hass.connection.subscribeMessage((r) => resolve(r.result), { type: 'render_template', template: "{{ states('input_number.lcards_test_power') }} %" });
     });
     assert.equal(result, '82 %');
+});
+
+test('visibility: the docs view mount checks Home Assistant\'s conditions (state, numeric_state, and, or)', async () => {
+    const { visibilityPasses } = await import('../../doc/.vitepress/theme/view-mount.js');
+    const hass = { states: { 'input_select.mode': { state: 'ANGLED' }, 'input_number.n': { state: '40' } } };
+    const state = (s) => ({ condition: 'state', entity: 'input_select.mode', state: s });
+    assert.equal(visibilityPasses([state('ANGLED')], hass), true);
+    assert.equal(visibilityPasses([state('LEVEL')], hass), false);
+    assert.equal(visibilityPasses([state(['LEVEL', 'ANGLED'])], hass), true);
+    assert.equal(visibilityPasses([{ condition: 'state', entity: 'input_select.mode', state_not: 'ANGLED' }], hass), false);
+    assert.equal(visibilityPasses([{ condition: 'numeric_state', entity: 'input_number.n', above: 30, below: 50 }], hass), true);
+    assert.equal(visibilityPasses([{ condition: 'numeric_state', entity: 'input_number.n', above: 40 }], hass), false);
+    assert.equal(visibilityPasses([{ condition: 'or', conditions: [state('LEVEL'), state('ANGLED')] }], hass), true);
+    assert.equal(visibilityPasses([{ condition: 'and', conditions: [state('LEVEL'), state('ANGLED')] }], hass), false);
+    assert.equal(visibilityPasses([state('ANGLED'), state('LEVEL')], hass), false, 'all must pass');
+    assert.equal(visibilityPasses([], hass), true);
+});
+
+test('the sample Home Assistant tells listeners about state changes (onState)', () => {
+    const { env } = demoEnv();
+    const seen = [];
+    const stop = env.onState((hass, id) => seen.push([id, hass.states[id].state]));
+    env.setState('input_boolean.lcards_test_toggle', 'on');
+    stop();
+    env.setState('input_boolean.lcards_test_toggle', 'off');
+    assert.deepEqual(seen, [['input_boolean.lcards_test_toggle', 'on']]);
 });
