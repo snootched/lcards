@@ -1,0 +1,333 @@
+# Perf regression check (2026-11-17): one card per optimisation of the performance
+# review (reports/perf-review-2026-11-17.md), to walk through by hand. Numbered
+# blocks match the test list in the review's "Manual check" section.
+title: Perf regression check
+path: perf-regression
+type: sections
+max_columns: 4
+sections:
+  # 1. Light colour: match-light, match-brightness, ranges_attribute (attributes change, state stays on)
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: bar-label-left
+        height: 40
+        text: { label: { content: "1  LIGHT COLOUR (TEST LAMP)" } }
+        grid_options: { columns: full, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_lamp_hue
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: HUE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_lamp_level
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: LEVEL } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lamp_power
+        preset: lozenge
+        text: { name: { content: LAMP POWER, show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      # background follows the lamp's colour, LVL fades with its brightness
+      - type: custom:lcards-button
+        entity: light.lcards_test_lamp
+        preset: lozenge
+        tap_action: { action: none }
+        text:
+          name: { content: MATCH LIGHT, show: true }
+          label:
+            content: LVL
+            show: true
+            position: top-left
+            color:
+              active: alpha(var(--lcards-gray-lightest), match-brightness)
+              inactive: var(--lcards-gray-lightest)
+        style:
+          card:
+            color:
+              background:
+                active: match-light
+                inactive: var(--lcards-gray)
+        grid_options: { columns: 8, rows: 1 }
+      # brightness over 50 %: green; under: red (an attribute, the state stays on)
+      - type: custom:lcards-button
+        entity: light.lcards_test_lamp
+        preset: lozenge
+        tap_action: { action: none }
+        ranges_attribute: brightness_pct
+        text: { name: { content: BRIGHTNESS RANGE, show: true } }
+        style:
+          card:
+            color:
+              background:
+                above:50: var(--lcards-green)
+                below:50: var(--lcars-alert-red)
+                inactive: var(--lcards-gray)
+        grid_options: { columns: 8, rows: 1 }
+      # the shell strategy's light slider: pills shaded to the lamp's colour
+      - type: custom:lcards-slider
+        entity: light.lcards_test_lamp
+        preset: pills-left-border
+        text: { name: { content: TEST LAMP, show: true } }
+        style:
+          track:
+            segments:
+              gradient:
+                start:
+                  active: "darken(match-light, 0.6)"
+                end:
+                  active: match-light
+        grid_options: { columns: 12, rows: 1 }
+  # 2. Jinja templates and text fit on a changing value
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: bar-label-left
+        height: 40
+        text: { label: { content: "2  TEMPLATES AND TEXT FIT" } }
+        grid_options: { columns: full, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: VALUE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        tap_action: { action: none }
+        text:
+          name:
+            content: "JINJA {{ states('input_number.lcards_test_value') | int }}"
+            show: true
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            content: "LEVEL {{ states('input_number.lcards_test_value') | int }} OF ONE HUNDRED UNITS"
+            position: center-right
+            font_size: 20
+            fit: true
+        grid_options: { columns: 12, rows: 1 }
+  # 3. Component buttons: a dpad (segments) and alert symbols in their cells
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: bar-label-left
+        height: 40
+        text: { label: { content: "3  DPAD AND ALERT SYMBOLS" } }
+        grid_options: { columns: full, rows: 1 }
+      - type: custom:lcards-button
+        component: dpad
+        dpad:
+          segments:
+            default:
+              style:
+                fill:
+                  default: var(--lcards-gray)
+                  active: var(--lcards-orange)
+            center:
+              entity: input_boolean.lcards_test_lights
+              tap_action: { action: toggle }
+            up:
+              tap_action:
+                action: perform-action
+                perform_action: input_number.increment
+                target: { entity_id: input_number.lcards_test_value }
+            down:
+              tap_action:
+                action: perform-action
+                perform_action: input_number.decrement
+                target: { entity_id: input_number.lcards_test_value }
+            left:
+              entity: input_boolean.lcards_test_lights
+              tap_action: { action: toggle }
+            right:
+              entity: input_boolean.lcards_test_doors
+              tap_action: { action: toggle }
+        grid_options: { columns: 16, rows: 5 }
+      # wider than tall in a square cell: stays inside it
+      - type: custom:lcards-button
+        component: alert
+        preset: default
+        entity: input_number.lcards_test_value
+        ranges:
+          - { preset: condition_red, at_least: 80 }
+          - { preset: condition_yellow, at_least: 50, below: 80 }
+          - { preset: default, below: 50 }
+        grid_options: { columns: 16, rows: 5 }
+      - type: custom:lcards-button
+        component: alert
+        preset: condition_blue
+        grid_options: { columns: 8, rows: 2 }
+      - type: custom:lcards-button
+        component: alert
+        preset: condition_green
+        grid_options: { columns: 8, rows: 2 }
+  # 4. Picard pulse lights, shape textures, images
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: bar-label-left
+        height: 40
+        text: { label: { content: "4  PULSES, TEXTURES, IMAGES" } }
+        grid_options: { columns: full, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: picard-gauge-column
+        text: { name: { show: true, content: COLUMN } }
+        grid_options: { columns: 6, rows: 6 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: picard-gauge-vertical
+        component: picard
+        text: { name: { content: GAUGE, show: true } }
+        grid_options: { columns: 6, rows: 6 }
+      - type: custom:lcards-button
+        preset: lozenge
+        tap_action: { action: none }
+        text: { name: { content: TEXTURE PULSE, show: true } }
+        shape_texture:
+          preset: pulse
+          opacity: 0.8
+          config:
+            color: var(--lcars-alert-red)
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: panel-dark
+        min_height: 0
+        text: { label: { content: BUILT-IN IMAGE } }
+        style:
+          card:
+            color:
+              background: transparent
+        background_animation:
+          - preset: image
+            config:
+              source: builtin:moon_lroc
+              size: cover
+        grid_options: { columns: 6, rows: 2 }
+      - type: custom:lcards-button
+        preset: panel-dark
+        min_height: 0
+        text: { label: { content: MISSING IMAGE } }
+        style:
+          card:
+            color:
+              background: transparent
+        background_animation:
+          - preset: image
+            config:
+              source: /local/lcards-perf-check-missing.png
+              size: cover
+        grid_options: { columns: 6, rows: 2 }
+  # 5. MSD: a marching dashed line, recoloured live by TOGGLE
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: bar-label-left
+        height: 40
+        text: { label: { content: "5  MSD MARCH" } }
+        grid_options: { columns: full, rows: 1 }
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text: { name: { content: TOGGLE, show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-msd-card
+        grid_options:
+          columns: full
+          rows: 3
+        msd:
+          view_box: [0, 0, 800, 160]
+          overlays:
+            - id: perf_march_line
+              type: line
+              anchor: [40, 80]
+              attach_to: [760, 80]
+              route: direct
+              entity: input_boolean.lcards_test_toggle
+              style:
+                width: 8
+                dash_array: "24,12"
+                color:
+                  active: var(--lcars-alert-red)
+                  inactive: var(--lcards-orange)
+              animations:
+                - trigger: on_load
+                  preset: march
+                  params:
+                    speed: 1.5
+  # 6. Screen effects and alert modes
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: bar-label-left
+        height: 40
+        text: { label: { content: "6  SCREEN EFFECTS AND ALERTS" } }
+        grid_options: { columns: full, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: STATIC, show: true } }
+        tap_action:
+          action: perform-action
+          perform_action: lcards.trigger_effect
+          data:
+            layers:
+              canvas: { preset: static }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: PIXELATE, show: true } }
+        tap_action:
+          action: perform-action
+          perform_action: lcards.trigger_effect
+          data:
+            layers:
+              canvas: { preset: pixelate }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR EFFECT, show: true } }
+        tap_action:
+          action: perform-action
+          perform_action: lcards.clear_effect
+        grid_options: { columns: 8, rows: 1 }
+      # the alert mode itself (the helper manager follows it)
+      - type: custom:lcards-button
+        entity: input_select.lcards_alert_mode
+        preset: lozenge
+        tap_action: { action: none }
+        text:
+          name: { content: ALERT MODE, show: true }
+          state: { show: true }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: RED ALERT, show: true } }
+        tap_action:
+          action: perform-action
+          perform_action: lcards.red_alert
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR ALERT, show: true } }
+        tap_action:
+          action: perform-action
+          perform_action: lcards.clear_alert
+        grid_options: { columns: 8, rows: 1 }

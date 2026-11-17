@@ -29,6 +29,8 @@ topics:
         views: [lcars-patterns-picard, lcars-patterns-readouts, lcars-patterns-classic, lcars-shapes-check]
       - title: Docs audit fixes
         views: [d2-batch1-fixes, d2-batch4-msd-fixes, d2-batch5-core-fixes, b1-banners-red, b1-banners-blue]
+      - title: Checks
+        views: [perf-regression]
   - id: msd
     title: MSD
     views: [msd-basics, msd-routing, msd-shapes, msd-leader-lines, msd-lineart]
@@ -93,6 +95,11 @@ topics:
 releases:
   - version: "2026.11.0"
     views:
+      - file: perf-regression
+        summary: "Perf regression check: one card per optimisation of the 2026-11-17 performance review"
+        description: "Walk through by hand after a performance change (test list in reports/perf-review-2026-11-17.md, Manual check). 1: drag HUE and LEVEL and toggle LAMP POWER: MATCH LIGHT, the pill slider and BRIGHTNESS RANGE (green over 50 %) follow the test lamp. 2: drag VALUE: the Jinja number and the fitted label follow. 3: the dpad's segments step VALUE and toggle LIGHTS and DOORS; the alert symbols stay in their cells. 4: the Picard lights pulse, the texture pulses (scroll away and back), the moon image shows, the missing image leaves an empty block. 5: the dashed line marches; TOGGLE recolours it. 6: STATIC and PIXELATE cover the screen until CLEAR EFFECT; RED ALERT recolours everything until CLEAR ALERT."
+        session: "Perf review 2026-11-17"
+        public: false
       - file: chart-timeline
         summary: "Chart timelines and state bands: states as bars, or shaded behind a line"
         description: "chart_type: rangeBar. Toggle LIGHTS and DOORS or pick a MODE: the bar on the right grows while a state holds and a change starts a new one; hover a bar for its state, times and how long it lasted. Top: the theme's state colours, as Home Assistant's history draws them. Middle: your own colours by state, only the lights' active runs, changes under 30 seconds hidden. Bottom: state_bands shade the lights (orange) and doors (blue) behind VALUE while they are on; drag VALUE to move the line. All three share a sync_group: hover one and a dashed line marks the same moment on the others."

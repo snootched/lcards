@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { validateTexts } from '../../scripts/lcards-validate.mjs';
 import { loadDemo, demoViews, viewTexts, buildDashboard, headerNote, topicGroups, BOARDS, GALLERY_PREFIX, packGrid, cardSpan, frameGroups, GRID_STEPS } from '../../scripts/lib/demo-dashboard.js';
 import { disallowedEntities } from '../helpers/allowed-entities.js';
+import { TEST_ROOMS } from '../ha/ha-client.mjs';
 import yaml from 'js-yaml';
 
 /** Non-personal entities the demos may use besides the lcards_test_* helpers. */
@@ -305,6 +306,9 @@ test('a view\'s description sits in a frame headed by the view\'s header bar', (
 });
 
 /** Views whose sliders are the feature itself (they drive nothing else) */
+/** The test lamps' helpers (power, level, hue) -> the lamp they drive. */
+const LAMP_OF_HELPER = Object.fromEntries(Object.entries(TEST_ROOMS.lamps)
+    .flatMap(([light, l]) => [l.boolean, l.level, l.hue].map((h) => [h, light])));
 const SLIDER_FEATURE_VIEWS = new Set(['ring-gauge', 'slider-presets', 'slider-drag-badge', 'slider-picard-shapes']);
 
 test('controls drive their own view: alert buttons only where something reacts to the alert mode; every slider bound to another card', () => {
@@ -317,7 +321,9 @@ test('controls drive their own view: alert buttons only where something reacts t
         if (SLIDER_FEATURE_VIEWS.has(v.path)) continue;
         for (const s of cards.filter(c => c.type === 'custom:lcards-slider')) {
             const others = JSON.stringify(cards.filter(c => c !== s));
-            assert.ok(others.includes(s.entity), `${v.file}: the ${s.text?.name?.content ?? s.entity} slider drives nothing on the view`);
+            // a test lamp's level or hue helper drives the lamp (a template light)
+            const lamp = LAMP_OF_HELPER[s.entity];
+            assert.ok(others.includes(s.entity) || (lamp && others.includes(lamp)), `${v.file}: the ${s.text?.name?.content ?? s.entity} slider drives nothing on the view`);
             assert.ok(s.text?.name?.content, `${v.file}: a slider without a name (say what it drives)`);
         }
     }
