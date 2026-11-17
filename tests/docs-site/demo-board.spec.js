@@ -31,6 +31,8 @@ async function viewMounted(page, path) {
 
 /** Open a view's topic in the menu (if closed) and pick the view; load it if it is heavy. */
 async function pickView(page, view) {
+    // a dashboard folds the menu away: bring it back first, as a reader would
+    if (await page.locator('.demo-board-menu').isHidden()) await page.locator('.demo-board-menu-toggle').click();
     const topic = page.locator(`.demo-board-topic[data-topic="${view.topic}"]`);
     if (await topic.getAttribute('aria-expanded') !== 'true') await topic.click();
     await page.locator(`.demo-board-topic-views button[data-view="${view.path}"]`).click();
@@ -240,24 +242,19 @@ test('switching views replaces the cards', async ({ page }) => {
     await expect(page.locator('.demo-board-section')).toHaveCount((second.config.sections?.length ?? 0) + 1);
 });
 
-test('a gallery dashboard mounts every card, built at its design size and scaled to the stage', async ({ page }) => {
+test('a gallery dashboard mounts every card at its design size; a narrower stage scrolls sideways', async ({ page }) => {
     const errors = watchErrors(page);
     const bridge = VIEWS.find(v => v.file === 'gallery/bridge');
     expect(bridge, 'the bridge dashboard is in the demo').toBeTruthy();
     await openView(page, bridge);
     await expect(page.locator('.demo-board-layout > .demo-board-cell')).toHaveCount(bridge.config.cards.length);
-    // built as a 1600 x 1000 window less the header (calc(100dvh - header)), never squeezed
-    const size = await page.locator('.demo-board-layout').evaluate(el => [el.offsetWidth, el.offsetHeight]);
-    expect(size).toEqual([1600, 944]);
-    // the whole screen scaled to the stage's width, keeping its shape
-    const [box, stage] = await page.evaluate(() => [
-        document.querySelector('.demo-board-layout').getBoundingClientRect(),
-        document.querySelector('.demo-board-stage').getBoundingClientRect(),
-    ].map(r => ({ w: r.width, h: r.height })));
-    // within the stage's content box (it has padding): nothing sticks out on the right
-    const pad = await page.locator('.demo-board-stage').evaluate(el => parseFloat(getComputedStyle(el).paddingLeft) + parseFloat(getComputedStyle(el).paddingRight));
-    expect(Math.abs(box.w - Math.min(1600, stage.w - pad))).toBeLessThan(2);
-    expect(Math.abs(box.h / box.w - 944 / 1600)).toBeLessThan(0.01);
+    // built as a 1600 x 1000 window less the header (calc(100dvh - header)), never squeezed or scaled
+    const size = await page.locator('.demo-board-layout').evaluate(el => [el.offsetWidth, el.offsetHeight, el.getBoundingClientRect().width]);
+    expect(size).toEqual([1600, 944, 1600]);
+    // the stage is narrower than 1600 here: its frame scrolls sideways instead
+    const frame = await page.locator('.demo-board-layout-frame').evaluate(el => ({ scroll: el.scrollWidth, client: el.clientWidth, overflow: getComputedStyle(el).overflowX }));
+    expect(frame.overflow).toBe('auto');
+    expect(frame.scroll).toBeGreaterThanOrEqual(1600);
     expect(errors).toEqual([]);
 });
 
@@ -373,4 +370,22 @@ test('a card with Visibility conditions shows only while they pass (Picard opera
     });
     await expect.poll(hidden).toBe(2);
     expect(await shown()).toBe(before);
+});
+
+test('picking a dashboard folds the side menu away; the toggle brings it back; another view reopens it', async ({ page }) => {
+    const dashboards = VIEWS.filter(v => v.file.startsWith('gallery/'));
+    const other = VIEWS.find(v => !v.file.startsWith('gallery/'));
+    await page.goto(URL_PATH);
+    const menu = page.locator('.demo-board-menu');
+    // on arrival the menu shows, even when the first view is a dashboard
+    await expect(menu).toBeVisible();
+    await pickView(page, dashboards[1]);
+    await expect(menu).toBeHidden();
+    const toggle = page.locator('.demo-board-menu-toggle');
+    await expect(toggle).toHaveText('Show menu');
+    await toggle.click();
+    await expect(menu).toBeVisible();
+    await pickView(page, other);
+    await expect(menu).toBeVisible();
+    await expect(toggle).toHaveCount(0);
 });

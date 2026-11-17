@@ -66,14 +66,16 @@ export function mountView(stage, view, env, { maxWidth, stale = () => false, onC
   // a layout view: one CSS grid of named areas, as lcards-layout-view lays it out. A
   // dashboard is designed for a whole window, so it is built at that size (DESIGN_WIDTH,
   // or the view's max_width for a phone layout; a window-high view at DESIGN_HEIGHT) and
-  // the whole screen is scaled down to the stage, like a screenshot: nothing squeezes.
+  // the stage scrolls sideways when it is narrower, as Home Assistant does in a narrow
+  // window. Not scaled: cards that measure themselves on screen (charts) would draw for
+  // the shrunk size and be shrunk again.
   if (view.type === 'custom:lcards-layout-view') {
     const l = view.layout ?? {}
     const width = maxWidth ?? DESIGN_WIDTH
     const height = designHeight(l)
     const frame = document.createElement('div')
     frame.className = 'demo-board-layout-frame'
-    Object.assign(frame.style, { position: 'relative', overflow: 'hidden', margin: '0 auto' })
+    Object.assign(frame.style, { overflowX: 'auto', overflowY: 'hidden', maxWidth: '100%' })
     const grid = document.createElement('div')
     grid.className = 'demo-board-layout'
     Object.assign(grid.style, {
@@ -86,28 +88,10 @@ export function mountView(stage, view, env, { maxWidth, stale = () => false, onC
       height: `${height}px`,
       padding: l.padding ?? '0',
       boxSizing: 'border-box',
-      transformOrigin: '0 0',
+      margin: '0 auto',
     })
     frame.appendChild(grid)
     stage.appendChild(frame)
-    // fit the stage, now and whenever it resizes (never larger than the design). A grid
-    // whose fixed tracks, gaps and padding add up to more than its width overflows it (as
-    // in Home Assistant, where the view scrolls): fit what it really takes.
-    const fit = () => {
-      const w = Math.max(width, grid.scrollWidth)
-      const h = Math.max(height, grid.scrollHeight)
-      // the stage's content width (clientWidth includes its padding)
-      const cs = getComputedStyle(stage)
-      const room = stage.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0)
-      const scale = Math.min(1, (room > 0 ? room : w) / w)
-      grid.style.transform = scale < 1 ? `scale(${scale})` : ''
-      Object.assign(frame.style, { width: `${w * scale}px`, height: `${h * scale}px` })
-    }
-    fit()
-    stage._lcardsFit?.disconnect()
-    stage._lcardsFit = new ResizeObserver(fit)
-    stage._lcardsFit.observe(stage)
-    stage._lcardsFit.observe(grid)
     for (const config of view.cards ?? []) {
       const cell = document.createElement('div')
       cell.className = 'demo-board-cell'
