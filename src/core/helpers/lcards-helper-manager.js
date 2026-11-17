@@ -83,6 +83,9 @@ export class LCARdSHelperManager extends BaseService {
    * @param {Object} hass - New Home Assistant instance
    */
   updateHass(hass) {
+    // Every card passes each new hass on (LCARdSNativeCard), so the same object
+    // arrives once per card: only the first one has anything new. 2026-11-17
+    if (hass && hass === this.hass && this._autoSwitchInitialized) return;
     this.hass = hass;
 
     // Only setup auto-switch once when HASS is available
