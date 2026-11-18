@@ -48,7 +48,7 @@ BackgroundAnimationRenderer              one per card: config, canvas, observers
 
 | File | Role |
 |---|---|
-| `src/core/packs/shared/ImageLoader.js` | Singleton `<img>` cache; resolves `builtin:key` via AssetManager |
+| `src/core/packs/shared/ImageLoader.js` | Singleton `<img>` cache (LRU of 32 URLs, failed loads dropped); resolves `builtin:key` via AssetManager |
 | `src/core/packs/shared/ImageDrawUtils.js` | CSS `background-size`/`background-position` math; SVG zero-dimension fallback |
 
 ---

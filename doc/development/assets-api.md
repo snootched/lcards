@@ -128,7 +128,7 @@ Available on `window.lcards.anchorHelpers.*`:
 
 ### `window.lcards.clearTextMeasureCache()`
 
-Clears the internal canvas-based text measurement cache used by the MSD renderer. Call this after a font is loaded or changed to ensure subsequent text layout measurements use the new font metrics.
+Clears the internal canvas-based text measurement cache used by the MSD renderer. The cache is keyed by the text itself, so it keeps only the 2000 most recently used entries (`TEXT_MEASURE_CACHE_MAX`, `src/msd/renderer/RendererUtils.js:9`). Call this after a font is loaded or changed to ensure subsequent text layout measurements use the new font metrics.
 
 ```javascript
 window.lcards.loadFont('lcards_microgramma');

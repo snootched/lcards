@@ -9,7 +9,7 @@ The `shape_texture` feature renders a Canvas2D texture or animation **inside** t
 | `background_animation` | Canvas2D, or WebGL (three.js) for presets that have it | Full card bleed | `Canvas2DRenderer` RAF loop; entries are anime.js targets |
 | `shape_texture` | Canvas2D | Inside shape fill only | `Canvas2DRenderer` RAF loop (no PerformanceMonitor) |
 
-The [background animation system](./background-animation-system.md) handles full-bleed card backgrounds. `shape_texture` mounts a `<canvas>` element inside a `<foreignObject>` placeholder in the card SVG, clipped to the shape geometry via Canvas2D Path2D. Each texture's `CanvasTextureRenderer` runs its effect on its own `Canvas2DRenderer` (the background system's loop, created with `monitorPerformance: false`, `CanvasTextureRenderer.js:105`).
+The [background animation system](./background-animation-system.md) handles full-bleed card backgrounds. `shape_texture` mounts a `<canvas>` element inside a `<foreignObject>` placeholder in the card SVG, clipped to the shape geometry via Canvas2D Path2D. Each texture's `CanvasTextureRenderer` runs its effect on its own `Canvas2DRenderer` (the background system's loop, created with `monitorPerformance: false`, `CanvasTextureRenderer.js:111`).
 
 ## Supported Card Types
 
@@ -283,7 +283,7 @@ ${iconData.markup}     ← icon
 ${textMarkup}          ← text
 ```
 
-`${textureMarkup}` emits a `<foreignObject>` sized to the full card. After Lit renders the SVG, `_mountCanvasTexture()` locates the `<foreignObject>` and passes it to `CanvasTextureRenderer`, which appends a `<canvas>` (100% × 100%, `pointer-events:none`) inside it. A `ResizeObserver` keeps the canvas dimensions in sync with the layout.
+`${textureMarkup}` emits a `<foreignObject>` sized to the full card. After Lit renders the SVG, `_mountCanvasTexture()` locates the `<foreignObject>` and passes it to `CanvasTextureRenderer`, which appends a `<canvas>` (100% × 100%, `pointer-events:none`) inside it. A `ResizeObserver` keeps the canvas dimensions in sync with the layout. The button passes itself as `visibilityEl`, and an `IntersectionObserver` on it suspends the loop while the card is off screen (scrolled away, another view) and resumes it when it comes back; the card is observed rather than the `<foreignObject>`, which re-renders replace. Editor previews pass `null` and always draw (an observer there can report the card hidden for good). A hidden tab stays with the renderer's own `visibilitychange` handling (`CanvasTextureRenderer.js:135-145`, `src/cards/lcards-button.js:4565-4566`).
 
 ### ID Scoping
 
@@ -387,7 +387,7 @@ Because `_resolveShapeTextureConfig()` reads directly from `this.config` at ever
 | `src/core/packs/textures/effects/noise-helpers.js` | Shared fBm noise math and `parseColorToRgba` used by fluid/plasma effects |
 | `src/core/packs/lcards-textures-pack.js` | Pack metadata |
 | `src/editor/components/lcards-shape-texture-editor.js` | Editor UI component |
-| `src/core/packs/shared/ImageLoader.js` | Singleton image cache; resolves `builtin:key` references via AssetManager |
+| `src/core/packs/shared/ImageLoader.js` | Singleton image cache (LRU of 32 URLs, failed loads dropped); resolves `builtin:key` references via AssetManager |
 | `src/core/packs/shared/ImageDrawUtils.js` | Cover/contain/fill draw-param math used by `ImageTextureEffect` |
 
 

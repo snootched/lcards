@@ -97,7 +97,7 @@ text: "{{ states('sensor.temp') }} °C"
 text: "{% if is_state('light.kitchen', 'on') %}On{% else %}Off{% endif %}"
 ```
 
-`HATemplateEvaluator._renderTemplate()` subscribes to `render_template` once and unsubscribes on the first result. It sends these variables:
+`HATemplateEvaluator._renderTemplate()` subscribes to `render_template` once and unsubscribes on the first result or the timeout. Home Assistant can send the subscribe result and the first event in one websocket frame, so the callback may run before `subscribeMessage()` resolves with the unsubscribe function; a `done` flag makes the `.then()` unsubscribe in that case, so no subscription stays open (`HATemplateEvaluator.js:94-145`). It sends these variables:
 
 ```javascript
 variables: {

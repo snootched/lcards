@@ -58,7 +58,7 @@ dpad:
 
 ::: details More about dpad
 - **Zones:** text zones use underscores (`up_left`, `down_right`), while the segments use hyphens (`up-left`). A text field without `zone` goes into the first zone, `up`.
-- **Order:** the theme's D-pad colours, then `segments.default`, then the segment's own keys, so a segment's own `style` wins over `default` and `default` over the theme. The same holds on every component.
+- **Order:** the theme's D-pad colours, then `segments.default`, then the segment's own keys, so a segment's own `style` wins over `default` and `default` over the theme. A state map with no `hover` or `pressed` keeps those of the colour it replaces (the theme's pointer colours), so the segment still reacts to the pointer; it does not keep the theme's `inactive` or `unavailable`. The same holds on every component.
 :::
 
 | Key | Type | Default | Description |

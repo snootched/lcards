@@ -175,6 +175,7 @@ flowchart TD
 
 - **Re-render gate.** The setter always calls `_onHassChanged()`, but calls `requestUpdate()` only when `_shouldUpdateOnHassChange()` says so: on the first HASS, or when the state object of `config.entity` or of any `_trackedEntities` entry changed (Home Assistant replaces a state object when it changes, so `!==` is enough). An unrelated entity change costs no render.
 - **Forwarding to the core** is gated the same way, and an entity the card holds a `subscribeToEntity()` subscription to counts as well (`_subscribedEntityCounts`), so its callback fires even when nothing else tracks it. One forwarded HASS updates every service, and `CoreSystemsManager.updateHass()` diffs all entities, so changes to entities no card forwarded for are still delivered. The distribution order, the microtask deduplication and the global HASS feed for pages without cards are documented in [HASS distribution](../subsystems/index.md#hass-distribution) and [Systems Manager: HASS Update Flow](../subsystems/systems-manager.md#hass-update-flow).
+- **Light colour variable.** `_updateLightColorVariable()` runs on every HASS the card sees (any entity), but writes `--lcards-light-color-<guid>` / `--lcards-light-alpha-<guid>` and calls `_onLightColorChanged()` only when the light's colour and brightness differ from what the page holds (`_lightVarsKey`, `'off'` or `'colour|alpha'`; `src/base/LCARdSCard.js:3991-4077`). The button's hook re-resolves its style; colours keyed by `state_attribute` / `ranges_attribute` follow attribute-only changes of the card's own entity through `_handleHassUpdate()` instead, once per update, unless `_styleFollowsAttributes()` returns `false` (the slider, which resolves its own style; `src/cards/lcards-button.js:343`, `src/cards/lcards-slider.js:592`).
 - **Synthetic HASS.** A parent card may hand a child a rewritten HASS copy for that child only (the select menu does for its option buttons). `isSyntheticHass()` (`src/utils/synthetic-hass.js`) marks it; such a copy never reaches the core or the helper manager.
 - **Ordering.** `_onHassChanged()` is `async`: on the first HASS it awaits `setupHassMonitoring()` before it forwards and calls `_handleHassUpdate()`.
 
@@ -405,11 +406,11 @@ See `.claude/rules/cards.md` ("Zone System") for the rules.
 - unsubscribes data source subscriptions and removes the card from each data source it registered with (`removeCardFromSource()`);
 - unsubscribes every `subscribeToEntity()` subscription;
 - unregisters from rules (`_unregisterOverlayFromRules()`) and schedules the release of its own rules (`_scheduleRulesRelease()`);
-- removes the light colour CSS variable;
+- removes the light colour CSS variable and clears `_lightVarsKey`, so a reconnect writes it again;
 - disconnects the `ResizeObserver` and the window resize fallback;
 - drops the theme override listener and the alert-mode subscription;
 - calls `core.unregisterCard(this._cardGuid)` (which also unregisters it from the systems manager);
-- destroys the default animation scope (`animationManager.destroyOverlayScope(_getAnimationSetup().overlayId)`); cards with more scopes (button, slider) destroy their own.
+- destroys the default animation scope (`animationManager.destroyOverlayScope(_getAnimationSetup().overlayId)`); cards with more scopes (button, slider, MSD) destroy their own.
 
 Cards override `_onDisconnected()` only for their own resources (timers, `AbortController`s, third-party instances, the chart's series fetcher) and call `super._onDisconnected()` last. They must not repeat the calls above.
 

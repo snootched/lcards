@@ -56,6 +56,9 @@ Scope ids:
 | Button segments | `{cardId}:segment:{segmentId}` (`registerSegmentAnimations()`) |
 | Slider, data grid, chart, ... | their own `_getAnimationSetup()` id (the slider adds `slider-{guid}-border-{side}` for its borders) |
 | MSD overlay | the overlay `id` |
+| MSD base SVG / card `msd.animations` | `__msd_base_svg:{guid}` / `__msd_animations:{guid}` |
+
+A removed MSD destroys its own scopes: the two guid ones and the overlay-id ones whose element is in the card (`_destroyMsdAnimationScopes()`, `src/cards/lcards-msd.js:1377`).
 
 **How rules and other callers find a scope.** `_resolveScopeFromOverlay(id)` (`AnimationManager.js:1108-1146`) tries, in order:
 
@@ -181,8 +184,8 @@ Screen-wide effects are a separate system with its own `registerPreset()`: see [
 
 `AnimationPerformanceMonitor` (`src/core/animation/PerformanceMonitor.js`) measures the page's **frame rate** so canvas and 3D backgrounds can degrade; it does not count animations and `AnimationManager` does not use it. Core creates it (`window.lcards.core.performanceMonitor`, `lcards-core.js:190`); it starts only when a renderer subscribes.
 
-- **Subscribers.** `Canvas2DRenderer.start()` calls `performanceMonitor.start()` and listens for `lcards:performance-check` on `window` (`src/core/packs/backgrounds/renderers/Canvas2DRenderer.js:191-196`), unless the renderer is built with `monitorPerformance: false` (the canvas texture effects, `CanvasTextureRenderer.js:105`). `start()` / `stop()` are reference-counted: the loop runs while any subscriber is active, and each `start()` restarts the 5 s settle window.
-- **Measurement.** A `requestAnimationFrame` loop keeps the last 60 frame times. Once every 60 frames it computes `currentFPS` from their average and, after the settle window, dispatches `lcards:performance-check` with `{ fps, shouldDisable3D, shouldReduceEffects }`. A `start()` that restarts the loop begins a new window, so the time it was stopped never counts as a frame.
+- **Subscribers.** `Canvas2DRenderer.start()` calls `performanceMonitor.start()` and listens for `lcards:performance-check` on `window` (`src/core/packs/backgrounds/renderers/Canvas2DRenderer.js:191-196`), unless the renderer is built with `monitorPerformance: false` (the canvas texture effects, `CanvasTextureRenderer.js:111`). `start()` / `stop()` are reference-counted: the loop runs while any subscriber is active, and each `start()` restarts the 5 s settle window.
+- **Measurement.** A `requestAnimationFrame` loop keeps the last 60 frame times. Once every 60 frames it computes `currentFPS` from their average and, after the settle window, dispatches `lcards:performance-check` with `{ fps, shouldDisable3D, shouldReduceEffects }`. A `start()` that restarts the loop begins a new window, so the time it was stopped never counts as a frame. The queued frame id is kept in `_rafId`: `start()` cancels any queued frame before measuring and the last `stop()` cancels it, so a tab hide/show never leaves a second loop running (extra loops made `currentFPS` read high and kept the low-FPS fallbacks from firing).
 - **Thresholds.** `shouldReduceEffects` when `fps < 24`; `shouldDisable3D` after 3 consecutive checks below 12. A check comes every 60 frames, so below 12 fps three checks take at least 15 s (60 frames at under 12 fps is over 5 s each). `setThresholds({ disable3D, reduceEffects })` changes them.
 - **Reaction.** `Canvas2DRenderer._onPerfCheck()` ignores checks while it is paused or suspended (no frames drawn would read as near-zero FPS), skips work in reduced-quality mode, and on `shouldDisable3D` stops and schedules a recovery probe with backoff (5, 10, 20 minutes, capped at 30). A hidden tab pauses its monitor subscription.
 

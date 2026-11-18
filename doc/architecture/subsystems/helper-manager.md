@@ -57,7 +57,7 @@ On the first `updateHass()` with a HASS (`_autoSwitchInitialized` guards it), th
 
 Each change event updates `_valueCache` with the new state string and calls the key's subscribers with `(newValue, oldValue)`. Later `updateHass()` calls refresh the cache from `hass.states` (`_updateValueCache()`).
 
-Besides the core's distribution, `LCARdSNativeCard`'s `hass` setter forwards every real HASS to `helperManager.ingestHass()` (which calls `updateHass()`), so the manager is fed on any page with an LCARdS card.
+Besides the core's distribution, `LCARdSNativeCard`'s `hass` setter forwards every real HASS to `helperManager.ingestHass()` (which calls `updateHass()`), so the manager is fed on any page with an LCARdS card. Every card forwards the same object, so `updateHass()` returns at once for the HASS it already holds (once the auto-switch is set up); only the first pass of each new object refreshes the cache (`src/core/helpers/lcards-helper-manager.js:85-88`).
 
 Values are entity **state strings** as Home Assistant reports them: `'on'` / `'off'` for booleans, `'0.5'` for numbers.
 

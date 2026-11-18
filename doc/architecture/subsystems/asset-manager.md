@@ -151,7 +151,7 @@ card config: source = 'media-source://media_source/local/bedroom.jpg'
 ## Caching
 
 - **SVG**: content cached in the registry after the first fetch, for the page session.
-- **Image / model**: only the URL is stored. `ImageLoader` keeps its own per-URL promise cache; the astrometrics runtime parses each model file once per src (scene-runtime.js).
+- **Image / model**: only the URL is stored. `ImageLoader` keeps its own per-URL promise cache, an LRU of the 32 most recently used URLs (`CACHE_MAX`, `src/core/packs/shared/ImageLoader.js:27`: template URLs such as a camera's rotating `entity_picture` token make new keys for good); a failed load is dropped, so the next request tries again; the astrometrics runtime parses each model file once per src (scene-runtime.js).
 - **Font**: the `<link>` element is the cache (`loadFont()` checks its id).
 - **Media source**: resolved URLs for 15 minutes, then resolved again. A media library SVG's content stays cached under its content ID.
 - `clear()` empties every registry (tests); `destroy()` calls it.

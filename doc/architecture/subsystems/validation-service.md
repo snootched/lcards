@@ -96,12 +96,12 @@ Once registered, every `processConfig(userConfig, 'my-card', context)` validates
 
 `validate(data, schema, context = {})`:
 
-1. counts the call, builds a cache key `JSON.stringify(data) + schema (name or JSON) + JSON.stringify(context)` and returns a cached result if `config.cacheResults`;
+1. counts the call, builds a cache key `JSON.stringify(data) + schema + JSON.stringify(context)` and returns a cached result if `config.cacheResults` (a hit moves to the most recently used end). A schema name is used as is; an inline schema object (a card's own) is keyed by identity, a short id from a `WeakMap` (`_schemaId()`), since its JSON was megabytes per key;
 2. looks up a string schema in `CoreSchemaRegistry` (unknown name: `schema_not_found` error);
 3. walks the schema (`_validateAgainstSchema()`);
 4. if `config.validateEntities` and hass is present, checks entity references (`_validateEntities()`);
 5. sets `valid = errors.length === 0` (warnings never make a result invalid; there is no strict mode);
-6. runs every error and warning through `CoreErrorFormatter.formatError()`, caches the result, returns it.
+6. runs every error and warning through `CoreErrorFormatter.formatError()`, caches the result, returns it. The result cache keeps at most `CoreValidationService.MAX_CACHED` (500) entries and drops the least recently used first: every new card config is a new key, and the unbounded cache grew a long-lived tab by hundreds of MB (`src/core/validation-service/index.js`; `tests/core/validation-cache.test.js`).
 
 An exception inside gives a `validation_error` error.
 

@@ -103,8 +103,8 @@ All five come from one factory, `_backdropFilterPreset()`, which sets `backdrop-
 
 | Preset | Default params | Description |
 |---|---|---|
-| `static` | `opacity: 0.55, scale: 4, color: '#ffffff', tintStrength: 0` | TV static noise (`effects/StaticEffect.js`); `scale` sets the grain size; `color` / `tintStrength` blend toward a tint |
-| `pixelate` | `pixelSize: 8, opacity: 0.75, variance: 0.35, baseLight: 80, color: '#8c9aa6', tintStrength: 0` | Mosaic of dark blocks (`effects/PixelateEffect.js`), `multiply` blend, about 8 fps; simulates low-res signal degradation |
+| `static` | `opacity: 0.55, scale: 4, color: '#ffffff', tintStrength: 0` | TV static noise (`effects/StaticEffect.js`); `scale` sets the grain size; `color` / `tintStrength` blend toward a tint. The noise is made once into a canvas twice the size in each direction (again on resize); each frame copies a window of it at a random offset |
+| `pixelate` | `pixelSize: 8, opacity: 0.75, variance: 0.35, baseLight: 80, color: '#8c9aa6', tintStrength: 0` | Mosaic of dark blocks (`effects/PixelateEffect.js`), `multiply` blend, about 8 fps; simulates low-res signal degradation. The canvas is one pixel per block: each frame fills an `ImageData` at block resolution and CSS `image-rendering: pixelated` scales it up |
 | `glitch` | `intensity: 0.08, maxShift: 40, bandHeight: 4, opacity: 0.85, fps: 20` | Sparse horizontal displacement bands with thin chroma edges (`effects/GlitchEffect.js`); `overlay` blend |
 | `scanlines` | `lineHeight: 4, opacity: 0.25, scroll: 0` | CRT line overlay (`effects/ScanlineEffect.js`); `scroll` in px/s; redraws only on resize while still |
 | `borg-assimilation` | `siteCount: 7, tendrilsPerSite: 8, tendrilLength: 600, particleCount: 2, color: '#00cc44', glowColor: '#00ff66', renderer: 'auto', cube: true, cubeStyle: 'detailed', corruption: 0.5, overrun: 0.65` | Borg assimilation intro (`effects/BorgAssimilationEffect.js`); runs until cleared, so use `apply()` / `applySlot()`, not `play()`. See below |
