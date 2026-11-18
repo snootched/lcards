@@ -10,6 +10,10 @@ on:
   workflow_dispatch:
   workflow_call:  # allow release.yml (and others) to call this as a gate
 
+# Checkout and tests only: the token needs no write access (CodeQL actions/missing-workflow-permissions)
+permissions:
+  contents: read
+
 jobs:
   validate-hassfest:
     name: Hassfest Validation
