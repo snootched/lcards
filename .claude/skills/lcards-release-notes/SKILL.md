@@ -34,7 +34,7 @@ Pick the procedure from the request:
    - Reference them with `<img class="release-shot" alt="..." src="/releases/<version>/<name>.webp" />` or the `<video ... autoplay loop muted playsinline>` form, with real alt or title text.
    - If the dev HA is unreachable, write the notes anyway, leave the shot list in place and tell the user which pictures are still to capture.
 7. **Record coverage:** set `notes_through` to the sha `release:commits` printed.
-8. **Check:** `npm run release:check`, `node scripts/validate-doc-examples.js --strict`, `node scripts/check-doc-em-dashes.js`, `npm test`. Preview the slim GitHub body with `npm run release:notes -- <package.json version>` (`--full` for the whole page) and read it as a user would: does it lead with the main features, is it 400 to 800 words (`release:check` fails above 900)? Run `npm run docs:build` when you added links (it checks pages and anchors).
+8. **Check:** `npm run release:check`, `node scripts/validate-doc-examples.js --strict`, `node scripts/check-doc-em-dashes.js`, `npm test`. Preview the slim GitHub body with `npm run release:notes -- <package.json version>` (`--full` for the whole page) and read it as a user would: does it lead with the main features, is it 400 to 800 words (`release:check` fails above 1000)? Run `npm run docs:build` when you added links (it checks pages and anchors).
 9. **Report:** what you added or changed (by section), anything you weren't sure of or couldn't verify (for the user to hand-tune), the pictures, and a commit message. Remind them of the next steps in `COOKBOOK.md` § Releases (commit and push `dev`, wait for the Docs workflow, run Release on `dev`).
 
 ## B. Promote (stable release)

@@ -263,7 +263,9 @@ export function readingWords(md) {
 }
 
 /** Word budget of the slim body: the target is 400-800, the check fails above this. */
-export const SLIM_WORD_LIMIT = 900;
+// 900 until 2026-11-17: raised to 1000 by the user, so the 2026.11.0 body keeps its
+// intro and every reported issue's credit (it measured 987).
+export const SLIM_WORD_LIMIT = 1000;
 
 /**
  * Turn a release page into the GitHub release body. A page with `highlights:` exports
