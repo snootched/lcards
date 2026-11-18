@@ -30,7 +30,7 @@ topics:
       - title: Docs audit fixes
         views: [d2-batch1-fixes, d2-batch4-msd-fixes, d2-batch5-core-fixes, b1-banners-red, b1-banners-blue]
       - title: Checks
-        views: [perf-regression, slider-invert]
+        views: [perf-regression]
   - id: msd
     title: MSD
     views: [msd-basics, msd-routing, msd-shapes, msd-leader-lines, msd-lineart]
@@ -68,7 +68,7 @@ topics:
     title: Cards
     groups:
       - title: Slider
-        views: [slider-presets, slider-picard-shapes, slider-labels-tween, slider-drag-badge, ring-gauge, slider-ring-fit]
+        views: [slider-presets, slider-picard-shapes, slider-labels-tween, slider-drag-badge, slider-invert, ring-gauge, slider-ring-fit]
       - title: Select menu
         views: [select-menu]
       - title: Layouts
@@ -101,10 +101,11 @@ releases:
         session: "Perf review 2026-11-17"
         public: false
       - file: slider-invert
-        summary: "Inverted sliders (#411): numbers, ranges and markers in the entity's values"
-        description: "Four upright gauges on VALUE, each with a red range (0 to 20, faint under a fill) and a marker at 75. Set VALUE to 90; every badge reads the VALUE button's number while you drag. BLIND: 100 at the top, the fill a tenth from the top, the red range at the bottom, the marker between 80 and 70; dragging up raises VALUE. INVERT FILL: 0 at the top, the fill from the top down to 90, the red range at the top. INVERT VALUE: 0 at the top, the fill a tenth at the bottom (ending at 90), the red range at the top. NORMAL: 0 at the bottom, the fill up to 90. In all four the marker sits at 75 on the scale."
+        summary: "Inverted sliders: a blind that fills from the top, with its real numbers"
+        description: "Four upright gauges on VALUE, each with a red range (0 to 20, faint under a fill) and a marker at 75. Set VALUE to 90 with SET VALUE; every badge reads the VALUE button's number while you drag. BLIND (control.invert_value and style.track.invert_fill, for a blind: the fill is the lowered part, drag up to open): 100 at the top, the fill a tenth from the top, the red range at the bottom, the marker between 80 and 70. INVERT FILL: 0 at the top, the fill from the top down to 90, the red range at the top. INVERT VALUE: 0 at the top, the fill a tenth at the bottom (ending at 90), the red range at the top. NORMAL: 0 at the bottom, the fill up to 90. In all four the scale, the badge, the range and the marker use VALUE's own numbers."
         session: "Issue 411, 2026-11-18"
-        public: false
+        docs: /cards/slider-card/control#control-options
+        public: true
       - file: chart-timeline
         summary: "Chart timelines and state bands: states as bars, or shaded behind a line"
         description: "chart_type: rangeBar. Toggle LIGHTS and DOORS or pick a MODE: the bar on the right grows while a state holds and a change starts a new one; hover a bar for its state, times and how long it lasted. Top: the theme's state colours, as Home Assistant's history draws them. Middle: your own colours by state, only the lights' active runs, changes under 30 seconds hidden. Bottom: state_bands shade the lights (orange) and doors (blue) behind VALUE while they are on; drag VALUE to move the line. All three share a sync_group: hover one and a dashed line marks the same moment on the others."
