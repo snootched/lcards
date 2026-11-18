@@ -1,0 +1,125 @@
+# GitHub #411 (2026-11-18): inverted sliders. Four upright gauges on the same
+# value, each with a red range (0 to 20), a marker at 75, scale labels and the
+# drag badge. Every number, range and marker is the entity's value.
+title: Slider invert check
+path: slider-invert
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: bar-label-left
+        height: 40
+        text: { label: { content: "INVERTED SLIDERS (#411)" } }
+        grid_options: { columns: full, rows: 1 }
+      # the value every slider below shows, and a slider to change it
+      - type: custom:lcards-button
+        entity: input_number.lcards_test_value
+        preset: lozenge
+        tap_action: { action: none }
+        text:
+          name: { content: "VALUE {entity.state}", show: true }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SET VALUE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 28, rows: 1 }
+      # a blind: fill from the top (the lowered part), drag up to open
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: gauge-left-border
+        text: { name: { content: BLIND, show: true } }
+        control:
+          invert_value: true
+        style:
+          track:
+            orientation: vertical
+            invert_fill: true
+          gauge:
+            scale:
+              labels:
+                enabled: true
+          ranges:
+            - min: 0
+              max: 20
+              color: var(--lcars-alert-red)
+            - value: 75
+              indicator:
+                type: line
+        drag_badge:
+          enabled: true
+        grid_options: { columns: 9, rows: 6 }
+      # invert_fill alone: the track turned round (0 at the top)
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: gauge-left-border
+        text: { name: { content: INVERT FILL, show: true } }
+        style:
+          track:
+            orientation: vertical
+            invert_fill: true
+          gauge:
+            scale:
+              labels:
+                enabled: true
+          ranges:
+            - min: 0
+              max: 20
+              color: var(--lcars-alert-red)
+            - value: 75
+              indicator:
+                type: line
+        drag_badge:
+          enabled: true
+        grid_options: { columns: 9, rows: 6 }
+      # invert_value alone: the ends swapped (0 at the top), fill from the bottom
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: gauge-left-border
+        text: { name: { content: INVERT VALUE, show: true } }
+        control:
+          invert_value: true
+        style:
+          track:
+            orientation: vertical
+          gauge:
+            scale:
+              labels:
+                enabled: true
+          ranges:
+            - min: 0
+              max: 20
+              color: var(--lcars-alert-red)
+            - value: 75
+              indicator:
+                type: line
+        drag_badge:
+          enabled: true
+        grid_options: { columns: 9, rows: 6 }
+      # the plain slider, for comparison
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: gauge-left-border
+        text: { name: { content: NORMAL, show: true } }
+        style:
+          track:
+            orientation: vertical
+          gauge:
+            scale:
+              labels:
+                enabled: true
+          ranges:
+            - min: 0
+              max: 20
+              color: var(--lcars-alert-red)
+            - value: 75
+              indicator:
+                type: line
+        drag_badge:
+          enabled: true
+        grid_options: { columns: 9, rows: 6 }

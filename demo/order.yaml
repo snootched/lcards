@@ -30,7 +30,7 @@ topics:
       - title: Docs audit fixes
         views: [d2-batch1-fixes, d2-batch4-msd-fixes, d2-batch5-core-fixes, b1-banners-red, b1-banners-blue]
       - title: Checks
-        views: [perf-regression]
+        views: [perf-regression, slider-invert]
   - id: msd
     title: MSD
     views: [msd-basics, msd-routing, msd-shapes, msd-leader-lines, msd-lineart]
@@ -99,6 +99,11 @@ releases:
         summary: "Perf regression check: one card per optimisation of the 2026-11-17 performance review"
         description: "Walk through by hand after a performance change (test list in reports/perf-review-2026-11-17.md, Manual check). 1: drag HUE and LEVEL and toggle LAMP POWER: MATCH LIGHT, the pill slider and BRIGHTNESS RANGE (green over 50 %) follow the test lamp. 2: drag VALUE: the Jinja number and the fitted label follow. 3: the dpad's segments step VALUE and toggle LIGHTS and DOORS; the alert symbols stay in their cells. 4: the Picard lights pulse, the texture pulses (scroll away and back), the moon image shows, the missing image leaves an empty block. 5: the dashed line marches; TOGGLE recolours it. 6: STATIC and PIXELATE cover the screen until CLEAR EFFECT; RED ALERT recolours everything until CLEAR ALERT."
         session: "Perf review 2026-11-17"
+        public: false
+      - file: slider-invert
+        summary: "Inverted sliders (#411): numbers, ranges and markers in the entity's values"
+        description: "Four upright gauges on VALUE, each with a red range (0 to 20, faint under a fill) and a marker at 75. Set VALUE to 90; every badge reads the VALUE button's number while you drag. BLIND: 100 at the top, the fill a tenth from the top, the red range at the bottom, the marker between 80 and 70; dragging up raises VALUE. INVERT FILL: 0 at the top, the fill from the top down to 90, the red range at the top. INVERT VALUE: 0 at the top, the fill a tenth at the bottom (ending at 90), the red range at the top. NORMAL: 0 at the bottom, the fill up to 90. In all four the marker sits at 75 on the scale."
+        session: "Issue 411, 2026-11-18"
         public: false
       - file: chart-timeline
         summary: "Chart timelines and state bands: states as bars, or shaded behind a line"

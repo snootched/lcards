@@ -36,7 +36,7 @@ control:
 | `step` | number | by domain | Smallest change, at least 0.01 |
 | `attribute` | string | by domain | The attribute the slider shows and sets |
 | `locked` | boolean | `false` when it can set its attribute, else `true` | `true`: only show the value |
-| `invert_value` | boolean | `false` | Swap the ends: the minimum at the right (or top), so dragging right lowers the value. The drag badge and the scale still show the entity's own value |
+| `invert_value` | boolean | `false` | Swap the ends: the minimum at the right (or top), so dragging right lowers the value. The drag badge, the scale, ranges and value markers still use the entity's own values |
 
 ### Automatic domain behaviour
 

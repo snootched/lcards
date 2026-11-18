@@ -1002,6 +1002,9 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Update control config (handles locked state based on domain)
         this._updateControlConfig();
+        // Ranges and markers are placed through control.invert_value, which is only
+        // known now (setConfig resolves the style first)
+        if (this._sliderStyle) this._resolveMarkerValues();
     }
 
     /**
@@ -1316,7 +1319,8 @@ export class LCARdSSlider extends LCARdSButton {
             if (!('value' in range)) return null; // Band range, not a marker
             const resolved = this._resolveMarkerValue(range.value, evaluator);
             lcardsLog.trace(`[LCARdSSlider] Marker range[${idx}] resolved: ${JSON.stringify(range.value)} → ${resolved}`);
-            return resolved;
+            // Configured as the entity's value; placed in the slider's (flipped) space (#411)
+            return resolved === null ? null : this._toSliderValue(resolved);
         });
         // Also resolve dynamic band range bounds (min/max templates)
         this._resolveRangeBounds(evaluator);
@@ -1340,7 +1344,13 @@ export class LCARdSSlider extends LCARdSButton {
             const resolvedMin = this._resolveMarkerValue(range.min, evaluator);
             const resolvedMax = this._resolveMarkerValue(range.max, evaluator);
             lcardsLog.trace(`[LCARdSSlider] Band range[${idx}] bounds resolved: min=${JSON.stringify(range.min)}→${resolvedMin}, max=${JSON.stringify(range.max)}→${resolvedMax}`);
-            return { min: resolvedMin, max: resolvedMax };
+            if (!this._controlConfig?.invertValue) return { min: resolvedMin, max: resolvedMax };
+            // Configured in the entity's values; placed in the slider's flipped space,
+            // where the band's ends swap (#411). An open end is the display range's end.
+            const lo = resolvedMin ?? (range.min === undefined ? this._displayConfig?.min : null);
+            const hi = resolvedMax ?? (range.max === undefined ? this._displayConfig?.max : null);
+            if (lo === null || lo === undefined || hi === null || hi === undefined) return { min: null, max: null };
+            return { min: this._toSliderValue(hi), max: this._toSliderValue(lo) };
         });
     }
 
@@ -2627,9 +2637,11 @@ export class LCARdSSlider extends LCARdSButton {
                 const rangeColor = this._resolveRangeColor(rangeConfig.color);
                 const rangeOpacity = rangeConfig.opacity ?? 0.3;
 
-                // Calculate range position as percentage of display range
-                const startPercent = (rangeMin - min) / range;
-                const endPercent = (rangeMax - min) / range;
+                // Calculate range position as percentage of display range; with
+                // invert_fill the track runs the other way, as the fill and the
+                // markers do (the bands stayed at the unflipped end, #411)
+                const startPercent = this._invertFill ? 1 - (rangeMax - min) / range : (rangeMin - min) / range;
+                const endPercent = this._invertFill ? 1 - (rangeMin - min) / range : (rangeMax - min) / range;
 
                 if (isVertical) {
                     // Vertical: ranges stack from bottom to top
@@ -3966,6 +3978,18 @@ export class LCARdSSlider extends LCARdSButton {
         return max - value + min;
     }
 
+    /**
+     * The slider's value for an entity value (the same flip: it is its own inverse).
+     * Ranges and value markers are configured in the entity's values and placed with
+     * this (#411).
+     * @param {number} value
+     * @returns {number}
+     * @private
+     */
+    _toSliderValue(value) {
+        return this._toEntityValue(value);
+    }
+
     async _setEntityValue(value) {
         if (!this.hass || !this.config.entity) return;
 
@@ -4411,8 +4435,11 @@ export class LCARdSSlider extends LCARdSButton {
             if (rangeMin === null || rangeMin === undefined || rangeMax === null || rangeMax === undefined) return;
             const rangeColor = this._resolveRangeColor(rangeConfig.color);
             const rangeOpacity = rangeConfig.opacity ?? 0.3;
-            const startPercent = Math.max(0, (rangeMin - min) / displayRange);
-            const endPercent   = Math.min(1, (rangeMax - min) / displayRange);
+            // with invert_fill the track runs the other way, as the fill and markers do (#411)
+            const lo = this._invertFill ? 1 - (rangeMax - min) / displayRange : (rangeMin - min) / displayRange;
+            const hi = this._invertFill ? 1 - (rangeMin - min) / displayRange : (rangeMax - min) / displayRange;
+            const startPercent = Math.max(0, lo);
+            const endPercent   = Math.min(1, hi);
 
             if (isVertical && separated) {
                 // Picard: each band in a ] frame of style.range.border.color, a
