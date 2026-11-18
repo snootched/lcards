@@ -137,3 +137,75 @@ test('leader lines: a line from a corner along the top edge sits inside it (flus
     expect(a).toEqual([700, 50, 660, 50, 400, 200]);
     await expectNoErrors(page);
 });
+
+// 2026-11-17 (perf review Tier 3 item 11): every card's rules callback gets the
+// patches of every matching rule on the page. The MSD kept them all, so a rule for
+// any other card changed its patch map and redrew the whole MSD (every line
+// re-routed, its animations restarted): 19 redraws for 20 changes of a button rule.
+/** Count the MSD's full re-renders from now on. */
+const countReRenders = (page) => page.evaluate(() => {
+    const co = /** @type {any} */ (window).__card._msdPipeline.coordinator;
+    const orig = co._reRenderCallback;
+    /** @type {any} */ (window).__reRenders = 0;
+    co._reRenderCallback = (/** @type {any[]} */ ...a) => { /** @type {any} */ (window).__reRenders++; return orig.apply(co, a); };
+});
+const reRenders = (page) => page.evaluate(() => /** @type {any} */ (window).__reRenders);
+const ready = (page) => expect.poll(() => page.evaluate(() => !!(/** @type {any} */ (window).__card._msdPipeline?.coordinator?._reRenderCallback)), { timeout: 10000 }).toBe(true);
+
+for (const [kind, patch] of /** @type {const} */ ([
+    ['text', { text: { name: { content: 'ON' } } }],
+    ['style', { style: { card: { color: { background: 'var(--lcars-alert-red)' } } } }],
+])) {
+    test(`a rule for another card (${kind} patch) does not redraw the MSD`, async ({ page }) => {
+        await mountCase(page, 'msd-foreign-rule', { width: '800' });
+        await ready(page);
+        await page.evaluate(async (patch) => {
+            await /** @type {any} */ (window).__mountExtra({
+                type: 'custom:lcards-button', id: 'other_button', preset: 'lozenge', entity: 'light.demo',
+                text: { name: { content: 'OTHER', show: true } },
+                rules: [{ id: 'other_only', when: { entity: 'light.demo', state: 'on' }, apply: { overlays: { other_button: patch } } }],
+            });
+        }, patch);
+        await page.waitForTimeout(1000);
+        await countReRenders(page);
+        for (const state of ['off', 'on', 'off', 'on']) {
+            await page.evaluate((s) => window.__setState('light.demo', s), state);
+            await page.waitForTimeout(300);
+        }
+        expect(await reRenders(page)).toBe(0);
+        await expectNoErrors(page);
+    });
+}
+
+test("the MSD's own rule: a style-only patch is drawn without a re-render; a patch with other keys clears when the rule stops matching", async ({ page }) => {
+    await mountCase(page, 'msd-foreign-rule', { width: '800' });
+    await ready(page);
+    const config = JSON.parse(JSON.stringify(await page.evaluate(() => /** @type {any} */ (window).__card.config)));
+    config.rules = [
+        { id: 'own_style', when: { entity: 'light.demo', state: 'on' }, apply: { overlays: { line_2: { style: { width: 9 } } } } },
+        // attach_to has no effect on a drawn line; its style used to stay merged in for good
+        { id: 'own_mixed', when: { entity: 'light.demo', state: 'on' }, apply: { overlays: { line_1: { attach_to: [600, 300], style: { width: 12 } } } } },
+    ];
+    await page.evaluate((c) => /** @type {any} */ (window).__reconfigure(c), config);
+    await page.evaluate(() => window.__setState('light.demo', 'off'));
+    await ready(page);
+    const width = (/** @type {string} */ id) => attr(page, `#${id} .line-path`, 'stroke-width');
+    await expect.poll(() => width('line_1'), { timeout: 10000 }).toBe('4');
+    await page.evaluate(() => window.__setState('light.demo', 'on'));
+    await expect.poll(() => width('line_1'), { timeout: 10000 }).toBe('12');
+    expect(await width('line_2')).toBe('9');
+    await page.evaluate(() => window.__setState('light.demo', 'off'));
+    await expect.poll(() => width('line_1'), { timeout: 10000 }).toBe('4');
+    expect(await width('line_2')).toBe('4');
+
+    // style only: written onto the elements, no re-render
+    config.rules = [config.rules[0]];
+    await page.evaluate((c) => /** @type {any} */ (window).__reconfigure(c), config);
+    await ready(page);
+    await expect.poll(() => width('line_2'), { timeout: 10000 }).toBe('4');
+    await countReRenders(page);
+    await page.evaluate(() => window.__setState('light.demo', 'on'));
+    await expect.poll(() => width('line_2'), { timeout: 10000 }).toBe('9');
+    expect(await reRenders(page)).toBe(0);
+    await expectNoErrors(page);
+});

@@ -450,7 +450,14 @@ _onRulePatchesChanged() {
 - registers every overlay with `systemsManager.registerOverlay(overlay.id, { id, type, tags: ['msd-overlay', overlay.type, ...overlay.tags], sourceCardId })`, skipping `control` overlays whose card is an LCARdS card (those register themselves);
 - restores hass, calls `markAllDirty()` and, with hass, runs its callback.
 
-The MSD overrides `_applyRulePatches()` to keep patches for **all** its overlays (`mergeOverlayPatches()` into `{ overlayId: patch }`). Style-only patches are written to the DOM (`_applyStylePatchesToDOM()`), others re-render; `_onMsdRendered()` re-applies style-only patches after each render.
+The MSD overrides `_applyRulePatches()` to keep the patches for **its own** overlays (ids in `_msdConfig.overlays`) and merges them into `{ overlayId: patch }` (`mergeOverlayPatches()`). Every card's callback receives the patches of every matching rule on the page, so without that filter a rule for any other card changed the MSD's patch map and redrew it (until 2026-11-17: 19 full re-renders for 20 changes of one button's rule).
+
+`_onRulePatchesChanged()` then picks one of two paths:
+
+- **Style only**, and setting again every style key the last patch put on the elements: written onto the drawn elements (`_applyStylePatchesToDOM()`), no re-render, animations keep running.
+- **Anything else** (a patch with other keys, a style key dropped, a patch that stops matching): `_rebuildOverlaysWithRulePatches()` points `_msdConfig.overlays`, `coordinator.mergedConfig.overlays` and `cardModel.overlaysBase` at the card's own unpatched overlays, with the non-style patches merged in, and the pipeline re-renders. The unpatched arrays are remembered the first time and again whenever the pipeline replaces them, so a patch that stops matching leaves nothing behind. `_onMsdRendered()` re-applies style-only patches after each render.
+
+Only `style` patches change a drawn overlay: keys such as `attach_to` or a control's `card` reach `_msdConfig.overlays` but not the geometry or the embedded card (`CardModel` copies them at load). `_cleanupMsdPipeline()` resets the patch state, and the rules evaluation at the next load applies what still matches. Tests: `tests/browser/msd-audit.spec.js` (re-render counts, clearing).
 
 ---
 

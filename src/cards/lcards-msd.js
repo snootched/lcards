@@ -660,18 +660,25 @@ export class LCARdSMSDCard extends LCARdSCard {
     }
 
     /**
-     * Override base _applyRulePatches to handle MSD overlay patches
-     * Base class filters for this._overlayId, but we need patches for ALL MSD overlays
+     * Override base _applyRulePatches to handle MSD overlay patches: the patches
+     * for this card's own overlays, keyed by overlay id.
+     *
+     * RulesEngine hands every card the patches of every matching rule on the page;
+     * only the ones naming this MSD's overlays are kept. Before (2026-11-17), a rule
+     * for any other card changed the patch map too, and each change redrew the whole
+     * MSD (re-routing every line, restarting its animations).
      * @param {Array} overlayPatches - Array of patches from RulesEngine
      * @protected
      */
     _applyRulePatches(overlayPatches) {
+        const ownIds = new Set((this._msdConfig?.overlays ?? []).map((/** @type {any} */ o) => o.id));
+        const mine = (overlayPatches ?? []).filter((/** @type {any} */ p) => ownIds.has(p?.id));
         lcardsLog.debug('[LCARdSMSDCard] _applyRulePatches called', {
             patchesProvided: Array.isArray(overlayPatches) ? overlayPatches.length : 0,
-            patchIds: overlayPatches?.map(p => p.id) || []
+            ownPatchIds: mine.map((/** @type {any} */ p) => p.id)
         });
 
-        if (!overlayPatches || overlayPatches.length === 0) {
+        if (mine.length === 0) {
             // No patches - clear if we had any
             if (this._lastRulePatches) {
                 this._lastRulePatches = null;
@@ -683,147 +690,119 @@ export class LCARdSMSDCard extends LCARdSCard {
         // { overlayId: patch }: the highest-priority rule wins, rules patching
         // different keys combine (as on other cards; the lowest-priority patch
         // used to replace the rest)
-        const patchMap = mergeOverlayPatches(overlayPatches);
+        const patchMap = mergeOverlayPatches(mine);
 
-        // Check if patches changed
-        const patchesChanged = JSON.stringify(this._lastRulePatches) !== JSON.stringify(patchMap);
-        if (!patchesChanged) {
+        if (JSON.stringify(this._lastRulePatches) === JSON.stringify(patchMap)) {
             lcardsLog.trace('[LCARdSMSDCard] Rule patches unchanged');
             return;
         }
 
-        // Store patches
         this._lastRulePatches = patchMap;
-
-        lcardsLog.debug('[LCARdSMSDCard] Stored rule patches:', {
-            overlayCount: Object.keys(patchMap).length,
-            overlayIds: Object.keys(patchMap)
-        });
-
-        // Apply patches to overlay configs
+        lcardsLog.debug('[LCARdSMSDCard] Stored rule patches:', { overlayIds: Object.keys(patchMap) });
         this._onRulePatchesChanged();
     }
 
     /**
-     * Handle rule patches changed callback
-     * Called by core rulesManager when rules affecting this MSD are re-evaluated
+     * The rule patches changed: a style-only patch is written onto the drawn
+     * elements (no re-render, animations keep running); anything else rebuilds the
+     * overlay config from the card's own config plus the current patches and
+     * re-renders. Building from the unpatched config means a patch that stops
+     * matching leaves nothing behind (its style used to stay merged in for good).
      * @protected
      */
     _onRulePatchesChanged() {
-        lcardsLog.debug('[LCARdSMSDCard] _onRulePatchesChanged - rules updated for MSD card');
+        const patches = this._lastRulePatches;
+        const drawn = this._drawnRulePatches ?? null;
+        this._drawnRulePatches = patches;
 
-        // Apply rule patches to overlay configs before re-rendering
-        // this._lastRulePatches is inherited from LCARdSCard base class
-        // Structure: { overlayId: { style: {...}, ... }, ... }
-        // ✨ Templates are now evaluated by RulesEngine before patches reach the card
-        if (this._lastRulePatches && this._msdConfig?.overlays) {
-            const patchKeys = Object.keys(this._lastRulePatches);
-            lcardsLog.debug('[LCARdSMSDCard] Applying rule patches to overlays:', {
-                patchCount: patchKeys.length,
-                overlayCount: this._msdConfig.overlays.length,
-                patchedOverlays: patchKeys
-            });
-
-            // Check if patches are style-only (can be applied via DOM without full re-render)
-            const isStyleOnlyPatch = this._isStyleOnlyPatch(this._lastRulePatches);
-
-            if (isStyleOnlyPatch) {
-                lcardsLog.debug('[LCARdSMSDCard] ✨ Style-only patch detected - applying directly to DOM (no animation reset)');
-                this._applyStylePatchesToDOM(this._lastRulePatches);
-                return; // Skip full re-render
-            }
-
-            // For non-style patches, proceed with full update
-            lcardsLog.debug('[LCARdSMSDCard] Non-style patch detected - full re-render required');
-
-            // CRITICAL: Overlay objects are frozen - we must create NEW overlay objects, not mutate
-            this._msdConfig.overlays = this._msdConfig.overlays.map(overlay => {
-                const overlayId = overlay.id;
-                if (overlayId && this._lastRulePatches[overlayId]) {
-                    const patch = this._lastRulePatches[overlayId];
-
-                    // Create new overlay object with patches applied
-                    const patchedOverlay = { ...overlay };
-
-                    // Merge style properties
-                    if (patch.style) {
-                        patchedOverlay.style = { ...overlay.style, ...patch.style };
-                        lcardsLog.debug(`[LCARdSMSDCard] Applied style patch to overlay ${overlayId}:`, patch.style);
-                    }
-
-                    // Apply any other top-level properties from patch
-                    for (const key of Object.keys(patch)) {
-                        if (key !== 'style' && key !== 'id' && key !== 'ruleId' && key !== 'ruleCondition') {
-                            patchedOverlay[key] = patch[key];
-                            lcardsLog.debug(`[LCARdSMSDCard] Applied ${key} patch to overlay ${overlayId}`);
-                        }
-                    }
-
-                    return patchedOverlay;
-                }
-                return overlay;
-            });
-
-            // CRITICAL: Update the merged config in the pipeline so ModelBuilder picks up changes
-            // ModelBuilder reads from coordinator.mergedConfig.overlays, not from this._msdConfig
-            if (this._msdPipeline?.coordinator?.mergedConfig) {
-                this._msdPipeline.coordinator.mergedConfig.overlays = this._msdConfig.overlays;
-                lcardsLog.debug('[LCARdSMSDCard] Updated coordinator mergedConfig.overlays with patched overlays');
-            }
-
-            // CRITICAL: Also update cardModel.overlaysBase which is what ModelBuilder._assembleBaseOverlays() uses
-            // Access through coordinator.modelBuilder.cardModel
-            if (this._msdPipeline?.coordinator?.modelBuilder?.cardModel?.overlaysBase) {
-                // IMPORTANT: overlaysBase entries are frozen - create NEW array with NEW objects
-                // Must preserve CardModel-processed properties (position, anchor, etc.) while updating styles
-                const existingOverlaysBase = this._msdPipeline.coordinator.modelBuilder.cardModel.overlaysBase;
-
-                this._msdPipeline.coordinator.modelBuilder.cardModel.overlaysBase = existingOverlaysBase.map(baseOverlay => {
-                    // Find matching patched overlay by ID
-                    const patchedOverlay = this._msdConfig.overlays.find(o => o.id === baseOverlay.id);
-                    if (patchedOverlay && patchedOverlay.style) {
-                        // Create NEW overlay object with merged styles (immutable-safe)
-                        const updatedOverlay = {
-                            ...baseOverlay,  // Preserve all CardModel properties (position, anchor, etc.)
-                            style: { ...baseOverlay.style, ...patchedOverlay.style },  // Merge style changes
-                            raw: {
-                                ...(baseOverlay.raw || {}),
-                                style: { ...(baseOverlay.raw?.style || {}), ...patchedOverlay.style }
-                            }
-                        };
-
-                        lcardsLog.debug(`[LCARdSMSDCard] Created new overlaysBase entry for ${baseOverlay.id} with merged styles:`, patchedOverlay.style);
-                        return updatedOverlay;
-                    }
-                    return baseOverlay;  // No changes for this overlay
-                });
-
-                lcardsLog.debug('[LCARdSMSDCard] Updated cardModel.overlaysBase with patched styles (preserved positions)');
-            } else {
-                lcardsLog.warn('[LCARdSMSDCard] Could not access cardModel.overlaysBase for update', {
-                    hasCoordinator: !!this._msdPipeline?.coordinator,
-                    hasModelBuilder: !!this._msdPipeline?.coordinator?.modelBuilder,
-                    hasCardModel: !!this._msdPipeline?.coordinator?.modelBuilder?.cardModel,
-                    hasOverlaysBase: !!this._msdPipeline?.coordinator?.modelBuilder?.cardModel?.overlaysBase
-                });
-            }
+        if (!this._msdConfig?.overlays) {
+            this.requestUpdate();
+            return;
         }
 
-        // Check if any patches affect base SVG or overlays that require re-render
+        // Style-only, and covering every style key the elements carry from the last
+        // patch: write it onto the elements. A key the new patch drops (or a patch
+        // that clears) needs the overlays drawn again from their own config.
+        if (patches && this._isStyleOnlyPatch(patches) && (!drawn || (this._isStyleOnlyPatch(drawn) && this._patchCovers(patches, drawn)))) {
+            lcardsLog.debug('[LCARdSMSDCard] Style-only patch - applying directly to DOM (no animation reset)');
+            this._applyStylePatchesToDOM(patches);
+            return;
+        }
+
+        lcardsLog.debug('[LCARdSMSDCard] Rule patches need a re-render', { overlayIds: patches ? Object.keys(patches) : [] });
+        this._rebuildOverlaysWithRulePatches(patches && !this._isStyleOnlyPatch(patches) ? patches : null);
+
         if (this._msdPipeline?.coordinator?._reRenderCallback) {
-            // Request MSD pipeline to re-render with updated config.
             // Stash the promise (harmless no-op for callers that don't check it,
             // e.g. live post-reveal rule updates) so _initializeMsdPipeline() can
             // await this specific pass when it's the one triggered during initial
-            // load — see _pendingRulesReRender.
-            lcardsLog.debug('[LCARdSMSDCard] Triggering MSD re-render after rule patches applied');
+            // load — see _pendingRulesReRender. A style-only patch goes onto the
+            // fresh elements afterwards (_onMsdRendered).
             this._pendingRulesReRender = this._msdPipeline.coordinator._reRenderCallback();
         } else {
             lcardsLog.warn('[LCARdSMSDCard] No re-render callback available on coordinator');
         }
-
-        // Request Lit update to re-render card
         this.requestUpdate();
+    }
+
+    /**
+     * Every style key `drawn` set on an overlay is set again by `next`.
+     * @param {Record<string, any>} next
+     * @param {Record<string, any>} drawn
+     * @returns {boolean}
+     * @private
+     */
+    _patchCovers(next, drawn) {
+        return Object.entries(drawn).every(([id, patch]) =>
+            Object.keys(patch?.style ?? {}).every((key) => next[id]?.style && key in next[id].style));
+    }
+
+    /**
+     * Point `_msdConfig.overlays` and the card model's `overlaysBase` (what ModelBuilder
+     * reads) at the card's own overlays with `patches` merged in, or at the unpatched
+     * overlays when `patches` is null. The unpatched arrays are remembered the first
+     * time, and again whenever the pipeline replaces them (a config change, a reload).
+     * Overlay objects are frozen: new objects, never mutation.
+     * @param {Record<string, any>|null} patches
+     * @private
+     */
+    _rebuildOverlaysWithRulePatches(patches) {
+        if (this._msdConfig.overlays !== this._rulePatchedOverlays) this._rulePristineOverlays = this._msdConfig.overlays;
+        const pristine = this._rulePristineOverlays;
+        const overlays = !patches ? pristine : pristine.map((/** @type {any} */ overlay) => {
+            const patch = overlay.id ? patches[overlay.id] : null;
+            if (!patch) return overlay;
+            const patched = { ...overlay };
+            if (patch.style) patched.style = { ...overlay.style, ...patch.style };
+            for (const key of Object.keys(patch)) {
+                if (key !== 'style' && key !== 'id' && key !== 'ruleId' && key !== 'ruleCondition') patched[key] = patch[key];
+            }
+            return patched;
+        });
+        this._msdConfig.overlays = overlays;
+        this._rulePatchedOverlays = overlays;
+
+        // ModelBuilder reads coordinator.mergedConfig.overlays and cardModel.overlaysBase
+        const coordinator = /** @type {any} */ (this._msdPipeline?.coordinator);
+        if (coordinator?.mergedConfig) coordinator.mergedConfig.overlays = overlays;
+        const cardModel = coordinator?.modelBuilder?.cardModel;
+        if (!cardModel?.overlaysBase) {
+            lcardsLog.warn('[LCARdSMSDCard] Could not access cardModel.overlaysBase for update');
+            return;
+        }
+        if (cardModel.overlaysBase !== this._rulePatchedBase) this._rulePristineBase = cardModel.overlaysBase;
+        const base = this._rulePristineBase;
+        // positions and other CardModel properties stay; only the style is patched
+        cardModel.overlaysBase = !patches ? base : base.map((/** @type {any} */ baseOverlay) => {
+            const style = patches[baseOverlay.id]?.style;
+            if (!style) return baseOverlay;
+            return {
+                ...baseOverlay,
+                style: { ...baseOverlay.style, ...style },
+                raw: { ...(baseOverlay.raw || {}), style: { ...(baseOverlay.raw?.style || {}), ...style } }
+            };
+        });
+        this._rulePatchedBase = cardModel.overlaysBase;
     }
 
     /**
@@ -1366,6 +1345,17 @@ export class LCARdSMSDCard extends LCARdSCard {
         this._msdInitialized = false;
         this._msdRevealed = false;
         this._pendingRulesReRender = null;
+        // The next pipeline draws the card's own overlays; the rules engine applies
+        // whatever still matches once it is up
+        if (this._msdConfig && this._rulePatchedOverlays && this._msdConfig.overlays === this._rulePatchedOverlays) {
+            this._msdConfig.overlays = this._rulePristineOverlays;
+        }
+        this._rulePatchedOverlays = null;
+        this._rulePristineOverlays = null;
+        this._rulePatchedBase = null;
+        this._rulePristineBase = null;
+        this._drawnRulePatches = null;
+        this._lastRulePatches = null;
         if (this._backgroundRenderer) {
             this._backgroundRenderer.destroy();
             this._backgroundRenderer = null;

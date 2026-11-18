@@ -240,12 +240,38 @@ sections:
       - type: custom:lcards-button
         preset: bar-label-left
         height: 40
-        text: { label: { content: "5  MSD MARCH" } }
+        text: { label: { content: "5  MSD MARCH AND RULES" } }
         grid_options: { columns: full, rows: 1 }
       - type: custom:lcards-button
         entity: input_boolean.lcards_test_toggle
         preset: lozenge
         text: { name: { content: TOGGLE, show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      # a rule for this button only: the MSD below must not redraw (the march keeps its pace)
+      - type: custom:lcards-button
+        id: perf_other_rule_button
+        entity: input_boolean.lcards_test_doors
+        preset: lozenge
+        text: { name: { content: OTHER RULE, show: true } }
+        tap_action: { action: toggle }
+        rules:
+          - id: perf_other_rule
+            when:
+              entity: input_boolean.lcards_test_doors
+              state: "on"
+            apply:
+              overlays:
+                perf_other_rule_button:
+                  text:
+                    name:
+                      content: OTHER RULE ON
+        grid_options: { columns: 8, rows: 1 }
+      # the MSD's own rule: LIGHTS on makes the lower line wide and blue, off puts it back
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        text: { name: { content: LIGHTS, show: true } }
         tap_action: { action: toggle }
         grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-msd-card
@@ -272,6 +298,25 @@ sections:
                   preset: march
                   params:
                     speed: 1.5
+            - id: perf_rule_line
+              type: line
+              anchor: [40, 130]
+              attach_to: [760, 130]
+              route: direct
+              style:
+                width: 4
+                color: var(--lcards-orange)
+        rules:
+          - id: perf_msd_own_rule
+            when:
+              entity: input_boolean.lcards_test_lights
+              state: "on"
+            apply:
+              overlays:
+                perf_rule_line:
+                  style:
+                    width: 14
+                    color: var(--lcards-blue)
   # 6. Screen effects and alert modes
   - type: grid
     column_span: 4
