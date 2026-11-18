@@ -36,6 +36,8 @@ export function deepMerge(target, source) {
 
   // Merge each property from source
   for (const [key, value] of Object.entries(source)) {
+    // never config, and merged they reach a prototype (see utils/deepMerge.js)
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
     if (value === null || value === undefined) {
       // Explicit null/undefined overrides
       result[key] = value;
@@ -201,8 +203,10 @@ export function setNestedValue(obj, path, value) {
   const lastPart = /** @type {string} */ (parts.pop());
   let current = obj;
 
+  if (lastPart === '__proto__' || lastPart === 'constructor' || lastPart === 'prototype') return;
   // Create nested structure
   for (const part of parts) {
+    if (part === '__proto__' || part === 'constructor' || part === 'prototype') return;
     if (!(part in current) || typeof current[part] !== 'object') {
       current[part] = {};
     }
