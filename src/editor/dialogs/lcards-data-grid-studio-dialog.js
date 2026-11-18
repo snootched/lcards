@@ -312,12 +312,14 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         let obj = this._workingConfig;
         for (let i = 0; i < parts.length - 1; i++) {
             const key = parts[i];
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') return; // never config (prototype pollution)
             if (!isObject(obj[key]) && !Array.isArray(obj[key])) {
                 obj[key] = /^\d+$/.test(parts[i + 1]) ? [] : {};
             }
             obj = obj[key];
         }
         const last = parts[parts.length - 1];
+        if (last === '__proto__' || last === 'constructor' || last === 'prototype') return;
         if (isEmptyValue(value)) {
             if (Array.isArray(obj)) obj[Number(last)] = undefined; else delete obj[last];
         } else {

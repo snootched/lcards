@@ -521,12 +521,16 @@ export class LCARdSBorderEditor extends LitElement {
 
         let current = updatedConfig;
         for (let i = 0; i < keys.length - 1; i++) {
-            if (!current[keys[i]] || typeof current[keys[i]] !== 'object') {
-                current[keys[i]] = {};
+            const key = keys[i];
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') return; // never config (prototype pollution)
+            if (!current[key] || typeof current[key] !== 'object') {
+                current[key] = {};
             }
-            current = current[keys[i]];
+            current = current[key];
         }
-        current[keys[keys.length - 1]] = value;
+        const last = keys[keys.length - 1];
+        if (last === '__proto__' || last === 'constructor' || last === 'prototype') return;
+        current[last] = value;
 
         this._borderConfig = updatedConfig;
 

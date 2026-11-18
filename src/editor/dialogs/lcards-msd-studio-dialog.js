@@ -1335,13 +1335,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
         let obj = this._workingConfig;
 
         for (let i = 0; i < keys.length - 1; i++) {
-            if (!obj[keys[i]]) {
-                obj[keys[i]] = {};
+            const key = keys[i];
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') return; // never config (prototype pollution)
+            if (!obj[key]) {
+                obj[key] = {};
             }
-            obj = obj[keys[i]];
+            obj = obj[key];
         }
 
-        obj[keys[keys.length - 1]] = value;
+        const last = keys[keys.length - 1];
+        if (last === '__proto__' || last === 'constructor' || last === 'prototype') return;
+        obj[last] = value;
 
         lcardsLog.debug('[MSDStudio] Config updated:', { path, value });
         this._schedulePreviewUpdate();
@@ -15972,8 +15976,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _setConfigValue(path, value) {
                 const keys = path.split('.');
                 const lastKey = keys.pop();
+                if (lastKey === '__proto__' || lastKey === 'constructor' || lastKey === 'prototype') return;
                 let target = dialog._shapeFormData;
                 for (const key of keys) {
+                    if (key === '__proto__' || key === 'constructor' || key === 'prototype') return; // never config (prototype pollution)
                     if (!target[key] || typeof target[key] !== 'object') target[key] = {};
                     target = target[key];
                 }
@@ -17471,8 +17477,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _setConfigValue(path, value) {
                 const keys = path.split('.');
                 const lastKey = keys.pop();
+                if (lastKey === '__proto__' || lastKey === 'constructor' || lastKey === 'prototype') return;
                 let target = dialog._lineFormData;
                 for (const key of keys) {
+                    if (key === '__proto__' || key === 'constructor' || key === 'prototype') return; // never config (prototype pollution)
                     if (!target[key] || typeof target[key] !== 'object') target[key] = {};
                     target = target[key];
                 }

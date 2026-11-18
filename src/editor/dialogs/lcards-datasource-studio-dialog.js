@@ -510,11 +510,14 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
         let target = newConfig;
         for (let i = 0; i < parts.length - 1; i++) {
             const part = parts[i];
+            if (part === '__proto__' || part === 'constructor' || part === 'prototype') return; // never config (prototype pollution)
             if (!target[part]) target[part] = {};
             target = target[part];
         }
 
-        target[parts[parts.length - 1]] = value;
+        const last = parts[parts.length - 1];
+        if (last === '__proto__' || last === 'constructor' || last === 'prototype') return;
+        target[last] = value;
         this._workingConfig = newConfig;
         this._showErrors = true;
         this._validate();

@@ -481,6 +481,7 @@ export class LCARdSBaseEditor extends LitElement {
             // Navigate to the parent of the final key, creating structure as needed
             for (let i = 0; i < keys.length - 1; i++) {
                 const key = keys[i];
+                if (key === '__proto__' || key === 'constructor' || key === 'prototype') return; // never config (prototype pollution)
                 const nextKey = keys[i + 1];
                 const isNextNumeric = !isNaN(Number(nextKey));
 
@@ -501,6 +502,7 @@ export class LCARdSBaseEditor extends LitElement {
 
             // Set the final value
             const finalKey = keys[keys.length - 1];
+            if (finalKey === '__proto__' || finalKey === 'constructor' || finalKey === 'prototype') return;
             current[finalKey] = value;
 
             // Fire config change event
@@ -517,12 +519,16 @@ export class LCARdSBaseEditor extends LitElement {
 
         // Build nested object structure
         for (let i = 0; i < keys.length - 1; i++) {
-            current[keys[i]] = {};
-            current = current[keys[i]];
+            const key = keys[i];
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') return; // never config (prototype pollution)
+            current[key] = {};
+            current = current[key];
         }
 
         // Set final value
-        current[keys[keys.length - 1]] = value;
+        const lastKey = keys[keys.length - 1];
+        if (lastKey === '__proto__' || lastKey === 'constructor' || lastKey === 'prototype') return;
+        current[lastKey] = value;
 
         // Check if value is empty/null/undefined - if so, remove it and clean up empty parents
         if (value === undefined || value === null || value === '') {
@@ -542,6 +548,7 @@ export class LCARdSBaseEditor extends LitElement {
         if (!path) return;
 
         const keys = path.split('.');
+        if (keys.some((k) => k === '__proto__' || k === 'constructor' || k === 'prototype')) return;
         const newConfig = JSON.parse(JSON.stringify(this.config || {}));
 
         // Navigate to parent and delete the key

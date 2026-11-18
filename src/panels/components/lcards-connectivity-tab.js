@@ -710,12 +710,16 @@ export class LCARdSConnectivityTab extends LitElement {
         const cfg  = JSON.parse(JSON.stringify(this._editConfig ?? this._defaultConfig()));
         let node   = cfg;
         for (let i = 0; i < keys.length - 1; i++) {
-            if (node[keys[i]] == null || typeof node[keys[i]] !== 'object') {
-                node[keys[i]] = {};
+            const key = keys[i];
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') return; // never config (prototype pollution)
+            if (node[key] == null || typeof node[key] !== 'object') {
+                node[key] = {};
             }
-            node = node[keys[i]];
+            node = node[key];
         }
-        node[keys[keys.length - 1]] = value;
+        const last = keys[keys.length - 1];
+        if (last === '__proto__' || last === 'constructor' || last === 'prototype') return;
+        node[last] = value;
         this._editConfig = cfg;
         this._isDirty = true;
         // Track which flat storage key is dirty so _buildSparseConfig writes only it.
