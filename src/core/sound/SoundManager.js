@@ -1445,6 +1445,27 @@ export class SoundManager extends BaseService {
       return;
     }
 
+    // Nothing to sync, or nothing this user may change: settle without retries or
+    // warnings. A kiosk with no sounds set up logged 5 to 8 warnings and then an
+    // error on every load (HA-LCARS feedback, 2026-11-18). Only an admin may write
+    // the helper's options (Home Assistant refuses the config change otherwise);
+    // a missing helper once Home Assistant's states are in is simply not set up.
+    const hass = helperManager.hass;
+    const statesLoaded = !!hass?.states && Object.keys(hass.states).length > 0;
+    if (statesLoaded && (hass.user && hass.user.is_admin === false || !helperManager.helperExists('sound_scheme'))) {
+      lcardsLog.debug('[SoundManager] sound_scheme options sync skipped', {
+        admin: hass.user?.is_admin ?? null,
+        helper: helperManager.helperExists('sound_scheme')
+      });
+      this._syncInProgress = false;
+      this._syncPending = false;
+      this._schemeSyncRetryAttempts = 0;
+      const resolvers = this._syncSettledResolvers;
+      this._syncSettledResolvers = [];
+      resolvers.forEach(resolve => resolve());
+      return;
+    }
+
     const liveValue = helperManager.getHelperValue('sound_scheme');
     // Capture once per session (before any set_options call could have reset
     // it), or refresh if the live value is a different, already-registered
@@ -1486,7 +1507,7 @@ export class SoundManager extends BaseService {
         // is exactly what causes HA's own restore-on-restart logic to later
         // reject a since-selected value it can no longer find in that stale
         // options list. Retry instead of accepting this as settled.
-        lcardsLog.warn('[SoundManager] sound_scheme options sync did not run (helper not ready yet?) — will retry');
+        lcardsLog.debug('[SoundManager] sound_scheme options sync did not run (Home Assistant still starting?), will retry');
         needsRetry = true;
         this._schemeSyncRetryAttempts++;
       }
