@@ -323,8 +323,9 @@ export class LCARdSButton extends LCARdSCard {
 
                 lcardsLog.debug(`[LCARdSButton] Button style re-resolved after state change`);
 
-                // Schedule template processing AFTER style resolution
-                this._scheduleTemplateUpdate();
+                // Schedule template processing AFTER style resolution (the new state is
+                // rendered by the hass setter: see _scheduleTemplateUpdate's 'hass')
+                this._scheduleTemplateUpdate(oldHass ? 'hass' : undefined);
 
                 // Trigger card-level on_entity_change animations AFTER render completes
                 // Use requestAnimationFrame to ensure DOM is updated first
@@ -385,7 +386,7 @@ export class LCARdSButton extends LCARdSCard {
             if (hasTrackedChange) {
                 lcardsLog.debug(`[LCARdSButton] Tracked entity changed — re-evaluating style and templates`);
                 this._resolveButtonStyleSync();
-                this._scheduleTemplateUpdate();
+                this._scheduleTemplateUpdate(oldHass ? 'hass' : undefined);
             }
         }
 
@@ -3203,6 +3204,8 @@ export class LCARdSButton extends LCARdSCard {
     /**
      * Process custom templates for multi-text system
      * Override base class hook to handle text.{fieldId}.content templates
+     * @returns {Promise<boolean>} whether any template result changed (or preset text
+     *   fields were merged in), for _scheduleTemplateUpdate()
      * @protected
      * @override
      */
@@ -3352,11 +3355,15 @@ export class LCARdSButton extends LCARdSCard {
         this._updateTrackedEntities();
 
         if (hasChanges) {
-            // Call subclass hook for style resolution after template changes
+            // Call subclass hook for style resolution after template changes. It ends
+            // in requestUpdate() (button and slider), after every result is written:
+            // counted, so _scheduleTemplateUpdate() does not render a second time.
             if (typeof this._onTemplatesChanged === 'function') {
                 this._onTemplatesChanged();
+                this._templateRenderRequests++;
             }
         }
+        return hasChanges;
     }
 
     /**

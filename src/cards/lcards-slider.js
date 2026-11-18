@@ -916,15 +916,19 @@ export class LCARdSSlider extends LCARdSButton {
      * Pre-evaluate Jinja2/JS templates found in the style config so that
      * synchronous SVG generation can call `_resolveTemplateValue()` and get
      * the already-resolved result from `_evaluatedStyleCache`.
+     * @returns {Promise<boolean>} whether any template result changed
      * @protected
      * @override
      */
     async _processCustomTemplates() {
+        let evaluated = false;
         if (this.config.style) {
-            await this._preEvaluateStyleTemplates(this.config.style, 'style');
+            evaluated = !!(await this._preEvaluateStyleTemplates(this.config.style, 'style'));
         }
-        await this._preEvaluateMarkerLabelTemplates();
-        await super._processCustomTemplates();
+        // A marker label or template evaluated here counts as a change, as the
+        // button's own style ones do
+        evaluated = (await this._preEvaluateMarkerLabelTemplates()) || evaluated;
+        return (await super._processCustomTemplates()) || evaluated;
     }
 
     /**
@@ -938,15 +942,18 @@ export class LCARdSSlider extends LCARdSButton {
      * Called unconditionally (not gated by a Jinja2/JS syntax pre-check like
      * `_preEvaluateStyleTemplates()`) because Token/DataSource-only label text
      * still needs to reach `processTemplate()` to resolve.
+     * @returns {Promise<boolean>} whether any label text was evaluated
      * @private
      */
     async _preEvaluateMarkerLabelTemplates() {
         const ranges = this.config.style?.ranges;
-        if (!Array.isArray(ranges)) return;
+        if (!Array.isArray(ranges)) return false;
 
+        let evaluated = false;
         for (const [i, range] of ranges.entries()) {
             const text = range?.label?.text;
             if (typeof text !== 'string' || !text) continue;
+            evaluated = true;
             try {
                 const result = await this.processTemplate(text, { displayFormat: 'friendly', field: `style.ranges[${i}].label.text` });
                 this._evaluatedStyleCache.set(text, result);
@@ -954,6 +961,7 @@ export class LCARdSSlider extends LCARdSButton {
                 lcardsLog.warn('[LCARdSSlider] Failed to pre-evaluate marker label template:', e);
             }
         }
+        return evaluated;
     }
 
     /**

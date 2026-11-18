@@ -220,6 +220,13 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Template processing state
         this._templateUpdateScheduled = false;
+        // True while every request coalesced into the scheduled pass came from a
+        // hass change that has already been rendered (see _scheduleTemplateUpdate)
+        this._templateUpdateHassOnly = false;
+        // Bumped at the start of every template pass, and by the button family when
+        // its pass asks for a render itself (_templateRenderRequests)
+        this._templatePassId = 0;
+        this._templateRenderRequests = 0;
         /** @type {{[key: string]: any} | null} */
         this._processedIcon = null; // Processed icon configuration
 
@@ -863,8 +870,9 @@ export class LCARdSCard extends LCARdSNativeCard {
             });
 
             if (hasChanges) {
-                // Re-process templates when tracked entities change
-                this._scheduleTemplateUpdate();
+                // Re-process templates when tracked entities change (the first hass has
+                // no rendered state to build on: a full pass, as for any other reason)
+                this._scheduleTemplateUpdate(oldHass ? 'hass' : undefined);
             }
         }
 
@@ -1097,9 +1105,12 @@ export class LCARdSCard extends LCARdSNativeCard {
 
     /**
      * Called during template processing. Override in subclasses for custom template handling.
+     * May report whether any template result changed (true / false), which lets
+     * _scheduleTemplateUpdate() skip a redundant render; undefined always renders.
+     * @returns {unknown}
      * @protected
      */
-    _processCustomTemplates() {}
+    _processCustomTemplates() { return undefined; }
 
     /**
      * Setup ResizeObserver for automatic container size tracking
@@ -2313,18 +2324,43 @@ export class LCARdSCard extends LCARdSNativeCard {
             }
         }, 10000);
     }    /**
-     * Schedule template processing to avoid Lit update cycles
+     * Schedule template processing to avoid Lit update cycles, then re-render.
+     *
+     * `reason` 'hass': a hass change of an entity the card uses, which the hass setter
+     * has already rendered (the new state is on screen; only template results can
+     * still be stale). Then the re-render is skipped when it would draw nothing new
+     * (2026-11-17, perf review item 12: buttons and sliders drew three times per
+     * state change, the third identical): the card's template pass reports that no
+     * template result changed (it returns `false`), or that it asked for a render
+     * itself after writing its results (`_templateRenderRequests`). Cards whose pass
+     * returns nothing, any other reason, and two passes overlapping all render as
+     * before.
+     * @param {'hass'} [reason]
      * @protected
      */
-    _scheduleTemplateUpdate() {
-        if (this._templateUpdateScheduled) return;
+    _scheduleTemplateUpdate(reason) {
+        if (this._templateUpdateScheduled) {
+            if (reason !== 'hass') this._templateUpdateHassOnly = false;
+            return;
+        }
 
         this._templateUpdateScheduled = true;
+        this._templateUpdateHassOnly = reason === 'hass';
         requestAnimationFrame(async () => {
             this._templateUpdateScheduled = false;
+            const hassOnly = this._templateUpdateHassOnly;
+            this._templateUpdateHassOnly = false;
+            const passId = ++this._templatePassId;
+            const requestsBefore = this._templateRenderRequests;
 
             // Process templates (async for Jinja2 support)
-            await this._processTemplates();
+            const changed = await this._processTemplates();
+
+            if (hassOnly && passId === this._templatePassId &&
+                (changed === false || (changed === true && this._templateRenderRequests > requestsBefore))) {
+                lcardsLog.trace(`[LCARdSCard] Template pass needs no extra render for ${this._cardGuid}`, { changed });
+                return;
+            }
 
             // Re-render: if first update hasn't happened yet call requestUpdate() directly,
             // otherwise wait for the current Lit update cycle to finish first.
@@ -2344,6 +2380,7 @@ export class LCARdSCard extends LCARdSNativeCard {
     /**
      * Process templates (async to support Jinja2)
      * Subclasses should override to define their text processing
+     * @returns {Promise<boolean|undefined>} the card's report of changed template results
      * @protected
      */
     async _processTemplates() {
@@ -2355,10 +2392,14 @@ export class LCARdSCard extends LCARdSNativeCard {
         // _preEvaluateStyleTemplates() re-populates only the keys still present.
         this._evaluatedStyleCache.clear();
 
-        // Call subclass-specific template processing hook
+        // Call subclass-specific template processing hook. Its result goes back to
+        // _scheduleTemplateUpdate(): true / false when the card reports whether any
+        // template result changed (button, elbow, slider), undefined otherwise.
         if (typeof this._processCustomTemplates === 'function') {
-            await this._processCustomTemplates();
+            const changed = await this._processCustomTemplates();
+            return typeof changed === 'boolean' ? changed : undefined;
         }
+        return undefined;
     }
 
     /**

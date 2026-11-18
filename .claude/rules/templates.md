@@ -152,6 +152,8 @@ _resolveStyle() {
 
 `_resolveTemplateValue(value)` returns the cached evaluated result if the value was a template; otherwise returns the value unchanged.
 
+**What `_processCustomTemplates()` returns matters** (button, elbow, slider, since 2026-11-17): `true` / `false` says whether any template result changed, and lets `_scheduleTemplateUpdate('hass')` skip its re-render when nothing changed or when the card already asked for one after writing its results (`_onTemplatesChanged()` ends in `requestUpdate()`, counted in `_templateRenderRequests`). A subclass that evaluates more templates before calling `super` must OR its own result in (`lcards-elbow.js`, `lcards-slider.js`); returning `false` while something changed leaves the card stale. Return nothing (other cards) to always re-render.
+
 ---
 
 ## `displayFormat` Option

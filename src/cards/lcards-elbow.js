@@ -2050,15 +2050,18 @@ export class LCARdSElbow extends LCARdSButton {
     /**
      * Override to also pre-evaluate Jinja2/JS templates in `config.elbow`.
      * The button base covers `config.style`; this adds the elbow-specific sub-tree.
+     * @returns {Promise<boolean>} whether any template result changed
      * @override
      */
     async _processCustomTemplates() {
         // Pre-evaluate templates in elbow-specific config paths before the button's
         // super call resolves colours synchronously.
+        let evaluated = false;
         if (this.config.elbow) {
-            await this._preEvaluateStyleTemplates(this.config.elbow, 'elbow');
+            evaluated = await this._preEvaluateStyleTemplates(this.config.elbow, 'elbow');
         }
-        await super._processCustomTemplates();
+        // A template evaluated here counts as a change, as the button's own style ones do
+        return (await super._processCustomTemplates()) || !!evaluated;
     }
 
     /**
