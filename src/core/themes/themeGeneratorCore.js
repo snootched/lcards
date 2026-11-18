@@ -685,8 +685,11 @@ export const HA_CORE_DEFAULTS = {
 function yamlScalar(value) {
   if (value === '' || value === null || value === undefined) return '""';
   const str = String(value);
-  if (/[#:]/.test(str) || /^[[{]/.test(str)) {
-    return `"${str.replace(/"/g, '\\"')}"`;
+  // A YAML indicator at the start (a quote, a flow bracket, an anchor ...) or edge
+  // spaces need quoting too: `'Antonio', sans-serif` went out unquoted and broke the YAML
+  if (/[#:\\"]/.test(str) || /^[[{'"!&*%@`|>?,-]/.test(str) || str !== str.trim()) {
+    // backslashes first, then quotes: a double-quoted YAML string reads \ as an escape
+    return `"${str.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
   }
   return str;
 }

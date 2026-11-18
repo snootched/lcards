@@ -137,3 +137,25 @@ test('formatThemeYaml: name, card-mod-theme first, merge keys', () => {
     assert.equal(lines[2], '  <<: *base');
     assert.ok(yaml.includes('primary-color'));
 });
+
+// CodeQL js/incomplete-sanitization (2026-11-18): quotes were escaped but backslashes
+// were not, and a value starting with a quote went out unquoted. Every value must
+// read back exactly.
+test('formatThemeYaml: every value reads back exactly (backslashes, quotes, YAML indicators)', async () => {
+    const yaml = (await import('js-yaml')).default;
+    const flat = {
+        plain: 'var(--lcars-orange)',
+        hash: 'var(--x, #fff)',
+        font: "'Antonio', sans-serif",
+        dquote: '"Antonio"',
+        backslash: '"\\201C"',
+        lone_backslash: 'a\\b',
+        both: 'say \\"hi\\"',
+        star: '*not-an-alias',
+        dash: '-1px',
+        spaced: ' padded ',
+        flow: '[1, 2]',
+    };
+    const out = yaml.load(G.formatThemeYaml({ name: 'Test: theme', flat }));
+    for (const [key, value] of Object.entries(flat)) assert.equal(out['Test: theme'][key], value, key);
+});
