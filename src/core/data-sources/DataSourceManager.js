@@ -550,6 +550,8 @@ export class DataSourceManager extends BaseService {
       if (!current) continue;
       totalCount++;
       const previous = previousStates?.[entityId];
+      // the same state object: unchanged (Home Assistant replaces it on any change)
+      if (current === previous) continue;
       if (!previous ||
           current.state !== previous.state ||
           current.last_changed !== previous.last_changed ||

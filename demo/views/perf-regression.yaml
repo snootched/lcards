@@ -233,7 +233,7 @@ sections:
               source: /local/lcards-perf-check-missing.png
               size: cover
         grid_options: { columns: 6, rows: 2 }
-  # 5. MSD: a marching dashed line, recoloured live by TOGGLE
+  # 5. MSD: a marching dashed line, recoloured live by TOGGLE; rules; a control following an attribute
   - type: grid
     column_span: 4
     cards:
@@ -281,6 +281,21 @@ sections:
         msd:
           view_box: [0, 0, 800, 160]
           overlays:
+            # the lamp's brightness inside a control: follows LEVEL (an attribute; the state stays on)
+            - id: perf_lamp_ctl
+              type: control
+              position: [40, 4]
+              size: [320, 52]
+              card:
+                type: custom:lcards-button
+                preset: lozenge
+                entity: light.lcards_test_lamp
+                tap_action:
+                  action: none
+                text:
+                  name:
+                    content: "LAMP {entity.attributes.brightness}"
+                    show: true
             - id: perf_march_line
               type: line
               anchor: [40, 80]

@@ -40,3 +40,28 @@ test('an unchanged hass update notifies nobody, and a re-added entity notifies a
     sm.updateHass({ states: { 'light.a': st('off', '2') } });
     assert.deepEqual(calls, [[null, 'on'], ['off', null]]);
 });
+
+// 2026-11-17 (perf review item 15): the scan skips state objects it already has,
+// and looks for removed entities only when the cache holds more ids than hass.states
+test('a rename in one update (one entity gone, one new) reports both; an attribute-only change still notifies', () => {
+    const sm = new CoreSystemsManager();
+    const a = st('on');
+    const b = st('off');
+    sm.initialize({ states: { 'light.a': a, 'light.b': b } });
+    /** @type {string[][]} */
+    const changed = [];
+    sm.addEntityChangeListener((/** @type {string[]} */ ids) => changed.push([...ids].sort()));
+
+    sm.updateHass({ states: { 'light.b': b, 'light.c': st('on') } });
+    assert.deepEqual(changed, [['light.a', 'light.c']]);
+    assert.equal(sm.getEntityState('light.a'), null);
+
+    // same last_changed, new last_updated: the brightness of a light that stays on
+    sm.updateHass({ states: { 'light.b': { ...b, attributes: { brightness: 9 }, last_updated: '2' }, 'light.c': sm.getEntityState('light.c') } });
+    assert.deepEqual(changed[1], ['light.b']);
+    assert.equal(sm.getEntityState('light.b').attributes.brightness, 9);
+
+    // the same objects again: nothing
+    sm.updateHass({ states: { 'light.b': sm.getEntityState('light.b'), 'light.c': sm.getEntityState('light.c') } });
+    assert.equal(changed.length, 2);
+});

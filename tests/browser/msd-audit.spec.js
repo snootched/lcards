@@ -209,3 +209,37 @@ test("the MSD's own rule: a style-only patch is drawn without a re-render; a pat
     expect(await reRenders(page)).toBe(0);
     await expectNoErrors(page);
 });
+
+// 2026-11-17 (item 15): the controls' change check compared only state and
+// last_changed, so a change of attributes alone (a light's brightness while it
+// stays on: Home Assistant keeps last_changed) never reached the card inside a
+// control. It also scanned every entity per update; now only each control's own.
+test('a control hears an attribute-only change of its entity, and not changes of other entities', async ({ page }) => {
+    await mountCase(page, 'msd-control-attribute', { width: '600' });
+    const text = () => page.evaluate(() => {
+        const b = /** @type {any} */ (window).__card.shadowRoot.querySelector('[data-overlay-id="lamp_ctl"] lcards-button');
+        return b?.shadowRoot?.textContent?.replace(/\s+/g, ' ').trim() ?? null;
+    });
+    await expect.poll(text, { timeout: 10000 }).toContain('BRIGHTNESS 200');
+    const updates = await page.evaluate(() => {
+        const r = /** @type {any} */ (window).__card._msdPipeline.coordinator.controlsRenderer;
+        const orig = r._batchUpdateControls.bind(r);
+        /** @type {any} */ (window).__ctlUpdates = 0;
+        r._batchUpdateControls = (/** @type {any[]} */ ...a) => { /** @type {any} */ (window).__ctlUpdates++; return orig(...a); };
+        return 0;
+    });
+    // as Home Assistant sends it: same last_changed, new last_updated, other entities the same objects
+    const push = (/** @type {string} */ id, /** @type {any} */ attrs) => page.evaluate(([id, attrs]) => {
+        const card = /** @type {any} */ (window).__card;
+        const h = card.hass;
+        const s = h.states[id];
+        card.hass = { ...h, states: { ...h.states, [id]: { ...s, attributes: { ...s.attributes, ...attrs }, last_updated: new Date().toISOString() } } };
+    }, [id, attrs]);
+    await push('switch.demo_switch', { note: 1 });
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => /** @type {any} */ (window).__ctlUpdates)).toBe(updates);
+    await push('light.demo', { brightness: 42 });
+    await expect.poll(text, { timeout: 5000 }).toContain('BRIGHTNESS 42');
+    expect(await page.evaluate(() => /** @type {any} */ (window).__ctlUpdates)).toBe(1);
+    await expectNoErrors(page);
+});

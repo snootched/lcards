@@ -23,7 +23,7 @@
  *
  * Rather than updating ALL controls on every HASS change, we:
  * 1. Track which entities each control uses (_controlEntityMap)
- * 2. Detect which entities changed in HASS update (_detectEntityChanges)
+ * 2. Find the controls whose entities changed in a HASS update (_getAffectedControls)
  * 3. Only update controls affected by changed entities (_getAffectedControls)
  * 4. Batch updates to minimize reflows (_batchUpdateControls)
  *
@@ -205,53 +205,29 @@ export class MsdControlsRenderer {
   }
 
   /**
-   * Detect which entities changed between HASS updates
-   * Compares state and last_changed to catch all relevant updates
+   * Controls whose entities changed between two HASS snapshots (or with
+   * triggers_update: 'all', see #387). Home Assistant gives an entity a new state
+   * object on any change, attributes included, and keeps the object otherwise, so
+   * comparing the objects finds every change. Only each control's own entities are
+   * looked at (2026-11-17: this used to scan every entity in Home Assistant per
+   * update, and compared only state and last_changed, so a change of attributes
+   * alone, such as a light's brightness, never reached the card inside a control).
    * @private
-   * @param {Object} oldHass - Previous HASS object
-   * @param {Object} newHass - New HASS object
-   * @returns {Set<string>} Set of entity IDs that changed
+   * @param {any} oldHass - Previous HASS object (none: every control with entities)
+   * @param {any} newHass - New HASS object
+   * @returns {Array} Array of affected control objects { overlayId, element }
    */
-  _detectEntityChanges(oldHass, newHass) {
-    const changed = new Set();
-
-    if (!oldHass || !oldHass.states) {
-      // First HASS update - consider all entities changed
-      return new Set(Object.keys(newHass.states));
-    }
-
-    // Compare entity states
-    Object.keys(newHass.states).forEach(entityId => {
-      const oldState = oldHass.states[entityId];
-      const newState = newHass.states[entityId];
-
-      // Entity is new or state/attributes changed
-      if (!oldState ||
-          oldState.state !== newState.state ||
-          oldState.last_changed !== newState.last_changed) {
-        changed.add(entityId);
-      }
-    });
-
-    return changed;
-  }
-
-  /**
-   * Get controls affected by entity changes
-   * Returns list of controls that use at least one changed entity
-   * @private
-   * @param {Set<string>} changedEntities - Set of entity IDs that changed
-   * @returns {Array} Array of affected control objects { overlayId, element, config }
-   */
-  _getAffectedControls(changedEntities) {
+  _getAffectedControls(oldHass, newHass) {
     const affected = [];
+    const oldStates = oldHass?.states;
 
     this._controlEntityMap.forEach((entities, overlayId) => {
-      // triggers_update: 'all' controls are always affected, regardless of
-      // which entities actually changed (see #387).
-      const hasChangedEntity = this._alwaysUpdateControls.has(overlayId) ||
-        Array.from(entities).some(e => changedEntities.has(e));
-
+      let hasChangedEntity = this._alwaysUpdateControls.has(overlayId);
+      if (!hasChangedEntity) {
+        for (const entityId of entities) {
+          if (!oldStates || oldStates[entityId] !== newHass.states[entityId]) { hasChangedEntity = true; break; }
+        }
+      }
       if (hasChangedEntity) {
         const element = this.controlElements.get(overlayId);
         if (element) {
@@ -293,16 +269,8 @@ export class MsdControlsRenderer {
       // 🔄 MANUAL MODE: Optimized entity-based forwarding
       lcardsLog.debug('[MsdControlsRenderer] 🔄 Manual HASS forwarding ENABLED - using entity-based optimization');
 
-      // Detect which entities changed
-      const changedEntities = this._detectEntityChanges(oldHass, hass);
-
-      if (changedEntities.size === 0) {
-        lcardsLog.trace('[MsdControlsRenderer] No entity changes, skipping control updates');
-        return;
-      }
-
-      // Only update controls that use changed entities
-      const affectedControls = this._getAffectedControls(changedEntities);
+      // Only update controls whose entities changed
+      const affectedControls = this._getAffectedControls(oldHass, hass);
 
       if (affectedControls.length === 0) {
         lcardsLog.trace('[MsdControlsRenderer] No controls affected by entity changes');
@@ -310,7 +278,6 @@ export class MsdControlsRenderer {
       }
 
       lcardsLog.debug('[MsdControlsRenderer] Updating affected controls', {
-        changedEntities: changedEntities.size,
         affectedControls: affectedControls.length,
         totalControls: this.controlElements.size,
         efficiency: `${((1 - affectedControls.length / this.controlElements.size) * 100).toFixed(1)}% reduction`

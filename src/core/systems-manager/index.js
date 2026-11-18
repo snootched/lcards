@@ -109,8 +109,15 @@ export class CoreSystemsManager {
     const changedEntities = new Set();
 
     if (hass.states) {
-      Object.entries(hass.states).forEach(([entityId, newState]) => {
+      // Home Assistant keeps an entity's state object until that entity changes, so
+      // the same object means no change: checked first, it makes this scan over every
+      // entity cheap (2026-11-17: 0.56 ms per update at 2000 entities on desktop before)
+      let count = 0;
+      for (const entityId in hass.states) {
+        const newState = hass.states[entityId];
+        count++;
         const oldState = this._entityStates.get(entityId);
+        if (oldState === newState) continue;
 
         // last_changed only bumps when the state STRING transitions; last_updated
         // bumps on any change including attribute-only updates (e.g. brightness on
@@ -131,16 +138,19 @@ export class CoreSystemsManager {
           }
           this._entityStates.set(entityId, newState);
         }
-      });
+      }
 
       // An entity gone from hass.states (deleted or renamed in Home Assistant)
       // leaves the cache, and subscribers get (id, null, oldState): otherwise
-      // getEntityState() kept answering with its last state forever.
-      for (const [entityId, oldState] of this._entityStates) {
-        if (entityId in hass.states) continue;
-        this._entityStates.delete(entityId);
-        this._oldEntityStates?.set(entityId, oldState);
-        changedEntities.add(entityId);
+      // getEntityState() kept answering with its last state forever. Every id in
+      // hass.states is cached by now, so a larger cache means some are gone.
+      if (this._entityStates.size > count) {
+        for (const [entityId, oldState] of this._entityStates) {
+          if (entityId in hass.states) continue;
+          this._entityStates.delete(entityId);
+          this._oldEntityStates?.set(entityId, oldState);
+          changedEntities.add(entityId);
+        }
       }
     }
 
