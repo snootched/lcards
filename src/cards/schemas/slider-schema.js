@@ -291,7 +291,7 @@ export function getSliderSchema(options = {}) {
                     invert_value: {
                         type: 'boolean',
                         default: false,
-                        description: 'Invert value mapping (flip min↔max). When true, slider at min position sends max value to entity.',
+                        description: 'Swap the ends: the slider at its minimum position sets the maximum, so dragging right (or up) lowers the value. The drag badge and the scale still show the entity\'s own value.',
                         examples: [false, true]
                     }
                 }
@@ -425,7 +425,7 @@ export function getSliderSchema(options = {}) {
                             invert_fill: {
                                 type: 'boolean',
                                 default: false,
-                                description: 'Invert visual fill direction. When true, fills from opposite end (right/top instead of left/bottom).',
+                                description: 'Turn the track round: the fill, the drag direction and the scale start from the other end (right, or top when upright) instead of left or bottom.',
                                 examples: [false, true]
                             },
                             segments: {

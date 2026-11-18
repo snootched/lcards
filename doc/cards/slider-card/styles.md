@@ -45,7 +45,7 @@ style:
 | `type` | string | preset | `pills` or `gauge`. `shaped` is set for you by the [shaped component](./components#shaped-component) |
 | `orientation` | string | `horizontal` | `horizontal` or `vertical` |
 | `height` | number / string | theme | Track height: px, a `px` or `rem` string, or a theme token |
-| `invert_fill` | boolean | `false` | Fill from the other end (right, or top when upright) |
+| `invert_fill` | boolean | `false` | Turn the track round: the fill, the drag direction and the scale start from the other end (right, or top when upright) |
 | `margin` | number | `0` | Space on every side of the track, px. Or set each side with the keys below |
 | `margin.top` | number | `0` (pills presets: `5`) | Space above the track, px |
 | `margin.right` | number | `0` | Space right of the track, px |

@@ -26,6 +26,7 @@ control:
 ::: details More about control
 - **Another attribute:** `attribute` picks what the slider shows and sets, such as a light's colour temperature or a cover's tilt. The attributes it can set are in [Automatic domain behaviour](#automatic-domain-behaviour); any other attribute is shown read-only. It also takes a token or a `[[[JavaScript]]]` template that returns an attribute name.
 - **Read-only sliders:** a slider with nothing to set (a sensor, or an attribute no action sets) stays read-only even with `locked: false`.
+- **A blind that fills from the top:** set `invert_value: true` here and `style.track.invert_fill: true`. The fill then comes down from the top as the lowered part of the blind and dragging up opens it, while the drag badge and the scale still show the blind's own position.
 :::
 
 | Key | Type | Default | Description |
@@ -35,7 +36,7 @@ control:
 | `step` | number | by domain | Smallest change, at least 0.01 |
 | `attribute` | string | by domain | The attribute the slider shows and sets |
 | `locked` | boolean | `false` when it can set its attribute, else `true` | `true`: only show the value |
-| `invert_value` | boolean | `false` | Swap the ends: the minimum at the right (or top), so dragging right lowers the value. To only draw the fill from the other end, use [`style.track.invert_fill`](./styles#style-track) |
+| `invert_value` | boolean | `false` | Swap the ends: the minimum at the right (or top), so dragging right lowers the value. The drag badge and the scale still show the entity's own value |
 
 ### Automatic domain behaviour
 

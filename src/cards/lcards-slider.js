@@ -2808,7 +2808,7 @@ export class LCARdSSlider extends LCARdSButton {
                     if (positionValue > max) break;
 
                     // Display value: reversed when inverted (show high→low instead of low→high)
-                    const displayValue = this._invertFill ? (max - (positionValue - min)) : positionValue;
+                    const displayValue = this._toEntityValue(this._invertFill ? (max - (positionValue - min)) : positionValue);
 
                     // Calculate x position as percentage of track width
                     const percent = ((positionValue - min) / range) * 100;
@@ -2930,7 +2930,7 @@ export class LCARdSSlider extends LCARdSButton {
                     if (positionValue > max) break;
 
                     // Display value: reversed when inverted (show high→low instead of low→high)
-                    const displayValue = this._invertFill ? (max - (positionValue - min)) : positionValue;
+                    const displayValue = this._toEntityValue(this._invertFill ? (max - (positionValue - min)) : positionValue);
 
                     // Calculate y position as percentage of track height
                     // INVERTED: 0% = top (max value), 100% = bottom (min value)
@@ -3620,7 +3620,7 @@ export class LCARdSSlider extends LCARdSButton {
         const numberOpts = Number.isFinite(decimals)
             ? { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
             : {};
-        const formatted = haFormatNumber(this.hass, this._sliderValue, numberOpts);
+        const formatted = haFormatNumber(this.hass, this._toEntityValue(this._sliderValue), numberOpts);
         return showUnit && unit ? `${formatted} ${unit}` : formatted;
     }
 
@@ -3950,6 +3950,22 @@ export class LCARdSSlider extends LCARdSButton {
      * Set entity value via service call
      * @private
      */
+    /**
+     * The entity's value for a slider value. With control.invert_value the slider
+     * works in a flipped space (max - value + min); every number it shows (the drag
+     * badge, scale labels, aria-valuenow) is the entity's value, the number Home
+     * Assistant and other cards show (GitHub #411, 2026-11-18). Positions stay in
+     * the slider's space.
+     * @param {number} value
+     * @returns {number}
+     * @private
+     */
+    _toEntityValue(value) {
+        if (!this._controlConfig?.invertValue || !Number.isFinite(value)) return value;
+        const { min, max } = this._controlConfig;
+        return max - value + min;
+    }
+
     async _setEntityValue(value) {
         if (!this.hass || !this.config.entity) return;
 
@@ -4311,6 +4327,7 @@ export class LCARdSSlider extends LCARdSButton {
                         type="range"
                         class="slider-input-overlay"
                         .value="${inputDisplayValue}"
+                        aria-valuetext="${String(this._toEntityValue(this._sliderValue))}"
                         .min="${String(ctrlMin)}"
                         .max="${String(ctrlMax)}"
                         .step="${String(this._controlConfig.step || 1)}"
@@ -4692,7 +4709,7 @@ export class LCARdSSlider extends LCARdSButton {
         const { labels } = this._ringScaleConfig();
         if (!labels) return [];
         return scaleValues(this._displayConfig.min, this._displayConfig.max, labels.interval)
-            .map(v => ({ value: v, text: `${v}${labels.unit}` }));
+            .map(v => ({ value: v, text: `${this._toEntityValue(v)}${labels.unit}` }));
     }
 
     /**
@@ -4947,7 +4964,7 @@ export class LCARdSSlider extends LCARdSButton {
                         aria-label="${label}"
                         aria-valuemin="${min}"
                         aria-valuemax="${max}"
-                        aria-valuenow="${this._sliderValue}"
+                        aria-valuenow="${this._toEntityValue(this._sliderValue)}"
                         @pointerdown="${this._handleRingPointerDown}"
                         @pointermove="${this._handleRingPointerMove}"
                         @pointerup="${this._handleRingPointerUp}"
@@ -5007,7 +5024,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._sliderValue = value;
         this._updateDynamicElements();
         this._updateDragBadgePosition();
-        this.shadowRoot?.querySelector('.ring-overlay')?.setAttribute('aria-valuenow', String(value));
+        this.shadowRoot?.querySelector('.ring-overlay')?.setAttribute('aria-valuenow', String(this._toEntityValue(value)));
     }
 
     /**
