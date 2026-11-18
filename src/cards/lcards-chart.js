@@ -373,6 +373,29 @@ export class LCARdSChart extends LCARdSCard {
       return;
     }
     if (!this._chart || !this._chartReady) return;
+    this._queueSeriesRedraw();
+  }
+
+  /**
+   * Redraw the series once for everything delivered together. The fetcher hands
+   * over every changed series in one loop (a flush, the minute tick that moves the
+   * window), and each delivery used to update the chart twice: a chart of four
+   * series drew eight times a minute while idle (2026-11-17, perf review item 13).
+   * The calls themselves are unchanged.
+   * @private
+   */
+  _queueSeriesRedraw() {
+    if (this._seriesRedrawQueued) return;
+    this._seriesRedrawQueued = true;
+    queueMicrotask(() => {
+      this._seriesRedrawQueued = false;
+      this._redrawSeries();
+    });
+  }
+
+  /** @private */
+  _redrawSeries() {
+    if (!this._chart || !this._chartReady) return;
     try {
       if (this._isZoomed()) {
         // A zoomed chart keeps its zoom: updateSeries() would put back the last
@@ -400,11 +423,18 @@ export class LCARdSChart extends LCARdSCard {
   _onBandUpdate(index, points) {
     this._bandPoints[index] = points;
     if (!this._chart || !this._chartReady) return;
-    try {
-      settleUpdate(this._chart.updateOptions(definedOptions({ annotations: this._buildChartOptions().annotations }), false, false, false), 'bands');
-    } catch (error) {
-      lcardsLog.error('[LCARdSChart] Error updating state bands:', error);
-    }
+    // once for every band delivered together (each redraw builds all the bands)
+    if (this._bandRedrawQueued) return;
+    this._bandRedrawQueued = true;
+    queueMicrotask(() => {
+      this._bandRedrawQueued = false;
+      if (!this._chart || !this._chartReady) return;
+      try {
+        settleUpdate(this._chart.updateOptions(definedOptions({ annotations: this._buildChartOptions().annotations }), false, false, false), 'bands');
+      } catch (error) {
+        lcardsLog.error('[LCARdSChart] Error updating state bands:', error);
+      }
+    });
   }
 
   /**

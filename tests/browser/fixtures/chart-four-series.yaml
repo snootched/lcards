@@ -1,0 +1,15 @@
+# Four history series in a rolling window (perf review item 13, 2026-11-17): the
+# minute tick and a flush redraw the chart once, not twice per series.
+type: custom:lcards-chart
+chart_type: line
+graph_span: 6h
+sources:
+  - entity: sensor.demo_temperature
+    name: Inside
+  - entity: sensor.demo_outdoor_temperature
+    name: Outside
+  - entity: sensor.demo_humidity
+    name: Humidity
+  - entity: input_number.demo_level
+    name: Level
+    curve: stepline
