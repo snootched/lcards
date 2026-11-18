@@ -365,6 +365,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // SVG component state
         this._componentLoaded = false;
+        this._componentLoadFailed = false; // a load that failed for good (not one still waiting)
         this._componentMetadata = null;   // NEW: Component metadata (zones, features, etc.)
 
         // Render function architecture
@@ -1502,6 +1503,7 @@ export class LCARdSSlider extends LCARdSButton {
                     this._componentCalculateZones = component.calculateZones || null;
 
                     this._componentLoaded = true;
+                    this._componentLoadFailed = false;
 
                     // Set orientation from component metadata
                     if (!this.config.style?.track?.orientation && component.metadata?.orientation) {
@@ -1522,6 +1524,8 @@ export class LCARdSSlider extends LCARdSButton {
 
                 // Component found but doesn't use render architecture
                 lcardsLog.error(`[LCARdSSlider] Component "${componentName}" does not use render function architecture`);
+                this._componentLoadFailed = true;
+                this._componentRenderer = null;
                 this._componentLoaded = false;
                 this._componentMetadata = null;
                 return;
@@ -1529,11 +1533,15 @@ export class LCARdSSlider extends LCARdSButton {
 
             // No component found
             lcardsLog.error(`[LCARdSSlider] Component not found: ${componentName}`);
+            this._componentLoadFailed = true;
+            this._componentRenderer = null;
             this._componentLoaded = false;
             this._componentMetadata = null;
 
         } catch (error) {
             lcardsLog.error(`[LCARdSSlider] Component load failed:`, error);
+            this._componentLoadFailed = true;
+            this._componentRenderer = null;
             this._componentLoaded = false;
             this._componentMetadata = null;
         }
@@ -5974,8 +5982,11 @@ export class LCARdSSlider extends LCARdSButton {
         }
         const containerStyle = containerStyleParts.join('; ');
 
-        // Check if component is loaded
-        if (this.config.component && !this._componentLoaded) {
+        // Not loaded yet (the core and its components are still starting, or a preset
+        // names the component): show the loading state. Every render before the
+        // load used to warn "No component renderer available": 10 to 30 times per
+        // page load on a slow tablet (HA-LCARS feedback, 2026-11-18).
+        if (!this._componentRenderer && !this._componentLoadFailed) {
             return html`
                 <div class="slider-container" style="${containerStyle}">
                     <div class="slider-loading">Loading component...</div>
@@ -5988,8 +5999,7 @@ export class LCARdSSlider extends LCARdSButton {
             return this._renderWithRenderer(width, height, containerStyle);
         }
 
-        // Fallback: no component loaded
-        lcardsLog.warn('[LCARdSSlider] No component renderer available, showing error');
+        // Loading failed for good (already logged as an error by _loadSliderComponent)
         return html`
             <div class="slider-container" style="${containerStyle}">
                 <div class="slider-loading">Component not loaded</div>
