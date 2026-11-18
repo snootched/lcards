@@ -529,7 +529,8 @@ export class DataSourceManager extends BaseService {
    */
   ingestHass(hass) {
     if (!hass || !hass.states) {
-      lcardsLog.warn('[DataSourceManager] ingestHass: Invalid HASS provided');
+      // a hass without states is normal while Home Assistant starts (was a warning on every slow load)
+      lcardsLog.debug('[DataSourceManager] ingestHass: no states yet (Home Assistant still starting?)');
       return { hasChanges: false, changedCount: 0, totalCount: 0 };
     }
 

@@ -210,6 +210,53 @@ export class ScopedSettingsService extends BaseService {
         return result;
     }
 
+    /**
+     * read() for several keys at once: each scope is read in one call (the device
+     * and user records whole, the global keys with readStorageMany()), then each key
+     * takes its first non-null value in `scopes` order. The connection overlay's 25
+     * settings took one call per key and scope (up to 75) at every page load, and a
+     * slow tablet logged a warning for each while Home Assistant was starting
+     * (HA-LCARS feedback, 2026-11-18). A scope that fails reads as empty (debug).
+     *
+     * @param {string[]} keys
+     * @param {string[]} [scopes]
+     * @returns {Promise<Record<string, any>>} key -> value, or null when no scope has it
+     */
+    async readMany(keys, scopes = ['device', 'user', 'global']) {
+        const integration = this._getIntegration();
+        const scopedAvailable = this._isScopedAvailable(integration);
+        const conn = this._hass?.connection;
+        /** @type {Record<string, Record<string, any>>} */
+        const byScope = {};
+        await Promise.all(scopes.map(async (scope) => {
+            try {
+                if (scope === 'device' && scopedAvailable && conn) {
+                    const deviceId = window.lcards?.core?.deviceIdentityManager?.getDeviceId();
+                    if (!deviceId) return;
+                    const r = await conn.sendMessagePromise({ type: 'lcards/storage/device/get', device_id: deviceId });
+                    byScope.device = r?.value ?? {};
+                } else if (scope === 'user' && scopedAvailable && conn) {
+                    const r = await conn.sendMessagePromise({ type: 'lcards/storage/user/get' });
+                    byScope.user = r?.value ?? {};
+                } else if (scope === 'global' && integration?.available) {
+                    byScope.global = await integration.readStorageMany(keys);
+                }
+            } catch (err) {
+                lcardsLog.debug(`[ScopedSettingsService] readMany: scope "${scope}" failed:`, err);
+            }
+        }));
+        /** @type {Record<string, any>} */
+        const out = {};
+        for (const key of keys) {
+            out[key] = null;
+            for (const scope of scopes) {
+                const value = byScope[scope]?.[key];
+                if (value !== null && value !== undefined) { out[key] = value; break; }
+            }
+        }
+        return out;
+    }
+
     // -----------------------------------------------------------------------
     // Private: scope-specific read / write / clear
     // -----------------------------------------------------------------------

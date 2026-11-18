@@ -21,6 +21,8 @@ Provides the lcards/* WebSocket command namespace:
 
   Per-device scoped storage (device_id supplied by the browser; the record's
   owner is the user signed in on it, see device_access.py):
+  lcards/storage/get_many     : read several global keys at once (user and
+                                device records excluded)
   lcards/storage/device/get   — read a device's scoped data    (owner or admin)
   lcards/storage/device/set   — write a device's scoped data (deep-merge; a
                                 non-admin caller becomes the owner)
@@ -127,6 +129,7 @@ def async_setup_ws(hass: HomeAssistant) -> None:
         ws_lcards_info,
         # Global flat storage
         ws_storage_get,
+        ws_storage_get_many,
         ws_storage_set,
         ws_storage_delete,
         ws_storage_delete_many,
@@ -212,7 +215,8 @@ async def ws_lcards_info(
             # scoped_storage_replace: the user/device set commands take `replace`.
             # own_user_reload: a non-admin may relay reload_connection_config to
             # their own sessions through lcards/fire_event.
-            "capabilities":      ["scoped_storage", "scoped_storage_replace", "own_user_reload"],
+            # storage_get_many: lcards/storage/get_many reads several global keys at once.
+            "capabilities":      ["scoped_storage", "scoped_storage_replace", "own_user_reload", "storage_get_many"],
         },
     )
 
@@ -272,6 +276,38 @@ async def ws_storage_get(
         return
     value = await storage.async_get(key)
     connection.send_result(msg["id"], {"key": key, "value": value})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/storage/get_many",
+        vol.Required("keys"): [str],
+    }
+)
+@websocket_api.async_response
+async def ws_storage_get_many(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Handle lcards/storage/get_many.
+
+    Returns ``{"values": {key: value}}`` for several global keys in one call (a
+    card's settings read at startup took one call per key; a slow tablet logged
+    a warning for each while Home Assistant was starting). A missing key is
+    None. User and device records (``_user_<id>``, ``_device_<id>``) are not
+    returned here: they have their own commands with their own access rules.
+    """
+    storage = _check_storage(hass, connection, msg)
+    if storage is None:
+        return
+    values = {}
+    for key in msg["keys"]:
+        if key.startswith(f"{STORAGE_NS_USER}_") or key.startswith(f"{STORAGE_NS_DEVICE}_"):
+            values[key] = None
+            continue
+        values[key] = await storage.async_get(key)
+    connection.send_result(msg["id"], {"values": values})
 
 
 @websocket_api.websocket_command(

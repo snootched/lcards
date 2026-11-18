@@ -48,6 +48,7 @@ export class IntegrationService extends BaseService {
          *
          * Known capabilities:
          *   - ``scoped_storage`` — per-user / per-device namespaced WS commands
+         *   - ``storage_get_many``: lcards/storage/get_many reads several global keys at once
          *
          * @type {Set<string>}
          */
@@ -233,6 +234,36 @@ export class IntegrationService extends BaseService {
             lcardsLog.warn(`[IntegrationService] readStorage("${key}") failed:`, err);
             return undefined;
         }
+    }
+
+    /**
+     * Read several global keys in one call (`lcards/storage/get_many`), or one call
+     * per key on an older integration without the `storage_get_many` capability.
+     * A key that is missing, or a read that failed, is undefined. A failure logs
+     * once at debug: it happens while Home Assistant is still starting.
+     *
+     * @param {string[]} keys
+     * @returns {Promise<Record<string, any>>}
+     */
+    async readStorageMany(keys) {
+        /** @type {Record<string, any>} */
+        const out = {};
+        if (!keys.length || !this.available || !this._hass?.connection) return out;
+        if (this.capabilities.has('storage_get_many')) {
+            try {
+                const result = await this._hass.connection.sendMessagePromise({ type: 'lcards/storage/get_many', keys });
+                for (const key of keys) out[key] = result?.values?.[key] ?? undefined;
+                return out;
+            } catch (err) {
+                lcardsLog.debug('[IntegrationService] readStorageMany failed:', err);
+                return out;
+            }
+        }
+        const values = await Promise.all(keys.map((key) => this._hass.connection
+            .sendMessagePromise({ type: 'lcards/storage/get', key })
+            .then((r) => r?.value, () => undefined)));
+        keys.forEach((key, i) => { out[key] = values[i]; });
+        return out;
     }
 
     /**

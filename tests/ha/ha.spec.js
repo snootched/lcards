@@ -1703,6 +1703,32 @@ test('Layout studio: grid headers and toolbar sit outside the cells (reserved ed
     expect(errors).toEqual([]);
 });
 
+test('storage/get_many reads several global keys in one call, never user or device records (Fire tablet feedback, 2026-11-18)', async () => {
+    const info = await client.call({ type: 'lcards/info' });
+    expect(info.capabilities).toContain('storage_get_many');
+    const DEVICE = 'lcards-test-getmany-device';
+    await client.call({ type: 'lcards/storage/set', data: { lcards_test_many_a: 'a', lcards_test_many_b: 2 } });
+    try {
+        await withNonAdminUser(client, async (user) => {
+            await user.call({ type: 'lcards/storage/device/set', device_id: DEVICE, data: { secret: 1 } });
+            const keys = ['lcards_test_many_a', 'lcards_test_many_b', 'lcards_test_many_missing', `_device_${DEVICE}`, '_user_someone'];
+            for (const caller of [user, client]) {
+                const { values } = await caller.call({ type: 'lcards/storage/get_many', keys });
+                expect(values).toEqual({
+                    lcards_test_many_a: 'a',
+                    lcards_test_many_b: 2,
+                    lcards_test_many_missing: null,
+                    [`_device_${DEVICE}`]: null,
+                    _user_someone: null,
+                });
+            }
+        });
+    } finally {
+        await client.call({ type: 'lcards/storage/delete_many', keys: ['lcards_test_many_a', 'lcards_test_many_b'] }).catch(() => {});
+        await client.call({ type: 'lcards/storage/devices/clear', device_id: DEVICE }).catch(() => {});
+    }
+});
+
 test('global storage is admin-only; a non-admin keeps their own user and device storage (D3a)', async () => {
     const DEVICE = 'lcards-test-nonadmin-device';
     await client.call({ type: 'lcards/storage/set', data: { lcards_test_admin_only: 'kept' } });

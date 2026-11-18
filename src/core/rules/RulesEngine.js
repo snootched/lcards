@@ -814,7 +814,8 @@ export class RulesEngine extends BaseService {
 
   ingestHass(hass) {
     if (!hass || !hass.states) {
-      lcardsLog.warn('[RulesEngine] ingestHass: Invalid HASS provided');
+      // a hass without states is normal while Home Assistant starts (was a warning on every slow load)
+      lcardsLog.debug('[RulesEngine] ingestHass: no states yet (Home Assistant still starting?)');
       return;
     }
 

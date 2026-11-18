@@ -76,7 +76,7 @@ Calling `initialize(hass)` again starts a fresh probe chain (it resets the attem
 | `version` | `string \| null` | Version reported by the integration (`DOMAIN_VERSION` from `const.py`) |
 | `storageKeyCount` | `number \| null` | Number of keys in backend storage (`null` while storage is not initialised) |
 | `options` | `Object \| null` | Options of the first config entry: `show_panel`, `sidebar_title`, `sidebar_icon`, `log_level`, `enable_previews`; `null` when there is no entry |
-| `capabilities` | `Set<string>` | Capability strings from the reply; today the backend sends `['scoped_storage', 'scoped_storage_replace', 'own_user_reload']` |
+| `capabilities` | `Set<string>` | Capability strings from the reply; today the backend sends `['scoped_storage', 'scoped_storage_replace', 'own_user_reload', 'storage_get_many']` |
 | `isReady` | `boolean` (getter) | `true` once the probe chain has finished, whatever the outcome |
 
 `window.lcards.info()` reports these as `integration` (`available`, a boolean), `backendVersion` (`version`) and `preview` (`options.enable_previews`) (`src/lcards-main.js`).

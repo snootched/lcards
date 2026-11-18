@@ -172,6 +172,7 @@ describe('forced paths honour Borg mode like a real disconnect (CO4)', () => {
         globalThis.window.lcards.core.portalOverlayManager.has = () => true;
         globalThis.window.lcards.core.scopedSettingsService = {
             async read(key) { return key === 'conn_overlay_msg_mode' ? 'borg' : null; },
+            async readMany(keys) { return Object.fromEntries(keys.map((key) => [key, key === 'conn_overlay_msg_mode' ? 'borg' : null])); },
         };
         const svc = service('text');
         svc._isActive = true;

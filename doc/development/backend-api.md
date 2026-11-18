@@ -55,6 +55,7 @@ All 23 commands, registered by `async_setup_ws()` (`websocket_api.py:123-164`). 
 | `lcards/storage/set` | admin | `data` | `{ ok, keys }` |
 | `lcards/storage/delete` | admin | `key` | `{ ok, existed }` |
 | `lcards/storage/delete_many` | admin | `keys` | `{ ok, removed }` (a count) |
+| `lcards/storage/get_many` | any user | `keys` | `{ values: { key: value } }`; a missing key, a `_user_*` key and a `_device_*` key are `null`. Capability `storage_get_many` |
 | `lcards/storage/reset` | admin | none | `{ ok }` |
 | `lcards/storage/dump` | admin | none | `{ version, data }` |
 | `lcards/storage/user/get` | any user (own record) | `key?` | `{ user_id, key, value }` |

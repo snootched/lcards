@@ -305,6 +305,7 @@ Saving reloads the entry (unload, then setup), so every option applies without a
 | `lcards/storage/set` | admin | `ws_storage_set` (`:277-300`) | `data` | `{ ok, keys }` |
 | `lcards/storage/delete` | admin | `ws_storage_delete` (`:303-325`) | `key` | `{ ok, existed }` |
 | `lcards/storage/delete_many` | admin | `ws_storage_delete_many` (`:328-351`) | `keys` | `{ ok, removed }` (count) |
+| `lcards/storage/get_many` | any user; `_user_*` and `_device_*` keys read as `null` | `ws_storage_get_many` | `keys` | `{ values }` |
 | `lcards/storage/reset` | admin | `ws_storage_reset` (`:354-375`) | none | `{ ok }` |
 | `lcards/storage/dump` | admin | `ws_storage_dump` (`:378-400`) | none | `{ version, data }` |
 | `lcards/storage/user/get` | any user (own record) | `ws_storage_user_get` (`:518-545`) | `key?` | `{ user_id, key, value }` |
@@ -333,12 +334,13 @@ The backend probe. `IntegrationService` sends it on the first HASS update with a
 | `version` | `DOMAIN_VERSION`, the full version with any `-dev.N` suffix |
 | `storage_key_count` | number of top-level keys in the store (scoped records included), or `null` before `async_setup_entry` |
 | `options` | the five options with defaults filled in, or `null` when there is no config entry |
-| `capabilities` | `["scoped_storage", "scoped_storage_replace", "own_user_reload"]` |
+| `capabilities` | `["scoped_storage", "scoped_storage_replace", "own_user_reload", "storage_get_many"]` |
 
 | Capability | Meaning |
 |---|---|
 | `scoped_storage` | The `storage/user/*`, `users/*`, `device/*` and `devices/*` commands exist |
 | `scoped_storage_replace` | The four scoped `set` commands accept `replace: true`; `ScopedSettingsService.write()` sends it only when this is advertised |
+| `storage_get_many` | `lcards/storage/get_many` reads several global keys in one call; `IntegrationService.readStorageMany()` falls back to one `storage/get` per key without it. `ScopedSettingsService.readMany()` uses it to read the connection overlay's settings in one call per scope (2026-11-18) |
 | `own_user_reload` | A non-admin may send `reload_connection_config` to their own sessions through `lcards/fire_event` |
 
 Capabilities let a newer frontend run against an older backend: the frontend checks for a capability before using the feature ([Integration Service: capabilities](subsystems/integration-service#capabilities)).

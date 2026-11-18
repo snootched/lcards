@@ -324,7 +324,7 @@ export class ConnectionOverlayService extends BaseService {
             return this._config;
         }
 
-        // Read each flat key through the device → user → global waterfall independently.
+        // Each flat key goes through the device → user → global waterfall independently.
         // This means a device-scoped colour does NOT clobber a global-scoped text value.
         const D = DEFAULT_CONFIG;
         const SCOPES = ['device', 'user', 'global'];
@@ -335,33 +335,38 @@ export class ConnectionOverlayService extends BaseService {
             reconWeight, reconTransform, reconContent,
             borgSem,
             disconnectDelay,
-        ] = await Promise.all([
-            sss.read(CONN_OVERLAY_ENABLED,            SCOPES, null),
-            sss.read(CONN_OVERLAY_DISMISS,             SCOPES, null),
-            sss.read(CONN_OVERLAY_POSITION,            SCOPES, null),
-            sss.read(CONN_OVERLAY_WIDTH,               SCOPES, null),
-            sss.read(CONN_OVERLAY_HEIGHT,              SCOPES, null),
-            sss.read(CONN_OVERLAY_CONTENT,             SCOPES, null),
-            sss.read(CONN_OVERLAY_SEM,                 SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_MODE,            SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_TEXT,            SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_COLOR,           SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_FONT,            SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_SIZE,            SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_WEIGHT,          SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_TRANSFORM,       SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_ENABLED,       SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_TEXT,          SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_COLOR,         SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_DISMISS_SECS,  SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_FONT,          SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_SIZE,          SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_WEIGHT,        SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_TRANSFORM,     SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_CONTENT,       SCOPES, null),
-            sss.read(CONN_OVERLAY_BORG_SEM,             SCOPES, null),
-            sss.read(CONN_OVERLAY_DISCONNECT_DELAY,    SCOPES, null),
-        ]);
+        ] = await (async () => {
+            // One read per scope for all 25 settings (it was one call per key and scope)
+            const keys = [
+                CONN_OVERLAY_ENABLED,
+                CONN_OVERLAY_DISMISS,
+                CONN_OVERLAY_POSITION,
+                CONN_OVERLAY_WIDTH,
+                CONN_OVERLAY_HEIGHT,
+                CONN_OVERLAY_CONTENT,
+                CONN_OVERLAY_SEM,
+                CONN_OVERLAY_MSG_MODE,
+                CONN_OVERLAY_MSG_TEXT,
+                CONN_OVERLAY_MSG_COLOR,
+                CONN_OVERLAY_MSG_FONT,
+                CONN_OVERLAY_MSG_SIZE,
+                CONN_OVERLAY_MSG_WEIGHT,
+                CONN_OVERLAY_MSG_TRANSFORM,
+                CONN_OVERLAY_RECON_ENABLED,
+                CONN_OVERLAY_RECON_TEXT,
+                CONN_OVERLAY_RECON_COLOR,
+                CONN_OVERLAY_RECON_DISMISS_SECS,
+                CONN_OVERLAY_RECON_FONT,
+                CONN_OVERLAY_RECON_SIZE,
+                CONN_OVERLAY_RECON_WEIGHT,
+                CONN_OVERLAY_RECON_TRANSFORM,
+                CONN_OVERLAY_RECON_CONTENT,
+                CONN_OVERLAY_BORG_SEM,
+                CONN_OVERLAY_DISCONNECT_DELAY,
+            ];
+            const values = await sss.readMany(keys, SCOPES);
+            return keys.map((k) => values[k] ?? null);
+        })();
 
         // Priority: storage value → existing in-memory value → built-in default.
         // All sss.read() calls use null as the globalFallback so that a WS failure
