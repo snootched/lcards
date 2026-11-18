@@ -537,3 +537,23 @@ test('astrometrics whirlpool: arms and thickness only with shape: whirlpool (F2)
     assert.ok(out.includes('warning objects[0].arms: arms applies only with shape: whirlpool'), out.join('\n'));
     assert.ok(out.includes('warning objects[0].thickness: thickness applies only with shape: whirlpool'), out.join('\n'));
 });
+
+test("an MSD rule's non-style keys for its own line or shape are a warning (only style changes a drawn overlay)", () => {
+    const m = messages(check({
+        type: 'custom:lcards-msd-card',
+        msd: {
+            view_box: [0, 0, 400, 200],
+            overlays: [
+                { id: 'l1', type: 'line', anchor: [0, 0], attach_to: [100, 100] },
+                { id: 'c1', type: 'control', position: [200, 50], size: [80, 40], card: { type: 'custom:lcards-button' } },
+            ],
+        },
+        rules: [{
+            id: 'r1',
+            when: { entity: 'light.demo', state: 'on' },
+            apply: { overlays: { l1: { attach_to: [300, 100], style: { width: 9 } }, c1: { text: { name: { content: 'X' } } } } },
+        }],
+    }));
+    assert.ok(m.includes('warning rules[0].apply.overlays.l1: a rule changes only style on an MSD line; attach_to is ignored'), m.join('\n'));
+    assert.ok(!m.some((x) => x.includes('overlays.c1')), 'a control passes its patch to the card inside it');
+});

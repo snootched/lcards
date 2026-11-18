@@ -105,6 +105,7 @@ msd:
 **Rules change the display while a condition holds: they restyle overlays, play animations on them and tint the blueprint.** The rule sits in the card's `rules` list and works like a rule on any card ([Rules Engine](../../core/rules/)); this section covers what it can do on an MSD.
 
 - Under `apply.overlays`, name an overlay by its `id` and give the style to use. A line or shape takes its `style` keys (`color`, `width`, `opacity`, `dash_array`, `fill`); the [Rules Engine](../../core/rules/) also has selectors for groups (`tag:`, `type:`, `pattern:`, `all`).
+- A rule changes only the `style` of a line or shape: other keys, such as `attach_to`, `route` or `points`, are ignored (the config checker warns). A rule that names a control changes the card inside it, with that card's own options.
 - Animations under `apply.animations` start when the rule matches and stop when it no longer does. Name the overlay with `overlay:` (its id), or a group with `tag:`, `type:` or `pattern:`.
 - `apply.base_svg` crossfades the blueprint to other [filters](./base-svg-filters), such as a red tint on alert; `filters: []` clears them.
 - For an animation with no condition (these all draw in on load), use [msd.animations](#msd-animations) instead.

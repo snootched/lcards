@@ -336,6 +336,33 @@ export function flyToIssues(node, tag) {
 }
 
 /**
+ * An MSD's own rules: a patch for one of its lines or shapes changes only `style`
+ * on the drawn overlay (lcards-msd.js `_applyRulePatches`); other keys (`attach_to`,
+ * `route`, `points` ...) are ignored. Controls are not checked: a rule naming a
+ * control reaches the card inside it, which takes that card's own options.
+ * @returns {{path: string, message: string}[]}
+ */
+export function msdRulePatchIssues(node, tag) {
+  const out = [];
+  if (tag !== 'lcards-msd-card' || !Array.isArray(node?.rules)) return out;
+  const drawn = new Map((node.msd?.overlays ?? [])
+    .filter((o) => o && (o.type === 'line' || o.type === 'shape') && typeof o.id === 'string')
+    .map((o) => [o.id, o.type]));
+  node.rules.forEach((rule, i) => {
+    const overlays = rule?.apply?.overlays;
+    if (!overlays || typeof overlays !== 'object') return;
+    for (const [id, patch] of Object.entries(overlays)) {
+      if (!drawn.has(id) || !patch || typeof patch !== 'object') continue;
+      const other = Object.keys(patch).filter((k) => k !== 'style');
+      if (other.length) {
+        out.push({ path: `rules[${i}].apply.overlays.${id}`, message: `a rule changes only style on an MSD ${drawn.get(id)}; ${other.join(', ')} ${other.length > 1 ? 'are' : 'is'} ignored` });
+      }
+    }
+  });
+  return out;
+}
+
+/**
  * Animations (card `animations:`, rule `apply.animations`, MSD overlay and
  * segment animations: every list under an `animations` key) whose built-in
  * preset is missing a param it needs. The preset reads params from the entry's
@@ -901,6 +928,7 @@ export function createConfigValidator({ entries, registries = null }) {
       for (const r of astrometricsIssues(node)) add(r.severity, 'reference', r.path, r.message);
     }
     for (const r of flyToIssues(node, tag)) add('warning', 'reference', r.path, r.message);
+    for (const r of msdRulePatchIssues(node, tag)) add('warning', 'rule-patch', r.path, r.message);
     for (const r of animationParamIssues(node)) add('warning', 'missing-param', r.path, r.message);
     for (const r of cutValueIssues(node)) add('warning', 'cut-value', r.path, r.message);
     for (const r of legacyActionIssues(node)) add('warning', 'legacy-action', r.path, r.message);
