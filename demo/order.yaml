@@ -33,7 +33,7 @@ topics:
         views: [perf-regression]
   - id: msd
     title: MSD
-    views: [msd-basics, msd-routing, msd-shapes, msd-leader-lines, msd-lineart]
+    views: [msd-basics, msd-routing, msd-routing-lab, msd-shapes, msd-leader-lines, msd-lineart]
   - id: astrometrics
     title: Astrometrics
     groups:
@@ -204,6 +204,15 @@ releases:
         session: "F1 Earth satellites"
         docs: /cards/astrometrics/scale#earth-satellites
         public: true
+      - file: msd-routing-lab
+        summary: "MSD routing lab: one small scene per routing situation, each checked by a test"
+        description:
+          - "A check of the line router, not a feature view: each MSD is one situation (converging, fanning out, a bundle round a corner, crossing bundles, a forced channel, obstacles, tight and wide lanes, corner radii, stacked targets)."
+          - "The note above each says what it should look like; tests/routing/routing-lab.test.js routes the same scenes and checks that no lines touch or cross unless the scene says so, routing settles and nested corners widen outward."
+          - "Generated from tests/routing/lab-scenes.js by scripts/make-routing-lab.mjs."
+        session: "Routing lab"
+        docs: /cards/msd/routing
+        public: false
       - file: msd-leader-lines
         summary: "MSD leader lines: side exits, sweeps, tight bends, brackets and angled runs"
         description:
