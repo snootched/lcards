@@ -1,5 +1,6 @@
 import { TemplateEvaluator } from './TemplateEvaluator.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { renderLive } from './live-templates.js';
 
 /**
  * HATemplateEvaluator - Server-side Jinja2 template evaluation via Home Assistant
@@ -65,8 +66,9 @@ export class HATemplateEvaluator extends TemplateEvaluator {
   /**
    * Call Home Assistant's template rendering via WebSocket subscription
    *
-   * Uses a one-shot subscription to render_template which immediately
-   * returns the rendered result and unsubscribes.
+   * A card's evaluator (context._liveTemplates, its template owner) keeps the
+   * template subscribed (live-templates.js); otherwise a one-shot subscription
+   * takes the first result and unsubscribes.
    *
    * @private
    * @param {string} template - Jinja2 template to render
@@ -88,6 +90,29 @@ export class HATemplateEvaluator extends TemplateEvaluator {
       if (!hass.connection) {
         throw new Error('Home Assistant connection not available after wait');
       }
+    }
+
+    const all = {
+      // Card-supplied names (e.g. sky, point) as top-level variables
+      ...(this.context.extra && typeof this.context.extra === 'object' ? this.context.extra : {}),
+      config: this.context.config,
+      user: this.context.hass?.user?.name,
+      variables: this.context.variables
+    };
+    // Only the names the template uses: an open template is keyed by its variables,
+    // and the card config changes (presets merged in, rule patches) where most
+    // templates never read it
+    /** @type {Record<string, any>} */
+    const variables = {};
+    for (const [name, value] of Object.entries(all)) {
+      if (new RegExp(`\\b${name.replace(/[^\w]/g, '')}\\b`).test(template)) variables[name] = value;
+    }
+
+    // A card's templates stay subscribed (live-templates.js): Home Assistant sends
+    // only changed results. Others (rules, one-off evaluations) render once.
+    const owner = this.context._liveTemplates;
+    if (owner) {
+      return renderLive(hass.connection, template, variables, owner);
     }
 
     return new Promise((resolve, reject) => {
@@ -131,13 +156,7 @@ export class HATemplateEvaluator extends TemplateEvaluator {
         {
           type: 'render_template',
           template: template,
-          variables: {
-            // Card-supplied names (e.g. sky, point) as top-level variables
-            ...(this.context.extra && typeof this.context.extra === 'object' ? this.context.extra : {}),
-            config: this.context.config,
-            user: this.context.hass?.user?.name,
-            variables: this.context.variables
-          }
+          variables
         }
       ).then((unsub) => {
         if (done) Promise.resolve().then(unsub).catch(() => {});

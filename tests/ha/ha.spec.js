@@ -561,6 +561,56 @@ test('templates: {token} and {{ jinja }} mixed in one label both render (S2 fix)
     expect(errors).toEqual([]);
 });
 
+test('templates: a Jinja2 label stays subscribed: changes arrive without new render_template subscriptions, also after a reconnect', async ({ page }) => {
+    // 2026-11-18 (Fire HD 8 kiosk feedback item 6): every change used to send a
+    // subscribe, a result and an unsubscribe per template.
+    /** @type {string[]} */
+    const templates = [];
+    page.on('websocket', (ws) => ws.on('framesent', ({ payload }) => {
+        try {
+            const j = JSON.parse(String(payload));
+            for (const m of Array.isArray(j) ? j : [j]) if (m?.type === 'render_template') templates.push(m.template);
+        } catch { /* not JSON */ }
+    }));
+    await client.callService('input_select', 'select_option', { entity_id: 'input_select.lcards_test_mode', option: 'alpha' });
+    await client.callService('input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' });
+    const errors = await openDashboard(page, 'rules');
+    const label = page.locator('lcards-button', { has: page.locator('text[data-field-id="label"]') })
+        .filter({ hasText: '/' }).locator('text[data-field-id="label"]');
+    await expect(label).toHaveText(/^off \/ alpha$/i, { timeout: 10_000 });
+    await page.waitForTimeout(1000);
+    const mine = () => templates.filter((t) => t.includes('lcards_test_mode')).length;
+    const before = mine();
+    expect(before).toBeGreaterThan(0);
+    for (const option of ['beta', 'gamma', 'alpha', 'gamma']) {
+        await client.callService('input_select', 'select_option', { entity_id: 'input_select.lcards_test_mode', option });
+        await expect(label).toHaveText(new RegExp(`^off / ${option}$`, 'i'), { timeout: 10_000 });
+    }
+    expect(mine(), 'no subscription per change').toBe(before);
+
+    // A reconnect: the library subscribes again, changes keep arriving
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('home-assistant')).hass.connection.socket.close());
+    await page.waitForFunction(() => /** @type {any} */ (document.querySelector('home-assistant')).hass?.connection?.connected === true, null, { timeout: 30_000 });
+    await page.waitForTimeout(1500);
+    await client.callService('input_select', 'select_option', { entity_id: 'input_select.lcards_test_mode', option: 'beta' });
+    await expect(label).toHaveText(/^off \/ beta$/i, { timeout: 10_000 });
+    await client.callService('input_select', 'select_option', { entity_id: 'input_select.lcards_test_mode', option: 'alpha' });
+    await expect(label).toHaveText(/^off \/ alpha$/i, { timeout: 10_000 });
+    expect(errors).toEqual([]);
+});
+
+test('templates: a Jinja2 label follows an entity LCARdS cannot find in it (states.x.y.state): Home Assistant follows it', async ({ page }) => {
+    await client.callService('input_select', 'select_option', { entity_id: 'input_select.lcards_test_mode', option: 'alpha' });
+    const errors = await openDashboard(page, 'rules');
+    const label = page.locator('lcards-button text[data-field-id="label"]').filter({ hasText: /^MODE / });
+    await expect(label).toHaveText('MODE ALPHA', { timeout: 10_000 });
+    await client.callService('input_select', 'select_option', { entity_id: 'input_select.lcards_test_mode', option: 'gamma' });
+    await expect(label).toHaveText('MODE GAMMA', { timeout: 10_000 });
+    await client.callService('input_select', 'select_option', { entity_id: 'input_select.lcards_test_mode', option: 'alpha' });
+    await expect(label).toHaveText('MODE ALPHA', { timeout: 10_000 });
+    expect(errors).toEqual([]);
+});
+
 test('theme overrides: startup load does not re-process cards; a real change does', async ({ page }) => {
     await openDashboard(page, 'cards');
     await page.waitForTimeout(1000); // past the startup override load and its 50 ms debounce

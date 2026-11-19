@@ -174,12 +174,8 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
         },
         onSubscribe: (msg, push) => {
             if (msg.type === 'render_template' && renderTemplate) {
-                let result;
-                try {
-                    result = renderTemplate(msg.template, msg.variables ?? {}, current.states);
-                } catch (error) {
-                    result = `(template: ${error.message})`;
-                }
+                const result = render(msg);
+                lastTemplateResult.set(msg, result);
                 push({ result, listeners: { all: false, entities: [], domains: [], time: false } });
                 return;
             }
@@ -191,6 +187,19 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
             }
         },
     });
+
+    // render_template subscriptions stay open (src/core/templates/live-templates.js):
+    // like Home Assistant, render again on every state change, send only a changed result
+    /** @type {WeakMap<object, string>} */
+    const lastTemplateResult = new WeakMap();
+    /** @param {any} msg */
+    function render(msg) {
+        try {
+            return String(renderTemplate?.(msg.template, msg.variables ?? {}, current.states) ?? '');
+        } catch (error) {
+            return `(template: ${/** @type {any} */ (error).message})`;
+        }
+    }
 
     const cards = new Set();
     let current = base;
@@ -230,6 +239,13 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
                 }
                 if (sub.active && m?.type === 'subscribe_events' && (!m.event_type || m.event_type === 'state_changed')) {
                     sub.cb({ event_type: 'state_changed', data: { entity_id: entityId, old_state: oldState, new_state: newState }, time_fired: new Date().toISOString() });
+                }
+                if (sub.active && m?.type === 'render_template' && renderTemplate && lastTemplateResult.has(m)) {
+                    const result = render(m);
+                    if (result !== lastTemplateResult.get(m)) {
+                        lastTemplateResult.set(m, result);
+                        sub.cb({ result, listeners: { all: false, entities: [], domains: [], time: false } });
+                    }
                 }
                 // A live history stream (no end_time) gets the change too, as from Home Assistant: charts follow a slider
                 if (sub.active && m?.type === 'history/stream' && !m.end_time && m.entity_ids?.includes(entityId)) {

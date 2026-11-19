@@ -1,0 +1,9 @@
+# Jinja2 text stays subscribed (2026-11-18, Fire HD 8 kiosk feedback item 6): one
+# render_template subscription per template, Home Assistant sends changed results.
+type: custom:lcards-button
+entity: input_number.demo_level
+preset: panel-dark
+interactive: false
+text:
+  name: { content: JINJA, show: true, position: top-left }
+  label: { content: "LEVEL {{ states('input_number.demo_level') }}", position: bottom-right }

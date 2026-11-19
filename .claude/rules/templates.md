@@ -22,7 +22,9 @@ paths:
 
 Each phase receives the output of the previous phase. Jinja2 is always last because it requires a round trip to Home Assistant.
 
-Jinja2 templates round-trip to HA's real `render_template` API (the same engine as automations/template sensors — no client-side sanitization of the template text) with a `variables: { config, user, variables }` payload mirroring the JS/Token context below, so `{{ config.x }}` / `{{ user }}` / `{{ variables.x }}` work inside `{{ }}` too.
+Jinja2 templates round-trip to HA's real `render_template` API (the same engine as automations/template sensors — no client-side sanitization of the template text) with a `variables: { config, user, variables }` payload mirroring the JS/Token context below, so `{{ config.x }}` / `{{ user }}` / `{{ variables.x }}` work inside `{{ }}` too (each sent only when the template names it).
+
+A card's Jinja2 templates stay subscribed (`src/core/templates/live-templates.js`): `processTemplate()` passes the card's template owner, Home Assistant sends changed results, and a changed result schedules a template pass (`_onLiveTemplateChanged()`). So evaluate Jinja2 inside the template pass (`_processCustomTemplates()`); a caller outside it that re-evaluates on its own (astrometrics bindings) passes `live: false` to render once, or it can read a stale result with nothing to refresh it. The rules engine and other non-card evaluators render once. Details: `doc/architecture/subsystems/template-system.md`.
 
 `evaluateAsync()` (all four phases) and `evaluateSync()` (JS + Token + DataSource only, **no Jinja2**) are both public entry points on `UnifiedTemplateEvaluator` — use `evaluateSync()` when a value must resolve synchronously without an `await` (e.g. a field recomputed on every hass tick, like `lcards-slider.js`'s marker `value`/`min`/`max` resolution). It never attempts Jinja2, so a `{{ }}`/`{% %}` template handed to `evaluateSync()` is left unevaluated.
 

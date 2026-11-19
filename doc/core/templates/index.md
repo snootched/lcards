@@ -104,7 +104,7 @@ grid_options:
 **`{{ }}` and `{% %}` are Home Assistant's own templates, rendered by Home Assistant: every function and filter you know from automations works.** Use them when you already know Home Assistant's templating, or need something only the server knows.
 
 - The value arrives a moment after the card draws, since Home Assistant renders it. On an error, or with no answer in 5 seconds, the template is shown as written.
-- Entities named in `states('…')`, `is_state`, `state_attr`, `is_state_attr` and `has_value` are [followed automatically](#automatic-tracking).
+- Home Assistant follows every entity the template reads and sends a new value when one changes, so a Jinja2 template keeps itself up to date (see [automatic tracking](#automatic-tracking) for the card's other templates).
 - The card's `config` and `variables`, and `user` (the user's name), are passed in: `{{ variables.room }}` works.
 
 ```yaml live controls
@@ -125,7 +125,7 @@ grid_options:
 ```
 
 ::: details More about Jinja2 templates
-- **When it renders:** each time the card works out its templates, not continuously. `now()` moves on only when the card refreshes, which is when an entity it follows changes.
+- **When it renders:** Home Assistant renders it again whenever an entity it reads changes, and at the start of every minute when it uses `now()`. The card keeps the template open while it shows it and draws again when the value changes.
 - **The whole string goes to Home Assistant:** text around the template and any tokens already filled in are sent with it and come back unchanged.
 :::
 
@@ -208,7 +208,7 @@ Settings that must have a value at once, such as a slider marker's position, sto
 
 **Entities named in a Jinja2 template are found and followed with no extra config.** The card reads the entity IDs written in `states()`, `state_attr()`, `is_state()`, `is_state_attr()` and `has_value()`.
 
-- Only IDs written out in quotes are found. An ID built from variables, or the `states.sensor.x.state` form, isn't: add those to `triggers_update`.
+- Only IDs written out in quotes are found. The Jinja2 template still updates for an ID built from variables, or the `states.sensor.x.state` form, since Home Assistant follows those itself; add them to `triggers_update` only when the card's other templates (JavaScript, tokens) should update with them.
 
 ```yaml live controls
 type: custom:lcards-button
@@ -226,7 +226,7 @@ grid_options:
 
 ### Manual tracking with `triggers_update`
 
-**`triggers_update` lists more entities whose changes make the card work out its templates again.** Use it for the entities LCARdS can't find for itself: those a JavaScript template reads, those in `{states.…}` tokens, and IDs a Jinja2 template builds.
+**`triggers_update` lists more entities whose changes make the card work out its templates again.** Use it for the entities LCARdS can't find for itself: those a JavaScript template reads and those in `{states.…}` tokens.
 
 - It adds to what the card follows; its own `entity` is always followed.
 

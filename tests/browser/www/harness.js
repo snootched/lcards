@@ -57,6 +57,9 @@ const env = createDemoEnv({
     sample: { SAMPLE_ENTITIES, samplePoints, sampleStatistics, sampleStates },
     now: Number(params.get('now')) || Date.now(),
     historyDelay: Object.fromEntries(params.getAll('historyDelay').map(v => { const [id, ms] = v.split(':'); return [id, Number(ms)]; })),
+    // Jinja2: only {{ states('id') }} here (the docs use tests/helpers/ha-jinja.js)
+    renderTemplate: (template, _variables, states) =>
+        template.replace(/\{\{\s*states\('([^']+)'\)\s*\}\}/g, (_m, id) => states[id]?.state ?? 'unknown'),
 });
 Object.defineProperty(window, '__hass', { get: () => env.hass, configurable: true });
 

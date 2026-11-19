@@ -22,6 +22,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { LCARdSNativeCard, hassFormattersChanged } from './LCARdSNativeCard.js';
 import { LCARdSActionHandler } from './LCARdSActionHandler.js';
 import { UnifiedTemplateEvaluator } from '../core/templates/UnifiedTemplateEvaluator.js';
+import { createTemplateOwner } from '../core/templates/live-templates.js';
 import { TemplateParser } from '../core/templates/TemplateParser.js';
 import { deepMerge } from '../core/config-manager/merge-helpers.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
@@ -255,6 +256,11 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Cleared at the start of every _processTemplates() cycle so removed keys
         // don't accumulate indefinitely (particularly in the editor).
         this._evaluatedStyleCache = new Map();
+        // Jinja2 templates this card keeps subscribed (live-templates.js): created
+        // on first use, released on a new config and on disconnect
+        /** @type {import('../core/templates/live-templates.js').TemplateOwner | null} */
+        this._liveTemplates = null;
+        this._liveTemplatesReleased = false;
 
         // Monotonically increasing run-ID for _processConfigAsync.
         // Incremented on every entry; the committing write checks the current ID
@@ -350,6 +356,10 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Call parent with raw config immediately (synchronous)
         super.setConfig(config);
+
+        // The templates may have changed: the next pass holds what it still uses
+        // (a template nobody holds stays open a few seconds, live-templates.js)
+        this._liveTemplates?.release();
 
         // Active rule patches apply to the new config too (fresh base snapshot)
         this._rebaseRulePatches();
@@ -926,6 +936,12 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Reconnected before its rules were released (a move, edit mode): keep them
         this._cancelRulesRelease();
+
+        // Its Jinja2 templates were released on disconnect: a pass holds them again
+        if (this._liveTemplatesReleased && this._initialized) {
+            this._liveTemplatesReleased = false;
+            this._scheduleTemplateUpdate();
+        }
 
         // Now that singletons are initialized, register datasource dependencies from templates
         if (this._singletons?.dataSourceManager && this.config) {
@@ -2123,6 +2139,24 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @returns {string} Processed result
      */
     /**
+     * The card's Jinja2 template owner (live-templates.js), created on first use.
+     * @returns {import('../core/templates/live-templates.js').TemplateOwner}
+     * @private
+     */
+    _liveTemplateOwner() {
+        if (!this._liveTemplates) this._liveTemplates = createTemplateOwner(() => this._onLiveTemplateChanged());
+        return this._liveTemplates;
+    }
+
+    /**
+     * A Jinja2 template the card holds has a new result: run the template pass again.
+     * @protected
+     */
+    _onLiveTemplateChanged() {
+        if (this.isConnected) this._scheduleTemplateUpdate();
+    }
+
+    /**
      * Process template content with support for JavaScript, tokens, and Jinja2
      *
      * @param {string} template - Template string to process
@@ -2131,6 +2165,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @param {string} [options.field] - provenance field path
      * @param {any} [options.entity] - evaluate against this entity instead of the card's (null: none)
      * @param {Record<string, any>} [options.extra] - more names for the template (tokens, JavaScript, Jinja2)
+     * @param {boolean} [options.live] - false: render Jinja2 once instead of keeping it subscribed (a caller outside the template pass)
      * @returns {Promise<string>} Processed template
      * @protected
      */
@@ -2161,7 +2196,10 @@ export class LCARdSCard extends LCARdSNativeCard {
                 // displayFormat controls how {entity.state} and {entity.attributes.*} tokens
                 // are rendered. Defaults to 'friendly' (HA-translated display strings).
                 // Callers may pass 'raw', 'parts', or 'unit' via options.displayFormat.
-                displayFormat: options.displayFormat ?? 'friendly'
+                displayFormat: options.displayFormat ?? 'friendly',
+                // Jinja2 stays subscribed for the card's own fields; card-supplied
+                // names (extra) or options.live false render once
+                _liveTemplates: options.live === false || extra ? undefined : this._liveTemplateOwner()
             };
 
             // Get dataSourceManager from global singleton (if available)
@@ -2384,6 +2422,22 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @protected
      */
     async _processTemplates() {
+        // Jinja2 templates this pass no longer uses are let go when it ends
+        const owner = this._liveTemplates;
+        const pass = owner?.beginPass();
+        try {
+            return await this._runTemplatePass();
+        } finally {
+            if (owner && pass !== undefined) owner.endPass(pass);
+        }
+    }
+
+    /**
+     * The template pass itself (_processTemplates() wraps it).
+     * @returns {Promise<boolean|undefined>}
+     * @private
+     */
+    async _runTemplatePass() {
         // Process icon configuration
         await this._processIcon();
 
@@ -3899,6 +3953,12 @@ export class LCARdSCard extends LCARdSNativeCard {
     _onDisconnected() {
         super._onDisconnected();
         CONNECTED_CARDS.delete(this);
+
+        // --- Jinja2 template subscriptions (closed a few seconds later unless it comes back) ---
+        if (this._liveTemplates?.entries.size) {
+            this._liveTemplates.release();
+            this._liveTemplatesReleased = true;
+        }
 
         // --- Datasource subscriptions ---
         if (this._datasourceSubscriptions && this._datasourceSubscriptions.size > 0) {

@@ -710,3 +710,12 @@ views:
           label:
             content: "{entity.state} / {{ states('input_select.lcards_test_mode') }}"
             show: true
+      # Jinja2 followed by Home Assistant itself: the states.x.y.state form, which
+      # LCARdS can't find in the template (no triggers_update)
+      - type: custom:lcards-button
+        id: test_jinja_server_follow
+        preset: lozenge
+        text:
+          label:
+            content: "MODE {{ states.input_select.lcards_test_mode.state | upper }}"
+            show: true

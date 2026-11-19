@@ -1047,7 +1047,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             const key = runtime.bindingKey(b);
             const seq = (this._settingSeq.get(key) ?? 0) + 1;
             this._settingSeq.set(key, seq);
-            this.processTemplate(/** @type {string} */ (b.template), { entity: null, field: key }).then((out) => {
+            this.processTemplate(/** @type {string} */ (b.template), { entity: null, field: key, live: false }).then((out) => {
                 if (this._settingSeq.get(key) !== seq) return;
                 this._applySetting(b, b.kind === 'date' ? runtime.dateValue(null, out)
                     : b.kind === 'color' ? runtime.templateColor(out) : runtime.mapNumber(null, out), !changed);

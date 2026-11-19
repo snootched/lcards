@@ -17,6 +17,7 @@ All dynamic text in LCARdS goes through `UnifiedTemplateEvaluator` (`src/core/te
 | `UnifiedTemplateEvaluator` | `src/core/templates/UnifiedTemplateEvaluator.js` | Orchestrator: runs the four phases in order (`evaluateAsync()`), or the first three (`evaluateSync()`) |
 | `LCARdSCardTemplateEvaluator` | `src/core/templates/LCARdSCardTemplateEvaluator.js` | JavaScript `[[[...]]]` and token `{...}` templates; owns an `HATemplateEvaluator` (created in its constructor) for the Jinja2 phase |
 | `HATemplateEvaluator` | `src/core/templates/HATemplateEvaluator.js` | Sends Jinja2 to Home Assistant (`render_template` subscription, 5 s timeout) |
+| `renderLive()`, `createTemplateOwner()` | `src/core/templates/live-templates.js` | A card's Jinja2 templates kept subscribed, shared per connection |
 | `DataSourceTemplateEvaluator` | `src/core/templates/DataSourceTemplateEvaluator.js` | `{datasource:...}` / `{ds:...}` and the legacy `{name.path}` form |
 | `TemplateEvaluator` | `src/core/templates/TemplateEvaluator.js` | Base class of the three evaluators above: `context`, `updateContext()`, stats, `_safeEvaluate()`, `_validateContent()` |
 | `TemplateDetector` | `src/core/templates/TemplateDetector.js` | Fast checks (`detectTemplateTypes()`, `hasTemplates()`) so phases that have nothing to do are skipped |
@@ -97,7 +98,7 @@ text: "{{ states('sensor.temp') }} °C"
 text: "{% if is_state('light.kitchen', 'on') %}On{% else %}Off{% endif %}"
 ```
 
-`HATemplateEvaluator._renderTemplate()` subscribes to `render_template` once and unsubscribes on the first result or the timeout. Home Assistant can send the subscribe result and the first event in one websocket frame, so the callback may run before `subscribeMessage()` resolves with the unsubscribe function; a `done` flag makes the `.then()` unsubscribe in that case, so no subscription stays open (`HATemplateEvaluator.js:94-145`). It sends these variables:
+`HATemplateEvaluator._renderTemplate()` sends the template with these variables, each only when the template names it (a word match on `config`, `user`, `variables` or an extra's name):
 
 ```javascript
 variables: {
@@ -107,6 +108,13 @@ variables: {
   variables: context.variables
 }
 ```
+
+**A card's templates stay subscribed** (`src/core/templates/live-templates.js`, since 2026-11-18). `LCARdSCard.processTemplate()` puts the card's template owner in the context (`_liveTemplates`), and `renderLive()` keeps one `render_template` subscription per connection, template and variables, shared by every card that uses it. Home Assistant renders again when the template's entities change (or `now()` moves) and sends only a changed result; a held template answers the next evaluation at once. A changed result calls each owner's `onChange`, which is `_onLiveTemplateChanged()` on the card: it schedules a template pass, so a pass that read the old result just before the new one arrived catches up. Before, each evaluation subscribed, took one result and unsubscribed: three messages per template per state change (about 6,800 messages a minute on the Bridge dashboard while helpers changed, 380 after; Fire HD 8 kiosk feedback).
+
+- **Holding and letting go:** the owner keeps what it evaluated until `release()` (in `setConfig()` and `_onDisconnected()`) or until a template pass no longer uses it (`_processTemplates()` wraps the pass in `beginPass()` / `endPass()`; an overlapped pass lets nothing go). It holds at most 64 templates, least recently used dropped first. A template nobody holds closes 10 seconds later, so a new config or a moved card picks it up again without a new subscription. A reconnected card that had templates runs a pass to hold them again.
+- **Variables key the subscription:** that is why only the named ones are sent. A template reading `config` subscribes again when the card config changes (a preset merged in, rule patches).
+- **Render once instead:** callers outside a card's template pass. These are the rules engine, the alert overlay's config, the editor's template tab and sandbox, card-supplied names (`options.extra`, the astrometrics points) and `options.live: false` (astrometrics bindings, refreshed per changed entity). They use the one-shot path: subscribe, take the first result, unsubscribe. Home Assistant can send the subscribe result and the first event in one websocket frame, so the callback may run before `subscribeMessage()` resolves with the unsubscribe function; a `done` flag makes the `.then()` unsubscribe in that case, so no subscription stays open.
+- **Errors:** a template Home Assistant refuses, or no first result in 5 seconds, rejects; the evaluation returns the string unchanged and the subscription is dropped, so the next pass tries again. home-assistant-js-websocket subscribes again after a reconnect, and the re-sent result counts as a change when it differs.
 
 If `hass.connection` is not there yet it waits 100 ms once, then fails. No result in 5 seconds rejects with a timeout.
 
