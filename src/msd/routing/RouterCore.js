@@ -7066,8 +7066,14 @@ export class RouterCore {
     for (const row of this._trunks) {
       if (row.direction !== direction) continue;
       const member = row.members?.get(routeId);
-      if (!member || member[0] !== flowLo || member[1] !== flowHi) continue;
-      return { row, atLo: p[flow] === flowLo };
+      if (!member) continue;
+      // `p` must sit exactly at one end of the registered span, and the run into it
+      // must lie inside the span: a collinear point before it (a line's own anchor
+      // stub, [105,50] [130,50] [560,50]) splits the run without changing the span,
+      // and an exact match missed the outer line of a fanning trunk exit (2026-11-19,
+      // the Live Demo routing view: A's turn down clamped to 13 against B's drop)
+      if (p[flow] === member[1] && member[0] <= flowLo && p[flow] === flowHi) return { row, atLo: false };
+      if (p[flow] === member[0] && member[1] >= flowHi && p[flow] === flowLo) return { row, atLo: true };
     }
     return null;
   }
@@ -7088,10 +7094,13 @@ export class RouterCore {
    * @param {number[]} vInUnit
    * @param {number[]} vOutUnit
    * @param {string} askingLineId
+   * @param {number[]|null} [p] - the asking corner: a sibling turning onto the SAME line out
+   *   (its exit drawn on top of this one's) is left out; their arcs have no clearance to
+   *   measure, and loosening each against the other cycled between passes (2026-11-19)
    * @returns {{lineId:string, p:number[], vInUnit:number[], vOutUnit:number[], radius:number, width:number}[]}
    * @private
    */
-  _matchedSiblingArcs(row, atLo, vInUnit, vOutUnit, askingLineId) {
+  _matchedSiblingArcs(row, atLo, vInUnit, vOutUnit, askingLineId, p = null) {
     const out = [];
     if (!row.members) return out;
     for (const [memberId, tuple] of row.members) {
@@ -7101,6 +7110,7 @@ export class RouterCore {
       if (!end) continue;
       if (end.vInUnit[0] !== vInUnit[0] || end.vInUnit[1] !== vInUnit[1]) continue;
       if (end.vOutUnit[0] !== vOutUnit[0] || end.vOutUnit[1] !== vOutUnit[1]) continue;
+      if (p && end.p && (vOutUnit[0] === 0 ? end.p[0] === p[0] : end.p[1] === p[1])) continue;
       out.push({ ...end, lineId: memberId });
     }
     return out;
@@ -7273,7 +7283,7 @@ export class RouterCore {
           // matching corner yet (always true on this line's own very
           // first pass) — the mechanism naturally no-ops in both cases.
           const match = this._matchedTrunkCorner(pPrev, p, routeId);
-          const siblings = match ? this._matchedSiblingArcs(match.row, match.atLo, vInUnit, vOutUnit, routeId) : [];
+          const siblings = match ? this._matchedSiblingArcs(match.row, match.atLo, vInUnit, vOutUnit, routeId, p) : [];
           const siblingIds = siblings.length ? new Set(siblings.map(s => s.lineId)) : null;
           let lo = 0, hi = r;
           for (let iter = 0; iter < 20; iter++) {

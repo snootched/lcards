@@ -85,3 +85,28 @@ test('the bundle entry settles (before, B swung between two entries on every pas
     }
     assert.ok(passes < 8, 'settles');
 });
+
+test('a trunk fanning out into a row of points: the outer line keeps the widest turn (the corners nested)', () => {
+    // the Live Demo routing view since 2026-11-19: A, B and C leave the trunk down into a
+    // row of points. A's turn sat exactly at its trunk span's end with a collinear stub
+    // point before it, so it was never matched with B and C and the plain proxy clamped it
+    // to 13 against B's drop (a corner's circle, not its arc).
+    const T = [[560, 120], [535, 120], [510, 120], [575, 250]];
+    const router = new RouterCore({ trunk_line_spacing: 10, clearance: 10 }, {}, [0, 0, 600, 300]);
+    router.setOverlays([{ id: 'obstacle', _raw: { id: 'obstacle', type: 'control', position: [300, 150], size: [140, 70], obstacle: true } }]);
+    const raw = { route: 'auto', corner_style: 'round', anchor_side: 'right', style: { width: 3 } };
+    const lines = [[105, 50], [105, 115], [105, 185], [105, 250]].map((a, i) => makeLine(`l${i + 1}`, a, T[i], raw));
+    const { results } = runDiscoveryLoop(router, lines);
+    for (const l of lines) results.set(l.id, router.computePath(router.buildRouteRequest(l, l.a, l.b)));
+    /** the radius of the line's last turn */
+    const exit = (/** @type {string} */ id) => Number([...results.get(id).d.matchAll(/A([\d.]+)/g)].at(-1)?.[1]);
+    assert.ok(exit('l1') > 30, `A turns at ${exit('l1')}`);
+    assert.ok(exit('l1') > exit('l2') && exit('l2') > exit('l3'), `outer to inner: ${exit('l1')}, ${exit('l2')}, ${exit('l3')}`);
+    const ids = ['l1', 'l2', 'l3', 'l4'];
+    for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+            const { gap } = renderedClearance(results.get(ids[i]).d, results.get(ids[j]).d, 3, 3);
+            assert.ok(gap >= 1, `${ids[i]} and ${ids[j]} touch (${gap.toFixed(1)})`);
+        }
+    }
+});
