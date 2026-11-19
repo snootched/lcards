@@ -51,6 +51,7 @@ objects:
 ```
 
 ::: details More about nebulae
+- **How `count` and `seed` place the clouds:** the seed deals the clouds one after another, each with a colour from `colors`, a spot anywhere in the region (`size` box or `radius` ball), a radius between `min_radius` and `max_radius` and a brightness. Raising `count` adds the next cloud from the same deal and leaves the earlier ones where they were. Overlapping clouds add up, so gas where clouds meet is denser, and a new cloud that lands away from the others reads as a separate nebula. A different `seed` deals a different set; `clouds` places them by hand.
 - **Never tappable:** clouds never catch a tap, so they never get in the way of points behind them. To label a cloud, put a [point](../points) at the same place.
 - **Hand-placed clouds:** each entry in `clouds` takes `xyz` (scene units from the object), `radius`, `color`, `opacity`, `size: [width, height, depth]` with `rotation: [x, y, z]` for an ellipsoid, and `dust: true` for a dark dust cloud (volume only). See [Shapes, dust and colour](../effects#shapes-dust-and-colour).
 - **Presets and your own box:** a preset's box is 500 across (the Nexus: 2000 long). With a `size` of your own, the preset's `drift` and ribbon speed scale with it, so the gas moves as fast for its size; a drift or speed you set stays as written.
