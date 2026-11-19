@@ -198,7 +198,7 @@ double_tap_action:
 
 **`interactive: false` makes a button or elbow decorative: no hover colour, no hover animations and the arrow cursor.** Use it for a label or panel that should not look clickable.
 
-- A button or elbow with no action and no entity a tap can toggle is decorative already (a title, a sweep, a filler, a sensor readout); set `interactive: true` to give it hover effects anyway.
+- A button or elbow with no action, no animation a pointer starts (`on_tap`, `on_hover`, ...) and no entity a tap can toggle is decorative already (a title, a sweep, a filler, a sensor readout); set `interactive: true` to give it hover effects anyway.
 - Tap, hold and double-tap actions still run on a card with `interactive: false`.
 - The hover sound (`card_hover`, see [Card Sounds](/core/sounds)) does not play either.
 

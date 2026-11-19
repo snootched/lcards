@@ -537,7 +537,11 @@ export class LCARdSActionHandler {
             const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
             if (isDesktop) {
-                const hoverHandler = async () => {
+                // A capture listener also gets the enter and leave of every element inside
+                // (text, shapes): only the card's own count, or a hover loop started again
+                // per child and a leave stopped it with the pointer still on the card.
+                const hoverHandler = async (/** @type {Event} */ ev) => {
+                    if (ev.target !== element) return;
                     lcardsLog.trace(`[LCARdSActionHandler] Mouseenter event on ${elementId}`);
 
                     // Ensure animations are registered (late-binding if needed)
@@ -553,7 +557,8 @@ export class LCARdSActionHandler {
                     playSound('card_hover');
                 };
 
-                const leaveHandler = async () => {
+                const leaveHandler = async (/** @type {Event} */ ev) => {
+                    if (ev.target !== element) return;
                     // Ensure animations are registered (late-binding if needed)
                     await ensureAnimationsRegistered();
 

@@ -10,13 +10,17 @@ export const TOGGLE_DOMAINS = new Set([
     ...Object.keys(SPECIAL_TOGGLE_ACTIONS),
 ]);
 
+/** Animation triggers a pointer starts: a button with one of these is meant to be touched. */
+export const POINTER_TRIGGERS = new Set(['on_tap', 'on_hold', 'on_double_tap', 'on_hover', 'on_leave']);
+
 /**
  * Whether a button (or elbow) is interactive: hover and pressed colours, the hand
  * cursor and hover animations. Actions are not affected.
  *
  * `interactive: true | false` wins. Left out, a button is interactive when it does
  * something: an action (tap, hold or double tap; `action: none` is no action), a component or SVG whose segments
- * carry their own actions, or an entity its default tap (toggle) can switch. A button
+ * carry their own actions, an animation a pointer starts (`on_tap`, `on_hover`, ...; 2026-11-19, the
+ * Live Demo's hover card stopped glowing), or an entity its default tap (toggle) can switch. A button
  * with none of these is a decorative label, title, readout or filler: no hover colour,
  * the arrow cursor (2026-11-12; before, every button hovered unless it said
  * `interactive: false`, and a readout's tap tried a toggle the entity doesn't have).
@@ -28,6 +32,7 @@ export function isInteractive(config) {
     if (typeof c.interactive === 'boolean') return c.interactive;
     const acts = (/** @type {any} */ a) => Boolean(a) && a.action !== 'none';
     if (acts(c.hold_action) || acts(c.double_tap_action) || c.component || c.svg?.segments) return true;
+    if (Array.isArray(c.animations) && c.animations.some((/** @type {any} */ a) => POINTER_TRIGGERS.has(a?.trigger))) return true;
     // A tap action set on the card replaces the default toggle
     if (c.tap_action) return acts(c.tap_action);
     const entity = typeof c.entity === 'string' ? c.entity : '';

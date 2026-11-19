@@ -1,0 +1,19 @@
+# A button whose only job is a hover animation (animation-hover.spec.js): with no action it
+# was decorative and never listened for the pointer (2026-11-19, Live Demo triggers view)
+type: custom:lcards-button
+preset: filled
+tap_action:
+  action: none
+text:
+  name:
+    content: HOVER
+    show: true
+animations:
+  - trigger: on_hover
+    preset: glow
+    loop: true
+  - trigger: on_leave
+    preset: fade
+    params:
+      from: 0.7
+      to: 1

@@ -127,7 +127,7 @@ grid_options:
 
 **`interactive: false` makes a button decorative: no hand cursor, no hover colour, no hover animations.** Use it for panels, headers and fillers that shouldn't look tappable.
 
-- A button with no action and no entity a tap can toggle (a title, a dot row, a filler, a sensor readout) is decorative already; set `interactive: true` to give it hover effects anyway.
+- A button with no action, no animation a pointer starts (`on_tap`, `on_hover`, ...) and no entity a tap can toggle (a title, a dot row, a filler, a sensor readout) is decorative already; set `interactive: true` to give it hover effects anyway.
 - A label bound to a light, switch or input boolean only for its text or colour still toggles it on a tap; give it `tap_action: { action: none }` and it is decorative too.
 - Taps and holds still run their actions, so a decorative button can still do something.
 

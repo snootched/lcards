@@ -40,3 +40,10 @@ test('interactive set on the card wins both ways', () => {
     assert.equal(isInteractive({ interactive: true }), true);
     assert.equal(isInteractive({ entity: 'light.x', interactive: false }), false);
 });
+
+test('an animation a pointer starts makes it interactive (hover handlers, hand cursor)', () => {
+    assert.equal(isInteractive({ tap_action: { action: 'none' }, animations: [{ trigger: 'on_hover', preset: 'glow' }] }), true);
+    assert.equal(isInteractive({ tap_action: { action: 'none' }, animations: [{ trigger: 'on_tap', preset: 'pulse' }] }), true);
+    assert.equal(isInteractive({ animations: [{ trigger: 'on_show', preset: 'fade' }] }), false);
+    assert.equal(isInteractive({ interactive: false, animations: [{ trigger: 'on_hover', preset: 'glow' }] }), false);
+});
