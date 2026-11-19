@@ -1152,7 +1152,7 @@ releases:
         summary: "MSD routing: bundled lines, channels, manual waypoints"
         description:
           - "How MSD lines find their way, on cards with no blueprint."
-          - "Top: four lines from A to D run to four points close together on the right, round the obstacle in the middle: A, B and C bundle into one trunk over it (lanes 10 apart), D goes under it."
+          - "Top: four lines from A to D, round the obstacle in the middle: A, B and C bundle into one trunk over it (lanes 10 apart) and fan out into a row of points, each turning inside the one before; D goes under it."
           - "Next: the orange line is forced through a channel (the orange band), the blue one routes freely."
           - "Below: one pair of points joined four ways: manual waypoints through the white point (orange), manhattan with one bend (dashed), direct (dotted) and auto with round corners (blue)."
         session: "D1c"

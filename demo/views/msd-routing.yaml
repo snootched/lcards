@@ -9,28 +9,29 @@ sections:
   - type: grid
     column_span: 4
     cards:
-      # Four lines from the left to four points close together on the right: they
-      # bundle into one trunk (lanes 10 apart) and go round the obstacle together
+      # Four lines from the left: A, B and C bundle into one trunk over the obstacle
+      # (lanes 10 apart) and fan out into a row of points, each turning inside the
+      # one before; D goes under the obstacle
       - type: custom:lcards-msd-card
         msd:
           base_svg: { source: none }
           view_box: [0, 0, 600, 300]
           routing: { trunk_line_spacing: 10, clearance: 10 }
           anchors:
-            t1: [570, 110]
-            t2: [570, 135]
-            t3: [570, 160]
-            t4: [570, 185]
+            t1: [560, 120]
+            t2: [535, 120]
+            t3: [510, 120]
+            t4: [575, 250]
           overlays:
             - { id: obstacle, type: control, position: [300, 150], size: [140, 70], obstacle: true, card: { type: custom:lcards-button, preset: panel-dark, interactive: false, text: { label: { content: OBSTACLE } } } }
             - { id: s1, type: control, position: [60, 50], size: [90, 34], card: { type: custom:lcards-button, preset: lozenge, interactive: false, text: { name: { content: A, show: true } } } }
             - { id: s2, type: control, position: [60, 115], size: [90, 34], card: { type: custom:lcards-button, preset: lozenge, interactive: false, text: { name: { content: B, show: true } } } }
             - { id: s3, type: control, position: [60, 185], size: [90, 34], card: { type: custom:lcards-button, preset: lozenge, interactive: false, text: { name: { content: C, show: true } } } }
             - { id: s4, type: control, position: [60, 250], size: [90, 34], card: { type: custom:lcards-button, preset: lozenge, interactive: false, text: { name: { content: D, show: true } } } }
-            - { id: d1, type: shape, kind: circle, position: [564, 104], size: [12, 12], style: { color: var(--lcards-orange), fill: var(--lcards-orange) } }
-            - { id: d2, type: shape, kind: circle, position: [564, 129], size: [12, 12], style: { color: var(--lcards-orange), fill: var(--lcards-orange) } }
-            - { id: d3, type: shape, kind: circle, position: [564, 154], size: [12, 12], style: { color: var(--lcards-orange), fill: var(--lcards-orange) } }
-            - { id: d4, type: shape, kind: circle, position: [564, 179], size: [12, 12], style: { color: var(--lcards-orange), fill: var(--lcards-orange) } }
+            - { id: d1, type: shape, kind: circle, position: [554, 114], size: [12, 12], style: { color: var(--lcards-orange), fill: var(--lcards-orange) } }
+            - { id: d2, type: shape, kind: circle, position: [529, 114], size: [12, 12], style: { color: var(--lcards-orange), fill: var(--lcards-orange) } }
+            - { id: d3, type: shape, kind: circle, position: [504, 114], size: [12, 12], style: { color: var(--lcards-orange), fill: var(--lcards-orange) } }
+            - { id: d4, type: shape, kind: circle, position: [569, 244], size: [12, 12], style: { color: var(--lcards-orange), fill: var(--lcards-orange) } }
             - { id: l1, type: line, anchor: s1, attach_to: t1, route: auto, corner_style: round, style: { color: var(--lcards-blue), width: 3 } }
             - { id: l2, type: line, anchor: s2, attach_to: t2, route: auto, corner_style: round, style: { color: var(--lcards-blue), width: 3 } }
             - { id: l3, type: line, anchor: s3, attach_to: t3, route: auto, corner_style: round, style: { color: var(--lcards-blue), width: 3 } }
