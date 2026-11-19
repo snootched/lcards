@@ -337,3 +337,44 @@ export function countRenderedCrossings(pts1, pts2) {
   }
   return count;
 }
+
+/**
+ * Smallest gap between two rendered lines' EDGES (centre-line distance less
+ * half of each stroke width), over their flattened paths (flattenSvgPath).
+ * Negative or under about 1 means the two lines touch on screen.
+ * @param {string} d1
+ * @param {string} d2
+ * @param {number} [w1]
+ * @param {number} [w2]
+ * @param {(p: number[]) => boolean} [where] - only points of the first path where this holds
+ * @returns {{ gap: number, at: number[] }}
+ */
+export function renderedClearance(d1, d2, w1 = 2, w2 = 2, where = () => true) {
+  const densify = (pts) => {
+    const out = [];
+    for (let i = 1; i < pts.length; i++) {
+      const [a, b] = [pts[i - 1], pts[i]];
+      const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])));
+      for (let k = 0; k < n; k++) out.push([a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]);
+    }
+    out.push(pts[pts.length - 1]);
+    return out;
+  };
+  const segDist = (p, a, b) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const l = dx * dx + dy * dy;
+    const t = l ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l)) : 0;
+    return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+  };
+  const p1 = densify(flattenSvgPath(d1));
+  const p2 = flattenSvgPath(d2);
+  let best = { gap: Infinity, at: [0, 0] };
+  for (const p of p1) {
+    if (!where(p)) continue;
+    for (let j = 1; j < p2.length; j++) {
+      const g = segDist(p, p2[j - 1], p2[j]) - (w1 + w2) / 2;
+      if (g < best.gap) best = { gap: g, at: p };
+    }
+  }
+  return best;
+}

@@ -4870,6 +4870,37 @@ export class RouterCore {
         if (Math.abs(next) > available) break;
         candidate = next;
       }
+      // No room further on (the corridor starts right there, so every member of a
+      // bundle entry bends at the same spot): bend EARLIER instead, in lineSpacing
+      // steps back toward `from`. A sibling with a longer climb into the bundle then
+      // keeps the shared spot and this one turns inside it, the two corners nested
+      // rather than one line's corner sweeping through the other's climb (2026-11-19,
+      // the Live Demo routing view: B and C both bent at x 198, B's arc touching C).
+      // Checked against UNTRIMMED geometry: an earlier bend that would cross a
+      // sibling's straight row is refused even where that row ends in a rounded
+      // corner, so only the line whose earlier bend is genuinely clear moves.
+      // Only for that comb collision (another line climbing alongside, closer than a
+      // lane): any other conflict keeps its old answer, or a line trying a trunk it
+      // then leaves could swing between joining and not on every pass (the line
+      // overlay docs' two-card example did, with a smaller corner as the trace).
+      if (safeCandidate === null && bundleEntryHints) {
+        const nudge = horizontal ? [from[0] + corridorOffset, from[1]] : [from[0], from[1] + corridorOffset];
+        const mid = horizontal ? [nudge[0], to[1]] : [to[0], nudge[1]];
+        // Only for a line already in this corridor (an earlier pass placed it there):
+        // offering a clear way in to a line only trying the corridor made the two-card
+        // example in the line overlay docs swing between joining and not on every pass.
+        const member = !!chan?.members?.has?.(stubReq.id);
+        if (member && this._siblingClimbsAlongside(nudge, mid, stubReq.id, lineSpacing)) {
+          for (let back = corridorOffset - sign * lineSpacing; sign * back >= lineSpacing; back -= sign * lineSpacing) {
+            const candNudge = horizontal ? [from[0] + back, from[1]] : [from[0], from[1] + back];
+            const candMid = horizontal ? [candNudge[0], to[1]] : [to[0], candNudge[1]];
+            if (!this._pureCrossAxisLegTooCloseToOtherLine(candNudge, candMid, stubReq.id, stubReq.width, true)) {
+              safeCandidate = back;
+              break;
+            }
+          }
+        }
+      }
       if (safeCandidate !== null) corridorOffset = safeCandidate;
     }
     if (!corridorOffset) {
@@ -5220,13 +5251,44 @@ export class RouterCore {
    * @returns {boolean}
    * @private
    */
-  _pureCrossAxisLegTooCloseToOtherLine(a, b, askingLineId, askingWidth) {
+  _pureCrossAxisLegTooCloseToOtherLine(a, b, askingLineId, askingWidth, untrimmed = false) {
     const SAFE_MARGIN = 1; // matches this file's own arcMin convention
     const N = 5;
     for (let i = 0; i <= N; i++) {
       const t = i / N;
       const p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-      if (this._distanceToNearestOtherLineSegment(p, askingLineId, askingWidth) < SAFE_MARGIN) return true;
+      if (this._distanceToNearestOtherLineSegment(p, askingLineId, askingWidth, null, untrimmed) < SAFE_MARGIN) return true;
+    }
+    return false;
+  }
+
+  /**
+   * True when another line's registered segment runs alongside the cross-axis leg
+   * from `a` to `b` (same direction, closer than `lineSpacing` across, overlapping
+   * along it): two members of a bundle entry climbing to their lanes at one spot.
+   * Untrimmed extents: the climb of a short reverse curve is nearly all corner.
+   * @param {number[]} a
+   * @param {number[]} b
+   * @param {string} askingLineId
+   * @param {number} lineSpacing
+   * @returns {boolean}
+   * @private
+   */
+  _siblingClimbsAlongside(a, b, askingLineId, lineSpacing) {
+    const vertical = a[0] === b[0];
+    if (!vertical && a[1] !== b[1]) return false;
+    const across = vertical ? 0 : 1;
+    const along = vertical ? 1 : 0;
+    const lo = Math.min(a[along], b[along]);
+    const hi = Math.max(a[along], b[along]);
+    for (const seg of this._crossings) {
+      if (seg.lineId === askingLineId) continue;
+      if (seg.direction !== (vertical ? 'vertical' : 'horizontal')) continue;
+      const segAcross = vertical ? seg.x1 : seg.y1;
+      if (Math.abs(segAcross - a[across]) >= lineSpacing) continue;
+      const segLo = vertical ? Math.min(seg.y1, seg.y2) : Math.min(seg.x1, seg.x2);
+      const segHi = vertical ? Math.max(seg.y1, seg.y2) : Math.max(seg.x1, seg.x2);
+      if (segHi > lo && segLo < hi) return true;
     }
     return false;
   }
@@ -7050,7 +7112,7 @@ export class RouterCore {
    * @param {number} [askingWidth]
    * @param {Set<string>|null} [excludeLineIds]
    */
-  _distanceToNearestOtherLineSegment(p, askingLineId, askingWidth = 0, excludeLineIds = null) {
+  _distanceToNearestOtherLineSegment(p, askingLineId, askingWidth = 0, excludeLineIds = null, untrimmed = false) {
     let best = Infinity;
     for (const seg of this._crossings) {
       if (seg.lineId === askingLineId) continue;
@@ -7067,13 +7129,13 @@ export class RouterCore {
       // primary safeguard).
       let dx, dy;
       if (seg.direction === 'horizontal') {
-        const effX1 = Math.min(seg.x1 + (seg.trimLo || 0), seg.x2);
-        const effX2 = Math.max(seg.x2 - (seg.trimHi || 0), effX1);
+        const effX1 = untrimmed ? seg.x1 : Math.min(seg.x1 + (seg.trimLo || 0), seg.x2);
+        const effX2 = untrimmed ? seg.x2 : Math.max(seg.x2 - (seg.trimHi || 0), effX1);
         dx = p[0] < effX1 ? effX1 - p[0] : p[0] > effX2 ? p[0] - effX2 : 0;
         dy = Math.abs(p[1] - seg.y1);
       } else {
-        const effY1 = Math.min(seg.y1 + (seg.trimLo || 0), seg.y2);
-        const effY2 = Math.max(seg.y2 - (seg.trimHi || 0), effY1);
+        const effY1 = untrimmed ? seg.y1 : Math.min(seg.y1 + (seg.trimLo || 0), seg.y2);
+        const effY2 = untrimmed ? seg.y2 : Math.max(seg.y2 - (seg.trimHi || 0), effY1);
         dy = p[1] < effY1 ? effY1 - p[1] : p[1] > effY2 ? p[1] - effY2 : 0;
         dx = Math.abs(p[0] - seg.x1);
       }
