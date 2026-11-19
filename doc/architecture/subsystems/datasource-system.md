@@ -52,7 +52,17 @@ Card authors do not wire any of this by hand: declaring `data_sources:` or writi
 
 1. **History preload** (`_preloadHistory()`): unless `history.enabled` (or the older `history.preload`) is `false`, fetch `history.hours` (or `history.days` × 24; default 6, clamped to 1-168) through `fetchDataSourceHistory()`: websocket state history first, hourly long-term statistics when that has no points, the REST API when the websocket request fails. Each point is pushed into the main buffer and through the processors.
 2. **Current state**: read `hass.states[entity]`, store its metadata (`_extractMetadata()`) and the state object, read the value the same way the live path does (`_readRawValue()`: `attribute_path`, `attribute` or the state), push it and run the processors.
-3. **Live subscription**: `onStateChanged(connection, entity, ...)` (`src/core/state-change-hub.js`), calling `_handleStateChange()`. The hub holds one `state_changed` subscription for the whole page and dispatches by entity id; a subscription per source sent every state change in Home Assistant once per source (#408).
+3. **Live subscription**: `onStateChanged(connection, entity, ...)` (`src/core/state-change-hub.js`), calling `_handleStateChange()`. The hub holds one subscription for the whole page and dispatches by entity id; see [The shared state subscription](#the-shared-state-subscription).
+
+### The shared state subscription
+
+`src/core/state-change-hub.js` is the page's one state subscription, shared by data sources, the helper manager and the rules engine (`onStateChanged(connection, entityId, listener)`, listener data `{ entity_id, old_state, new_state }`).
+
+- **Filtered on the server:** it subscribes with `subscribe_entities` and `entity_ids` (the listeners' entities), the way the frontend subscribes to all of them; Home Assistant sends compressed diffs for those entities only. A `'*'` listener subscribes without `entity_ids` (still compressed); none is left in LCARdS.
+- **Decoding:** as home-assistant-js-websocket does: `a` whole states (`s`, `a`, `c`, `lc`, `lu`), `c` changes (`+` new values, `-` removed attribute names), `r` removed entities (`new_state` null). The hub keeps each entity's last state for `old_state`.
+- **Re-subscribing:** a listener for a new entity (or the last one for an entity leaving) re-subscribes once per microtask batch. The new subscription's first message holds the current states: an entity that differs from the hub's copy is delivered as a change, so a change between the two subscriptions, or while the connection was down (the library re-subscribes after a reconnect and Home Assistant sends `a` again), arrives once; the first sight of an entity is not a change. Messages of a replaced subscription are ignored.
+- **History:** one `state_changed` subscription per helper and data source overflowed Home Assistant's 4096 pending-message queue (#405, #408); one shared unfiltered `state_changed` subscription (2026-11-15) still carried every change in the house, uncompressed, about 10x the frontend's copy per change (a Fire HD 8 kiosk was still dropped after a Home Assistant restart, HA-LCARS feedback, 2026-11-18). Measured on the dev Home Assistant (945 entities, a dashboard using 11): about 420 KB a minute while helpers change 4 times a second.
+- Tests: `tests/core/state-change-hub.test.js` (filter, decode, catch-up, no double delivery, reconnect), `tests/ha/issues.spec.js` (#408: real Home Assistant, a reconnect).
 4. **Initial emit** (`_emitInitialData()`): send the latest point (or an empty structure) to any subscribers already attached, flagged `isInitialEmission: true`.
 5. **Periodic updates** (`_startPeriodicUpdates()`): only when a processor has `type: duration` or `requires_periodic_update`, emit the last value every `periodic_update_interval` ms (default 1000) so elapsed times keep counting.
 
@@ -70,10 +80,10 @@ sequenceDiagram
     DSM->>DS: start()
     DS->>HA: history preload (fetchDataSourceHistory)
     DS->>PM: process(value) for each history point and the current state
-    DS->>HA: onStateChanged(entity) (the page's one shared state_changed subscription)
+    DS->>HA: onStateChanged(entity) (the page's one shared state subscription)
     DSM-->>Card: DataSource
     Card->>DS: subscribe(callback)
-    HA-)DS: state_changed (this entity)
+    HA-)DS: a change of this entity (subscribe_entities)
     DS->>DS: _handleStateChange(): buffer.push(t, v)
     DS->>PM: process(v, t, buffer)
     DS->>DS: _queueEmit(): now, or a trailing emit (throttle)

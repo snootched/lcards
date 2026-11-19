@@ -56,6 +56,12 @@ export class RulesEngine extends BaseService {
 
     // NEW: HASS subscription management
     this.hassUnsubscribe = null;
+    /** @type {any} The connection rule entities are watched on (setupHassMonitoring) */
+    this._monitorConnection = null;
+    /** @type {Map<string, () => void> | null} One state listener per rule entity */
+    this._ruleEntityListeners = null;
+    /** @type {any} The hass setupHassMonitoring had (rule entities' known states) */
+    this._monitorHass = null;
     this._reEvaluationCallbacks = []; // CHANGED: Array of callbacks for multiple MSD cards
     // dependencyIndex.entityToRules is the live entity→rules map; no separate cache needed
     this._freshStateCache = new Map(); // Cache for fresh states from events (entityId -> state object)
@@ -458,6 +464,8 @@ export class RulesEngine extends BaseService {
     });
 
     this.dependencyIndex = { entityToRules, ruleToEntities };
+    // rules added or removed: follow their entities (once monitoring is set up)
+    if (this._monitorConnection) this._syncRuleEntityListeners();
 
     lcardsLog.debug(`[RulesEngine] Dependency index built: ${entityToRules.size} entities across ${this.rules.length} rules`);
   }
@@ -1759,7 +1767,7 @@ export class RulesEngine extends BaseService {
    */
   async setupHassMonitoring(hass) {
     // Check if already set up OR setup is in progress
-    if (!hass?.connection?.subscribeEvents || this.hassUnsubscribe || this._hassMonitoringSetupInProgress) {
+    if (!hass?.connection?.subscribeMessage || this.hassUnsubscribe || this._hassMonitoringSetupInProgress) {
       if (this._hassMonitoringSetupInProgress) {
         lcardsLog.debug('[RulesEngine] HASS monitoring setup already in progress, skipping duplicate setup');
       } else {
@@ -1772,49 +1780,13 @@ export class RulesEngine extends BaseService {
     this._hassMonitoringSetupInProgress = true;
 
     try {
-      // Extract all HASS entities referenced in rules (exclude DataSource references)
-      const allEntityReferences = Array.from(this.dependencyIndex?.entityToRules.keys() || []);
-      lcardsLog.trace('[RulesEngine] All entity references from dependency index:', allEntityReferences);
-
-      // Filter out DataSource references
-      const ruleEntities = allEntityReferences.filter(entityId => {
-        // Skip DataSource references (contain dots and match DataSource pattern)
-        if (entityId.includes('.')) {
-          const sourceName = entityId.split('.')[0];
-          if (this.dataSourceManager?.getSource(sourceName)) {
-            lcardsLog.trace(`[RulesEngine] Filtered out DataSource reference: ${entityId}`);
-            return false;
-          }
-        }
-        lcardsLog.trace(`[RulesEngine] Including HASS entity: ${entityId}`);
-        return true;
-      });
-
-      lcardsLog.trace(`[RulesEngine] HASS entity monitoring summary:`, {
-        totalReferences: allEntityReferences.length,
-        dataSourceReferences: allEntityReferences.length - ruleEntities.length,
-        hassEntities: ruleEntities.length,
-        hassEntityList: ruleEntities
-      });
-
-      if (ruleEntities.length === 0) {
+      this._monitorConnection = hass.connection;
+      this._monitorHass = hass;
+      this._syncRuleEntityListeners();
+      if (!this.hassUnsubscribe) {
         lcardsLog.debug('[RulesEngine] No HASS entities found in rules for monitoring (all references are DataSources)');
-        this._hassMonitoringSetupInProgress = false;
         return;
       }
-
-      lcardsLog.debug(`[RulesEngine] Setting up monitoring for ${ruleEntities.length} rule entities:`, ruleEntities);
-
-      // Direct subscription - following DataSource pattern.
-      // NOTE: The listener consults dependencyIndex.entityToRules live (not a
-      // frozen snapshot) so that entities added by cards that load after this
-      // subscription is created are automatically covered. Map.has() is O(1).
-      // Through the page's one shared state_changed subscription (#408).
-      this.hassUnsubscribe = onStateChanged(hass.connection, '*', (data) => {
-        if (this.dependencyIndex?.entityToRules.has(data.entity_id)) {
-          this._handleRuleEntityChange(data.entity_id, data);
-        }
-      });
 
       lcardsLog.debug('[RulesEngine] ✅ HASS state monitoring enabled');
     } catch (error) {
@@ -1824,6 +1796,43 @@ export class RulesEngine extends BaseService {
       // Clear flag whether setup succeeded or failed
       this._hassMonitoringSetupInProgress = false;
     }
+  }
+
+  /**
+   * One state listener per Home Assistant entity the rules name (not data source
+   * references), kept in step with the dependency index. The shared hub subscribes
+   * only to the entities its listeners name, so the server filters; this was one
+   * listener for every entity in Home Assistant (HA-LCARS feedback, 2026-11-18).
+   * `hassUnsubscribe` is set while at least one entity is watched (without it,
+   * ingestHass marks every rule dirty instead).
+   * @private
+   */
+  _syncRuleEntityListeners() {
+    const connection = this._monitorConnection;
+    if (!connection) return;
+    /** @type {Map<string, () => void>} */
+    const listeners = (this._ruleEntityListeners ??= new Map());
+    const wanted = new Set(Array.from(this.dependencyIndex?.entityToRules.keys() || []).filter((entityId) => {
+      if (entityId.includes('.') && this.dataSourceManager?.getSource(entityId.split('.')[0])) return false;
+      return entityId.includes('.');
+    }));
+    for (const [entityId, remove] of [...listeners]) {
+      if (!wanted.has(entityId)) {
+        remove();
+        listeners.delete(entityId);
+      }
+    }
+    for (const entityId of wanted) {
+      if (listeners.has(entityId)) continue;
+      const known = (this.systemsManager?.getHass?.() ?? this._monitorHass)?.states?.[entityId];
+      listeners.set(entityId, onStateChanged(connection, entityId, (data) => this._handleRuleEntityChange(entityId, data), known));
+    }
+    this.hassUnsubscribe = listeners.size > 0 ? () => {
+      for (const remove of listeners.values()) remove();
+      listeners.clear();
+      this._monitorConnection = null;
+    } : null;
+    lcardsLog.debug(`[RulesEngine] Watching ${listeners.size} rule entities`);
   }
 
   /**
@@ -1930,6 +1939,7 @@ export class RulesEngine extends BaseService {
     }
     this._dataSourceUnsubscribe?.();
     this._dataSourceUnsubscribe = null;
+    this._monitorConnection = null;
     if (this.hassUnsubscribe) {
       try {
         this.hassUnsubscribe();

@@ -25,13 +25,10 @@ async function startSource(cfg = {}) {
     const hass = createFakeHass({ states: { [ENTITY]: '10' } });
     const ds = new DataSource({ entity: ENTITY, ...NO_HISTORY, ...cfg }, hass);
     await ds.start();
-    const subIndex = hass.connection.subs.findIndex(s => s.message?.type === 'subscribe_events');
+    await new Promise((r) => setImmediate(r)); // the shared state subscription opens
     const emits = [];
     ds.subscribers.add((data) => emits.push(data));
-    const push = (value) => hass.connection.push(subIndex, {
-        event_type: 'state_changed',
-        data: { entity_id: ENTITY, new_state: { entity_id: ENTITY, state: String(value), attributes: { unit_of_measurement: '°C' } } }
-    });
+    const push = (value) => hass.pushStateChange(ENTITY, { state: String(value), attributes: { unit_of_measurement: '°C' } });
     return { ds, hass, emits, push };
 }
 
@@ -192,7 +189,8 @@ test('DS5: a card-created source stops after its last card leaves', async () => 
     const hass = createFakeHass({ states: { [ENTITY]: '20' } });
     const manager = new DataSourceManager(hass);
     const source = await manager.createDataSource('temp', { entity: ENTITY, ...NO_HISTORY }, 'card-1');
-    const sub = hass.connection.subs.find(s => s.message?.type === 'subscribe_events');
+    await new Promise((resolve) => setImmediate(resolve));
+    const sub = hass.connection.subs.find(s => s.message?.type === 'subscribe_entities');
     manager.removeCardFromSource('temp', 'card-1');
     assert.ok(manager.getSource('temp'), 'kept during the grace delay');
     mock.timers.tick(SOURCE_RELEASE_DELAY_MS);

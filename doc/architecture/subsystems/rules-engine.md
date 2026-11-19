@@ -14,7 +14,7 @@ The engine:
 
 - keeps the rule list (`rules`, `rulesById`) and a compiled condition tree per rule (`compiledRules`);
 - keeps a dependency index (entity id to rule ids) so a state change marks only the affected rules dirty;
-- listens to Home Assistant `state_changed` events through the page's one shared subscription (`src/core/state-change-hub.js`, `'*'` listener) and calls every registered card's re-evaluation callback when a rule entity changes;
+- listens to its rules' entities through the page's one shared state subscription (`src/core/state-change-hub.js`, one listener per entity in `dependencyIndex.entityToRules`, `_syncRuleEntityListeners()`) and calls every registered card's re-evaluation callback when a rule entity changes;
 - evaluates dirty rules in priority order, keeps the latest result of every matching rule, and returns the patches of **all** currently matching rules to every caller;
 - starts rule animations when a rule starts matching and stops its looping ones when it stops matching.
 
@@ -225,8 +225,7 @@ sequenceDiagram
     participant HA as Home Assistant
     participant RE as RulesEngine
     participant CB as Card callbacks (one per registered card)
-    HA->>RE: state_changed (onStateChanged('*') in setupHassMonitoring)
-    RE->>RE: entityToRules.has(entity_id)?
+    HA->>RE: a rule entity changed (onStateChanged(entity) per rule entity, _syncRuleEntityListeners)
     RE->>RE: _handleRuleEntityChange: cache new_state, markEntitiesDirty([id])
     alt at least one rule marked dirty
         RE->>CB: every callback() in _reEvaluationCallbacks
@@ -234,7 +233,7 @@ sequenceDiagram
     Note over RE: setTimeout 100 ms: drop the cached state
     Note over RE: start of every minute (+50 ms): refreshTimeRules() marks the deps.time rules dirty, then every callback()
     HA->>RE: new hass (LCARdSCore._updateHass calls updateHass, which calls ingestHass)
-    alt no state_changed subscription yet (hassUnsubscribe null)
+    alt no rule entity watched yet (hassUnsubscribe null)
         RE->>RE: markAllDirty()
     end
     alt callbacks registered and dirtyRules not empty
@@ -242,7 +241,7 @@ sequenceDiagram
     end
 ```
 
-- `setupHassMonitoring(hass)` subscribes once for the whole engine (guarded by `hassUnsubscribe` and `_hassMonitoringSetupInProgress`). The listener checks `dependencyIndex.entityToRules` live, so rules loaded after the subscription are covered. If no rule references a Home Assistant entity, no subscription is made and `ingestHass()` keeps marking all rules dirty on every hass update.
+- `setupHassMonitoring(hass)` keeps the connection (`_monitorConnection`, guarded by `hassUnsubscribe` and `_hassMonitoringSetupInProgress`) and calls `_syncRuleEntityListeners()`: one `onStateChanged(connection, entity)` per Home Assistant entity in `dependencyIndex.entityToRules` (data source references left out). `buildDependencyIndex()` calls it again, so rules a card adds or removes later add or remove their entities. Until 2026-11-18 this was one `'*'` listener filtering by the index, which kept the page's shared subscription unfiltered (every state change in the house). `hassUnsubscribe` is set while at least one entity is watched; with none, `ingestHass()` keeps marking all rules dirty on every hass update. `tests/core/rules-entity-watch.test.js`.
 - Once the subscription exists, `ingestHass()` no longer marks rules dirty; it only runs the callbacks when something else left rules dirty.
 - Rules that read the clock (`deps.time`) get a timer of their own: `_syncTimeRefresh()` (end of `_compileRules()`) collects them in `_timeRuleIds` and arms a `setTimeout` for the next minute boundary (`TIME_REFRESH_MS`, 60000, plus 50 ms), re-armed after each tick while such rules exist and cleared by `destroy()`. `refreshTimeRules()` marks only those rules dirty and runs the callbacks, so entity rules are not evaluated again. `random_chance` therefore draws again each minute.
 - Data source updates mark the rules naming the source dirty (see [Entity lookup](#entity-lookup)).
@@ -475,7 +474,7 @@ Only `style` patches change a drawn overlay: keys such as `attach_to` or a contr
 | `markAllDirty()`, `markEntitiesDirty(ids)` | Mark rules for evaluation; the latter returns the count newly marked |
 | `evaluateDirty(context)` | `Promise` of the aggregated results (see above) |
 | `evaluateRule(rule, getEntity, overlays?, boundEntity?)` | Evaluate one rule (used by tests) |
-| `setupHassMonitoring(hass)` | Subscribe to `state_changed` once |
+| `setupHassMonitoring(hass)` | Watch the rules' entities on the connection (one listener each, kept in step with the rules) |
 | `ingestHass(hass)` / `updateHass(hass)` | Hass update from core (`updateHass` calls `ingestHass`) |
 | `setReEvaluationCallback(fn)`, `removeReEvaluationCallback(fnOrIndex)` | Card callbacks |
 | `setDataSourceManager(dsm)` | Swaps the DataSource manager (core passes it to the constructor instead): listens to it, rebuilds the index, marks all dirty |

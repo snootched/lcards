@@ -52,7 +52,7 @@ Run `window.lcards.core.helperManager.getAllHelpers()` for the full list, or see
 
 On the first `updateHass()` with a HASS (`_autoSwitchInitialized` guards it), the manager:
 
-1. **Listens once per helper entity** through the page's one shared `state_changed` subscription (`_setupStateListeners()`, `src/core/state-change-hub.js`), which data sources and the rules engine share too. One subscription per helper (and per data source) multiplied the event traffic per tab enough to overflow Home Assistant's pending-message queue (#405, #408; `tests/core/state-change-hub.test.js`).
+1. **Listens once per helper entity** through the page's one shared state subscription (`_setupStateListeners()`, `src/core/state-change-hub.js`), which data sources and the rules engine share too. One subscription per helper (and per data source) multiplied the event traffic per tab enough to overflow Home Assistant's pending-message queue (#405, #408); since 2026-11-18 the shared one is filtered to the listeners' entities on the server (see [Data Source System](datasource-system.md#the-shared-state-subscription); `tests/core/state-change-hub.test.js`).
 2. **Sets up the alert-mode auto-switch** (`_setupAlertModeAutoSwitch()`).
 
 Each change event updates `_valueCache` with the new state string and calls the key's subscribers with `(newValue, oldValue)`. Later `updateHass()` calls refresh the cache from `hass.states` (`_updateValueCache()`).
@@ -139,7 +139,7 @@ await hm.ensureAllHelpers()                         // create the missing ones
 ```
 :::
 
-`stateListeners` is 1 once the shared `state_changed` subscription exists (0 before); `watchedHelpers` is the number of helper entity IDs it watches.
+`stateListeners` is 1 once the shared state subscription exists (0 before); `watchedHelpers` is the number of helper entity IDs it watches.
 
 ---
 

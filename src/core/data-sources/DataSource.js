@@ -276,7 +276,7 @@ export class DataSource {
       this.haUnsubscribe = onStateChanged(this.hass.connection, this.cfg.entity, (data) => {
         lcardsLog.trace(`[DataSource] 📊 HA event received for ${this.cfg.entity}:`, data.new_state?.state);
         this._handleStateChange(data);
-      });
+      }, this.hass.states?.[this.cfg.entity]);
 
       this._started = true;
       lcardsLog.trace(`[DataSource] ✅ Full initialization complete for ${this.cfg.entity} - Buffer: ${this.buffer.size()} points`);

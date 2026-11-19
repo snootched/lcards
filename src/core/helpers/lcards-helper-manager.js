@@ -125,7 +125,7 @@ export class LCARdSHelperManager extends BaseService {
     const removers = [...this._helperKeyByEntity].map(([entityId, key]) =>
       onStateChanged(this.hass.connection, entityId, (data) => {
         this._handleStateChange(key, entityId, { event_type: 'state_changed', data });
-      }));
+      }, this.hass.states?.[entityId]));
     this._stateUnsubscribe = () => removers.forEach((remove) => remove());
 
     lcardsLog.debug(`[HelperManager] Subscribed to state changes for ${this._helperKeyByEntity.size} helpers`);
@@ -296,8 +296,10 @@ export class LCARdSHelperManager extends BaseService {
     if (!this._initialAlertModePending) return;
 
     // Read directly from HASS state (cached values may not be populated yet)
-    const autoSwitchEntity = this.hass?.states['input_boolean.lcards_alert_mode_auto_switch'];
-    const modeEntity       = this.hass?.states['input_select.lcards_alert_mode'];
+    // states can be null while Home Assistant reconnects (an uncaught error in the
+    // retry timer, found by the #408 reconnect check, 2026-11-18)
+    const autoSwitchEntity = this.hass?.states?.['input_boolean.lcards_alert_mode_auto_switch'];
+    const modeEntity       = this.hass?.states?.['input_select.lcards_alert_mode'];
 
     const autoSwitchEnabled = autoSwitchEntity?.state;
     const currentMode       = modeEntity?.state;

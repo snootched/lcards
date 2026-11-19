@@ -114,7 +114,20 @@ export function createFakeConnection({ replies, onSubscribe, pruneEnded = false 
  * @param {boolean} [opts.pruneEnded] - see createFakeConnection
  */
 export function createFakeHass({ states = {}, replies, onSubscribe, darkMode = true, user, pruneEnded = false } = {}) {
-    const connection = createFakeConnection({ replies, onSubscribe, pruneEnded });
+    // subscribe_entities (the state-change hub) is answered as Home Assistant does:
+    // the current states of the requested entities first (`a`), then changes
+    // (pushStateChange below). `hass` is defined further down; read it lazily.
+    /** @type {any} */
+    let hassRef = null;
+    const answer = (msg, push) => {
+        if (msg?.type === 'subscribe_entities' && hassRef) {
+            const states = hassRef.__currentStates?.() ?? hassRef.states;
+            const ids = msg.entity_ids ?? Object.keys(states);
+            push({ a: Object.fromEntries(ids.filter((id) => states[id]).map((id) => [id, compressState(states[id])])) });
+        }
+        if (onSubscribe) onSubscribe(msg, push);
+    };
+    const connection = createFakeConnection({ replies, onSubscribe: answer, pruneEnded });
     const serviceCalls = [];
 
     const hass = {
@@ -169,5 +182,37 @@ export function createFakeHass({ states = {}, replies, onSubscribe, darkMode = t
         return hass.states[entityId];
     };
 
+    /**
+     * Change an entity and send it to the open subscribe_entities subscriptions
+     * that cover it (the state-change hub), as Home Assistant sends a change.
+     * @param {string} entityId
+     * @param {string|object} value - state string or { state, attributes }
+     */
+    hass.pushStateChange = (entityId, value) => {
+        const known = !!hass.states[entityId];
+        const next = hass.setState(entityId, value);
+        for (const sub of connection.subs) {
+            const m = sub.message;
+            if (!sub.active || m?.type !== 'subscribe_entities') continue;
+            if (m.entity_ids && !m.entity_ids.includes(entityId)) continue;
+            sub.cb(known
+                ? { c: { [entityId]: { '+': { s: next.state, a: next.attributes, lu: Date.now() / 1000 } } } }
+                : { a: { [entityId]: compressState(next) } });
+        }
+        return next;
+    };
+
+    hassRef = hass;
     return hass;
+}
+
+
+/**
+ * A state as subscribe_entities sends it (`s`, `a`, `c`, `lc`, `lu`).
+ * @param {any} state
+ */
+export function compressState(state) {
+    const lc = Date.parse(state.last_changed ?? '') / 1000 || Date.now() / 1000;
+    const lu = Date.parse(state.last_updated ?? '') / 1000 || lc;
+    return { s: state.state, a: state.attributes ?? {}, c: state.context?.id ?? 'ctx', lc, ...(lu !== lc ? { lu } : {}) };
 }

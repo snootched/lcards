@@ -187,7 +187,7 @@ const helper = findHelperByEntityId('input_select.lcards_alert_mode');
 
 ### 3. Helper Manager (`lcards-helper-manager.js`)
 
-`LCARdSHelperManager` extends `BaseService`: helper lifecycle, a value cache fed by one `state_changed` subscription, and subscriptions by key.
+`LCARdSHelperManager` extends `BaseService`: helper lifecycle, a value cache fed by the page's shared state subscription (filtered to the helpers' entities), and subscriptions by key.
 
 **Initialization:**
 
@@ -260,7 +260,7 @@ unsubscribe();
 helperManager.unsubscribeFromHelper('alert_mode');
 ```
 
-All helpers share one `state_changed` subscription (`tests/core/helper-manager-subscriptions.test.js`); subscribing to a key only adds a callback. Callbacks get the new and old state strings.
+All helpers share one state subscription, filtered to their entities on the server (`tests/core/helper-manager-subscriptions.test.js`); subscribing to a key only adds a callback. Callbacks get the new and old state strings.
 
 **Helper Bindings:**
 
@@ -381,4 +381,4 @@ Both consumers use the manager API above.
 - **Values are strings:** compare against the state string (`'on'`, `'red_alert'`, `'0.5'`) and parse numbers, but allow the boolean or number `default_value` returned before the helper exists.
 - **Performance:** create helpers in bulk with `ensureAllHelpers()` rather than looping `ensureHelper()` calls.
 
-**Tests.** Node tests: `tests/core/helper-manager-subscriptions.test.js` (one `state_changed` subscription for all helpers), `helper-value-clamp.test.js`, `helper-registry-yaml.test.js`, `helper-yaml-initial.test.js` and `alert-defaults-match.test.js`. The real Home Assistant layer (`npm run test:ha`) creates its own `lcards_test_*` helpers for card fixtures, and checks `input_select.lcards_alert_mode` around the alert actions (`tests/ha/ha.spec.js`). Creating helpers from the config panel is still checked by hand: create them from the Helpers tab, confirm the entities in Home Assistant, save and reload in the Alert Lab, and change a value from an automation. See [Testing](./testing).
+**Tests.** Node tests: `tests/core/helper-manager-subscriptions.test.js` (one shared state subscription for all helpers, filtered to them), `helper-value-clamp.test.js`, `helper-registry-yaml.test.js`, `helper-yaml-initial.test.js` and `alert-defaults-match.test.js`. The real Home Assistant layer (`npm run test:ha`) creates its own `lcards_test_*` helpers for card fixtures, and checks `input_select.lcards_alert_mode` around the alert actions (`tests/ha/ha.spec.js`). Creating helpers from the config panel is still checked by hand: create them from the Helpers tab, confirm the entities in Home Assistant, save and reload in the Alert Lab, and change a value from an automation. See [Testing](./testing).

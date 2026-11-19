@@ -3,8 +3,11 @@
  * (the `issues` view of the lcards-test dashboard: a layout view with many
  * cards, data sources, a rule, a chart and an MSD).
  *
- * - #408: the page opens one `state_changed` subscription in all, shared by
- *   helpers, data sources and the rules engine, and each still gets its updates.
+ * - #408: the page opens one state subscription in all, shared by helpers, data
+ *   sources and the rules engine, and each still gets its updates. Since
+ *   2026-11-18 (HA-LCARS feedback, Fire HD 8 kiosk) it is a `subscribe_entities`
+ *   filtered to their entities, not an unfiltered `state_changed`, and it keeps
+ *   working after a reconnect.
  * - #409: opening the view by in-app navigation connects each LCARdS element
  *   about once (Home Assistant assigns the view's cards several times); an MSD in
  *   it shows on every reload; edit mode raises no chart errors.
@@ -124,7 +127,7 @@ const buttonMarkup = (page, id) => page.evaluate((id) => {
     return find(document)?.shadowRoot?.innerHTML ?? '';
 }, id);
 
-test('#408: one state_changed subscription for helpers, data sources and rules, and each still updates', async ({ page }) => {
+test('#408: one filtered state subscription for helpers, data sources and rules, and each still updates, also after a reconnect', async ({ page }) => {
     const problems = await open(page, 'issues');
     await page.waitForFunction(msdRevealed, null, { timeout: 30_000 });
     await page.waitForTimeout(3000);
@@ -141,6 +144,9 @@ test('#408: one state_changed subscription for helpers, data sources and rules, 
         return {
             byType,
             stateChanged: out.filter((m) => m.type === 'subscribe_events' && m.event_type === 'state_changed').length,
+            // the frontend's own subscribe_entities has no entity_ids; ours does
+            filtered: out.filter((m) => m.type === 'subscribe_entities' && Array.isArray(m.entity_ids)).map((m) => m.entity_ids.length),
+            totalEntities: Object.keys(document.querySelector('home-assistant').hass.states).length,
             helpers: core.helperManager.getDebugInfo().watchedHelpers,
             dataSources: core.dataSourceManager.sources.size,
             rulesWatching: !!core.rulesManager.hassUnsubscribe,
@@ -160,13 +166,28 @@ test('#408: one state_changed subscription for helpers, data sources and rules, 
     await client.callService('lcards', 'clear_alert');
     await expect.poll(() => page.evaluate(() => window.lcards.core.themeManager.getAlertMode()), { timeout: 15_000 }).toBe('green_alert');
     await client.callService('input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' });
+    await expect.poll(async () => (await buttonMarkup(page, 'issue_rule_button')).toLowerCase(), { timeout: 10_000 }).not.toContain('#00aa00');
+
+    // A reconnect (Home Assistant restarting, Wi-Fi dropping): the library re-subscribes,
+    // Home Assistant sends the states again, and changes keep arriving.
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('home-assistant')).hass.connection.socket.close());
+    await page.waitForFunction(() => /** @type {any} */ (document.querySelector('home-assistant')).hass?.connection?.connected === true, null, { timeout: 30_000 });
+    await page.waitForTimeout(1500);
+    await client.callService('input_number', 'set_value', { entity_id: 'input_number.lcards_test_value', value: 17 });
+    await expect.poll(() => buttonMarkup(page, 'issue_ds_button'), { timeout: 10_000 }).toContain('17');
+    await client.callService('input_boolean', 'turn_on', { entity_id: 'input_boolean.lcards_test_toggle' });
+    await expect.poll(async () => (await buttonMarkup(page, 'issue_rule_button')).toLowerCase(), { timeout: 10_000 }).toContain('#00aa00');
+    await client.callService('input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' });
 
     report.issue408.problems = problems;
     if (STRICT) {
         expect(subs.dataSources).toBeGreaterThan(0);
         expect(subs.helpers).toBeGreaterThan(10);
         expect(subs.rulesWatching).toBe(true);
-        expect(subs.stateChanged).toBe(1);
+        expect(subs.stateChanged).toBe(0);
+        expect(subs.filtered.length).toBeGreaterThan(0);
+        // one filtered subscription at a time (each re-subscribe for new entities sends one)
+        expect(Math.max(...subs.filtered)).toBeLessThan(subs.totalEntities / 2);
         expect(problems).toEqual([]);
     }
 });

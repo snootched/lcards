@@ -8,16 +8,20 @@ import { createFakeHass } from '../helpers/fake-hass.js';
 import { LCARdSHelperManager } from '../../src/core/helpers/lcards-helper-manager.js';
 import { getAllHelpers } from '../../src/core/helpers/lcards-helper-registry.js';
 
+// The shared state hub subscribes with subscribe_entities (2026-11-18): one
+// subscription, filtered to the helpers' entities on the server.
 function trackSubscriptions(hass) {
   const subs = [];
   const conn = hass.connection;
-  conn.subscribeEvents = async (cb, eventType) => {
-    const sub = { cb, eventType, unsubscribed: false };
+  conn.subscribeMessage = async (cb, message) => {
+    const sub = { cb, message, eventType: message?.type === 'subscribe_entities' ? 'state_changed' : message?.event_type, unsubscribed: false };
     subs.push(sub);
     return () => { sub.unsubscribed = true; };
   };
   return subs;
 }
+
+const flush = () => new Promise((r) => setTimeout(r, 0));
 
 test('helper manager opens a single state_changed subscription for all helpers', async () => {
   const hass = createFakeHass();
@@ -25,6 +29,7 @@ test('helper manager opens a single state_changed subscription for all helpers',
   const manager = new LCARdSHelperManager();
   manager.updateHass(hass);
   manager.updateHass(hass);
+  await flush();
 
   const stateSubs = subs.filter((s) => s.eventType === 'state_changed');
   assert.equal(stateSubs.length, 1);
@@ -43,9 +48,13 @@ test('the shared subscription routes changes to the right helper', async () => {
   manager.subscribeToHelper(helperA.key, (value) => seen.push([helperA.key, value]));
   manager.subscribeToHelper(helperB.key, (value) => seen.push([helperB.key, value]));
 
-  const { cb } = subs.find((s) => s.eventType === 'state_changed');
-  cb({ event_type: 'state_changed', data: { entity_id: 'light.unrelated', new_state: { state: 'on' } } });
-  cb({ event_type: 'state_changed', data: { entity_id: helperB.entity_id, new_state: { state: 'x' }, old_state: null } });
+  await flush();
+  const { cb, message } = subs.find((s) => s.eventType === 'state_changed');
+  assert.ok(message.entity_ids.includes(helperB.entity_id), 'filtered to the helpers');
+  assert.equal(message.entity_ids.includes('light.unrelated'), false);
+  // Home Assistant sends the helper's state first, then the change
+  cb({ a: { [helperB.entity_id]: { s: 'y', a: {}, c: 'c', lc: 1 } } });
+  cb({ c: { [helperB.entity_id]: { '+': { s: 'x', lu: 2 } } } });
 
   assert.deepEqual(seen.filter(([k]) => k === helperB.key).at(-1), [helperB.key, 'x']);
   assert.equal(seen.some(([k, v]) => k === helperA.key && v === 'x'), false);
@@ -57,8 +66,9 @@ test('destroy really unsubscribes (subscribeEvents resolves to the unsubscribe)'
   const subs = trackSubscriptions(hass);
   const manager = new LCARdSHelperManager();
   manager.updateHass(hass);
+  await flush();
   manager.destroy();
-  await new Promise((r) => setTimeout(r, 0));
+  await flush();
 
   assert.equal(subs.filter((s) => s.eventType === 'state_changed').every((s) => s.unsubscribed), true);
   assert.equal(manager.getDebugInfo().stateListeners, 0);

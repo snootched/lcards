@@ -23,7 +23,8 @@ test('createDataSource waits for a connected HASS, then starts on it', async () 
     await pending;
     assert.ok(created, 'created once HASS is connected');
     assert.equal(created.hass, hass);
-    assert.ok(hass.connection.subs.some(s => s.message?.type === 'subscribe_events'), 'subscribed to state changes');
+    await new Promise((resolve) => setImmediate(resolve)); // the shared state subscription opens per microtask batch
+    assert.ok(hass.connection.subs.some(s => s.message?.type === 'subscribe_entities' && s.message.entity_ids?.includes('sensor.temp')), 'subscribed to its entity');
     assert.equal(created.buffer.last()?.v, 21.5);
 });
 

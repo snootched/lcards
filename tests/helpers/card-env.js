@@ -11,7 +11,7 @@
  *   const card = await env.mount(container, config);
  *   env.setState('light.demo', 'off');          // HA-style update: new snapshot + state_changed
  */
-import { createFakeHass, makeStates } from './fake-hass.js';
+import { createFakeHass, makeStates, compressState } from './fake-hass.js';
 import { ALERT_SERVICES } from './demo-states.js';
 
 /** 'mdi:lightbulb-outline' -> 'mdiLightbulbOutline' (the @mdi/js export name) */
@@ -194,6 +194,9 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
 
     const cards = new Set();
     let current = base;
+    // a new subscribe_entities subscription starts from the current states (never
+    // mutate base: it is the first hass the cards hold, and they diff against it)
+    /** @type {any} */ (base).__currentStates = () => current.states;
 
     /** @type {Set<(hass: any, entityId: string) => void>} */
     const stateListeners = new Set();
@@ -219,6 +222,12 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
             // a copy: a subscriber may end its subscription from inside its callback (pruneEnded splices)
             for (const sub of [...base.connection.subs]) {
                 const m = sub.message;
+                // the state-change hub's subscription, as Home Assistant sends a change
+                if (sub.active && m?.type === 'subscribe_entities' && (!m.entity_ids || m.entity_ids.includes(entityId))) {
+                    sub.cb(oldState
+                        ? { c: { [entityId]: { '+': { s: newState.state, a: newState.attributes, lu: Date.now() / 1000 } } } }
+                        : { a: { [entityId]: compressState(newState) } });
+                }
                 if (sub.active && m?.type === 'subscribe_events' && (!m.event_type || m.event_type === 'state_changed')) {
                     sub.cb({ event_type: 'state_changed', data: { entity_id: entityId, old_state: oldState, new_state: newState }, time_fired: new Date().toISOString() });
                 }
