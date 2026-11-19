@@ -110,6 +110,11 @@ test('bracket: a bar on the exit side, the line in the bar colour, from the end 
     assert.deepEqual(Object.keys(level.label.card.style.border.width), ['right']);
     assert.equal(level.label.card.style.border.width.right, Math.round(6 * U * 10) / 10);
     assert.equal(level.line.style.color, level.label.card.style.border.color);
+    // the text clears the bar by about half an em (the inset counts from the box edge, the
+    // bar inside it; 2026-11-19: 0.6 em left 3 px)
+    const font = level.label.card.text.label.font_size;
+    const air = level.label.card.text.label.padding.right - level.label.card.style.border.width.right;
+    assert.ok(air >= font * 0.45, `${air} px between bar and text at ${font} px`);
     // Level, part above: the bar's top sits at the part's height, the line runs straight out of it.
     const h = level.label.size[1];
     assert.ok(Math.abs(level.label.position[1] - h / 2 - 120) < 0.2);

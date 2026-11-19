@@ -72,12 +72,15 @@ export function estimateTextWidth(text, fontSize) {
 }
 
 /**
- * Text inset from the box edge: the button's own 8, or about 0.6 em off a bracket bar.
+ * Text inset from the box edge: the button's own 8, or 1 em beside a bracket. The
+ * inset counts from the box edge and the bar (6/13 em) sits inside it, so this leaves
+ * about half an em between the bar and the text (0.6 em left about 3 px at size XS;
+ * the user, 2026-11-19: more air by default).
  * @param {number} fontSize
  * @param {boolean} bracket
  */
 export function labelTextPad(fontSize, bracket) {
-    return bracket ? fontSize * 0.6 : 8;
+    return bracket ? fontSize : 8;
 }
 
 /**
