@@ -38,7 +38,7 @@
         </template>
       </nav>
       <div class="demo-board-main">
-        <div v-if="active" class="demo-board-heading">
+        <div v-if="active" ref="heading" class="demo-board-heading">
           <span class="demo-board-title">{{ active.title }}</span>
           <span v-if="byRelease" class="demo-board-badge demo-board-badge-heading">{{ releaseName(active.release) }}</span>
           <p class="demo-board-summary">{{ active.summary }}</p>
@@ -140,6 +140,7 @@ function setFilter() {
 }
 
 const stage = ref(null)
+const heading = ref(null)
 const fatal = ref('')
 let env = null
 let seeded = false
@@ -187,13 +188,21 @@ async function show(path) {
 }
 
 watch(current, async (path) => {
+  // The old view's cards go before the new ones mount: hold the stage's height meanwhile,
+  // or the page gets shorter and the browser scrolls down to the YAML below it
+  const held = stage.value
+  if (held) held.style.minHeight = `${held.offsetHeight}px`
   await nextTick()
+  // the new view from its heading: scrolled past it (a long view, the menu below), go back up
+  const top = heading.value?.getBoundingClientRect().top
+  const bar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--vp-nav-height')) || 64
+  if (top !== undefined && top < bar) window.scrollBy({ top: top - bar - 8 })
   // Leave the page in normal (green) alert when switching views. Not awaited: the
   // theme change waits for a frame, and a busy page must not hold the view switch on it.
   if (window.lcards?.getAlertMode?.() !== 'green_alert') {
     window.lcards?.setAlertMode?.('green_alert', { skipHelperSync: true })
   }
-  show(path)
+  show(path).finally(() => { if (held && current.value === path) held.style.minHeight = '' })
 })
 onMounted(() => show(current.value))
 onUnmounted(() => {

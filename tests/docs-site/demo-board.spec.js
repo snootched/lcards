@@ -268,6 +268,8 @@ test('D-pad segments run perform-action: the Voyager arrows step VALUE, the cent
     await openView(page, VIEWS.find(v => v.path === 'button-dpad-voyager'));
     const state = (id) => page.evaluate(async (id) => (await globalThis.__lcardsDocsEnv).hass.states[id]?.state, id);
     const card = page.locator('.demo-board-stage lcards-button[component="dpad_voyager"], .demo-board-stage lcards-button').last();
+    // the page now stays at the view's heading: bring the D-pad on screen before clicking by position
+    await card.scrollIntoViewIfNeeded();
     const tap = async (id) => {
         const p = await card.evaluate((el, id) => { const r = el.shadowRoot.querySelector(`#${id}`).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, id);
         await page.mouse.click(p.x, p.y);
@@ -368,4 +370,33 @@ test('a card with Visibility conditions shows only while they pass (Picard opera
     });
     await expect.poll(hidden).toBe(2);
     expect(await shown()).toBe(before);
+});
+
+test('an action confirmation asks on the page too: Stay and Esc run nothing, the confirm button runs it', async ({ page }) => {
+    await openView(page, VIEWS.find(v => v.path === 'actions-confirmation'));
+    const airlock = page.locator('.demo-board-stage lcards-button').filter({ hasText: 'AIRLOCK' });
+    const state = () => page.evaluate(async () => (await globalThis.__lcardsDocsEnv).hass.states['input_boolean.lcards_test_doors']?.state);
+    const before = await state();
+    const dialog = page.locator('ha-dialog').filter({ hasText: 'Cycle the airlock doors?' });
+    await airlock.click();
+    await expect(dialog).toBeVisible();
+    await dialog.getByText('Stay', { exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await airlock.click();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect(await state()).toBe(before);
+    await airlock.click();
+    await dialog.getByText('Cycle', { exact: true }).click();
+    await expect.poll(state).toBe(before === 'on' ? 'off' : 'on');
+});
+
+test('picking another view from far down the page shows the new view from its heading', async ({ page }) => {
+    await openView(page, VIEWS.find(v => v.path === 'anim-classic'));
+    await page.evaluate(() => window.scrollTo(0, document.querySelector('.demo-board-yaml').getBoundingClientRect().top + scrollY - 300));
+    await pickView(page, VIEWS.find(v => v.path === 'anim-triggers'));
+    await page.waitForTimeout(300);
+    const top = await page.evaluate(() => document.querySelector('.demo-board-heading').getBoundingClientRect().top);
+    expect(top).toBeGreaterThanOrEqual(0);
+    expect(top).toBeLessThan(200);
 });

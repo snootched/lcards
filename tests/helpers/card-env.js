@@ -23,9 +23,13 @@ export const mdiExportName = (icon) => /^mdi:/.test(String(icon ?? ''))
  * Stub the HA elements cards use outside HA (they render nothing useful but must exist).
  * `loadIcons` (the docs site passes `() => import('@mdi/js')`) lets ha-icon draw mdi:*
  * icons as Home Assistant would; without it (the browser test harness) icons stay empty boxes.
- * @param {{ loadIcons?: () => Promise<Record<string, string>> }} [options]
+ * `dialogs` (the docs site) adds a plain ha-dialog, ha-dialog-footer and ha-button, so an
+ * action confirmation (src/utils/lcards-confirm-dialog.js) shows and answers; the browser
+ * harness leaves them out (its studio tests style the bare elements themselves).
+ * @param {{ loadIcons?: () => Promise<Record<string, string>>, dialogs?: boolean }} [options]
  */
-export function defineHaStubs({ loadIcons } = {}) {
+export function defineHaStubs({ loadIcons, dialogs = false } = {}) {
+    if (dialogs) defineDialogStubs();
     let icons = null;
     class StubIcon extends HTMLElement {
         static get observedAttributes() { return ['icon']; }
@@ -60,6 +64,68 @@ export function defineHaStubs({ loadIcons } = {}) {
     if (!customElements.get('ha-card')) {
         customElements.define('ha-card', class extends HTMLElement {
             connectedCallback() { this.style.display = 'block'; }
+        });
+    }
+}
+
+/**
+ * A modal box in place of Home Assistant's ha-dialog: its headerTitle, its content and
+ * footer, a scrim; Esc or a click on the scrim closes it. Closing fires `closed`, as
+ * ha-dialog does. Only what showConfirmDialog() uses.
+ */
+function defineDialogStubs() {
+    if (!customElements.get('ha-dialog')) {
+        customElements.define('ha-dialog', class extends HTMLElement {
+            constructor() {
+                super();
+                this._open = false;
+                this.headerTitle = '';
+                this._onKey = (/** @type {KeyboardEvent} */ e) => { if (e.key === 'Escape') this.open = false; };
+            }
+            get open() { return this._open; }
+            set open(value) {
+                const was = this._open;
+                this._open = Boolean(value);
+                if (was && !this._open) {
+                    this.style.display = 'none';
+                    // after the button's own handler, as ha-dialog fires it after its close animation
+                    setTimeout(() => this.dispatchEvent(new CustomEvent('closed', { bubbles: true, composed: true })));
+                }
+            }
+            connectedCallback() {
+                Object.assign(this.style, { position: 'fixed', inset: '0', zIndex: '1000', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0, 0, 0, 0.6)' });
+                const box = document.createElement('div');
+                Object.assign(box.style, { background: '#1c1c1c', color: '#e1e1e1', borderRadius: '24px', padding: '16px', minWidth: '280px', maxWidth: '420px', fontFamily: 'Roboto, sans-serif', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)' });
+                if (this.headerTitle) {
+                    const title = document.createElement('div');
+                    title.textContent = this.headerTitle;
+                    Object.assign(title.style, { fontSize: '22px', padding: '8px 16px 0' });
+                    box.append(title);
+                }
+                box.append(...this.childNodes);
+                this.replaceChildren(box);
+                this.addEventListener('click', (e) => { if (e.target === this) this.open = false; });
+                document.addEventListener('keydown', this._onKey);
+            }
+            disconnectedCallback() { document.removeEventListener('keydown', this._onKey); }
+        });
+    }
+    if (!customElements.get('ha-dialog-footer')) {
+        customElements.define('ha-dialog-footer', class extends HTMLElement {
+            connectedCallback() { Object.assign(this.style, { display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '8px 8px 0' }); }
+        });
+    }
+    if (!customElements.get('ha-button')) {
+        customElements.define('ha-button', class extends HTMLElement {
+            connectedCallback() {
+                const variant = this.getAttribute('variant');
+                const plain = this.getAttribute('appearance') === 'plain';
+                const fill = variant === 'danger' ? '#db4437' : '#03a9f4';
+                Object.assign(this.style, { display: 'inline-block', cursor: 'pointer', padding: '8px 16px', borderRadius: '18px', fontSize: '14px', fontWeight: '500', userSelect: 'none', color: plain ? fill : '#fff', background: plain ? 'transparent' : fill });
+                this.setAttribute('role', 'button');
+                this.tabIndex = 0;
+                if (this.autofocus) queueMicrotask(() => this.focus());
+            }
         });
     }
 }
@@ -157,6 +223,15 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
         replies: (msg) => {
             switch (msg.type) {
                 case 'lcards/info': return { version: 'demo', available: true };
+                // the LCARdS media source (custom_components/lcards/media_source.py): a bundled
+                // file is served from the bundle's folder (wherever lcards.js was loaded from)
+                case 'media_source/resolve_media': {
+                    const m = /^media-source:\/\/lcards\/((?:images|sounds|msd|models)\/.+)$/.exec(msg.media_content_id ?? '');
+                    if (!m) throw new Error(`Unresolvable: ${msg.media_content_id}`);
+                    const script = /** @type {HTMLScriptElement|null} */ (document.querySelector('script[src*="lcards/lcards.js"]'));
+                    const folder = script ? new URL('.', script.src).pathname : '/lcards/';
+                    return { url: `${folder}${m[1]}`, mime_type: m[1].endsWith('.glb') ? 'model/gltf-binary' : 'application/octet-stream' };
+                }
                 case 'render_template': return { result: '' };
                 case 'recorder/statistics_during_period': {
                     const start = Date.parse(msg.start_time);

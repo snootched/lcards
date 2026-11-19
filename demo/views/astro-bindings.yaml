@@ -17,14 +17,14 @@ sections:
         component: shaped
         text: { name: { content: SHIELDS } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 24, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
         preset: shaped-horizontal
         component: shaped
         text: { name: { content: POWER } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 24, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: PREVIOUS STOP, show: true } }

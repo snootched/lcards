@@ -34,7 +34,7 @@ const LABEL = 'var(--lcards-blue)';
  * Each view takes its topic, group and place (`rank`) from the `topics` tree.
  * @returns {{ title: string, topics: DemoTopic[], releases: Array<{ version: string, views: DemoView[] }>, unlisted: string[], missing: string[], ungrouped: string[], regrouped: string[] }}
  * @typedef {{ id: string, title: string, groups: Array<{ title: string, views: string[] }> }} DemoTopic
- * @typedef {{ file: string, topic: string, group: string, rank: number, maxWidth: number | null, summary: string, description: string, session: string, docs: string|null, public: boolean, heavy: boolean, path: string, title: string, text: string, config: any }} DemoView
+ * @typedef {{ file: string, topic: string, group: string, rank: number, maxWidth: number | null, summary: string, description: string[], session: string, docs: string|null, public: boolean, heavy: boolean, path: string, title: string, text: string, config: any }} DemoView
  */
 export function loadDemo(dir = DEMO_DIR) {
     const order = yaml.load(readFileSync(join(dir, 'order.yaml'), 'utf8'));
@@ -76,7 +76,7 @@ export function loadDemo(dir = DEMO_DIR) {
             const config = gallery ? { ...loaded.views[0], path: `dashboard-${file.slice(GALLERY_PREFIX.length)}` } : loaded;
             return [{
                 file, topic: place.get(file)?.topic ?? '', group: place.get(file)?.group ?? '', rank: place.get(file)?.rank ?? Infinity,
-                heavy: entry.heavy === true, maxWidth: entry.max_width ?? null, summary: entry.summary ?? '', description: entry.description ?? '', session: entry.session ?? '',
+                heavy: entry.heavy === true, maxWidth: entry.max_width ?? null, summary: entry.summary ?? '', description: descriptionLines(entry.description), session: entry.session ?? '',
                 docs: entry.docs ?? null, public: entry.public === true,
                 path: config.path ?? file, title: entry.title ?? config.title ?? file, text, config: { path: file, ...config },
             }];
@@ -358,15 +358,30 @@ const views = (n) => `${n} view${n === 1 ? '' : 's'}`;
 
 /** One wrapping text cell (a data grid in data mode). */
 function textBlock(text) {
+    const lines = Array.isArray(text) ? text : [text];
+    // about 150 characters a line across a wide view (25 px a line at 18 px), 8 px between
+    // items, in section rows of 56 px plus an 8 px gap; a narrow screen scrolls the cell
+    const px = lines.reduce((sum, l) => sum + 25 * Math.max(1, Math.ceil(l.length / 150)), 0) + 8 * (lines.length - 1);
     return {
         type: 'custom:lcards-data-grid',
         data_mode: 'data',
-        rows: [[text]],
-        grid: { 'grid-template-columns': '1fr' },
+        rows: lines.map((l) => [l]),
+        grid: { 'grid-template-columns': '1fr', 'grid-auto-rows': 'min-content', 'align-content': 'start', gap: '8px' },
         style: { font_size: 18, align: 'left', white_space: 'normal', line_height: 1.4, color: 'var(--lcards-moonlight)' },
-        // about 150 characters a line across a wide view; a narrow screen scrolls the cell
-        grid_options: { columns: 'full', rows: text.length > 150 ? 2 : 1 },
+        grid_options: { columns: 'full', rows: Math.max(1, Math.ceil((px + 8) / 64)) },
     };
+}
+
+/**
+ * A view's description as lines (order.yaml `description`): a list, one line per item
+ * (the lead, then one per example), or one string. Shown one under another in the
+ * view's header (the user, 2026-11-19: one run-on paragraph was hard to follow).
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+export function descriptionLines(value) {
+    if (Array.isArray(value)) return value.map(String).filter(Boolean);
+    return value ? [String(value)] : [];
 }
 
 /** A lozenge button. */
@@ -411,7 +426,7 @@ export function headerSection(view, opts = {}) {
         type: 'grid',
         column_span: 4,
         // no description: the header bar alone; with one, a frame round it like the sections'
-        cards: [view.description ? frameCard([textBlock(view.description)], 0, { head: frameHeader(view.title, segments) }) : frameHeader(view.title, segments)],
+        cards: [view.description.length ? frameCard([textBlock(view.description)], 0, { head: frameHeader(view.title, segments) }) : frameHeader(view.title, segments)],
     };
 }
 

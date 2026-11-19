@@ -220,6 +220,8 @@ export const GALLERY_HELPERS = {
     'input_boolean.lcards_test_warp': { type: 'input_boolean/create', name: 'LCARdS Test Warp' },
     // warp streaks on the flights between stops
     'input_boolean.lcards_test_warp_travel': { type: 'input_boolean/create', name: 'LCARdS Test Warp Travel', initial: true },
+    // the size of a nebula in the Live Demo (astro-nebula-volume): starts in the middle, to grow or shrink
+    'input_number.lcards_test_size': { type: 'input_number/create', name: 'LCARdS Test Size', min: 0, max: 100, step: 1, initial: 50, mode: 'slider' },
     'input_number.lcards_test_warp_factor': { type: 'input_number/create', name: 'LCARdS Test Warp Factor', min: 1, max: 9.9, step: 0.1, mode: 'slider' },
     // The astrometrics showcase's date rate: the time slider's stops
     'input_select.lcards_test_rate': {

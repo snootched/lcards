@@ -25,7 +25,7 @@ sections:
         component: shaped
         text: {name: {content: SWEEP SPEED}}
         style: {shaped: {text_bands: {left: {size: 140}}}}
-        grid_options: {columns: 8, rows: 1}
+        grid_options: {columns: 16, rows: 1}
       - type: custom:lcards-astrometrics-card
         id: astro_radar
         height: 600

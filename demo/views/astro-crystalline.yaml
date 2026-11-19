@@ -95,21 +95,21 @@ sections:
         component: shaped
         text: { name: { content: CORE GLOW } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 16, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_shields
         preset: shaped-horizontal
         component: shaped
         text: { name: { content: FADE } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 16, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
         preset: shaped-horizontal
         component: shaped
         text: { name: { content: SPIN } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 16, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         entity: input_boolean.lcards_test_toggle

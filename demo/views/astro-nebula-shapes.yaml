@@ -53,7 +53,7 @@ sections:
           name: {content: STRETCH}
         style:
           shaped: {text_bands: {left: {size: 140}}}
-        grid_options: {columns: 12, rows: 1}
+        grid_options: {columns: 24, rows: 1}
       - type: custom:lcards-slider
         entity: input_number.lcards_test_stage
         preset: shaped-horizontal
@@ -62,7 +62,7 @@ sections:
           name: {content: DUST}
         style:
           shaped: {text_bands: {left: {size: 140}}}
-        grid_options: {columns: 12, rows: 1}
+        grid_options: {columns: 24, rows: 1}
       - type: custom:lcards-astrometrics-card
         id: astro_nebula_shapes
         height: 650

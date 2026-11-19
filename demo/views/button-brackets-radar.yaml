@@ -24,7 +24,8 @@ sections:
         entity: input_number.lcards_test_temperature
         text:
           label:
-            content: "{entity.state}"
+            # rounded: a bracket reading is a short code, and a decimal does not fit the gap
+            content: "[[[ return Math.round(Number(entity.state)) + '°C' ]]]"
             show: true
             position: center
             font_size: 32

@@ -15,28 +15,28 @@ sections:
         component: shaped
         text: { name: { content: POWER } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 24, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_shields
         preset: shaped-horizontal
         component: shaped
         text: { name: { content: SHIELDS } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 24, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_humidity
         preset: shaped-horizontal
         component: shaped
         text: { name: { content: HUMIDITY } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 24, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
         preset: shaped-horizontal
         component: shaped
         text: { name: { content: VALUE } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 24, rows: 1 }
   - type: grid
     column_span: 4
     cards:

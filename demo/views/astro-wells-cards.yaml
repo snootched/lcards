@@ -17,14 +17,14 @@ sections:
         component: shaped
         text: { name: { content: APERTURE } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 24, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_shields
         preset: shaped-horizontal
         component: shaped
         text: { name: { content: DEPTH } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 24, rows: 1 }
       - type: custom:lcards-astrometrics-card
         id: astro_wormhole_morph
         height: 600

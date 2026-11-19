@@ -54,21 +54,21 @@ sections:
         component: shaped
         text: { name: { content: INNER EDGE } }
         style: { shaped: { text_bands: { left: { size: 140 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 16, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
         preset: shaped-horizontal
         component: shaped
         text: { name: { content: OUTER + ROCKS } }
         style: { shaped: { text_bands: { left: { size: 140 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 16, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
         preset: shaped-horizontal
         component: shaped
         text: { name: { content: THICKNESS } }
         style: { shaped: { text_bands: { left: { size: 140 } } } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 16, rows: 1 }
       - type: custom:lcards-astrometrics-card
         height: 650
         camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 20, tilt: 30, distance: 240 } }, buttons: true }

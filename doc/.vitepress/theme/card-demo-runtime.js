@@ -34,7 +34,7 @@ export function sharedEnv() {
     import('../../../tests/helpers/demo-states.js'),
     import('../../../tests/helpers/ha-jinja.js'),
   ]).then(([mod, { DEMO_STATES }, { createHaJinja }]) => {
-    mod.defineHaStubs({ loadIcons: () => import('@mdi/js') })
+    mod.defineHaStubs({ loadIcons: () => import('@mdi/js'), dialogs: true })
     let render = null
     let latest = {}
     const env = mod.createDemoEnv({

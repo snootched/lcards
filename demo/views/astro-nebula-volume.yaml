@@ -1,6 +1,6 @@
 # Astrometrics nebula render: volume: the gas raymarched as one body you can fly into, a planet inside
 # it hiding the gas behind it. Every tunable setting on a slider: density and drift change in place;
-# turbulence, detail (noise_scale) and clouds (count) rebuild the nebula (a seed is a plain number
+# turbulence, detail (noise_scale), clouds (count) and size rebuild the nebula (a seed is a plain number
 # since 2026-11-08: a new pattern would jump). Then the same
 # seeded clouds as puffs and as a volume, side by side.
 title: Astrometrics nebula volume
@@ -49,13 +49,14 @@ sections:
           - type: nebula
             id: gas
             render: volume
-            size: [240, 70, 240]
+            # SIZE: the box the gas fills, a cube 120 to 400 wide (one number when bound)
+            size: {entity: input_number.lcards_test_size, input: [0, 100], output: [120, 400]}
             colors: [var(--lcars-violet), var(--lcars-blue), var(--lcars-red)]
             density: {entity: input_number.lcards_test_power, input: [0, 100], output: [0.2, 3]}
             turbulence: {entity: input_number.lcards_test_shields, input: [0, 100], output: [0, 1]}
             noise_scale: {entity: input_number.lcards_test_humidity, input: [0, 100], output: [0.02, 0.3]}
             drift: {entity: input_number.lcards_test_temperature, input: [10, 35], output: [0, 8]}
-            count: {entity: input_number.lcards_test_stage, input: [0, 20], output: [1, 10]}
+            count: {entity: input_number.lcards_test_value, input: [0, 100], output: [1, 10]}
             seed: 1
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
@@ -65,7 +66,7 @@ sections:
           name: {content: DENSITY}
         style:
           shaped: {text_bands: {left: {size: 140}}}
-        grid_options: {columns: 18, rows: 1}
+        grid_options: {columns: 16, rows: 1}
       - type: custom:lcards-slider
         entity: input_number.lcards_test_shields
         preset: shaped-horizontal
@@ -74,7 +75,7 @@ sections:
           name: {content: TURBULENCE}
         style:
           shaped: {text_bands: {left: {size: 120}}}
-        grid_options: {columns: 12, rows: 1}
+        grid_options: {columns: 16, rows: 1}
       - type: custom:lcards-slider
         entity: input_number.lcards_test_humidity
         preset: shaped-horizontal
@@ -83,7 +84,7 @@ sections:
           name: {content: DETAIL}
         style:
           shaped: {text_bands: {left: {size: 120}}}
-        grid_options: {columns: 12, rows: 1}
+        grid_options: {columns: 16, rows: 1}
       - type: custom:lcards-slider
         entity: input_number.lcards_test_temperature
         preset: shaped-horizontal
@@ -92,16 +93,25 @@ sections:
           name: {content: DRIFT}
         style:
           shaped: {text_bands: {left: {size: 120}}}
-        grid_options: {columns: 12, rows: 1}
+        grid_options: {columns: 16, rows: 1}
       - type: custom:lcards-slider
-        entity: input_number.lcards_test_stage
+        entity: input_number.lcards_test_value
         preset: shaped-horizontal
         component: shaped
         text:
           name: {content: CLOUDS}
         style:
           shaped: {text_bands: {left: {size: 140}}}
-        grid_options: {columns: 18, rows: 1}
+        grid_options: {columns: 16, rows: 1}
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_size
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: SIZE}
+        style:
+          shaped: {text_bands: {left: {size: 120}}}
+        grid_options: {columns: 16, rows: 1}
   - type: grid
     column_span: 4
     cards:

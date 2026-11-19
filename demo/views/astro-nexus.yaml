@@ -47,7 +47,7 @@ sections:
           name: {content: WAVE SPEED}
         style:
           shaped: {text_bands: {left: {size: 140}}}
-        grid_options: {columns: 12, rows: 1}
+        grid_options: {columns: 16, rows: 1}
       - type: custom:lcards-astrometrics-card
         id: astro_nexus
         height: 700

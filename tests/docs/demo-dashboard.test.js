@@ -48,7 +48,8 @@ test('every view: valid config, no warnings', async () => {
 test('every view has a title and its header text in order.yaml', () => {
     for (const v of views) {
         assert.ok(v.config.title, `${v.file}: no title`);
-        for (const key of ['summary', 'description', 'session']) assert.ok(v[key], `${v.file}: no ${key} in order.yaml`);
+        for (const key of ['summary', 'session']) assert.ok(v[key], `${v.file}: no ${key} in order.yaml`);
+        assert.ok(v.description.length, `${v.file}: no description in order.yaml`);
         assert.ok(v.docs === null || v.docs.startsWith('/'), `${v.file}: docs must be a docs path (/...)`);
         assert.equal(typeof v.public, 'boolean', `${v.file}: public must be true or false`);
     }
@@ -297,11 +298,12 @@ test('a view\'s description sits in a frame headed by the view\'s header bar', (
     for (const view of buildDashboard(demo, { board: 'dev' }).views.slice(1).filter(v => !isLayoutView(v))) {
         const source = views.find(v => v.path === view.path);
         const [head] = view.sections[0].cards;
-        if (!source.description) continue;
+        if (!source.description.length) continue;
         assert.deepEqual(head.cards.map(c => c.elbow?.type ?? c.view_layout['grid-area']), ['top', 'bar', 'content', 'footer-left'], view.path);
         assert.ok(head.cards[0].cards.some(c => c.preset === 'text-only'), `${view.path}: the title bar on top`);
         assert.equal(head.cards[1].text, undefined, `${view.path}: no frame number on the header`);
-        assert.equal(head.cards[2].cards[0].rows[0][0], source.description);
+        // one row per line: the lead, then one per example
+        assert.deepEqual(head.cards[2].cards[0].rows.map((/** @type {any} */ r) => r[0]), source.description);
     }
 });
 
