@@ -76,6 +76,10 @@ export class LCARdSAlertOverlay extends LitElement {
         super();
         this._hass             = null;
         this._alertUnsubscribe = null;
+        /** @type {(() => void) | null} */
+        this._themeAlertUnsubscribe = null;
+        /** @type {string | null | undefined} The last alert mode handled (helper or theme) */
+        this._lastHandledMode = undefined;
         /** @type {((e: Event) => void)|null} */
         this._localModeHandler = null;
         this._isActive         = false;
@@ -221,11 +225,21 @@ export class LCARdSAlertOverlay extends LitElement {
         this._localModeHandler = (/** @type {any} */ e) => this._handleAlertModeChange(e.detail?.mode);
         window.addEventListener('lcards-alert-mode-local', this._localModeHandler);
 
+        // The theme's alert mode too: an alert raised before the helper manager had
+        // started (an overlay alone on a view, just after a page load) changed the
+        // theme but never reached the helper subscription below (#410 check,
+        // 2026-11-18). A mode already handled is skipped, so the helper's change and
+        // the theme's for one alert show it once.
+        this._themeAlertUnsubscribe = window.lcards?.core?.themeManager?.subscribeToAlertMode?.(
+            (/** @type {string} */ mode) => { if (mode !== this._lastHandledMode) this._handleAlertModeChange(mode); },
+        ) ?? null;
+
         const helperManager = window.lcards?.core?.helperManager;
         if (helperManager) {
+            // the same guard: the helper manager's own auto-switch sets the theme first
             this._alertUnsubscribe = helperManager.subscribeToHelper(
                 'alert_mode',
-                this._handleAlertModeChange.bind(this),
+                (/** @type {string} */ mode) => { if (mode !== this._lastHandledMode) this._handleAlertModeChange(mode); },
             );
             lcardsLog.debug('[LCARdSAlertOverlay] Subscribed to alert_mode helper');
         } else {
@@ -236,6 +250,8 @@ export class LCARdSAlertOverlay extends LitElement {
     _unsubscribeFromAlertMode() {
         this._alertUnsubscribe?.();
         this._alertUnsubscribe = null;
+        this._themeAlertUnsubscribe?.();
+        this._themeAlertUnsubscribe = null;
         if (this._localModeHandler) window.removeEventListener('lcards-alert-mode-local', this._localModeHandler);
         this._localModeHandler = null;
     }
@@ -282,6 +298,7 @@ export class LCARdSAlertOverlay extends LitElement {
 
     _handleAlertModeChange(newMode) {
         if (this._isSuppressed) return;
+        this._lastHandledMode = newMode;
 
         const isInactive = !newMode || newMode === 'green_alert' || newMode === 'default';
 

@@ -163,3 +163,31 @@ test('dismiss_mode reset sets the alert mode back to green through the helper', 
     await expect.poll(() => page.evaluate(() => window.__hass.serviceCalls.map((c) => [c.domain, c.service, c.data?.option ?? c.serviceData?.option])))
         .toEqual([['input_select', 'select_option', 'green_alert']]);
 });
+
+// #410 check (2026-11-18): on a view whose only LCARdS card is the overlay, an alert
+// raised before the helper manager had started changed the theme's alert mode but
+// never reached the overlay's helper subscription. The overlay follows the theme's
+// mode too; a mode it already handled (the helper's change for the same alert) is
+// not shown twice.
+test('the overlay follows the theme alert mode, and one alert through both the helper and the theme mounts once', async ({ page }) => {
+    await mountCase(page, 'button-lozenge');
+    await mountOverlay(page, {});
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+        const o = /** @type {any} */ (window).__overlay;
+        /** @type {any} */ (window).__mounts = 0;
+        const mount = o._mountContentCard.bind(o);
+        o._mountContentCard = (/** @type {any[]} */ ...a) => { /** @type {any} */ (window).__mounts++; return mount(...a); };
+    });
+    // the theme alone (no helper change), as when the helper manager missed it
+    await page.evaluate(() => window.lcards.core.themeManager.setAlertMode('red_alert'));
+    await expect.poll(() => contentBox(page), { timeout: 10_000 }).not.toBeNull();
+    // the helper now reports the same alert: no second mount
+    await raiseAlert(page);
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => /** @type {any} */ (window).__mounts)).toBe(1);
+    // back to green through the theme: hidden
+    await page.evaluate(() => window.lcards.core.themeManager.setAlertMode('green_alert'));
+    await expect.poll(() => contentBox(page), { timeout: 10_000 }).toBeNull();
+    await expectNoErrors(page);
+});
