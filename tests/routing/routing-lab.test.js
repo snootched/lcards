@@ -136,3 +136,13 @@ for (const scene of LAB_SCENES) {
         assert.deepEqual(problems, []);
     });
 }
+
+test('a corner is sized by the real arcs round it, not its circle: the corner turn\'s middle line turns wide (step 2, 2026-11-19)', () => {
+    // lab_l_turn: B's row was inside its turn's circle once C's row ran close, so the
+    // centre-distance proxy clamped B to 21 though a 34 turn clears C's actual arc
+    const results = route(LAB_SCENES.find(s => s.id === 'lab_l_turn'));
+    const b = lastRadius(results.get('b').d);
+    assert.ok(b > 30, `B turns at ${b.toFixed(1)}`);
+    const { gap } = renderedClearance(results.get('b').d, results.get('c').d, LAB_LINE_WIDTH, LAB_LINE_WIDTH);
+    assert.ok(gap >= 1, `B and C ${gap.toFixed(1)} apart`);
+});

@@ -59,7 +59,7 @@ export const LAB_SCENES = [
             { id: 'b', from: [40, 60], to: [440, 280], anchor_side: 'right', attach_side: 'top' },
             { id: 'c', from: [40, 80], to: [420, 280], anchor_side: 'right', attach_side: 'top' },
         ],
-        checks: { nested: [['a', 'b', 'c']], known: 'B is pulled 8 units into C\'s trunk lane though its own row already clears both neighbours: a pointless step near its start and a tighter turn' },
+        checks: { nested: [['a', 'b', 'c']], known: 'B is pulled 8 units into C\'s trunk lane though its own row already clears both neighbours: a pointless step near its start' },
     },
     {
         id: 'lab_cross_bundles',

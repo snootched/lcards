@@ -389,7 +389,7 @@ sections:
           label:
             content: >-
               A BUNDLE TURNING A CORNER: Three lines run right, turn down together and stay in their lanes round the bend, the corners nested. KNOWN: B is
-              pulled 8 units into C's trunk lane though its own row already clears both neighbours: a pointless step near its start and a tighter turn.
+              pulled 8 units into C's trunk lane though its own row already clears both neighbours: a pointless step near its start.
             show: true
             position: center-left
             font_size: 15

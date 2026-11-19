@@ -457,6 +457,8 @@ export class RouterCore {
     this._crossingAvoidBias = Number(this.config.crossing_avoid_bias ?? 4);
     this._crossingMinLength = Number(this.config.crossing_min_length ?? 12);
     this._crossings = [];
+    /** Every line's resolved corners ({ p, vInUnit, vOutUnit, radius, width }), by line: _arcClearanceToOthers */
+    this._cornerArcs = new Map();
   }
 
   invalidate(id='*') {
@@ -556,6 +558,7 @@ export class RouterCore {
     // state. Channel rows are re-seeded (authored config, not history).
     this._trunks = this._seedTrunksFromChannels();
     this._crossings = [];
+    this._cornerArcs = new Map();
     this._crossingCostCache.clear();
     this._registryVersion++;
     this.invalidate('*');
@@ -3683,6 +3686,9 @@ export class RouterCore {
         }
       }
     }
+    // every resolved corner, for any other line's exact corner clearance
+    // (_arcClearanceToOthers), not only trunk members'
+    this._cornerArcs.set(lineId, [...cornerGeomAt.values()]);
     // Compact collinear runs first — a straight route commonly has interior
     // points that aren't real corners at all (e.g. both ends of a stub
     // splice happening to continue in the same direction the inner path
@@ -7040,6 +7046,58 @@ export class RouterCore {
   }
 
   /**
+   * Exact clearance of a candidate corner's arc (radius `r` at `p`) from every
+   * OTHER line: their straight segments (trimmed, as drawn) and their resolved
+   * corner arcs (_cornerArcs), sampled like _siblingArcClearance. Used only to
+   * widen a corner the centre-distance proxy would clamp (2026-11-19, the routing
+   * lab's corner turn: a 34 turn cleared the inner line's arc, the proxy allowed 21
+   * because that line's row lay inside the corner's circle, not near its arc).
+   * @param {number[]} p
+   * @param {number[]} vInUnit
+   * @param {number[]} vOutUnit
+   * @param {number} r
+   * @param {string} routeId
+   * @param {number} ownWidth
+   * @returns {number}
+   * @private
+   */
+  _arcClearanceToOthers(p, vInUnit, vOutUnit, r, routeId, ownWidth) {
+    const K = 12;
+    const selfPts = [];
+    for (let s = 0; s <= K; s++) {
+      const theta = (Math.PI / 2) * (s / K);
+      const cos = Math.cos(theta), sin = Math.sin(theta);
+      selfPts.push([
+        p[0] + r * (vOutUnit[0] - vInUnit[0]) - r * cos * vOutUnit[0] + r * sin * vInUnit[0],
+        p[1] + r * (vOutUnit[1] - vInUnit[1]) - r * cos * vOutUnit[1] + r * sin * vInUnit[1]
+      ]);
+    }
+    let best = Infinity;
+    for (const seg of this._crossings) {
+      if (seg.lineId === routeId) continue;
+      const margin = (ownWidth + (seg.width || 0)) / 2;
+      const horizontal = seg.direction === 'horizontal';
+      const lo = horizontal ? Math.min(seg.x1 + (seg.trimLo || 0), seg.x2) : Math.min(seg.y1 + (seg.trimLo || 0), seg.y2);
+      const hi = horizontal ? Math.max(seg.x2 - (seg.trimHi || 0), lo) : Math.max(seg.y2 - (seg.trimHi || 0), lo);
+      for (const a of selfPts) {
+        const along = horizontal ? a[0] : a[1];
+        const d1 = along < lo ? lo - along : along > hi ? along - hi : 0;
+        const d2 = horizontal ? Math.abs(a[1] - seg.y1) : Math.abs(a[0] - seg.x1);
+        const d = Math.hypot(d1, d2) - margin;
+        if (d < best) best = d;
+      }
+    }
+    for (const [lineId, arcs] of this._cornerArcs) {
+      if (lineId === routeId) continue;
+      for (const arc of arcs) {
+        const d = this._siblingArcClearance(p, vInUnit, vOutUnit, r, arc, ownWidth);
+        if (d < best) best = d;
+      }
+    }
+    return best;
+  }
+
+  /**
    * Finds the trunk/channel row (if any) whose already-registered member
    * entry for `routeId` has a flow span exactly matching the segment
    * ending at `p` (pPrev -> p) — i.e. `p` is this line's own trunk-exit
@@ -7314,6 +7372,12 @@ export class RouterCore {
                 if (sibClearance < combined) combined = sibClearance;
               }
               if (combined > clearance) clearance = combined;
+            }
+            // the proxy would clamp: the arc's real clearance from every other line may
+            // still allow it (only ever widens, never narrows: Math.max)
+            if (clearance < arcMin) {
+              const exact = this._arcClearanceToOthers(p, vInUnit, vOutUnit, mid, routeId, ownWidth);
+              if (exact > clearance) clearance = exact;
             }
             if (clearance >= arcMin) lo = mid; else hi = mid;
           }
