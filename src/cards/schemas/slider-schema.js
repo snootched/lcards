@@ -288,6 +288,15 @@ export function getSliderSchema(options = {}) {
                         description: 'true: the slider only shows the value. Default false when the slider can set its attribute (see attribute), else true; a slider that can set nothing stays read-only even with false.',
                         examples: [true, false]
                     },
+                    live_update: {
+                        type: 'boolean',
+                        description: 'The entity follows the handle while it is dragged, not only when it is let go: one call at a time, at most five a second, the last value always sent on release. Default true for a light (brightness, colour temperature and any other light attribute), false for every other domain (a thermostat, a cover motor or an automation on an input_number would get a burst of changes). A light is not switched off mid-drag at the bottom of the brightness range; letting go there does.',
+                        examples: [true, false],
+                        'x-ui-hints': {
+                            label: 'Live update',
+                            helper: 'The entity follows the slider while you drag it (lights by default)'
+                        }
+                    },
                     invert_value: {
                         type: 'boolean',
                         default: false,

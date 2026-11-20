@@ -33,13 +33,15 @@ test('ring: drag from 25% to 75% round the top sets the light to ~75%', async ({
         const p = await ringPoint(page, 0.25 + 0.05 * i);
         await page.mouse.move(p.x, p.y);
     }
-    // While dragging, the value arc follows the pointer without a commit.
+    // While dragging, the value arc follows the pointer, and a light follows it too
+    // (control.live_update, on for lights since 2026-11-19: slider-live.spec.js)
     expect(parseFloat(await dash(page))).toBeCloseTo(0.75, 1);
-    expect(await calls(page)).toEqual([]);
+    expect((await calls(page)).length).toBeGreaterThanOrEqual(1);
     await page.mouse.up();
 
-    await expect.poll(() => calls(page)).toHaveLength(1);
-    const [call] = await calls(page);
+    // the release value is the last one sent
+    await page.waitForTimeout(400);
+    const call = (await calls(page)).at(-1);
     expect(call.domain).toBe('light');
     expect(call.service).toBe('turn_on');
     expect(call.data.brightness).toBeGreaterThanOrEqual(186);

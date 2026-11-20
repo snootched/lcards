@@ -1,5 +1,5 @@
 ---
-description: "Slider card control: what each entity domain controls, min, max and step, read-only sliders, value easing (value_tween) and the drag value badge."
+description: "Slider card control: what each entity domain controls, min, max and step, read-only sliders, live update while dragging, value easing (value_tween) and the drag value badge."
 ---
 
 # Control and Motion
@@ -37,6 +37,7 @@ control:
 | `attribute` | string | by domain | The attribute the slider shows and sets |
 | `locked` | boolean | `false` when it can set its attribute, else `true` | `true`: only show the value |
 | `invert_value` | boolean | `false` | Swap the ends: the minimum at the right (or top), so dragging right lowers the value. The drag badge, the scale, ranges and value markers still use the entity's own values |
+| `live_update` | boolean | `true` for a light, else `false` | The entity follows the handle while it is dragged. See [Live update](#live-update) |
 
 ### Automatic domain behaviour
 
@@ -83,6 +84,33 @@ control:
 | `cover` | `current_tilt_position` | 0–100 (%) |
 | `climate` | `target_temp_low`, `target_temp_high` | the entity's `min_temp`–`max_temp`; the other target is sent with it, so it works in heat/cool mode |
 | `climate` | `humidity` | the entity's `min_humidity`–`max_humidity` |
+
+## Live update
+
+**A light follows the slider while you drag it, not only when you let go.** You see the lamp brighten, dim or warm as you move the handle, the way a dimmer feels.
+
+- It is on for a light, whichever attribute the slider sets (brightness, colour temperature), and off for every other domain: a thermostat, a cover motor or an automation on an `input_number` would get a burst of changes. Set `control.live_update` to turn it on or off for one slider.
+- One change goes out at a time, at most five a second, and the value you let go at is always sent last, so a slow light or a busy mesh network never gets a queue of old values.
+- The handle stays where you put it while the light catches up: the light's late replies don't pull it back.
+
+```yaml live controls
+type: custom:lcards-slider
+entity: light.living_room
+preset: pills-left-border
+control:
+  live_update: true # the default for a light; false sends only when you let go
+```
+
+::: details More about live update
+- **Switching off:** a light is not switched off mid-drag at the bottom of the brightness range (it would go off and on again as you pass through). Let go at the bottom to switch it off.
+- **Slow lights:** each change waits for the one before it to be accepted, so a light that answers slowly simply gets fewer, later steps; it never falls behind by more than one change.
+- **Other domains:** `live_update: true` works for any slider that can set its entity, such as a fan's speed or a media player's volume. Leave it off where every change triggers something (heating, a motor, an automation).
+- **Credit:** the idea comes from the live updates in the [Hue-like light card](https://github.com/Gh61/lovelace-hue-like-light-card); LCARdS has its own implementation.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `control.live_update` | boolean | `true` for a light, else `false` | The entity follows the handle while it is dragged: one change at a time, at most five a second, the last value always sent on release |
 
 ## Value tween
 

@@ -100,6 +100,7 @@ import { ringNameFollowsFill, RING_FILL_TOKEN } from './slider-ring-text.js';
 // Import unified schema
 import { getSliderSchema } from './schemas/slider-schema.js';
 import { DEFAULT_CONTROL_ATTRIBUTE, controlSetter, controlServiceCall, controlValueFromEntity, controlRange } from './slider-control.js';
+import { createLiveSender } from './slider-live-update.js';
 import { TEXT_POSITIONS } from './schemas/schema-options.js';
 import {
     arcPath, fractionToAngle, pointToFraction, hitsRing, fractionToValue, snapValue, scaleValues,
@@ -635,7 +636,9 @@ export class LCARdSSlider extends LCARdSButton {
             // own service call has gone out on release — overwriting _sliderValue
             // here would snap the handle back to the stale entity value out from
             // under the user's finger/pointer. See issue #392.
-            const isDragging = this._isDragging || this._isHorizontalDragging;
+            // also while a live update is settling: a light's late state echo would
+            // move the handle back to where it was two sends ago
+            const isDragging = this._isDragging || this._isHorizontalDragging || !!this._liveSender?.holding();
 
             if (!isDragging) {
                 // Get new value and set it
@@ -1071,8 +1074,14 @@ export class LCARdSSlider extends LCARdSButton {
             step: config.control?.step ?? range.step,
             attribute: rawAttribute,
             locked: !settable || (config.control?.locked ?? false),
-            invertValue: !!invertValue
+            invertValue: !!invertValue,
+            // the entity follows the handle while it is dragged: lights by default
+            liveUpdate: config.control?.live_update ?? this._domain === 'light',
+            attributeName: typeof attribute === 'string' ? attribute : null
         };
+        // a new config or entity: start the live sender afresh
+        this._liveSender?.stop();
+        this._liveSender = null;
 
         // DISPLAY CONFIG: What visual scale shows (from style.track.display)
         // Default to control range if not explicitly configured (no breaking changes)
@@ -3771,6 +3780,7 @@ export class LCARdSSlider extends LCARdSButton {
         // Update visuals immediately
         this._updateDynamicElements();
         this._updateDragBadgePosition();
+        this._pushLiveValue();
     }
 
     /**
@@ -3932,6 +3942,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._sliderValue = value;
         this._updateDynamicElements();
         this._updateDragBadgePosition();
+        this._pushLiveValue();
         this.requestUpdate();
     }
 
@@ -3963,6 +3974,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._sliderValue = value;
         this._updateDynamicElements();
         this._updateDragBadgePosition();
+        this._pushLiveValue();
         this.requestUpdate();
     }
 
@@ -3998,7 +4010,38 @@ export class LCARdSSlider extends LCARdSButton {
         return this._toEntityValue(value);
     }
 
+    /**
+     * Live update (control.live_update): while the handle is dragged, the entity
+     * follows it through the slider's live sender (slider-live-update.js), one call
+     * at a time. A light's brightness is not sent at the bottom of the range mid-drag
+     * (that would switch the light off and on again); letting go there does.
+     * @private
+     */
+    _pushLiveValue() {
+        const control = this._controlConfig;
+        if (!control?.liveUpdate || control.locked || !this.hass || !this.config.entity) return;
+        const value = this._sliderValue;
+        if (!Number.isFinite(value)) return;
+        if (this._domain === 'light' && (control.attributeName ?? 'brightness') === 'brightness' && value <= control.min) return;
+        this._liveSender ??= createLiveSender({ send: (v) => this._sendEntityValue(v) });
+        this._liveSender.push(value);
+    }
+
+    /**
+     * Set the entity to a slider value: on release, keyboard and taps. With a live
+     * update in progress, the final value goes out after the one in flight.
+     * @param {number} value
+     */
     async _setEntityValue(value) {
+        if (this._liveSender) return this._liveSender.finish(value);
+        return this._sendEntityValue(value);
+    }
+
+    /**
+     * @param {number} value
+     * @private
+     */
+    async _sendEntityValue(value) {
         if (!this.hass || !this.config.entity) return;
 
         const domain = this._domain;
@@ -5060,6 +5103,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._updateDynamicElements();
         this._updateDragBadgePosition();
         this.shadowRoot?.querySelector('.ring-overlay')?.setAttribute('aria-valuenow', String(this._toEntityValue(value)));
+        if (this._isDragging) this._pushLiveValue();
     }
 
     /**
@@ -5921,6 +5965,8 @@ export class LCARdSSlider extends LCARdSButton {
             this._ringKeyCommitTimer = null;
         }
         this._isDragging = false;
+        this._liveSender?.stop();
+        this._liveSender = null;
 
         // Unsubscribe from alert mode changes
 

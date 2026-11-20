@@ -1,0 +1,5 @@
+# Live update (control.live_update, on for lights): the light follows the handle while
+# it is dragged (slider-live.spec.js)
+type: custom:lcards-slider
+entity: light.demo
+preset: pills-left-border

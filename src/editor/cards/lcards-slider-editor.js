@@ -637,6 +637,12 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         label: 'Step Size',
                         helper: 'Increment size'
                     })}
+
+                    ${FormField.renderField(this, 'control.live_update', {
+                        label: 'Live update',
+                        helper: 'The entity follows the slider while you drag it. On for lights, off for everything else unless set',
+                        value: this.config?.control?.live_update ?? String(this.config?.entity ?? '').startsWith('light.')
+                    })}
                 </lcards-grid-layout>
 
                 <lcards-slider-range-visualizer
