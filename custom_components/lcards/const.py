@@ -21,7 +21,7 @@ USER_DIR = "www/lcards"
 USER_URL = "/lcards-user"
 MY_MODELS_DIR = f"{USER_DIR}/models"
 MY_MODELS_URL = f"{USER_URL}/models"
-DOMAIN_VERSION = "2026.11.0-dev.2"
+DOMAIN_VERSION = "2026.11.0-dev.3"
 
 # Options
 CONF_SHOW_PANEL = "show_panel"
