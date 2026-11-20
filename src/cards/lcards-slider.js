@@ -4357,6 +4357,13 @@ export class LCARdSSlider extends LCARdSButton {
             // Overlay top aligns with ctrlMax, overlay bottom aligns with ctrlMin.
             const overlayTop    = controlZone.y + (1 - ctrlEndFrac)   * controlZone.height;
             const overlayHeight = (ctrlEndFrac - ctrlStartFrac) * controlZone.height;
+            // The hit area is at least 44 px wide (a finger), centred on the track and kept
+            // inside the card: a Picard track is a 10 px bar, too thin to touch on a tablet
+            // (2026-11-19, the Live Demo usability test). Only the drag area grows; the
+            // value comes from the pointer's height alone.
+            const cardWidth = Number(this._containerSize?.width) || (controlZone.x + controlZone.width);
+            const hitWidth = Math.min(Math.max(controlZone.width, 44), cardWidth);
+            const hitLeft = Math.max(0, Math.min(cardWidth - hitWidth, controlZone.x - (hitWidth - controlZone.width) / 2));
             return html`
                 <div class="slider-container" style="${containerStyle}">
                     ${unsafeHTML(finalSvg)}
@@ -4366,9 +4373,9 @@ export class LCARdSSlider extends LCARdSButton {
                             @mousedown="${this._handleVerticalSliderMouseDown}"
                             @touchstart="${this._handleVerticalSliderTouchStart}"
                             style="
-                                left: ${controlZone.x}px;
+                                left: ${hitLeft}px;
                                 top: ${overlayTop}px;
-                                width: ${controlZone.width}px;
+                                width: ${hitWidth}px;
                                 height: ${overlayHeight}px;
                                 cursor: pointer;
                             "

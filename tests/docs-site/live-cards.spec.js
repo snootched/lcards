@@ -82,9 +82,11 @@ for (const [url, tags] of PAGES) {
         // Cards that need a definite height collapse to a sliver without one.
         // Polled: a card can still be laying out on a slow machine (CI runners).
         // Under 20 px: small parts sized on purpose (a 30 px toggle tab strip, 2026-11-11) pass.
+        // 20 s: a page of MSDs with SVG filters (/cards/msd/base-svg-filters) took longer than
+        // 10 s to lay out under a full parallel run, and passed alone every time (2026-11-19)
         await expect.poll(() => page.locator('.card-demo-mount > *').evaluateAll(els =>
             els.map(el => Math.round(el.getBoundingClientRect().height)).findIndex(h => h < 20)),
-        { timeout: 10_000, message: 'first demo (0-based) under 20 px high, -1 = none' }).toBe(-1);
+        { timeout: 20_000, message: 'first demo (0-based) under 20 px high, -1 = none' }).toBe(-1);
         // MSD shows "Initializing MSD..." until its pipeline renders (it hung without base_svg).
         await expect.poll(() => page.locator('.card-demo-mount').evaluateAll(els =>
             els.some(el => /Initializing MSD/.test(el.firstElementChild?.shadowRoot?.textContent ?? ''))), { timeout: 15_000 }).toBe(false);
