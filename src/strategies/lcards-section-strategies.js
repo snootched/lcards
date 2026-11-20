@@ -192,8 +192,15 @@ const isReading = (hass) => (/** @type {string} */ id) => id.startsWith('sensor.
     && (READING_CLASSES.includes(hass?.states?.[id]?.attributes?.device_class) || !!hass?.states?.[id]?.attributes?.unit_of_measurement);
 const isGauge = (hass) => (/** @type {string} */ id) => {
     const a = hass?.states?.[id]?.attributes ?? {};
-    if (id.startsWith('input_number.') || id.startsWith('number.')) return true;
-    return id.startsWith('sensor.') && (a.unit_of_measurement === '%' || ['temperature', 'humidity', 'battery'].includes(a.device_class));
+    const domain = id.split('.')[0];
+    if (domain === 'input_number' || domain === 'number') return true;
+    // what a slider can set: a dimmable light's brightness, a fan's speed, a
+    // cover's position, a media player's volume (2026-11-19: lights were left out)
+    if (domain === 'light') return list(a.supported_color_modes).some(m => m !== 'onoff');
+    if (domain === 'fan') return a.percentage !== undefined;
+    if (domain === 'cover') return a.current_position !== undefined;
+    if (domain === 'media_player') return a.volume_level !== undefined;
+    return domain === 'sensor' && (a.unit_of_measurement === '%' || ['temperature', 'humidity', 'battery'].includes(a.device_class));
 };
 const isToggle = (/** @type {string} */ id) => TOGGLE_DOMAINS.includes(id.split('.')[0]);
 
@@ -499,7 +506,10 @@ export function generateLcarsSection(key, config, hass) {
     const def = LCARS_SECTIONS[key];
     const match = def.match(hass);
     const cfg = config ?? { type: key };
-    const ids = resolveTarget(hass, cfg.target).filter(match);
+    // entities named directly are always shown (the user picked them); the section's
+    // own rule only sorts what an area, device, floor or label brings in
+    const named = new Set(list(cfg.target?.entity_id));
+    const ids = resolveTarget(hass, cfg.target).filter(id => named.has(id) || match(id));
     const look = cfg.look === 'picard' ? 'picard' : 'classic';
     const title = sectionTitle(hass, cfg, def.fallbackTitle);
     const max = Math.max(1, Math.floor(Number(cfg.max_items) || def.max));
@@ -544,11 +554,12 @@ export class LCARdSSectionStrategyEditor extends LitElement {
      */
     _groups() {
         const key = String(this._config?.type ?? '').replace(/^custom:/, '');
-        const domains = LCARS_SECTIONS[key]?.domains;
         const px = { number: { min: 0, max: 64, mode: 'box', unit_of_measurement: 'px' } };
         return [
-            { header: 'Target', icon: 'mdi:target', description: 'What the section shows and its title.', schema: [
-                { name: 'target', selector: { target: domains ? { entity: { domain: domains } } : {} } },
+            // any entity can be picked (2026-11-19: the picker offered only the section's
+            // domains, so no light could be added to a slider section)
+            { header: 'Target', icon: 'mdi:target', description: 'What the section shows and its title. Entities you pick are always shown; an area, device or label brings in what suits the section.', schema: [
+                { name: 'target', selector: { target: {} } },
                 { name: 'title', selector: { text: {} } },
             ] },
             { header: 'Look', icon: 'mdi:palette-outline', description: 'The LCARS era and the frame round the items.', schema: [

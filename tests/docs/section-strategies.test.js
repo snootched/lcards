@@ -263,3 +263,29 @@ test('the stub targets the area with the most matching entities', async () => {
     assert.equal(editor.localName, 'lcards-section-strategy-editor');
     assert.ok(window.customStrategies.some((s) => s.type === 'lcars-readings' && s.strategyType === 'section'));
 });
+
+test('entities picked by name are always shown; an area brings in what suits the section (dimmable lights are gauges) (2026-11-19)', () => {
+    // named: any domain, in any section (the user picked them)
+    const named = S.generateLcarsSection('lcars-gauges', { type: 'custom:lcars-gauges', target: { entity_id: ['light.bridge_lamp', 'switch.bridge_fan'] } }, hass);
+    assert.deepEqual(items(named).map((c) => c.entity).sort(), ['light.bridge_lamp', 'switch.bridge_fan']);
+    // from an area: a dimmable light is a level (its brightness), an on/off-only one is not
+    const dim = { ...hass, states: { ...hass.states,
+        'light.bridge_lamp': { ...hass.states['light.bridge_lamp'], attributes: { ...hass.states['light.bridge_lamp'].attributes, supported_color_modes: ['brightness'] } },
+        'light.ready_room': { ...hass.states['light.ready_room'], attributes: { ...hass.states['light.ready_room'].attributes, supported_color_modes: ['onoff'] } },
+    } };
+    const fromFloor = S.generateLcarsSection('lcars-gauges', { type: 'custom:lcars-gauges', target: { floor_id: 'deck1' } }, dim);
+    assert.ok(items(fromFloor).some((c) => c.entity === 'light.bridge_lamp'), 'the dimmable light is a gauge');
+    assert.ok(!items(fromFloor).some((c) => c.entity === 'light.ready_room'), 'the on/off light is not');
+    // and stays a toggle in a controls section of the same floor
+    const controls = S.generateLcarsSection('lcars-controls', { type: 'custom:lcars-controls', target: { floor_id: 'deck1' } }, dim);
+    assert.ok(items(controls).some((c) => c.entity === 'light.bridge_lamp'));
+});
+
+test('the section editor\'s target picker offers every entity, not only the section\'s domains', () => {
+    for (const type of ['custom:lcars-readings', 'custom:lcars-gauges', 'custom:lcars-controls']) {
+        const editor = new S.LCARdSSectionStrategyEditor();
+        editor.setConfig({ type });
+        const target = editor._groups()[0].schema.find((f) => f.name === 'target');
+        assert.deepEqual(target.selector, { target: {} }, type);
+    }
+});

@@ -84,7 +84,7 @@ sections:
 | `target.floor_id` | string or list | - | Floors: every area on them |
 | `target.device_id` | string or list | - | Devices: their entities |
 | `target.label_id` | string or list | - | Labels on entities, devices or areas |
-| `target.entity_id` | string or list | - | Entities, shown even when hidden |
+| `target.entity_id` | string or list | - | Entities, always shown in the section whatever their domain, even when hidden; an area, device, floor or label brings in only what suits the section |
 
 ## lcars-readings
 
@@ -112,9 +112,10 @@ sections:
 
 ## lcars-gauges
 
-**Gauges for levels: classic pill bars, or a bank of upright Picard column gauges with the value in the top cap and a short name in the bottom one.** Use it for humidity, battery, a temperature or a number helper.
+**Gauges for levels: classic pill bars, or a bank of upright Picard column gauges with the value in the top cap and a short name in the bottom one.** Use it for humidity, battery, a temperature, a number helper or the lights of a room.
 
-- Sensors in % and temperature, humidity or battery sensors become gauges, and so do number helpers and number entities. Drag a number helper's gauge to set it.
+- From an area, device or label: sensors in % and temperature, humidity or battery sensors, number helpers and number entities, dimmable lights (brightness), fans (speed), covers (position) and media players (volume). Drag a gauge to set what it can set: a light's gauge follows your finger while you drag.
+- An entity you pick yourself is always a gauge, whatever its domain; so a dimmable light can be a toggle in a controls section and a gauge here.
 - A Picard cap shows one word, shortened (TEMP, HUMID, BATT); a classic bar shows the whole short name in its left cap.
 
 ```yaml
