@@ -15,13 +15,19 @@ body:
       multiple: true
       options:
         - New card type
+        - lcards-alert-overlay
+        - lcards-astrometrics-card
         - lcards-button
         - lcards-chart
-        - lcards-slider
         - lcards-data-grid
         - lcards-elbow
-        - lcards-msd
-        - lcards-alert-overlay
+        - lcards-layout-card
+        - lcards-msd-card
+        - lcards-select-menu
+        - lcards-slider
+        - lcards-layout-view (view type)
+        - Dashboard or section strategies (lcars-shell)
+        - LCARdS panel (sidebar)
         - Theme system
         - Template / expression engine
         - DataSource system
