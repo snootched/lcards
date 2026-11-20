@@ -29,4 +29,4 @@ Fixes #
 - [ ] There is an issue for this, linked above.
 - [ ] I can explain what this change does and why it fixes the issue.
 - [ ] A test fails without this change and passes with it.
-- [ ] `npm run build` and `npm test` pass. (The browser tests run on the pull request automatically.)
+- [ ] `npm run build`, `npm test` and `npm run test:browser` pass on my computer.
