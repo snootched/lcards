@@ -203,7 +203,7 @@ test('the plugin hook runs the checker on LCARdS YAML only: errors block, warnin
     const [entry] = hooks.hooks.PostToolUse;
     assert.equal(entry.matcher, 'Write|Edit|MultiEdit');
     assert.match(entry.hooks[0].command, /\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/check-lcards-yaml\.mjs/);
-    for (const c of ['check.md', 'dashboard.md']) {
+    for (const c of ['check.md', 'dashboard.md', 'issue.md']) {
         const md = readFileSync(join(plugin, 'commands', c), 'utf8');
         assert.match(md, /^---\ndescription: .+\n/, `${c} frontmatter`);
         assert.ok(!/\u2014/.test(md));

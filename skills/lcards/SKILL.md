@@ -1,6 +1,6 @@
 ---
 name: lcards
-description: Write, fix and explain LCARdS configuration for Home Assistant (Star Trek LCARS-style cards and dashboards). Use when the user wants an LCARdS card, view or dashboard (custom:lcards-button, elbow, slider, chart, data-grid, select-menu, msd-card, layout-card, alert-overlay, lcards-layout-view, the lcars-shell strategy), wants to plan or brainstorm one, asks what LCARdS can do, asks why their LCARdS YAML doesn't work, wants to drive LCARdS from automations (lcards.* actions such as red_alert), or asks about a Star Trek / LCARS dashboard, the HA-LCARS theme (its --lcars-* colour variables, themes, uix classes such as header-left) or UIX styling alongside LCARdS.
+description: Write, fix and explain LCARdS configuration for Home Assistant (Star Trek LCARS-style cards and dashboards). Use when the user wants an LCARdS card, view or dashboard (custom:lcards-button, elbow, slider, chart, data-grid, select-menu, msd-card, layout-card, alert-overlay, lcards-layout-view, the lcars-shell strategy), wants to plan or brainstorm one, asks what LCARdS can do, asks why their LCARdS YAML doesn't work, wants to report an LCARdS bug or request a feature, wants to drive LCARdS from automations (lcards.* actions such as red_alert), or asks about a Star Trek / LCARS dashboard, the HA-LCARS theme (its --lcars-* colour variables, themes, uix classes such as header-left) or UIX styling alongside LCARdS.
 license: MIT
 compatibility: Agent Skills format (agentskills.io). The config checker in scripts/ needs code execution and Node.js 20 or newer; without it, check keys against the schemas in references/.
 ---
@@ -56,6 +56,26 @@ When the user gives you an existing dashboard (theirs, an older LCARdS one, or f
 4. Hand over the new YAML with a short list of what changed and why.
 
 A CB-LCARS dashboard (`custom:cb-lcars-*-card` with `cblcars_card_type` and `cblcars_card_config`) is a restyle too: map each card with the tables in `references/docs/getting-started/cb-lcars-migration.md` ("Moving a Card Over"), keep every entity and action, and list what has no LCARdS equivalent.
+
+## Reporting a problem or a feature request
+
+When the user thinks LCARdS has a bug, or wants a feature, help them write a report the maintainer can verify, fix and test. Never file it yourself (no `gh issue create`, no GitHub tools): hand the user a finished draft to paste into the form. They review it and submit it.
+
+1. **Rule out the config first.** Run the checker on their YAML (step 9) and read the card's docs page: many "bugs" are a misspelt key, a preset that doesn't exist or an option on the wrong card. Ask them to run the health check: **LCARdS** sidebar panel, **Welcome**, **Support & system info** (2026.11 and newer). If either finds the cause, fix it and stop.
+2. **Look for an existing issue** at https://github.com/snootched/LCARdS/issues (open and closed). If one matches, the user adds their details there instead.
+3. **Make a minimal repro:** the smallest YAML that still shows the problem. Keep the whole view when the problem is about layout or sizing. Replace real devices with helpers (`input_boolean`, `input_number`, `input_select`) the maintainer can create, and remove personal names, addresses, tokens and IPs. Check the repro with the checker too.
+4. **Draft the bug report in the form's own fields** (`.github/ISSUE_TEMPLATE/bug_report.yml`):
+   - **Affected card type**, **LCARdS version**, **Home Assistant version**, **browser**.
+   - **LCARdS support info:** the user pastes it from **Report an issue** or **Copy support info** in the same panel section; never make it up.
+   - **What happened?** What they expected, then what they saw instead. Observed facts only.
+   - **Steps to reproduce**, numbered, starting from the minimal YAML.
+   - **Card YAML** (the minimal repro) and **browser console output** (errors and warnings, if any).
+   - **Additional context:** the last version that worked, any workaround they found, and, only if they have one, a suspected cause marked **"Guess, not confirmed:"**. Never a proposed code fix.
+5. **One problem per report.** Two problems are two reports.
+6. **A feature request** uses the feature form: what the user is trying to do and why, what they do today instead, and what would help. Describe the goal, not how to build it.
+7. **Hand over** the draft as markdown, section by section in the form's order, and tell the user to open it with **Report an issue** in the LCARdS panel (it fills in the versions and support info) or at https://github.com/snootched/LCARdS/issues/new/choose.
+
+A user who wants to change LCARdS code themselves sends a pull request: point them (or their coding assistant) to `CONTRIBUTING.md` in the repository, whose "Instructions for AI assistants" cover the rest.
 
 ## HA-LCARS and UIX
 

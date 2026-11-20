@@ -56,13 +56,14 @@ moved_anchors:
 
 ## In Claude Code
 
-**The plugin adds an automatic check and two commands.**
+**The plugin adds an automatic check and three commands.**
 
 | Feature | What it does |
 |---|---|
 | Automatic check | Runs the config checker whenever Claude writes a YAML file with LCARdS cards in it; Claude fixes what it reports before handing the file over |
 | `/lcards:check` | Checks a file or pasted YAML and explains each problem |
 | `/lcards:dashboard` | Designs a whole dashboard with you: a few questions to pick from, then two or three concepts side by side with a layout sketch each, then the YAML |
+| `/lcards:issue` | Helps you write a bug report or feature request: checks your config first, cuts your YAML down to a small example, then gives you a draft to paste into the GitHub form (you submit it) |
 
 ## Give Claude your home's context (ha-mcp)
 
