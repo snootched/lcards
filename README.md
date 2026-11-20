@@ -15,18 +15,18 @@
 
 ### [Documentation](https://lcards.unimatrix01.ca) · [Dashboard Gallery](https://lcards.unimatrix01.ca/getting-started/dashboard-gallery) · [AI help](https://lcards.unimatrix01.ca/getting-started/ai-assistance) · [Getting help](https://lcards.unimatrix01.ca/getting-started/getting-help)
 
-[![An empty LCARS view builds itself into a full dashboard (watch the video on the docs home page)](doc/public/gallery/showcase.webp)](https://lcards.unimatrix01.ca)
+[![Picard-era operations screen: a 3D Enterprise with labelled systems, sliders and status readouts (see it live in the Live Demo)](doc/public/gallery/picard-operations.webp)](https://lcards.unimatrix01.ca/getting-started/live-demo)
 
 <br>
 
 <table>
   <tr>
-    <td><img src="doc/public/gallery/titan-operations.webp" alt="Operations dashboard: double elbows, buttons, a data cascade and Picard sliders" /></td>
-    <td><img src="doc/public/gallery/engineering.webp" alt="Engineering dashboard: a ship blueprint with controls joined by routed lines" /></td>
+    <td><img src="doc/public/gallery/bridge.webp" alt="Classic bridge screen: framed history chart, ship status readout and rows of pill buttons" /></td>
+    <td><img src="doc/public/gallery/picard-console.webp" alt="Picard-era deck plan: a shuttle cutaway with callouts, gauges and status bars" /></td>
   </tr>
   <tr>
-    <td><img src="doc/public/gallery/sciences.webp" alt="Sciences dashboard: framed history chart, radial gauges and a sensor table" /></td>
-    <td><img src="doc/public/gallery/bridge.webp" alt="Bridge dashboard: sidebar buttons, a status grid, sliders and a chart" /></td>
+    <td><img src="doc/public/gallery/engineering.webp" alt="Master systems display: a ship schematic with controls joined by routed lines" /></td>
+    <td><img src="doc/public/gallery/sciences.webp" alt="Sciences screen: history chart, radial gauges, a sensor log and a bar chart" /></td>
   </tr>
 </table>
 
@@ -34,12 +34,13 @@
 
 ## What you get
 
-- **LCARS cards that work together:** buttons, elbows, sliders, charts, data grids, select menus and full ship displays, all sharing one look.
-- **Colours that follow state:** cards light up, dim and change colour with your entities, no automations needed.
-- **Alert modes:** red, yellow or blue alert repaints the whole dashboard, with sounds and a full-screen overlay.
-- **Live data:** history, smoothing and statistics from data sources, in charts and in any label.
-- **Animations and sounds:** LCARS beeps, pulses, cascades and line draws.
-- **Visual editors:** every card has a full editor, plus studios for layouts, charts and ship displays.
+- **A full LCARS toolkit:** buttons, elbows, sliders, charts, data grids, select menus and ship displays, all sharing one look and one theme.
+- **3D astrometrics:** star maps, planets and starships in real 3D, driven by your entities.
+- **Dashboards that build themselves:** pick the LCARS dashboard or section strategy and get a full screen from your areas and entities, then make it your own.
+- **Alive with your home:** colours, animations and sounds follow entity state; red, yellow or blue alert repaints the whole dashboard.
+- **Live data:** history, smoothing and statistics in charts, tables and any label.
+- **Visual editors everywhere:** every card has an editor, plus studios for layouts, charts, alerts and ship displays.
+- **Help when you need it:** a [gallery](https://lcards.unimatrix01.ca/getting-started/dashboard-gallery) of sample screens to copy, a [config checker](https://lcards.unimatrix01.ca/getting-started/config-checker), and an [LCARdS skill](https://lcards.unimatrix01.ca/getting-started/ai-assistance) that teaches Claude to write your YAML.
 
 ## Install
 
@@ -63,8 +64,11 @@ Requires **Home Assistant 2026.11 or newer**, and nothing else. Pair it with an 
 | `lcards-chart` | Charts of history, statistics and data sources (ApexCharts) |
 | `lcards-alert-overlay` | The full-screen overlay shown during an alert mode |
 | `lcards-msd-card` | Master Systems Display: a ship blueprint with cards joined by routed lines |
+| `lcards-astrometrics-card` | Star maps, planets and starships in 3D, driven by your entities |
 | `lcards-layout-card` | A grid of cards inside one card, with a visual Layout Studio |
 | `lcards-layout-view` | A dashboard view type with the same visual grid editor |
+
+Plus [dashboard and section strategies](https://lcards.unimatrix01.ca/getting-started/dashboard-strategies) that build LCARS screens from your areas and entities.
 
 [Browse the cards](https://lcards.unimatrix01.ca/cards/) on the docs site, with live demos.
 
@@ -77,23 +81,16 @@ LCARdS is a hobby and passion project. If you find it useful (or just cool):
 - ⭐ **Star the repo**: it helps other people find the project.
 - **[Report issues](https://github.com/snootched/lcards/issues)**: open the LCARdS panel, **Welcome > Support & system info**, for a health check and a pre-filled bug report.
 - **[Join discussions](https://github.com/snootched/lcards/discussions)**: questions, ideas, and showing off what you've built are all welcome.
+- **[Contribute](CONTRIBUTING.md)**: fixes and features start with an issue; AI-assisted pull requests are welcome.
 
 > [!NOTE]
-> LCARdS is a hobby project, not a fully commissioned Starfleet product: expect the occasional tribble. It is for personal use, and AI coding tools are used in its development (see [AI usage](#ai-usage)).
+> LCARdS is a hobby project, not a fully commissioned Starfleet product: expect the occasional tribble. It is for personal use, and AI coding tools are used in its development (see [AI use](#ai-use)).
 
 ---
 
-## AI usage
+## AI use
 
-<details>
-<summary>AI-Assisted Development Notice (AIG‑2)</summary>
-
-<i>This project is heavily developed with the assistance of AI tools. Most implementation code and portions of the documentation were generated by AI models.
-<br>All architectural decisions, design direction, integration strategy, and project structure are human-led.
-<br>AI-generated components are reviewed, validated/tested, and refined by human contributors to ensure accuracy, coherence, and consistency with project standards.
-
-This is a human-directed, AI-assisted project. AI acts as an implementation accelerator; humans remain responsible for decisions, testing for quality control, and final output.</i>
-</details>
+LCARdS is built with AI coding assistants (mainly Claude Code), directed by its maintainer. What to build, how it fits together and what ships are human decisions. Changes are reviewed and run through the automated test suites and a live Home Assistant before release. Commits written with an assistant say so in a `Co-Authored-By:` trailer. Contributors are welcome to use AI too; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
