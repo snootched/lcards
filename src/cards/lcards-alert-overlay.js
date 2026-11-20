@@ -104,6 +104,12 @@ export class LCARdSAlertOverlay extends LitElement {
 
     set hass(value) {
         this._hass = value;
+        // This card does not extend LCARdSCard, so push its live snapshot to
+        // the portal directly.  That keeps mounted content current without
+        // waiting for the global poll or triggering a core-wide HASS cascade.
+        if (this._isActive && !this._isDismissed) {
+            window.lcards?.core?.portalOverlayManager?.updateHass(value);
+        }
     }
 
     get hass() {

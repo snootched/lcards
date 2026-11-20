@@ -61,6 +61,39 @@ test('a configured width still wins, and the symbol keeps its aspect ratio', asy
     await expectNoErrors(page);
 });
 
+test('mounted custom content receives later HASS snapshots from the overlay', async ({ page }) => {
+    await mountCase(page, 'button-lozenge');
+    await page.evaluate(() => {
+        if (!customElements.get('alert-hass-receiver')) {
+            customElements.define('alert-hass-receiver', class extends HTMLElement {
+                setConfig(config) { this.config = config; }
+                set hass(value) { this._hass = value; }
+                get hass() { return this._hass; }
+            });
+        }
+    });
+    await mountOverlay(page, {
+        conditions: {
+            red_alert: { content: { type: 'custom:alert-hass-receiver' } },
+        },
+    });
+    await raiseAlert(page);
+    await expect.poll(() => page.evaluate(() =>
+        window.lcards.core.portalOverlayManager._slots.get('alert-overlay')?.contentElement?.isConnected,
+    )).toBe(true);
+
+    await page.evaluate(() => {
+        window.__setState('sensor.alert_content_probe', 'updated');
+        window.__overlay.hass = window.__hass;
+    });
+
+    await expect.poll(() => page.evaluate(() =>
+        window.lcards.core.portalOverlayManager._slots.get('alert-overlay')
+            ?.contentElement?.hass?.states?.['sensor.alert_content_probe']?.state,
+    )).toBe('updated');
+    await expectNoErrors(page);
+});
+
 // ── Ownership and edit mode (backlog clean-up (2), 2026-11-05) ───────────────
 // One overlay owns the shared portal slot; the orders below each failed before.
 
