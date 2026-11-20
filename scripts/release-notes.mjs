@@ -180,7 +180,7 @@ async function cmdImport() {
             const written = fetchImage(img.url, img.path);
             if (written !== img.path) {
                 // An animation: a looping muted video instead of the <img>.
-                text = text.replace(new RegExp(`<img class="release-shot" alt="([^"]*)" src="${img.path.replace(/[.]/g, '\\.')}" />`, 'g'),
+                text = text.replace(new RegExp(`<img class="release-shot" alt="([^"]*)" src="${img.path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}" />`, 'g'),
                     (_, alt) => `<video class="release-shot" src="${written}" title="${alt}" autoplay loop muted playsinline></video>`);
             }
         }

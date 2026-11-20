@@ -20,7 +20,8 @@ export function loadHaLcars() {
   };
 }
 
-const cell = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
+// Backslashes first, or a value ending in `\` would undo the `\|` after it
+const cell = (s) => String(s ?? '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
 function header(title, snapshot, what) {
   const { repo, commit, date, license } = snapshot.source;

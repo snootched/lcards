@@ -275,7 +275,7 @@ export function registryIssues(node, tag, reg) {
   walk(node, '', (value, path) => {
     if (typeof value === 'string') {
       for (const m of value.matchAll(/theme:([a-zA-Z][a-zA-Z0-9._-]*)/g)) {
-        if (classifyThemePath(m[1], tokenSet) === 'unknown') out.push({ path, message: `unknown theme token "theme:${m[1]}"${suggest(m[1], reg.theme_tokens).replace('"', '"theme:')}` });
+        if (classifyThemePath(m[1], tokenSet) === 'unknown') out.push({ path, message: `unknown theme token "theme:${m[1]}"${themeSuggestion(m[1], reg.theme_tokens)}` });
       }
       // CSS variables: HA-LCARS `--lcars-*` and the LCARdS palette `--lcards-*`. A user
       // theme can add more, so only near-misses are reported (`--lcars-ui-primery`), and
@@ -785,6 +785,12 @@ function builtinOnly(source) {
 }
 
 /** ` (did you mean "x"?)` for a close match, else ''. */
+/** Like suggest(), for a theme token: the suggestion keeps its `theme:` prefix. */
+function themeSuggestion(value, list) {
+  const best = closest(value, list);
+  return best ? ` (did you mean "theme:${best}"?)` : '';
+}
+
 function suggest(value, list) {
   const best = closest(value, list);
   return best ? ` (did you mean "${best}"?)` : '';
