@@ -757,6 +757,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     hold_action: this.config.hold_action,
                     double_tap_action: this.config.double_tap_action
                 }}
+                .defaults=${{ tap_action: { action: 'toggle' } }}
                 @value-changed=${this._handleActionsChange}>
             </lcards-multi-action-editor>
         `;

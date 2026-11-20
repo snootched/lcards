@@ -112,6 +112,32 @@ export function joinTracks(tracks) {
  * @param {Array} rows
  * @returns {Array<{values: Array, style: Object|undefined, header: boolean}>}
  */
+/**
+ * The grid's mode: `data_mode` when set, else `data` when any row holds cells
+ * (an array, or an object with `values` / `sources`). Rows that are only a style
+ * (a colour per row) belong to a decorative grid. One test for the card and the
+ * studio.
+ * @param {Object} config
+ * @returns {'decorative'|'data'}
+ */
+export function dataGridMode(config) {
+  const mode = config?.data_mode;
+  if (mode === 'data' || mode === 'decorative') return mode;
+  const rows = Array.isArray(config?.rows) ? config.rows : [];
+  return rows.some(r => Array.isArray(r) || (isObject(r) && ('values' in r || 'sources' in r))) ? 'data' : 'decorative';
+}
+
+/**
+ * Decorative row styles: one entry per row, `{ style }` or `{}` for a row
+ * without one (the list repeats from the top).
+ * @param {*} rows
+ * @returns {Array<{ style?: Object }>}
+ */
+export function decorativeRowStyles(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.map(r => (isObject(r) && isObject(r.style) ? { style: r.style } : {}));
+}
+
 export function normalizeRows(rows) {
   if (!Array.isArray(rows)) return [];
   return rows.map(row => {

@@ -25,7 +25,7 @@ import { messageStyles } from '../base/surface-styles.js';
 import { studioDialogStyles } from './studio-dialog-styles.js';
 import { migrateDataGridConfig } from '../../data-grid/data-grid-config-migration.js';
 import {
-    ENTITY_ID, normalizeRows, dataColumnCount, countTracks, expandTracks, joinTracks, toPx
+    ENTITY_ID, normalizeRows, dataGridMode, decorativeRowStyles, dataColumnCount, countTracks, expandTracks, joinTracks, toPx
 } from '../../data-grid/data-grid-model.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
@@ -162,7 +162,14 @@ export function compactDataGridConfig(working) {
         });
         if (!out.cell_tap_action || isEmptyValue(out.cell_tap_action)) delete out.cell_tap_action;
     } else {
-        delete out.rows;
+        // Decorative rows are row styles, repeating from the top; trailing
+        // unstyled rows add nothing.
+        const rows = decorativeRowStyles(out.rows).map(r => {
+            const style = pruneStyle(r.style);
+            return style ? { style } : {};
+        });
+        while (rows.length && !rows[rows.length - 1].style) rows.pop();
+        if (rows.length) out.rows = rows; else delete out.rows;
         delete out.cell_tap_action;
         if (out.refresh_cells === 1) delete out.refresh_cells;
     }
@@ -258,9 +265,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     _normalize(config, { sample = true } = {}) {
         const cfg = clone(config);
         cfg.type = cfg.type || 'custom:lcards-data-grid';
-        cfg.data_mode = cfg.data_mode || (Array.isArray(cfg.rows) && cfg.rows.length ? 'data' : 'decorative');
+        cfg.data_mode = dataGridMode(cfg);
         cfg.grid = isObject(cfg.grid) ? cfg.grid : {};
-        if (Array.isArray(cfg.rows)) {
+        if (cfg.data_mode === 'decorative') {
+            cfg.rows = decorativeRowStyles(cfg.rows);
+        } else if (Array.isArray(cfg.rows)) {
             cfg.rows = normalizeRows(cfg.rows).map(r => ({
                 values: r.values.map(c => clone(toCellObject(c))),
                 ...(r.style ? { style: r.style } : {}),
@@ -420,7 +429,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         if (axis === 'row') {
             cfg.rows.splice(i, 0, this._emptyRow());
         } else {
-            for (const row of cfg.rows) row.values.splice(i, 0, { value: '' });
+            for (const row of cfg.rows) row.values?.splice(i, 0, { value: '' });
             if (Array.isArray(cfg.columns) && cfg.columns.length > i) cfg.columns.splice(i, 0, {});
         }
         this._editTemplate(axis, (tracks, fallback) => tracks.splice(i, 0, tracks[i] || fallback));
@@ -439,7 +448,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         if (axis === 'row') {
             cfg.rows.splice(i, 1);
         } else {
-            for (const row of cfg.rows) row.values.splice(i, 1);
+            for (const row of cfg.rows) row.values?.splice(i, 1);
             if (Array.isArray(cfg.columns)) cfg.columns.splice(i, 1);
         }
         this._editTemplate(axis, (tracks) => tracks.splice(i, 1));
@@ -969,8 +978,16 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     /** @private */
     _setMode(mode) {
-        this._workingConfig.data_mode = mode;
-        if (mode === 'data' && !this._workingConfig.rows?.length) this._workingConfig.rows = this._sampleRows();
+        const cfg = this._workingConfig;
+        cfg.data_mode = mode;
+        // Row styles carry over between modes; cells exist only in data mode.
+        if (mode === 'decorative') {
+            cfg.rows = decorativeRowStyles(cfg.rows);
+        } else {
+            const rows = (cfg.rows || []).map(r => ({ ...r, values: Array.isArray(r.values) ? r.values : [] }));
+            cfg.rows = rows.some(r => r.values.length) ? rows
+                : this._sampleRows().map((r, i) => (rows[i]?.style ? { ...r, style: rows[i].style } : r));
+        }
         this._closeEditors();
         this._changed();
     }
@@ -1029,7 +1046,48 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     ${Array.from({ length: cols }, (_, c) => this._select(`columns.${c}.format`, `Column ${c + 1}`, FORMAT_OPTIONS, { inherit: true }))}
                 </lcards-grid-layout>
             </lcards-form-section>
+
+            ${this._renderDecorativeRowStyles()}
         `;
+    }
+
+    /**
+     * Decorative row styles: a style per row, the list repeating from the top
+     * (two entries alternate every other row).
+     * @private
+     */
+    _renderDecorativeRowStyles() {
+        const rows = this._workingConfig.rows || [];
+        return html`
+            <lcards-form-section header="Row Styles" description="A style per row, repeating from the top" icon="mdi:table-row" ?expanded=${rows.length > 0}>
+                <div class="hint">Two entries alternate every other row; three repeat every third. A row without a style uses the grid's own.</div>
+                ${rows.map((_, i) => html`
+                    <div class="row-style">
+                        ${this._renderStyleOverrides(`rows.${i}.style`, `Row ${i + 1}`)}
+                        <ha-button variant="danger" appearance="plain" @click=${() => this._removeDecorativeRow(i)}>
+                            <ha-icon icon="mdi:delete" slot="start"></ha-icon>Remove row ${i + 1}
+                        </ha-button>
+                    </div>
+                `)}
+                <div class="button-row">
+                    <ha-button @click=${() => this._addDecorativeRow()}>
+                        <ha-icon icon="mdi:table-row-plus-after" slot="start"></ha-icon>Add row style
+                    </ha-button>
+                </div>
+            </lcards-form-section>
+        `;
+    }
+
+    /** @private */
+    _addDecorativeRow() {
+        this._workingConfig.rows = [...(this._workingConfig.rows || []), {}];
+        this._changed();
+    }
+
+    /** @private */
+    _removeDecorativeRow(i) {
+        this._workingConfig.rows = (this._workingConfig.rows || []).filter((_, k) => k !== i);
+        this._changed();
     }
 
     _renderDataEditor() {

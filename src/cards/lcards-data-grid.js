@@ -32,7 +32,7 @@ import { haFormatAttrValue, haFormatState } from '../utils/ha-entity-display.js'
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { migrateDataGridConfig } from '../data-grid/data-grid-config-migration.js';
 import {
-  normalizeRows, classifyCell, dataColumnCount, countTracks,
+  normalizeRows, dataGridMode, classifyCell, dataColumnCount, countTracks,
   generateDecorativeGrid, refreshDecorativeCells,
   mergeStyleLayers, styleToCSS, gridContainerStyle, toPx, defaultCellStyle, defaultHeaderStyle,
   buildCascadeRowTimings, cascadeColorList, cellActions
@@ -170,11 +170,7 @@ export class LCARdSDataGrid extends LCARdSCard {
 
   /** @returns {'decorative'|'data'} */
   get _dataMode() {
-    const mode = this.config?.data_mode;
-    if (mode === 'data' || mode === 'decorative') return mode;
-    // Rows that are only a style (a colour per row) belong to a decorative grid.
-    const rows = Array.isArray(this.config?.rows) ? this.config.rows : [];
-    return rows.some(r => Array.isArray(r) || (r && typeof r === 'object' && ('values' in r || 'sources' in r))) ? 'data' : 'decorative';
+    return dataGridMode(this.config);
   }
 
   /** @protected */

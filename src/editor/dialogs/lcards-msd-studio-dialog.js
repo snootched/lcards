@@ -111,6 +111,48 @@ const TABS = {
     YAML: 'yaml'
 };
 
+
+/** Overlay keys the shape form writes (anything else is kept on save). */
+const SHAPE_FORM_KEYS = new Set(['type', 'id', 'kind', 'points', 'closed', 'position', 'size', 'z_index', 'locked',
+    'entity', 'state_attribute', 'ranges_attribute', 'animations', 'corner_style', 'corner_radius', 'corner_angle',
+    'smoothing_mode', 'smoothing_iterations', 'style', '_editorSelected']);
+/** `style` keys the shape form writes. */
+const SHAPE_FORM_STYLE_KEYS = new Set(['color', 'width', 'opacity', 'dash_array', 'fill', 'fill_opacity',
+    'line_cap', 'line_join', 'miter_limit', 'marker_end', 'marker_start']);
+/** Overlay keys the line form writes. */
+const LINE_FORM_KEYS = new Set(['type', 'id', 'anchor', 'attach_to', 'route', 'z_index', 'entity', 'state_attribute',
+    'ranges_attribute', 'anchor_side', 'attach_side', 'anchor_gap', 'attach_gap', 'clearance', 'stub_length',
+    'route_hint', 'route_hint_last', 'waypoints', 'route_channels', 'animations', 'corner_style', 'corner_radius',
+    'corner_radius_mode', 'corner_room_weight', 'corner_angle', 'smoothing_mode', 'smoothing_iterations', 'style',
+    '_editorSelected']);
+/** `style` keys the line form writes. */
+const LINE_FORM_STYLE_KEYS = new Set(['color', 'width', 'opacity', 'dash_array', 'marker_end', 'marker_start']);
+
+/**
+ * The saved overlay: the form's own keys (`built`, defaults already left out)
+ * over the existing overlay's keys the form does not manage, at the top level
+ * and in `style`. A key the form manages and leaves out is removed (the user
+ * cleared it); a key it doesn't (tags, obstacle, marker_mid, anything set in
+ * YAML) is kept.
+ * @param {Object|null} existing
+ * @param {Object} built
+ * @param {Set<string>} formKeys
+ * @param {Set<string>} styleKeys
+ * @returns {Object}
+ */
+export function mergeFormOverlay(existing, built, formKeys, styleKeys) {
+    if (!existing) return built;
+    const out = {};
+    for (const [k, v] of Object.entries(existing)) if (!formKeys.has(k)) out[k] = v;
+    Object.assign(out, built);
+    const oldStyle = existing.style && typeof existing.style === 'object' ? existing.style : null;
+    if (oldStyle) {
+        const kept = Object.fromEntries(Object.entries(oldStyle).filter(([k]) => !styleKeys.has(k)));
+        if (Object.keys(kept).length) out.style = { ...kept, ...(built.style || {}) };
+    }
+    return out;
+}
+
 export class LCARdSMSDStudioDialog extends LitElement {
     static get properties() {
         return {
@@ -13780,7 +13822,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             const simplified = (keys && keys.length === 1 && keys[0] === 'default') ? f.default : f;
             // Only persist if it's not the inert 'none' default (a plain string here,
             // never an object — state-bound fill always has more than one key).
-            if (simplified !== 'none') style.fill = simplified;
+            // The colour picker's (None) row gives '' : the same as no fill.
+            if (simplified !== 'none' && simplified !== '') style.fill = simplified;
         }
         if (formStyle.fill_opacity != null && formStyle.fill_opacity !== 1) style.fill_opacity = formStyle.fill_opacity;
         if (kind === 'polyline') {
@@ -13865,7 +13908,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             if (existingOverlay._editorSelected) {
                 shapeOverlay._editorSelected = true;
             }
-            this._workingConfig.msd.overlays[existingIndex] = shapeOverlay;
+            this._workingConfig.msd.overlays[existingIndex] = mergeFormOverlay(existingOverlay, shapeOverlay, SHAPE_FORM_KEYS, SHAPE_FORM_STYLE_KEYS);
             lcardsLog.debug('[MSDStudio] Updated shape:', this._shapeFormData.id);
         } else {
             this._workingConfig.msd.overlays.push(shapeOverlay);
@@ -15596,7 +15639,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             if (existingOverlay._editorSelected) {
                 lineOverlay._editorSelected = true;
             }
-            this._workingConfig.msd.overlays[existingIndex] = lineOverlay;
+            this._workingConfig.msd.overlays[existingIndex] = mergeFormOverlay(existingOverlay, lineOverlay, LINE_FORM_KEYS, LINE_FORM_STYLE_KEYS);
             lcardsLog.debug('[MSDStudio] Updated line:', this._lineFormData.id);
         } else {
             this._workingConfig.msd.overlays.push(lineOverlay);

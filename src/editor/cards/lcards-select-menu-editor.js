@@ -229,7 +229,10 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         }));
 
         if (Array.isArray(cfg)) {
+            // Spread first: per-option keys this editor has no field for (style,
+            // rules, sounds, variables, zones) must survive an edit.
             return cfg.map(o => ({
+                ...o,
                 value:             o.value,
                 label:             o.label             ?? o.value,
                 icon:              o.icon              ?? null,
@@ -241,6 +244,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         return eOpts.map(v => {
             const ov = cfg[v] || {};
             return {
+                ...ov,
                 value:             v,
                 label:             ov.label             ?? v,
                 icon:              ov.icon              ?? null,
@@ -266,14 +270,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         const eOpts = this.hass?.states[eid]?.attributes?.options || [];
         const byVal = Object.fromEntries(this._getWorkingOptionsList().map(o => [o.value, o]));
         const newOpts = eOpts.map(v => {
-            const prev  = byVal[v] || {};
-            const entry = { value: v };
-            if (prev.label && prev.label !== v) entry.label             = prev.label;
-            if (prev.icon)              entry.icon              = prev.icon;
-            if (prev.tap_action)        entry.tap_action        = prev.tap_action;
-            if (prev.hold_action)       entry.hold_action       = prev.hold_action;
-            if (prev.double_tap_action) entry.double_tap_action = prev.double_tap_action;
-            return entry;
+            return this._minimal({ ...(byVal[v] || {}), value: v });
         });
         this._updateConfig({ options: newOpts });
     }
@@ -290,8 +287,11 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         this._updateConfig({ options: opts });
     }
 
+    /** An option without its defaults; keys the editor has no field for are kept. */
     _minimal(row) {
-        const out = { value: row.value };
+        const { value, label, icon, tap_action, hold_action, double_tap_action, ...rest } = row;
+        const out = { value };
+        for (const [k, v] of Object.entries(rest)) if (v !== undefined && v !== null) out[k] = v;
         if (row.label && row.label !== row.value) out.label             = row.label;
         if (row.icon)              out.icon              = row.icon;
         if (row.tap_action)        out.tap_action        = row.tap_action;
