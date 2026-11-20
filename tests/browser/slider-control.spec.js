@@ -106,3 +106,20 @@ test('upright sliders ask a sections view for a real cell; grid_options still wi
     await reconfigure({ grid_options: { rows: 2, columns: 12 } });
     await expect.poll(grid).toMatchObject({ columns: 12, rows: 2 });
 });
+
+test('gauge: a large range gets readable ticks, not a solid block over the fill', async ({ page }) => {
+    // A 0-5000 lux sensor with the 10 / 2 defaults drew 2,501 tick lines in 460 px; they
+    // merged into a grey block that hid the fill (found building a dashboard, 2026-11-20).
+    const card = await mountCase(page, 'slider-sensor-unlocked', { width: '460', height: '24' });
+    await page.evaluate(() => {
+        window.__reconfigure({ type: 'custom:lcards-slider', entity: 'sensor.demo_temperature', preset: 'gauge-basic', height: 24, control: { min: 0, max: 5000 } });
+        window.__setState('sensor.demo_temperature', '2900');
+    });
+    const read = () => card.evaluate((el) => ({
+        lines: el.shadowRoot.querySelectorAll('line').length,
+        widths: [...el.shadowRoot.querySelectorAll('rect')].map((r) => Number(r.getAttribute('width')) || 0),
+    }));
+    await expect.poll(async () => (await read()).widths.some((w) => w > 200 && w < 330)).toBe(true); // 58 % of the track
+    expect((await read()).lines).toBeLessThan(400);
+    await expectNoErrors(page);
+});

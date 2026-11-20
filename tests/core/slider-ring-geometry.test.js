@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
+import { fitTickIntervals,
     normalizeSweep, thicknessPx, ringLayout, arcExtent, polar, arcPath, fractionToAngle,
     pointToFraction, hitsRing, snapValue, fractionToValue, scaleValues, estimateTextWidth, labelCentre, ringTextZones, markerRadialSpan, ringMarkerSize,
 } from '../../src/cards/slider-ring-geometry.js';
@@ -190,4 +190,18 @@ test('text zones split the inner square into label, value and sublabel', () => {
     near(z.label.height + z.value.height + z.sublabel.height, 100);
     near(z.value.y, 20 + 28);
     near(z.sublabel.y + z.sublabel.height, 120);
+});
+
+test('fitTickIntervals: configured intervals stay when they fit; a large range widens them', () => {
+    // a 0-100 gauge keeps the 10 / 2 defaults on any usual length
+    for (const len of [120, 300, 460]) assert.deepEqual(fitTickIntervals(100, 10, 2, Math.floor(len / 8), Math.floor(len / 2)), { major: 10, minor: 2 });
+    // 0-5000 lux on 460 px: was 501 major and 2,501 minor ticks (a solid block over the fill)
+    const lux = fitTickIntervals(5000, 10, 2, Math.floor(460 / 8), Math.floor(460 / 2));
+    assert.deepEqual(lux, { major: 100, minor: 25 });
+    assert.ok(5000 / lux.major <= 57 && 5000 / lux.minor <= 230);
+    assert.equal(lux.major % lux.minor, 0, 'minor ticks split the major interval evenly');
+    assert.deepEqual(fitTickIntervals(50000, 10, 2, 57, 230), { major: 1000, minor: 250 });
+    // a fractional interval that fits is left alone; nothing to fit without a range
+    assert.deepEqual(fitTickIntervals(5, 0.5, 0.1, 57, 230), { major: 0.5, minor: 0.1 });
+    assert.deepEqual(fitTickIntervals(0, 10, 2, 57, 230), { major: 10, minor: 2 });
 });

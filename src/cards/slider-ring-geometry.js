@@ -299,6 +299,34 @@ export function fractionToValue(fraction, display, control) {
  * @param {number} [skipInterval]
  * @returns {number[]}
  */
+/**
+ * Tick intervals that fit the space the scale has. The configured (or preset) intervals
+ * stay when they fit; a range much larger than they were made for (a 0 to 5000 lux
+ * sensor with the 10 / 2 defaults drew 2,501 lines in 460 px, a solid block over the
+ * fill) widens the major interval by the smallest of 1, 2, 5, 10, 20, 50, ... that
+ * keeps at most `maxMajor` major ticks, and splits it into 5, 4, 2 or 1 minor steps
+ * so there are at most `maxMinor` minor ticks.
+ * @param {number} range - display max minus min
+ * @param {number} major - configured major interval
+ * @param {number} minor - configured minor interval
+ * @param {number} maxMajor - most major ticks that fit
+ * @param {number} maxMinor - most minor ticks that fit
+ * @returns {{major: number, minor: number}}
+ */
+export function fitTickIntervals(range, major, minor, maxMajor, maxMinor) {
+    if (!(range > 0) || !(major > 0) || !(maxMajor >= 1)) return { major, minor };
+    let fitMajor = major;
+    if (range / major > maxMajor) {
+        const need = range / (maxMajor * major);
+        const pow = 10 ** Math.floor(Math.log10(need));
+        const factor = [1, 2, 5, 10].map(f => f * pow).find(f => f >= need - 1e-9) ?? 10 * pow;
+        fitMajor = Number((major * factor).toPrecision(12));
+    }
+    if (fitMajor === major && (!(minor > 0) || range / minor <= maxMinor)) return { major, minor };
+    const fitMinor = [5, 4, 2, 1].map(k => Number((fitMajor / k).toPrecision(12))).find(v => range / v <= maxMinor) ?? fitMajor;
+    return { major: fitMajor, minor: fitMinor };
+}
+
 export function scaleValues(min, max, interval, skipInterval) {
     const lo = Math.min(min, max);
     const hi = Math.max(min, max);

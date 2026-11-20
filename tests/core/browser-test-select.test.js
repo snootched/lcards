@@ -54,6 +54,8 @@ test('shared code runs the full suite; a card file runs its own area and the siz
     assert.deepEqual(slider.cards, ['slider']);
     assert.ok(pick(['src/editor/dialogs/lcards-msd-studio-dialog.js']).specs.includes('msd-undo.spec.js'));
     assert.ok(pick(['src/editor/cards/lcards-elbow-editor.js']).specs.includes('elbow-zones.spec.js'));
+    assert.deepEqual(pick(['src/cards/slider-ring-geometry.js']).cards, ['slider'], 'a card helper module runs its card');
+    assert.equal(pick(['src/cards/button-config.js']).all, true, 'the button base runs everything');
 });
 
 test('files outside the bundle run nothing; a fixture runs its own test, not all of cards.spec.js', () => {

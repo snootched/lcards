@@ -86,6 +86,8 @@ export const PATH_RULES = [
     [/^src\/cards\/lcards-button\.js$/, () => 'all'],
     [/^src\/cards\/schemas\/([a-z-]+)-schema\.js$/, (m) => one(m[1])],
     [/^src\/cards\/lcards-([a-z-]+)\.js$/, (m) => one(m[1])],
+    // a card's helper modules (slider-ring-geometry.js); button-config.js names no area: full suite
+    [/^src\/cards\/([a-z-]+)\.js$/, (m) => one(m[1])],
     [/^src\/charts\//, () => ['chart']],
     [/^src\/data-grid\//, () => ['data-grid']],
     [/^src\/msd\//, () => ['msd']],

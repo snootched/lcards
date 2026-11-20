@@ -103,7 +103,7 @@ import { DEFAULT_CONTROL_ATTRIBUTE, controlSetter, controlServiceCall, controlVa
 import { createLiveSender } from './slider-live-update.js';
 import { TEXT_POSITIONS } from './schemas/schema-options.js';
 import {
-    arcPath, fractionToAngle, pointToFraction, hitsRing, fractionToValue, snapValue, scaleValues,
+    arcPath, fractionToAngle, pointToFraction, hitsRing, fractionToValue, snapValue, scaleValues, fitTickIntervals,
     estimateTextWidth, labelCentre, markerRadialSpan, ringMarkerSize, ringLayout, RING_MARKER_ALIGN, TICK_GAP
 } from './slider-ring-geometry.js';
 
@@ -2697,7 +2697,12 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Major tick configuration
         const majorEnabled = tickConfig?.major?.enabled !== false;
-        const majorInterval = tickConfig?.major?.interval || 10; // Value units (not percentage)
+        // Value units (not percentage). Fitted to the track: majors at least 8 px apart,
+        // minors at least 2 px, however large the range (fitTickIntervals).
+        const fitted = fitTickIntervals(range, tickConfig?.major?.interval || 10, tickConfig?.minor?.interval || 2,
+            Math.max(1, Math.floor((isVertical ? trackHeight : trackWidth) / 8)),
+            Math.max(1, Math.floor((isVertical ? trackHeight : trackWidth) / 2)));
+        const majorInterval = fitted.major;
         const majorColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
             classifiedState: this._classifyEntityState(),
@@ -2709,7 +2714,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Minor tick configuration
         const minorEnabled = tickConfig?.minor?.enabled !== false;
-        const minorInterval = tickConfig?.minor?.interval || 2; // Value units (not percentage)
+        const minorInterval = fitted.minor;
         const minorColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
             classifiedState: this._classifyEntityState(),
@@ -4774,9 +4779,15 @@ export class LCARdSSlider extends LCARdSButton {
         } : null;
         const major = level(scale.tick_marks?.major, 10, 8, 2, 'theme:components.slider.gauge.tick.major.color.default');
         const minor = level(scale.tick_marks?.minor, 2, 4, 1, 'theme:components.slider.gauge.tick.minor.color.default');
+        // Fitted to the range by count (the ring's size depends on its labels, so its
+        // arc length isn't known here): at most 60 major and 240 minor ticks.
+        const fit = fitTickIntervals(this._displayConfig.max - this._displayConfig.min,
+            scale.tick_marks?.major?.interval || 10, scale.tick_marks?.minor?.interval || 2, 60, 240);
+        if (major) major.interval = fit.major;
+        if (minor) minor.interval = fit.minor;
         const lc = scale.labels;
         const labels = (lc && lc.enabled !== false) ? {
-            interval: scale.tick_marks?.major?.interval || 10,
+            interval: fit.major,
             unit: lc.show_unit !== false ? (lc.unit ?? this._displayConfig.unit ?? '') : '',
             fontSize: lc.font_size ?? 12,
             padding: lc.padding ?? 3,
