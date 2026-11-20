@@ -115,6 +115,15 @@ export const isNowDate = (v) => v === undefined || v === null || v === '' || v =
  */
 export function dateSelectorValue(v) {
   if (isNowDate(v) || typeof v !== 'string') return undefined;
+  // A time with a zone (Z, +02:00) is an instant: show it as the local wall time, the
+  // selector's own reading (it showed the UTC digits as local, hours off).
+  if (/T\d\d:\d\d(?::\d\d(?:\.\d+)?)?(?:Z|[+-]\d\d:?\d\d)$/i.test(v.trim())) {
+    const d = new Date(v.trim());
+    if (!Number.isNaN(d.getTime())) {
+      const p = (/** @type {number} */ n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
+  }
   const m = /^(\d{4}-\d\d-\d\d)(?:[T ](\d\d:\d\d(?::\d\d)?))?/.exec(v.trim());
   if (!m) return undefined;
   const time = m[2] ? (m[2].length === 5 ? `${m[2]}:00` : m[2]) : '00:00:00';

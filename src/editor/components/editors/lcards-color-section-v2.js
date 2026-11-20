@@ -617,6 +617,7 @@ export class LCARdSColorSectionV2 extends LitElement {
      * @private
      */
     _handleColorChange(state, e) {
+        e?.stopPropagation?.(); // committed through the editor below
         const currentStates = this._getCurrentStates();
         const v = e.detail.value;
         currentStates[state] = this.valueKind === 'number' ? (v === '' || v === null || v === undefined || !Number.isFinite(Number(v)) ? 0 : Number(v)) : v;
@@ -632,6 +633,10 @@ export class LCARdSColorSectionV2 extends LitElement {
      * @private
      */
     _handleCustomStateInput(e) {
+        // Draft inputs are this section's own: their events must not reach a parent
+        // that listens for value-changed (the Astrometrics Studio took a draft
+        // threshold as its whole labels block and cleared it).
+        e?.stopPropagation?.();
         this._customStateInput = e.detail.value ?? '';
     }
 
@@ -684,6 +689,7 @@ export class LCARdSColorSectionV2 extends LitElement {
      * @private
      */
     _handleRangeOperatorChange(e) {
+        e?.stopPropagation?.();
         this._rangeOperator = /** @type {CustomEvent} */ (e).detail.value;
     }
 
@@ -693,6 +699,7 @@ export class LCARdSColorSectionV2 extends LitElement {
      * @private
      */
     _handleRangeMinChange(e) {
+        e?.stopPropagation?.();
         const v = e.detail?.value;
         this._rangeMin = v !== null && v !== undefined ? String(v) : '';
     }
@@ -703,6 +710,7 @@ export class LCARdSColorSectionV2 extends LitElement {
      * @private
      */
     _handleRangeMaxChange(e) {
+        e?.stopPropagation?.();
         const v = e.detail?.value;
         this._rangeMax = v !== null && v !== undefined ? String(v) : '';
     }
@@ -799,7 +807,7 @@ export class LCARdSColorSectionV2 extends LitElement {
      * @private
      */
     async _deleteState(e, state) {
-        e.stopPropagation();
+        e?.stopPropagation?.();
 
         const confirmed = await this._showConfirmDialog(
             'Delete State',

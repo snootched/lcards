@@ -677,7 +677,9 @@ export class LCARdSAstroSchemaForm extends LitElement {
               @click=${() => { if (now) set(todayValue()); }}>Date and time</ha-button>
           </wa-button-group>
         </div>
-        ${now ? nothing : this._selector(`${key}~datetime`, { datetime: {} }, dateSelectorValue(value), '', '', '', (v) => set(v || undefined))}
+        ${now ? nothing : this._selector(`${key}~datetime`, { datetime: {} }, dateSelectorValue(value), '', '', '',
+          // unchanged: keep the value as written (its zone), not the selector's local reading
+          (v) => set(v && v === dateSelectorValue(value) ? value : (v || undefined)))}
         ${helper ? html`<div class="hint">${helper}</div>` : nothing}
       </div>`;
   }

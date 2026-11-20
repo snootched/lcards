@@ -1062,7 +1062,12 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       <lcards-form-section data-group="labels" header="Labels" icon="mdi:label-outline" outlined
         description="How every label looks, and the styles points pick (title, major, minor, tiny, and your own).">
         <lcards-astro-labels-editor .hass=${this.hass} .value=${isObj(cfg.labels) ? cfg.labels : {}}
-          @value-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._setTop('labels', Object.keys(e.detail.value ?? {}).length ? e.detail.value : undefined); }}>
+          @value-changed=${(/** @type {CustomEvent} */ e) => {
+            e.stopPropagation();
+            // only the labels editor's own event: a control inside it can bubble out too
+            if (e.composedPath()[0] !== e.currentTarget) return;
+            this._setTop('labels', Object.keys(e.detail.value ?? {}).length ? e.detail.value : undefined);
+          }}>
         </lcards-astro-labels-editor>
       </lcards-form-section>
     `;

@@ -64,8 +64,14 @@ const bodyLabel = (/** @type {string} */ b) => (b === 'moon' ? 'Moon (Luna)' : b
 const ALT_FORMS = ['polar', 'latlon', 'altaz', 'sky'];
 
 /** Remove keys whose value is empty, so YAML stays clean. */
-const prune = (/** @type {Record<string, any>} */ obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) =>
-  v !== undefined && v !== null && v !== '' && !(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)));
+/**
+ * A point without its unset keys. An empty placement form stays: `xyz: {}` (or polar,
+ * latlon, altaz) means "read the position from the point's entity", so dropping it when
+ * another field changed detached the point from its entity.
+ */
+const prune = (/** @type {Record<string, any>} */ obj) => Object.fromEntries(Object.entries(obj).filter(([k, v]) =>
+  v !== undefined && v !== null && v !== ''
+    && (!(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0) || (/** @type {readonly string[]} */ (PLACEMENT_FORMS)).includes(k))));
 
 /**
  * The placement form a point uses (the first present), or null.

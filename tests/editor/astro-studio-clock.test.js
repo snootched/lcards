@@ -45,7 +45,6 @@ test('rates off the presets are custom: an amount and a unit', () => {
 test('dates: now or a date and time, in the form the datetime selector writes and the clock reads', () => {
   assert.ok(isNowDate(undefined) && isNowDate('now') && !isNowDate('2026-10-30'));
   assert.equal(dateSelectorValue('2026-10-30'), '2026-10-30 00:00:00');
-  assert.equal(dateSelectorValue('1969-07-20T20:17:00Z'), '1969-07-20 20:17:00');
   assert.equal(dateSelectorValue('2026-10-30 12:00'), '2026-10-30 12:00:00');
   assert.equal(dateSelectorValue('now'), undefined);
   assert.equal(todayValue(new Date(2026, 9, 31, 15, 4)), '2026-10-31 00:00:00');
@@ -67,4 +66,15 @@ test('the labels adapter: schema through styles by name, writes prune empty pare
   ed._setConfigValue('styles.major.font_size', undefined);
   assert.deepEqual(seen.at(-1), { snap: true });
   assert.deepEqual(setPath({ a: { b: 1, c: 2 } }, ['a', 'b'], ''), { a: { c: 2 } });
+});
+
+test('dateSelectorValue: a time with a zone shows as the local wall time of that instant', () => {
+    // It showed the UTC digits as local time, so 12:00Z read as noon in Toronto (07:00 there).
+    const v = dateSelectorValue('2026-10-30T12:00:00Z');
+    const d = new Date('2026-10-30T12:00:00Z');
+    const p = (n) => String(n).padStart(2, '0');
+    assert.equal(v, `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`);
+    assert.equal(new Date(v.replace(' ', 'T')).getTime(), d.getTime(), 'the same instant');
+    // without a zone it stays as written
+    assert.equal(dateSelectorValue('2026-10-30T12:00'), '2026-10-30 12:00:00');
 });

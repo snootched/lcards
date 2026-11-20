@@ -46,7 +46,7 @@ export const AREAS = {
  * card's files does not reach.
  */
 export const FULL_ONLY = [
-    'bundle-base', 'button-fixes', 'colours', 'core-audit', 'fire-dom-event',
+    'bundle-base', 'button-fixes', 'colours', 'editor-roundtrip', 'studio-roundtrip', 'core-audit', 'fire-dom-event',
     'jinja-live', 'listener-leaks', 'new-presets', 'presets-theme', 'provenance', 'render-count',
 ].map((n) => `${n}.spec.js`);
 
