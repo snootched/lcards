@@ -1,0 +1,51 @@
+name: CodeQL
+
+# Code scanning for pushes and pull requests on main and dev, plus a weekly scan.
+# Replaces GitHub's default setup (which only scanned main), so a pull request into
+# dev is checked before it merges. The main and dev rulesets require its results.
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+  schedule:
+    - cron: "17 4 * * 1"   # Mondays; scheduled runs use main's copy of this file
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same pull request or to dev cancels the older scan; main's always finish
+concurrency:
+  group: codeql-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && github.ref != 'refs/heads/main' }}
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read            # read workflow run details for the upload
+      security-events: write   # upload the results
+    strategy:
+      fail-fast: false
+      matrix:
+        # The languages default setup scanned; none of them needs a build
+        language: [ "actions", "javascript-typescript", "python" ]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          # Test code never ships; scripts/ (build and release tooling) stays in
+          config: |
+            paths-ignore:
+              - tests
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
