@@ -68,6 +68,7 @@
     "lcars:export-all-themes": "node scripts/export-vendored-ha-lcars-all-themes.js --write",
     "lcars:regenerate": "npm run lcars:semantic-tokens:write && npm run lcars:generate-themes && npm run build && npm run lcars:export-vendored && npm run lcars:export-all-themes",
     "test:browser": "playwright test --project=component",
+    "test:browser:changed": "node scripts/test-browser-changed.mjs",
     "test:visual": "playwright test --project=visual",
     "test:ha": "playwright test -c playwright.ha.config.js",
     "docs:check-anchors": "node scripts/check-doc-anchors.js",

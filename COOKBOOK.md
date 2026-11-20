@@ -14,7 +14,8 @@ How we build, test, release and publish LCARdS: the recipes first, then the refe
 | See it in HA | Ctrl+Shift+R in the browser | Hard refresh is required: the stub's old chunks are deleted on every build. |
 | Unit tests | `npm test` | All `tests/**/*.test.js`, about 700 tests, under a minute. |
 | Types | `npm run typecheck` | Zero TypeScript errors or it fails (also inside `npm run build`). |
-| Browser tests | `npm run test:browser` | After `npm run build`. CI runs it too. |
+| Browser tests | `npm run test:browser:changed` | After `npm run build`. Only the tests the changed files need; shared code runs the full suite. |
+| All browser tests | `npm run test:browser` | About 15 minutes. CI runs it on every push and pull request. |
 | Real HA | `npm run test:ha` | Local only; needs `.ha-token`. |
 | Docs | `npm run docs:serve` | Dev server with hot reload; live demos use the last `npm run build`. |
 | All npm scripts | `npm run help` | Grouped, with when to run each. |
@@ -179,6 +180,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | `test` | Every node:test suite. |
 | `test:routing`, `test:data-grid` | One suite. |
 | `test:browser` | Layer A, Playwright: fixture cards on the built bundle, fake hass (CI). |
+| `test:browser:changed` | Layer A, only what the files changed since `origin/dev` (committed, uncommitted, new) need: each card's own spec files and its `cards.spec.js` tests, plus the size budget. Shared code (`src/base`, `src/core`, `src/utils`, the button, the editor's shared components, the build config, the harness) and any file the map doesn't know run the full suite. The map is `scripts/lib/browser-test-select.js` (guarded by `tests/core/browser-test-select.test.js`). `-- --dry-run` shows the pick, `-- --base <ref>` compares with another ref, `-- --all` runs everything; other arguments go to Playwright (`--workers=2`, `--reporter=dot`). |
 | `test:visual` | Layer B: screenshot baselines (local; `-- --update-snapshots` after an intended change). |
 | `test:ha` | Layer C: smoke tests on the dev HA (local; `.ha-token`). |
 | `test:docs` | Live demos, galleries, playgrounds and labs on the built docs site (after `docs:build`). With `CI` set it skips the `@gpu` tests (the astrometrics pages after the first and the astrometrics demo view: CI has no GPU and draws WebGL on the CPU); run them all locally before a push. The tests ask the preview server for uncompressed files (`vitepress preview` brotli-compresses each response at full quality, about 4 s for the main chunk). |
@@ -237,7 +239,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | Layer | Command | Runs where | Needs |
 |---|---|---|---|
 | Unit (node:test) | `npm test` | CI + local | nothing |
-| A: browser components | `npm run test:browser` | CI + local | `npm run build` |
+| A: browser components | `npm run test:browser` (local: `test:browser:changed`) | CI + local | `npm run build` |
 | B: visual baselines | `npm run test:visual` | local | `npm run build` |
 | C: real HA | `npm run test:ha` | local | `npm run build`, dev HA at `localhost:8123`, `.ha-token` |
 | Docs site | `npm run test:docs` | CI (without `@gpu` tests) + local (all) | `npm run docs:build` |

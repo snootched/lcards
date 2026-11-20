@@ -77,6 +77,7 @@ Browser and real-HA layers (Playwright, system `/usr/bin/chromium`; run `npm run
 
 ```bash
 npm run test:browser             # Layer A: cards mounted from tests/browser/fixtures/*.yaml against a fake hass
+npm run test:browser:changed     # Layer A, only what the changed files need (shared code: everything); -- --dry-run shows the pick
 npm run test:visual              # Layer B: screenshot baselines (local only); add -- --update-snapshots=all after an intended change
 npm run test:ha                  # Layer C: smoke tests against the dev HA; needs a long-lived token in $HA_TOKEN or .ha-token (gitignored)
 npm run test:docs                # docs site: live card demos + playgrounds on the built site and the dev server (run npm run docs:build first)

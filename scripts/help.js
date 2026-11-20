@@ -86,6 +86,7 @@ const CATEGORIES = [
       'test:routing': { when: 'as needed', desc: 'Runs only the MSD routing test suite.' },
       'test:data-grid': { when: 'as needed', desc: 'Runs only the data grid test suite.' },
       'test:browser': { when: 'before commit', desc: 'Layer A (Playwright, CI): cards from tests/browser/fixtures/*.yaml on the built bundle against a fake hass. Run npm run build first.' },
+      'test:browser:changed': { when: 'before commit', desc: 'Layer A, only the tests the changed files need (since origin/dev; shared code runs everything). -- --dry-run shows the pick. Run npm run build first.' },
       'test:visual': { when: 'as needed', desc: 'Layer B (local only): screenshot baselines. Add -- --update-snapshots after an intended visual change.' },
       'test:ha': { when: 'as needed', desc: 'Layer C (local only): smoke tests against the dev HA. Needs a token in $HA_TOKEN or .ha-token, and npm run build first.' },
       'test:docs': { when: 'CI/release', desc: 'Docs site tests: live card demos, galleries, playgrounds and processor labs on the built site and the dev server. Run npm run docs:build first.' },
