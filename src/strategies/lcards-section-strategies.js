@@ -577,7 +577,7 @@ export class LCARdSSectionStrategyEditor extends LitElement {
             { header: 'Items', icon: 'mdi:view-grid-outline', description: 'How many items, how many side by side and how tall. Empty: what suits the section and look.', schema: [
                 { type: 'grid', name: '', schema: [
                     { name: 'columns', selector: { number: { min: 1, max: 6, mode: 'box' } } },
-                    { name: 'max_items', selector: { number: { min: 1, max: 48, mode: 'box' } } },
+                    { name: 'max_items', selector: { number: { min: 1, mode: 'box' } } },
                     { name: 'item_height', selector: { number: { min: 16, max: 400, mode: 'box', unit_of_measurement: 'px' } } },
                 ] },
             ] },

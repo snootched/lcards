@@ -744,6 +744,12 @@ export class LCARdSChartStudioDialog extends LitElement {
      * @returns {boolean}
      * @private
      */
+    /** A scatter chart, or a scatter series in a mixed one (their markers default to 6, not 0). @returns {boolean} @private */
+    _hasScatter() {
+        const cfg = this._workingConfig || {};
+        return cfg.chart_type === 'scatter' || (Array.isArray(cfg.sources) && cfg.sources.some((s) => s?.type === 'scatter'));
+    }
+
     _legendShown() {
         return this._workingConfig?.style?.legend?.show
             ?? ApexChartsAdapter.LEGEND_ON_BY_DEFAULT.has(this._workingConfig?.chart_type ?? 'line');
@@ -1491,6 +1497,17 @@ export class LCARdSChartStudioDialog extends LitElement {
                 Colours are CSS variables (<code>var(--lcars-blue)</code>) or hex codes; a list cycles through the series.
             </lcards-message>
 
+            ${this._workingConfig.chart_type === 'rangeBar' ? html`
+                <lcards-form-section
+                    header="Timeline"
+                    description="How the timeline's bars are laid out"
+                    icon="mdi:chart-timeline"
+                    ?expanded=${true}>
+                    ${FormField.renderField(this, 'style.group_rows', { label: 'One row per label', helper: 'Bars with the same label share a row' })}
+                    ${FormField.renderField(this, 'style.show_labels', { label: 'Labels on the bars', helper: 'Write each bar\'s state on it' })}
+                </lcards-form-section>
+            ` : ''}
+
             <!-- Series Colors (Primary) -->
             <lcards-form-section
                 header="Series Colors"
@@ -1635,7 +1652,10 @@ export class LCARdSChartStudioDialog extends LitElement {
 
                 ${FormField.renderField(this, 'style.markers.size', {
                     label: 'Marker Size',
-                    helper: 'Size of data point circles (0 to hide markers)'
+                    helper: this._hasScatter()
+                        ? 'Size of data point circles. Scatter series need markers: 0 or blank uses 6'
+                        : 'Size of data point circles (0 to hide markers)',
+                    value: this._workingConfig.style?.markers?.size ?? (this._hasScatter() ? 6 : undefined)
                 })}
 
                 ${FormField.renderField(this, 'style.markers.shape', {

@@ -12,7 +12,7 @@ import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-
 import { editorComponentStyles } from '../base/editor-component-styles.js';
 import { configToYaml } from '../utils/yaml-utils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { getComponentNames, getComponentsForCard } from '../../core/packs/components/index.js';
+import { getComponent, getComponentNames, getComponentsForCard } from '../../core/packs/components/index.js';
 import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
 import { isInteractive } from '../../utils/button-interactive.js';
@@ -426,7 +426,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                                 render: () => keyed(mode, html`
                                     <ha-selector
                                         .hass=${this.hass}
-                                        .selector=${{ select: { mode: 'dropdown', options: getComponentsForCard('button').map(n => ({ value: n, label: n.charAt(0).toUpperCase() + n.slice(1) })) } }}
+                                        .selector=${{ select: { mode: 'dropdown', options: getComponentsForCard('button').map(n => ({ value: n, label: getComponent(n)?.metadata?.name || n })) } }}
                                         .value=${this.config.component || 'dpad'}
                                         .label=${'Component Type'}
                                         @value-changed=${(e) => this._handleComponentTypeChange(e.detail.value)}>

@@ -200,7 +200,7 @@ export const AlertStudioForms = (Base) => class extends Base {
                     <lcards-grid-layout>
                         ${FormField.renderField(this, 'width', {
                             label: 'Width',
-                            helper: 'CSS width, e.g. 400px or 50% (of the screen)',
+                            helper: 'CSS width, e.g. 400px or 50% (of the screen). Blank = 60%',
                             selectorOverride: { text: {} },
                         })}
                         ${FormField.renderField(this, 'height', {
