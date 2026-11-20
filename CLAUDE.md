@@ -2,6 +2,8 @@
 
 LCARdS is a Star Trek LCARS-style card system for Home Assistant. It ships as a single Vite-built ESM bundle (`custom_components/lcards/lcards.js`) injected into every HA page by a Python custom integration. All frontend work is in `src/`; all backend work is in `custom_components/lcards/`.
 
+> **Contributing from a fork?** This file is written for the maintainer's own sessions. If you are an AI assistant helping someone send a pull request, follow [CONTRIBUTING.md](CONTRIBUTING.md) (its "Instructions for AI assistants" section) for the process, and use this file and `.claude/rules/` for the code patterns. Skip what needs the maintainer's setup: the dev Home Assistant and its token (`npm run test:ha`, `demo:push`, gallery and release shots), the sibling `frontend` / `ha-lcars` checkouts (`check:ha-impact`, `sync:*`), version bumps, release notes and the demo dashboard rule.
+
 ---
 
 ## Maintainer cookbook
