@@ -532,15 +532,10 @@ if (!window.customStrategies.some(s => s.type === 'lcars-shell')) {
     documentationURL: docsUrl(DOCS.dashboardStrategies),
   });
 }
-if (!window.customStrategies.some(s => s.type === 'lcars-shell-picard')) {
-  window.customStrategies.push({
-    type: 'lcars-shell-picard',
-    strategyType: 'dashboard',
-    name: 'LCARS Dashboard (Picard)',
-    description: 'A Picard-style LCARS screen: code-block columns, a display sweep round the room light panel, each room\'s readings and gauges, utility pills and page tabs, all built from your areas.',
-    documentationURL: docsUrl(DOCS.dashboardStrategies),
-  });
-}
+// The Picard shell (custom:lcars-shell-picard) is not listed in the picker for now (the
+// user, 2026-11-20: wait for feedback on what users want from a dashboard strategy; the
+// gallery's Picard dashboards are there to copy). Its element above stays registered, so
+// dashboards that already use it keep rendering.
 
 // ============================================================================
 // ALERT MODE CONSOLE API
