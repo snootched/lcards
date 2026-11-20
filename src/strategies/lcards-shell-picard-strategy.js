@@ -326,13 +326,16 @@ function _pills(topBarEntity, rightSidebarEntity) {
     ];
 }
 
-/** Page tabs over a segmented bar. */
+/**
+ * Page tabs over a segmented bar. One row whatever the number of pages: the strip is
+ * one row tall, so a capped column count wrapped the ninth page onto a hidden row.
+ */
 function _strip(hass, pageEntity) {
     const options = hass?.states?.[pageEntity]?.attributes?.options;
     const tabs = pageEntity && pageEntity in (hass?.states ?? {})
         ? {
             type: 'custom:lcards-select-menu', entity: pageEntity, preset: 'toggle-tab',
-            grid: { columns: Math.max(1, Math.min(8, Array.isArray(options) ? options.length : 4)), gap: GAP, 'grid-auto-rows': '30px' },
+            grid: { columns: Math.max(1, Array.isArray(options) ? options.length : 4), gap: GAP, 'grid-auto-rows': '30px' },
         }
         : _note('PICK A PAGE SELECTOR IN THE DASHBOARD SETTINGS FOR THE PAGE TABS.');
     return _layout({

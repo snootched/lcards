@@ -117,3 +117,15 @@ test('Picard shell: no auto-entities, no hex colours', async () => {
     assert.doesNotMatch(text, /auto-entities/);
     assert.doesNotMatch(text, /#[0-9a-fA-F]{3,6}\b/);
 });
+
+test('Picard shell: the page tabs stay on one row, however many pages there are', async () => {
+    // The strip is one row tall: with the columns capped at 8, a ninth page wrapped onto a
+    // second row hidden behind the frame (the user's dev dashboard, 2026-11-20).
+    for (const count of [3, 9, 12]) {
+        const pages = Array.from({ length: count }, (_, i) => `Page ${i + 1}`);
+        const h = { ...hass, states: { ...hass.states, 'input_select.pages': { state: pages[0], attributes: { options: pages } } } };
+        const text = JSON.stringify(await strategy.generate(FULL, h));
+        const tabs = [...text.matchAll(/"entity":"input_select\.pages","preset":"toggle-tab","grid":\{"columns":(\d+)/g)].map((m) => Number(m[1]));
+        assert.deepEqual(tabs, [count], `${count} pages: one select menu with a column per page`);
+    }
+});
