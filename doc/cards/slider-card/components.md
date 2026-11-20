@@ -126,12 +126,12 @@ style:
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `style.ring.scale.tick_marks.major.interval` | number | `10` | Value units between major ticks, counted from the minimum |
+| `style.ring.scale.tick_marks.major.interval` | number | `10` | Value units between major ticks, counted from the minimum; widened when the range would need more than 60 |
 | `style.ring.scale.tick_marks.major.height` | number | `8` | Tick length, px, outward from the ring |
 | `style.ring.scale.tick_marks.major.width` | number | `2` | Tick line width, px |
 | `style.ring.scale.tick_marks.major.color` | colour / state map | theme | Major tick colour |
 | `style.ring.scale.tick_marks.major.enabled` | boolean | `true` | `false` hides the major ticks while keeping the block |
-| `style.ring.scale.tick_marks.minor.interval` | number | `2` | Value units between minor ticks |
+| `style.ring.scale.tick_marks.minor.interval` | number | `2` | Value units between minor ticks; widened when the range would need more than 240 |
 | `style.ring.scale.tick_marks.minor.height` | number | `4` | Tick length, px |
 | `style.ring.scale.tick_marks.minor.width` | number | `1` | Tick line width, px |
 | `style.ring.scale.tick_marks.minor.color` | colour / state map | theme | Minor tick colour |

@@ -36,6 +36,7 @@ description: "Paste LCARdS YAML (a card, a view or a whole dashboard) and see ev
 
 - `y`, `yes` and `on` become `true`, and `n`, `no` and `off` become `false`, in any case. So `y: 20` arrives as `true: 20`, and `label: N` as `label: false`.
 - Quote them: `"y": 20`, `label: "N"`. The checker warns about each one (**Home Assistant's code editor reads...**).
+- Numbers written with a leading zero lose it: `value: 08` shows 8 (and `010` becomes 8 in Home Assistant's editor). Quote codes like these, `value: '08'`; the checker warns about them too.
 - The LCARdS editor's own **YAML** tab reads them as written.
 
 ## Other ways to check

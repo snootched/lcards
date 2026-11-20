@@ -716,7 +716,7 @@ export function getSliderSchema(options = {}) {
                                                     interval: {
                                                         type: 'number',
                                                         exclusiveMinimum: 0,
-                                                        description: 'Value units between major tick marks (default 10); fractions such as 0.5 work for small ranges, and the labels show as many decimals as the interval'
+                                                        description: 'Value units between major tick marks (default 10); fractions such as 0.5 work for small ranges, and the labels show as many decimals as the interval. Widened to fit when the range is too large for the track'
                                                     },
                                                     color: stateColorSchema,
                                                     height: { type: 'number' },
@@ -730,7 +730,7 @@ export function getSliderSchema(options = {}) {
                                                     interval: {
                                                         type: 'number',
                                                         exclusiveMinimum: 0,
-                                                        description: 'Value units between minor tick marks (default 2); fractions such as 0.5 work for small ranges'
+                                                        description: 'Value units between minor tick marks (default 2); fractions such as 0.5 work for small ranges. Widened to fit when the range is too large for the track'
                                                     },
                                                     color: stateColorSchema,
                                                     height: { type: 'number' },
@@ -1277,7 +1277,7 @@ export function getSliderSchema(options = {}) {
                                                 description: 'Major ticks. Shown when this block is set (enabled defaults to true).',
                                                 properties: {
                                                     enabled: { type: 'boolean', default: true, description: 'Show the major ticks (default true once the block is set)' },
-                                                    interval: { type: 'number', exclusiveMinimum: 0, default: 10, description: 'Value units between major ticks, counted from the display minimum (default 10)' },
+                                                    interval: { type: 'number', exclusiveMinimum: 0, default: 10, description: 'Value units between major ticks, counted from the display minimum (default 10). Widened to fit when the range is too large (at most 60 major ticks)' },
                                                     height: { type: 'number', minimum: 1, default: 8, description: 'Tick length in pixels, outward from the ring (default 8)' },
                                                     width: { type: 'number', minimum: 0.5, default: 2, description: 'Tick line width in pixels (default 2)' },
                                                     color: { ...stateColorSchema, description: 'Major tick colour. Default theme:components.slider.gauge.tick.major.color.default.' }
@@ -1288,7 +1288,7 @@ export function getSliderSchema(options = {}) {
                                                 description: 'Minor ticks. Shown when this block is set (enabled defaults to true).',
                                                 properties: {
                                                     enabled: { type: 'boolean', default: true, description: 'Show the minor ticks (default true once the block is set)' },
-                                                    interval: { type: 'number', exclusiveMinimum: 0, default: 2, description: 'Value units between minor ticks, counted from the display minimum (default 2)' },
+                                                    interval: { type: 'number', exclusiveMinimum: 0, default: 2, description: 'Value units between minor ticks, counted from the display minimum (default 2). Widened to fit when the range is too large (at most 240 minor ticks)' },
                                                     height: { type: 'number', minimum: 1, default: 4, description: 'Tick length in pixels, outward from the ring (default 4)' },
                                                     width: { type: 'number', minimum: 0.5, default: 1, description: 'Tick line width in pixels (default 1)' },
                                                     color: { ...stateColorSchema, description: 'Minor tick colour. Default theme:components.slider.gauge.tick.minor.color.default.' }

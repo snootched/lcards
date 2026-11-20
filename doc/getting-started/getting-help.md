@@ -45,6 +45,8 @@ description: "Something not working in LCARdS? Check your config, run the health
 **Still stuck? Report an issue, in the same Support & system info section, opens a GitHub bug report with your versions and support info already filled in.** It also copies the full info to your clipboard. Review the form, describe the problem, add your card YAML, then submit: nothing is sent automatically.
 
 - **Copy support info** copies the same information, to paste into an existing issue or a [Discussion](https://github.com/snootched/LCARdS/discussions).
+- **Using Claude?** The [LCARdS skill](ai-assistance) helps you write the report (`/lcards:issue` in Claude Code): it checks your config first, cuts your YAML down to a small example, and gives you the text to paste. You submit it yourself.
+- **Want to fix it yourself?** See the [contributing guide](https://github.com/snootched/LCARdS/blob/main/CONTRIBUTING.md): open the issue first, then a pull request that links it.
 - Tick **Include data-source names & entity IDs** only if the problem involves data sources.
 - Expand **Preview what will be shared** to see exactly what is included: versions, browser, theme, UIX and card-mod status, integration options and the most recent LCARdS warnings. Those warnings can mention entity names, so review before sharing.
 

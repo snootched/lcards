@@ -270,7 +270,7 @@ msd:
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `style.color` | colour / state map | `var(--lcars-orange)` | Outline colour |
-| `style.fill` | colour / state map | `none` | Fill colour |
+| `style.fill` | colour / state map | `none` | Fill colour; `none` (or no `fill`) leaves the shape unfilled |
 | `style.fill_opacity` | number | `1` | `0` to `1` |
 | [Line style keys](./line-overlay#styling) | | | `width`, `opacity`, `line_cap`, `line_join`, `dash_array`, `gradient`, `pattern`, markers and `animatable`, as on a line |
 
