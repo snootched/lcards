@@ -28,18 +28,23 @@ body:
     id: card_type
     attributes:
       label: Affected Card Type
-      description: Which LCARdS card is exhibiting the problem?
+      description: Which LCARdS card or part shows the problem? Pick all that apply.
       multiple: true
       options:
+        - lcards-alert-overlay
+        - lcards-astrometrics-card
         - lcards-button
         - lcards-chart
         - lcards-data-grid
         - lcards-elbow
         - lcards-layout-card
-        - lcards-msd
+        - lcards-msd-card
         - lcards-select-menu
         - lcards-slider
-        - lcards-alert-overlay
+        - lcards-layout-view (view type)
+        - Dashboard or section strategies (lcars-shell)
+        - Card editor or studio
+        - LCARdS panel (sidebar)
         - Multiple / All cards
         - Not card-specific (core system)
     validations:
