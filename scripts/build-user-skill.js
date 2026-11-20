@@ -17,6 +17,7 @@
  *   lcards/references/uix/                the UIX styling docs pages
  *                                         (scripts/data/uix/, scripts/sync-uix-docs.js)
  *   lcards/scripts/lcards-validate.mjs    the standalone config checker
+ *   lcards/scripts/lcards-starter.mjs     astrometrics starters as card YAML (the Studio's Starters tab)
  *   lcards/scripts/lcards-preview-link.mjs  a link to the docs' preview page with the YAML in its hash
  *
  * The same tree is also packaged as a Claude Code plugin, with a marketplace file that
@@ -126,6 +127,8 @@ for (const page of uix.pages) {
 // The checker.
 mkdirSync(join(skill, 'scripts'), { recursive: true });
 execFileSync(process.execPath, [join(ROOT, 'scripts/build-validator.js'), `--out=${join(skill, 'scripts/lcards-validate.mjs')}`], { stdio: 'ignore' });
+// The starter tool: astrometrics starters as card YAML, settings linked to entities included.
+execFileSync(process.execPath, [join(ROOT, 'scripts/build-validator.js'), `--entry=${join(ROOT, 'scripts/lcards-starter.mjs')}`, `--out=${join(skill, 'scripts/lcards-starter.mjs')}`], { stdio: 'ignore' });
 // The preview link maker, pointed at this docs channel's preview page.
 for (const name of ['lcards-preview-link.mjs', 'lcards-preview-link.py']) {
   writeFileSync(join(skill, 'scripts', name), readFileSync(join(ROOT, 'skills/lcards/scripts', name), 'utf8')

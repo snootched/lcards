@@ -9,7 +9,7 @@ moved_anchors:
 **Claude with the LCARdS skill can plan a dashboard with you, write the YAML and check it before you paste anything.**
 
 - Out of the box, a chatbot has never seen LCARdS. It guesses option names, and LCARdS silently ignores the guesses.
-- The skill gives Claude the real options, presets, colours, docs, gallery dashboards and config checker for your LCARdS version.
+- The skill gives Claude the real options, presets, colours, docs, gallery dashboards and config checker for your LCARdS version, and the astrometrics starters with their settings, so it can link a starter to your entities (a wormhole that opens with a light).
 - The skill is made for Claude. Other assistants can still help if you give them the option list (see [With other assistants](#with-other-assistants)).
 
 ## With Claude (easiest)

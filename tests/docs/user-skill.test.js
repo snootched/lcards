@@ -140,6 +140,31 @@ test('the bundled checker runs on the bundled gallery', () => {
     assert.equal(r.status, 0, r.stdout + r.stderr);
 });
 
+test('the bundled starter tool lists every starter and links a setting to an entity, in YAML the checker accepts', () => {
+    const tool = join(skill, 'scripts/lcards-starter.mjs');
+    const list = spawnSync(process.execPath, [tool, 'list', '--json'], { encoding: 'utf8' });
+    assert.equal(list.status, 0, list.stderr);
+    const ids = JSON.parse(list.stdout).map((s) => s.id);
+    assert.ok(ids.length >= 25 && ids.includes('bajoran_wormhole') && ids.includes('wormhole'), ids.join(', '));
+    // the user's light opens the wormhole by its brightness: the entity reaches every part power drives
+    const built = spawnSync(process.execPath, [tool, 'build', 'bajoran_wormhole', 'power={entity: light.floor_lamp, attribute: brightness_pct}'], { encoding: 'utf8' });
+    assert.equal(built.status, 0, built.stderr);
+    assert.ok((built.stdout.match(/light\.floor_lamp/g) ?? []).length > 10);
+    const dir = mkdtempSync(join(tmpdir(), 'lcards-starter-test-'));
+    const file = join(dir, 'wormhole.yaml');
+    writeFileSync(file, built.stdout);
+    const check = spawnSync(process.execPath, [join(skill, 'scripts/lcards-validate.mjs'), '--strict', file], { encoding: 'utf8' });
+    assert.equal(check.status, 0, check.stdout + check.stderr);
+    // a part added into that card keeps the card and prefixes its ids
+    const part = spawnSync(process.execPath, [tool, 'build', 'planet', 'prefix=bajor', '--into', file], { encoding: 'utf8' });
+    assert.equal(part.status, 0, part.stderr);
+    assert.ok(part.stdout.includes('light.floor_lamp') && /id: bajor_/.test(part.stdout));
+    // mistakes are named, not built
+    const bad = spawnSync(process.execPath, [tool, 'build', 'wormhole', 'power=banana'], { encoding: 'utf8' });
+    assert.notEqual(bad.status, 0);
+    assert.match(bad.stderr, /not an entity id/);
+});
+
 test('the plugin zip is the same skill with a plugin.json for this version', () => {
     const manifest = JSON.parse(readFileSync(join(plugin, '.claude-plugin/plugin.json'), 'utf8'));
     assert.equal(manifest.name, 'lcards');

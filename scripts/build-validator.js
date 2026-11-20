@@ -23,6 +23,10 @@ import { packageFromPath, noticesText } from './lib/third-party.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outArg = process.argv.slice(2).find(a => a.startsWith('--out='));
+// --entry=<script>: bundle another standalone tool the same way (the skill's lcards-starter.mjs)
+const entryArg = process.argv.slice(2).find(a => a.startsWith('--entry='));
+const ENTRY = entryArg ? resolve(entryArg.slice('--entry='.length)) : join(ROOT, 'scripts/lcards-validate.mjs');
+const ENTRY_NAME = ENTRY.split('/').pop();
 const OUT = outArg ? resolve(outArg.slice('--out='.length)) : join(ROOT, 'doc/public/tools/lcards-validate.mjs');
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 const REGISTRIES_MODULE = join(ROOT, 'scripts/lib/registries.js');
@@ -56,12 +60,12 @@ const result = await build({
   }],
   ssr: { noExternal: true, target: 'node' },
   build: {
-    ssr: join(ROOT, 'scripts/lcards-validate.mjs'),
+    ssr: ENTRY,
     outDir: work,
     emptyOutDir: true,
     minify: false,
     target: 'node20',
-    rollupOptions: { output: { format: 'es', entryFileNames: 'lcards-validate.mjs', inlineDynamicImports: true } },
+    rollupOptions: { output: { format: 'es', entryFileNames: ENTRY_NAME, inlineDynamicImports: true } },
   },
 });
 
@@ -75,8 +79,8 @@ for (const output of [result].flat()) {
     }
   }
 }
-const notices = noticesText(packages, { title: `lcards-validate (LCARdS ${pkg.version}): third-party notices`, generator: 'scripts/build-validator.js', hand: false }).replaceAll('*/', '* /');
-const code = readFileSync(join(work, 'lcards-validate.mjs'), 'utf8');
+const notices = noticesText(packages, { title: `${ENTRY_NAME.replace(/\.mjs$/, '')} (LCARdS ${pkg.version}): third-party notices`, generator: 'scripts/build-validator.js', hand: false }).replaceAll('*/', '* /');
+const code = readFileSync(join(work, ENTRY_NAME), 'utf8');
 const shebang = code.startsWith('#!') ? code.slice(0, code.indexOf('\n') + 1) : '';
 
 mkdirSync(dirname(OUT), { recursive: true });
