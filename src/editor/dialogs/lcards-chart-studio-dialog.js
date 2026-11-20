@@ -308,10 +308,16 @@ export class LCARdSChartStudioDialog extends LitElement {
             }
             .axis-row {
                 display: grid;
-                grid-template-columns: 1.2fr 1fr 1fr 1fr auto auto auto;
+                grid-template-columns: 1.4fr 1fr 1fr 1fr;
                 gap: var(--ha-space-2);
                 align-items: center;
                 margin-bottom: var(--ha-space-2);
+            }
+            .axis-toggles {
+                grid-column: 1 / -1;
+                display: flex;
+                align-items: center;
+                gap: var(--ha-space-4);
             }
             .data-actions {
                 display: flex;
@@ -1154,18 +1160,20 @@ export class LCARdSChartStudioDialog extends LitElement {
                             .selector=${{ number: { mode: 'box', min: 0, max: 6, step: 1 } }}
                             @value-changed=${(e) => patchAxis(index, { decimals: e.detail.value })}>
                         </ha-selector>
-                        <ha-selector .hass=${this.hass} .label=${'Right side'} .value=${axis.opposite ?? false}
-                            .selector=${{ boolean: {} }}
-                            @value-changed=${(e) => patchAxis(index, { opposite: e.detail.value || undefined })}>
-                        </ha-selector>
-                        <ha-selector .hass=${this.hass} .label=${'Shown'} .value=${axis.show ?? true}
-                            .selector=${{ boolean: {} }}
-                            @value-changed=${(e) => patchAxis(index, { show: e.detail.value === false ? false : undefined })}>
-                        </ha-selector>
-                        <ha-icon-button .label=${'Remove axis'}
-                            @click=${() => setAxes(axes.filter((_, i) => i !== index))}>
-                            <ha-icon icon="mdi:delete"></ha-icon>
-                        </ha-icon-button>
+                        <div class="axis-toggles">
+                            <ha-selector .hass=${this.hass} .label=${'Right side'} .value=${axis.opposite ?? false}
+                                .selector=${{ boolean: {} }}
+                                @value-changed=${(e) => patchAxis(index, { opposite: e.detail.value || undefined })}>
+                            </ha-selector>
+                            <ha-selector .hass=${this.hass} .label=${'Shown'} .value=${axis.show ?? true}
+                                .selector=${{ boolean: {} }}
+                                @value-changed=${(e) => patchAxis(index, { show: e.detail.value === false ? false : undefined })}>
+                            </ha-selector>
+                            <ha-icon-button .label=${'Remove axis'}
+                                @click=${() => setAxes(axes.filter((_, i) => i !== index))}>
+                                <ha-icon icon="mdi:delete"></ha-icon>
+                            </ha-icon-button>
+                        </div>
                     </div>
                 `)}
                 <ha-button appearance="outlined"
