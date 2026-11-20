@@ -1,6 +1,6 @@
 <script setup>
-// The showcase recording (scripts/marketing-video.mjs) in the home hero, in place of
-// the logo. WebM first, MP4 for browsers without VP9 (Safari). Muted before it loads
+// The hero video (scripts/hero-video.mjs: a tour of the gallery's sample screens) in
+// the home hero, in place of the logo. WebM first, MP4 for browsers without VP9 (Safari). Muted before it loads
 // and started from onMounted too: browsers only autoplay muted video, and a video
 // Vue creates in the browser (dev server, arriving by a link) can miss `autoplay`.
 import { ref, onMounted } from 'vue'
@@ -20,11 +20,11 @@ onMounted(() => {
     <video
       ref="video"
       muted autoplay loop playsinline preload="auto"
-      :poster="withBase('/gallery/showcase.webp')"
-      title="An empty LCARS view builds itself into a full dashboard, comes alive with a home's sensors and lights, then goes to red alert"
+      :poster="withBase('/gallery/hero.webp')"
+      title="A tour of LCARdS screens: a 3D starship display, a red alert, a palette shift, a master systems display, a classic console and a Picard-era ship profile"
     >
-      <source :src="withBase('/gallery/showcase.webm')" type="video/webm" />
-      <source :src="withBase('/gallery/showcase.mp4')" type="video/mp4" />
+      <source :src="withBase('/gallery/hero.webm')" type="video/webm" />
+      <source :src="withBase('/gallery/hero.mp4')" type="video/mp4" />
     </video>
   </div>
 </template>

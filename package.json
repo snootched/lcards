@@ -33,6 +33,7 @@
     "gallery:shots": "node --no-maglev scripts/dashboard-shots.mjs doc/gallery/dashboards/*.yaml --video",
     "demo:push": "node --no-maglev scripts/demo-push.mjs",
     "video:showcase": "node scripts/marketing-video.mjs --record",
+    "video:hero": "node scripts/hero-video.mjs --record",
     "build:validator": "node scripts/build-validator.js",
     "build:skill": "node scripts/build-user-skill.js",
     "sync:ha-lcars": "node scripts/sync-ha-lcars.js",
