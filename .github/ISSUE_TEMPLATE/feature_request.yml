@@ -56,13 +56,13 @@ body:
 
         Example:
           tap_action_sequence:
-            - action: call-service
-              service: light.turn_off
-            - action: call-service
-              service: light.turn_on
+            - action: perform-action
+              perform_action: light.turn_off
+            - action: perform-action
+              perform_action: light.turn_on
               data: {brightness_pct: 30}
-            - action: call-service
-              service: light.turn_on
+            - action: perform-action
+              perform_action: light.turn_on
               data: {brightness_pct: 100}
     validations:
       required: false
