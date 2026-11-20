@@ -22,7 +22,10 @@ test('a whirlpool nebula draws a swirl of gas, brightest at its middle', async (
         c.width = img.width; c.height = img.height;
         const g = /** @type {CanvasRenderingContext2D} */ (c.getContext('2d'));
         g.drawImage(img, 0, 0);
-        const at = (fx, fy) => { const d = g.getImageData(Math.round(img.width * fx) - 3, Math.round(img.height * fy) - 3, 6, 6).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2]; return s / (d.length / 4) / 3; };
+        // a 36 px patch: the core is mottled gas turning 20 degrees a second, and a
+        // 6 px patch read 54 to 65 depending on which wisp was at the centre that
+        // instant (flaky, 2026-11-19); 36 px reads a steady 97-99
+        const at = (fx, fy) => { const d = g.getImageData(Math.round(img.width * fx) - 18, Math.round(img.height * fy) - 18, 36, 36).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2]; return s / (d.length / 4) / 3; };
         return { middle: at(0.5, 0.5), corner: at(0.05, 0.05) };
     }, shot.toString('base64'));
     expect(lum.middle).toBeGreaterThan(60);
