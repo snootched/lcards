@@ -22,7 +22,9 @@ const sources = walk(join(ROOT, 'src')).map(p => ({ file: relative(ROOT, p), tex
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
 
 // <ha-button ...>label</ha-button>, where attributes may hold ${...} expressions containing '>'.
-const HA_BUTTON = /<ha-button\b((?:\$\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}|[^>])*)>((?:(?!<\/ha-button>)[\s\S]){0,300}?)<\/ha-button>/g;
+// A `$` only matches on its own when it doesn't start `${`, so the two branches never
+// overlap (overlapping branches backtrack exponentially: CodeQL js/redos).
+const HA_BUTTON = /<ha-button\b((?:\$\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}|\$(?!\{)|[^>$])*)>((?:(?!<\/ha-button>)[\s\S]){0,300}?)<\/ha-button>/g;
 
 test('no hand-built dialog footers', () => {
     const hits = [];

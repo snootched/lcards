@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateSupportChecks, parseHaVersion } from '../../src/utils/support-info-format.js';
+import { evaluateSupportChecks, parseHaVersion, formatSupportMarkdown } from '../../src/utils/support-info-format.js';
 
 /** A healthy baseline: HA 2026.11, matching versions, UIX + HA-LCARS, admin backend OK. */
 function healthy(overrides = {}) {
@@ -134,4 +134,15 @@ test('custom:layout-card installed: an info check pointing at the LCARdS Layout 
     const lcardsOnly = healthy();
     lcardsOnly.backend.data.resources.entries = [{ url: '/lcards/lcards-layout-card.js' }];
     assert.equal(byId(evaluateSupportChecks(lcardsOnly), 'layout_card'), undefined);
+});
+
+test('markdown table cells escape backslashes before pipes, so a value cannot add a column', () => {
+    // A value ending in a backslash used to turn the following `\|` back into a column break
+    // (CodeQL js/incomplete-sanitization).
+    const md = formatSupportMarkdown({ lcards: { version: 'v1\\' }, ha: { version: 'a|b\\|c' } }, []);
+    const row = (label) => md.split('\n').find((l) => l.startsWith(`| ${label} |`));
+    const columns = (line) => line.split(/(?<!\\)\|/).length - 2; // unescaped pipes
+    assert.equal(row('LCARdS (browser)'), '| LCARdS (browser) | v1\\\\ (-) |');
+    assert.equal(row('Home Assistant'), '| Home Assistant | a\\|b\\\\\\|c |');
+    assert.equal(columns(row('Home Assistant')), 2);
 });

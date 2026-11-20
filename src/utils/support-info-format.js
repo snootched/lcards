@@ -156,7 +156,8 @@ const STATUS_ICON = { ok: '✅', warn: '⚠️', error: '❌', info: 'ℹ️' };
 
 function cell(v) {
     if (v === null || v === undefined || v === '') return '-';
-    return String(v).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+    // Backslashes first, or a value ending in `\` would undo the `\|` after it
+    return String(v).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 }
 
 /**
