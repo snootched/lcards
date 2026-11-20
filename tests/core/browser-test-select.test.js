@@ -77,4 +77,8 @@ test('the grep matches Playwright\'s "<project> <file> <title>" strings for the 
     assert.ok(!grep.test('component cards.spec.js button: state change switches the state colour'));
     assert.ok(!grep.test('component msd-undo.spec.js undo'));
     assert.ok(!grep.test('component alert-slider-thing.spec.js x'), 'a spec name inside another does not match');
+    // the round trips run a card's own fixtures only
+    assert.ok(grep.test('component editor-roundtrip.spec.js slider-ring: the editor keeps every key'));
+    assert.ok(grep.test('component studio-roundtrip.spec.js elbow-bar-slant: the studio keeps every key'));
+    assert.ok(!grep.test('component editor-roundtrip.spec.js button-lozenge: the editor keeps every key'));
 });

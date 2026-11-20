@@ -11,7 +11,8 @@
  *   full suite. That is the safe default; CI runs the full suite on every push and
  *   pull request anyway.
  * - A card's own files run its area: the spec files matching AREAS[area].specs and
- *   the cards.spec.js tests whose title matches AREAS[area].cards.
+ *   the cards.spec.js, editor-roundtrip.spec.js and studio-roundtrip.spec.js tests whose
+ *   title matches AREAS[area].cards (each titled by its fixture).
  * - Files the bundle never sees (docs, Python, reports, build scripts) run nothing
  *   beyond ALWAYS.
  */
@@ -171,6 +172,8 @@ export function grepFor(sel) {
     const parts = [];
     if (sel.specs.length) parts.push(`(?:^| )(?:${sel.specs.map(escape).join('|')}) `);
     const titles = [...sel.cards, ...sel.fixtures.map((f) => `${escape(f)}: `)];
-    if (titles.length) parts.push(`(?:^| )cards\\.spec\\.js (?:${titles.join('|')})`);
+    // cards.spec.js and the editor and studio round trips title each test by its fixture
+    // ("elbow-bar-slant: ..."), so one card's area runs only its own fixtures there
+    if (titles.length) parts.push(`(?:^| )(?:cards|editor-roundtrip|studio-roundtrip)\\.spec\\.js (?:${titles.join('|')})`);
     return parts.length ? parts.join('|') : null;
 }

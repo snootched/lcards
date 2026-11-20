@@ -10,7 +10,8 @@
  * with a zone in UTC digits as local time.
  *
  * Every chart, data grid, MSD and layout card fixture runs; the astrometrics ones are a
- * varied set (all 49 take ten minutes). Runs only with the full suite.
+ * varied set (all 49 take ten minutes). test:browser:changed runs a card's own fixtures here
+ * when its files change; the full suite runs them all.
  */
 import { test, expect } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';

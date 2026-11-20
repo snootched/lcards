@@ -6,7 +6,8 @@
  * the sweep's first run found the segmented elbow showing `bar_width: theme` as 90 px).
  *
  * Allowed: keys an edit only adds (the value the control showed), and the equivalent
- * forms below. Runs only with the full suite (scripts/lib/browser-test-select.js).
+ * forms below. test:browser:changed runs a card's own fixtures here when its files change,
+ * and all of them with the full suite (scripts/lib/browser-test-select.js).
  */
 import { test, expect } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
