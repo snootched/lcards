@@ -27,6 +27,7 @@ import {
     backgroundAnimationSchema,
     entitySchema,
     stateColorSchema,
+    stateFillSchema,
     animationSchema,
 } from './common-schemas.js';
 
@@ -280,8 +281,8 @@ export function getMsdSchema() {
                   description: 'Dash pattern offset'
                 },
                 fill: {
-                  ...stateColorSchema,
-                  description: 'Fill color: a literal/token/CSS value, or a state-color object resolved against `entity` (same state-color pipeline as `color`). Only visible on closed shapes (rect, circle, closed polyline).'
+                  ...stateFillSchema,
+                  description: 'Fill color: a literal/token/CSS value, or a state-color object resolved against `entity` (same state-color pipeline as `color`). `none` (the default) paints nothing and lets taps through, unlike `transparent`. Only visible on closed shapes (rect, circle, closed polyline).'
                 },
                 fill_opacity: {
                   type: 'number',

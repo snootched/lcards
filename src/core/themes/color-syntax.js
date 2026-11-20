@@ -104,6 +104,13 @@ export const COLOR_VALUE_PATTERN =
     `|(${fnAlternation(CSS_COLOR_FUNCTIONS)})\\(` +
     `|(${fnAlternation(COMPUTED_COLOR_FUNCTIONS)})\\()`;
 
+/**
+ * The schema `pattern` for an SVG fill: every colour, plus `none` (no fill: the
+ * inside of the shape is not painted and does not catch taps, unlike `transparent`).
+ * Only for fills; a stroke or text colour of `none` would draw nothing.
+ */
+export const FILL_VALUE_PATTERN = '^none$|' + COLOR_VALUE_PATTERN;
+
 /** @param {*} value @returns {boolean} True for a computed colour expression (`darken(...)` etc.). */
 export function isComputedColor(value) {
     return typeof value === 'string' && COMPUTED_COLOR_RE.test(value);

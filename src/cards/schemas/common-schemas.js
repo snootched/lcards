@@ -9,7 +9,7 @@
 import { ANIMATION_PRESET_PARAMS_SCHEMAS, ANIMATION_PRESET_PARAMS_SCHEMAS_MAPRANGE_AWARE } from './animation-preset-params-schemas.js';
 import { BACKGROUND_ANIMATION_PARAMS_SCHEMAS_REACTIVE_AWARE } from './background-animation-params-schemas.js';
 import { FILTER_PARAMS_SCHEMAS } from './filter-params-schemas.js';
-import { COLOR_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
+import { COLOR_VALUE_PATTERN, FILL_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
 
 // ============================================================================
 // COLOR VALUE PRIMITIVES
@@ -764,6 +764,24 @@ export const stateColorSchema = {
         },
     ],
 };
+
+/**
+ * State-colour schema for an SVG fill: as stateColorSchema, but `none` is also
+ * accepted (plain or in a state map), as the MSD shape renderer passes it through.
+ */
+export const stateFillSchema = withFillPattern(stateColorSchema);
+
+/**
+ * A copy of a schema with every colour pattern swapped for the fill pattern.
+ * @param {any} node
+ * @returns {any}
+ */
+function withFillPattern(node) {
+    if (Array.isArray(node)) return node.map(withFillPattern);
+    if (!node || typeof node !== 'object') return node;
+    return Object.fromEntries(Object.entries(node).map(([k, v]) =>
+        [k, k === 'pattern' && v === COLOR_VALUE_PATTERN ? FILL_VALUE_PATTERN : withFillPattern(v)]));
+}
 
 /**
  * State-icon schema — icon name (string) or per-state icon map.

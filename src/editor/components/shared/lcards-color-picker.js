@@ -1922,7 +1922,7 @@ export class LCARdSColorPicker extends LitElement {
      * @private
      */
     _getTriggerLabel() {
-        if (!this.value) return '(None)';
+        if (!this.value || this.value === 'none') return '(None)'; // SVG fill: none
         const { color } = this._parseIncomingValue(this.value);
         if (color === 'transparent') return 'Transparent';
         if (color === 'match-light') return 'Match Light Colour';

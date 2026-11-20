@@ -185,6 +185,17 @@ test('segmented elbow segments take what the card reads: entity_id, actions, out
     ])), []);
 });
 
+test('an MSD shape fill takes none (plain or in a state map), as the renderer does; a stroke colour does not', () => {
+    const msd = (style) => ({ type: 'custom:lcards-msd-card', msd: { base_svg: { source: 'none' }, view_box: [0, 0, 100, 100], overlays: [
+        { id: 's', type: 'shape', kind: 'polyline', points: [[0, 0], [50, 50]], style },
+    ] } });
+    // an old config (2026-11-20): fill: { default: none } on an open polyline
+    assert.deepEqual(messages(check(msd({ color: 'var(--lcars-pearl)', width: 12, fill: { default: 'none' } }))), []);
+    assert.deepEqual(messages(check(msd({ fill: 'none' }))), []);
+    assert.deepEqual(messages(check(msd({ fill: 'transparent' }))), []);
+    assert.ok(messages(check(msd({ color: 'none' }))).length > 0, 'none is a fill value only');
+});
+
 test('a nebula takes color (the runtime reads it when colors is not set), like a belt', () => {
     assert.deepEqual(messages(check({ type: 'custom:lcards-astrometrics-card', objects: [
         { type: 'nebula', color: 'var(--lcars-blue)' },
