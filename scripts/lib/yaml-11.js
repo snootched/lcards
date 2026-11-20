@@ -84,3 +84,39 @@ export function yaml11Message(d) {
   }
   return `Home Assistant's code editor reads ${JSON.stringify(d.yaml12)} here as ${JSON.stringify(d.yaml11)}: quote the value`;
 }
+
+/**
+ * Plain numbers written with a leading zero (`08`, `0123`): YAML reads them as numbers,
+ * so the zero is lost (`value: 08` shows 8) and, in Home Assistant's YAML 1.1 editor,
+ * all-octal digits change the value (`010` is 8; that case is also a yaml11Differences
+ * entry). A row code or registry number wants the text: quote it.
+ * @param {string} text
+ * @returns {{ path: string, source: string }[]}
+ */
+export function leadingZeroNumbers(text) {
+  let doc;
+  try {
+    doc = YAML.parseDocument(text, { version: '1.2', schema: 'core', customTags, logLevel: 'silent' });
+  } catch {
+    return [];
+  }
+  /** @type {{ path: string, source: string }[]} */
+  const out = [];
+  /** @param {any} node @param {string} at */
+  const walk = (node, at) => {
+    if (YAML.isMap(node)) {
+      for (const pair of node.items) walk(pair.value, join(at, String(YAML.isScalar(pair.key) ? pair.key.value : pair.key)));
+    } else if (YAML.isSeq(node)) {
+      node.items.forEach((item, i) => walk(item, join(at, String(i))));
+    } else if (YAML.isScalar(node) && node.type === 'PLAIN' && typeof node.source === 'string' && /^[-+]?0\d+$/.test(node.source)) {
+      out.push({ path: at || '(root)', source: node.source });
+    }
+  };
+  if (!doc.errors?.length) walk(doc.contents, '');
+  return out;
+}
+
+/** The checker's message for a leading-zero number. */
+export function leadingZeroMessage(/** @type {{ source: string }} */ d) {
+  return `${d.source} reads as the number ${Number(d.source)}, so the leading zero is lost: quote it ('${d.source}') to keep the text`;
+}

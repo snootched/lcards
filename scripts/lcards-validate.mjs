@@ -31,7 +31,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
-import { yaml11Differences, yaml11Message } from './lib/yaml-11.js';
+import { yaml11Differences, yaml11Message, leadingZeroNumbers, leadingZeroMessage } from './lib/yaml-11.js';
 import { getSchemaEntries } from './lib/card-schemas.js';
 import { createConfigValidator } from './lib/config-validator.js';
 
@@ -90,8 +90,14 @@ export async function validateTexts(inputs) {
       continue;
     }
     // Pasted into Home Assistant's code editor, a bare y / on / N means something else
-    for (const d of yaml11Differences(text)) {
+    const differ = yaml11Differences(text);
+    for (const d of differ) {
       out.push({ file: name, path: d.path, tag: '', severity: 'warning', code: 'yaml-1.1', message: yaml11Message(d) });
+    }
+    // 08 shows as 8; an all-octal 010 is already a yaml-1.1 warning above
+    const reported = new Set(differ.map(d => d.path));
+    for (const d of leadingZeroNumbers(text)) {
+      if (!reported.has(d.path)) out.push({ file: name, path: d.path, tag: '', severity: 'warning', code: 'leading-zero', message: leadingZeroMessage(d) });
     }
     for (const issue of checker.validateConfig(config)) {
       // A value from !secret / !include is HA's to resolve; don't judge the placeholder.

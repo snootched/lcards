@@ -95,3 +95,20 @@ test('live-demo starters and gallery tiles mean the same in Home Assistant (YAML
     }
     assert.deepEqual(bad, []);
 });
+
+test('a plain number with a leading zero is reported: its zero is lost (08 shows 8)', async () => {
+    // Found adapting a gallery sample with a script: PyYAML wrote a row code '08' unquoted,
+    // and the data grid showed 8 (2026-11-20).
+    const { leadingZeroNumbers } = await import('../../scripts/lib/yaml-11.js');
+    const text = 'rows:\n  - values:\n      - value: 08\n      - "09"\n      - 0\n      - 12\n      - -007\n';
+    assert.deepEqual(leadingZeroNumbers(text), [
+        { path: 'rows[0].values[0].value', source: '08' },
+        { path: 'rows[0].values[4]', source: '-007' },
+    ]);
+    const { validateTexts } = await import('../../scripts/lcards-validate.mjs');
+    const issues = await validateTexts([{ name: 'x', text: 'type: custom:lcards-button\nid: 0189\n' }]);
+    assert.ok(issues.some((i) => i.code === 'leading-zero' && i.path === 'id'), JSON.stringify(issues));
+    // an all-octal number is already a YAML 1.1 warning: not reported twice
+    const octal = await validateTexts([{ name: 'x', text: 'type: custom:lcards-button\nid: 010\n' }]);
+    assert.equal(octal.filter((i) => i.path === 'id' && i.severity === 'warning').length, 1);
+});
