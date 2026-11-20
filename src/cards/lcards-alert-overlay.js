@@ -104,6 +104,13 @@ export class LCARdSAlertOverlay extends LitElement {
 
     set hass(value) {
         this._hass = value;
+        // The content card lives in the portal, not under this element, so
+        // nothing else hands it this snapshot until the core's global feed
+        // polls <home-assistant> (up to GLOBAL_HASS_POLL_MS later). Push it
+        // straight to the portal while this overlay owns a showing alert.
+        if (!this._isSuppressed && this._isActive && !this._isDismissed) {
+            window.lcards?.core?.portalOverlayManager?.updateHass(value);
+        }
     }
 
     get hass() {

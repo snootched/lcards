@@ -61,6 +61,33 @@ test('a configured width still wins, and the symbol keeps its aspect ratio', asy
     await expectNoErrors(page);
 });
 
+// The content card lives in the portal, so only the overlay's own hass setter can
+// hand it a new snapshot at once (the core's global feed polls up to 500 ms later).
+// Checked in the same step as the assignment, so the poll can't be what passes it.
+test('a showing alert hands each new hass to its content card in the same tick', async ({ page }) => {
+    await mountCase(page, 'button-lozenge');
+    await page.evaluate(() => {
+        if (customElements.get('alert-hass-probe')) return;
+        customElements.define('alert-hass-probe', class extends HTMLElement {
+            setConfig(config) { this.config = config; }
+        });
+    });
+    await mountOverlay(page, { conditions: { red_alert: { content: { type: 'custom:alert-hass-probe' } } } });
+    await raiseAlert(page);
+    await expect.poll(() => page.evaluate(() =>
+        window.lcards.core.portalOverlayManager._slots.get('alert-overlay')?.contentElement?.isConnected,
+    )).toBe(true);
+
+    const sameTick = await page.evaluate(() => {
+        window.__setState('sensor.alert_content_probe', 'updated');
+        window.__overlay.hass = window.__hass;
+        const el = window.lcards.core.portalOverlayManager._slots.get('alert-overlay').contentElement;
+        return el.hass === window.__hass && el.hass.states['sensor.alert_content_probe']?.state;
+    });
+    expect(sameTick).toBe('updated');
+    await expectNoErrors(page);
+});
+
 // ── Ownership and edit mode (backlog clean-up (2), 2026-11-05) ───────────────
 // One overlay owns the shared portal slot; the orders below each failed before.
 
