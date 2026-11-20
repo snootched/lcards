@@ -308,7 +308,7 @@ export class LCARdSChartStudioDialog extends LitElement {
             }
             .axis-row {
                 display: grid;
-                grid-template-columns: 1.2fr 1fr 1fr auto auto;
+                grid-template-columns: 1.2fr 1fr 1fr 1fr auto auto auto;
                 gap: var(--ha-space-2);
                 align-items: center;
                 margin-bottom: var(--ha-space-2);
@@ -853,6 +853,8 @@ export class LCARdSChartStudioDialog extends LitElement {
 
                 ${this._renderTimeAndAxes()}
 
+                ${this._renderStateBands()}
+
                 ${this._renderDataSourceHelp()}
             </div>
         `;
@@ -1121,6 +1123,14 @@ export class LCARdSChartStudioDialog extends LitElement {
                         .selector=${{ text: { placeholder: '-1d' } }}
                         @value-changed=${(e) => this._updateConfig('span.offset', e.detail.value)}>
                     </ha-selector>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Sync group'}
+                        .helper=${'Charts with the same name share a hover cursor and zoom'}
+                        .value=${config.sync_group ?? ''}
+                        .selector=${{ text: { placeholder: 'climate' } }}
+                        @value-changed=${(e) => this._updateConfig('sync_group', e.detail.value || undefined)}>
+                    </ha-selector>
                 </div>
 
                 <h4>Y axes</h4>
@@ -1140,9 +1150,17 @@ export class LCARdSChartStudioDialog extends LitElement {
                             .selector=${{ number: { mode: 'box', step: 'any' } }}
                             @value-changed=${(e) => patchAxis(index, { max: e.detail.value })}>
                         </ha-selector>
+                        <ha-selector .hass=${this.hass} .label=${'Decimals'} .value=${axis.decimals}
+                            .selector=${{ number: { mode: 'box', min: 0, max: 6, step: 1 } }}
+                            @value-changed=${(e) => patchAxis(index, { decimals: e.detail.value })}>
+                        </ha-selector>
                         <ha-selector .hass=${this.hass} .label=${'Right side'} .value=${axis.opposite ?? false}
                             .selector=${{ boolean: {} }}
                             @value-changed=${(e) => patchAxis(index, { opposite: e.detail.value || undefined })}>
+                        </ha-selector>
+                        <ha-selector .hass=${this.hass} .label=${'Shown'} .value=${axis.show ?? true}
+                            .selector=${{ boolean: {} }}
+                            @value-changed=${(e) => patchAxis(index, { show: e.detail.value === false ? false : undefined })}>
                         </ha-selector>
                         <ha-icon-button .label=${'Remove axis'}
                             @click=${() => setAxes(axes.filter((_, i) => i !== index))}>
@@ -1154,6 +1172,77 @@ export class LCARdSChartStudioDialog extends LitElement {
                     @click=${() => setAxes([...axes, { id: `axis_${axes.length + 1}`, ...(axes.length ? { opposite: true } : {}) }])}>
                     <ha-icon icon="mdi:plus" slot="start"></ha-icon>
                     Add Y axis
+                </ha-button>
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * State bands (state_bands[]): an entity's states shaded behind the series.
+     * Time charts only; the list is shown for every type with a note.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderStateBands() {
+        const bands = Array.isArray(this._workingConfig.state_bands) ? this._workingConfig.state_bands : [];
+        const setBands = (next) => this._updateConfig('state_bands', next.length ? next : undefined);
+        const patch = (index, change) => setBands(bands.map((b, i) => {
+            if (i !== index) return b;
+            const merged = { ...b, ...change };
+            return Object.fromEntries(Object.entries(merged).filter(([, v]) => v !== undefined && v !== '' && v !== null));
+        }));
+        return html`
+            <lcards-form-section header="State bands" icon="mdi:texture-box"
+                description="Shade the times an entity was in a state (a thermostat heating) behind the series. Time charts only."
+                ?expanded=${bands.length > 0}>
+                ${bands.map((band, index) => html`
+                    <lcards-form-section header=${band.entity || `Band ${index + 1}`} icon="mdi:texture-box" nested outlined ?expanded=${true}>
+                        <ha-selector .hass=${this.hass} .label=${'Entity'} .value=${band.entity ?? ''}
+                            .selector=${{ entity: {} }}
+                            @value-changed=${(e) => patch(index, { entity: e.detail.value })}>
+                        </ha-selector>
+                        <ha-selector .hass=${this.hass} .label=${'Attribute'} .value=${band.attribute ?? ''}
+                            .helper=${'Shade an attribute instead of the state, e.g. hvac_action'}
+                            .selector=${{ attribute: { entity_id: band.entity } }}
+                            @value-changed=${(e) => patch(index, { attribute: e.detail.value })}>
+                        </ha-selector>
+                        <ha-selector .hass=${this.hass} .label=${'States'} .value=${band.states ?? ['active']}
+                            .helper=${'Exact states (heat, playing) or active, inactive, unavailable. Default: active'}
+                            .selector=${{ select: { multiple: true, custom_value: true, options: ['active', 'inactive', 'unavailable'] } }}
+                            @value-changed=${(e) => {
+                                const v = e.detail.value;
+                                patch(index, { states: Array.isArray(v) && v.length && !(v.length === 1 && v[0] === 'active') ? v : undefined });
+                            }}>
+                        </ha-selector>
+                        <ha-selector .hass=${this.hass} .label=${'Minimum duration'} .value=${band.min_duration ?? ''}
+                            .helper=${'Shorter states join the run before them, e.g. 30s, 5min'}
+                            .selector=${{ text: {} }}
+                            @value-changed=${(e) => patch(index, { min_duration: e.detail.value })}>
+                        </ha-selector>
+                        <label class="field-label">Colour</label>
+                        <div class="hint">Blank: the theme's state colours, as Home Assistant's history uses</div>
+                        <lcards-color-picker .hass=${this.hass}
+                            .value=${typeof band.color === 'string' ? band.color : ''}
+                            @value-changed=${(e) => patch(index, { color: e.detail.value })}>
+                        </lcards-color-picker>
+                        ${band.color && typeof band.color === 'object' ? html`<div class="hint">A colour per state is set in YAML; picking one here replaces it.</div>` : ''}
+                        <ha-selector .hass=${this.hass} .label=${'Opacity'} .value=${band.opacity ?? 0.2}
+                            .selector=${{ number: { mode: 'slider', min: 0, max: 1, step: 0.05 } }}
+                            @value-changed=${(e) => patch(index, { opacity: e.detail.value === 0.2 ? undefined : e.detail.value })}>
+                        </ha-selector>
+                        <ha-selector .hass=${this.hass} .label=${'Write the state on each band'} .value=${band.label ?? false}
+                            .selector=${{ boolean: {} }}
+                            @value-changed=${(e) => patch(index, { label: e.detail.value || undefined })}>
+                        </ha-selector>
+                        <ha-button variant="danger" appearance="plain" @click=${() => setBands(bands.filter((_, i) => i !== index))}>
+                            <ha-icon icon="mdi:delete" slot="start"></ha-icon>
+                            Remove band
+                        </ha-button>
+                    </lcards-form-section>
+                `)}
+                <ha-button appearance="outlined" @click=${() => setBands([...bands, { entity: '' }])}>
+                    <ha-icon icon="mdi:plus" slot="start"></ha-icon>
+                    Add state band
                 </ha-button>
             </lcards-form-section>
         `;
@@ -1563,10 +1652,6 @@ export class LCARdSChartStudioDialog extends LitElement {
                 })}
 
                 ${showGrid ? html`
-                    ${FormField.renderField(this, 'style.grid.opacity', {
-                        label: 'Grid Opacity'
-                    })}
-
                     ${this._renderColorList('style.grid.row_colors', 'Grid Row Colors', 'Alternating row background colors')}
                     ${this._renderColorList('style.grid.column_colors', 'Grid Column Colors', 'Alternating column background colors')}
                 ` : ''}

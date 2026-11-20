@@ -52,6 +52,27 @@ export const PICARD_OPTIONS = [
                     }
                 }
             }
+        },
+        {
+            key: 'style.range.border.gap',
+            type: 'number',
+            default: 2,
+            description: 'Space between two range bands, in px: each band sits in a frame of the range border colour',
+            'x-ui-hints': {
+                label: 'Range Band Gap',
+                helper: 'Space between two range bands, in px (default: 2)',
+                selector: { number: { mode: 'box', step: 1, min: 0, max: 20, unit_of_measurement: 'px' } }
+            }
+        },
+        {
+            key: 'style.range.border.color',
+            type: 'color',
+            description: 'Colour of the frame round each range band',
+            'x-ui-hints': {
+                label: 'Range Band Frame Colour',
+                helper: 'Colour of the frame round each range band (default: the theme range border colour)',
+                format: 'color-lcards'
+            }
         }
     ];
 

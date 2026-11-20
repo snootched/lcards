@@ -113,7 +113,7 @@ const TABS = {
 
 
 /** Overlay keys the shape form writes (anything else is kept on save). */
-const SHAPE_FORM_KEYS = new Set(['type', 'id', 'kind', 'points', 'closed', 'position', 'size', 'z_index', 'locked',
+const SHAPE_FORM_KEYS = new Set(['type', 'id', 'kind', 'points', 'closed', 'position', 'size', 'z_index', 'locked', 'obstacle',
     'entity', 'state_attribute', 'ranges_attribute', 'animations', 'corner_style', 'corner_radius', 'corner_angle',
     'smoothing_mode', 'smoothing_iterations', 'style', '_editorSelected']);
 /** `style` keys the shape form writes. */
@@ -509,7 +509,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             corner_radius: 8,
             corner_angle: 45,
             smoothing_mode: 'none',
-            smoothing_iterations: 0,
+            smoothing_iterations: 1,
             animations: [],
             style: {
                 color: { default: 'var(--lcars-orange)' },
@@ -10761,6 +10761,22 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </svg>
                 `
             },
+            angled: {
+                title: 'Angled (Leader Line)',
+                icon: 'mdi:vector-polyline',
+                description: 'A short straight stub out of the anchor side (and into the attach side when set), then one straight run at any angle between them, like a callout leader line. No pathfinding: obstacles and other lines are ignored. Stub length: stub_length.',
+                diagram: html`
+                    <svg viewBox="0 0 200 80" style="width: 100%; height: auto;">
+                        <!-- Source -->
+                        <rect x="10" y="45" width="30" height="30" fill="var(--lcars-blue)" rx="4"/>
+                        <!-- Target -->
+                        <rect x="160" y="5" width="30" height="30" fill="var(--lcars-green)" rx="4"/>
+                        <!-- Stub, angled run, stub -->
+                        <path d="M 40 60 L 60 60 L 140 20 L 160 20"
+                              stroke="var(--lcars-orange)" stroke-width="3" fill="none"/>
+                    </svg>
+                `
+            },
             manual: {
                 title: 'Manual (Custom Waypoints)',
                 icon: 'mdi:map-marker-path',
@@ -13655,7 +13671,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             corner_radius: kind === 'rect' ? 8 : 34,
             corner_angle: 45,
             smoothing_mode: 'none',
-            smoothing_iterations: 0,
+            smoothing_iterations: 1,
             animations: [],
             style: {
                 color: { default: 'var(--lcars-orange)' },
@@ -13708,11 +13724,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
             ranges_attribute: shape.ranges_attribute || '',
             z_index: shape.z_index ?? null,
             locked: shape.locked === true,
+            obstacle: shape.obstacle === true,
             corner_style: shape.corner_style || 'round',
             corner_radius: shape.corner_radius ?? (shape.kind === 'rect' ? 8 : 34),
             corner_angle: shape.corner_angle ?? 45,
             smoothing_mode: shape.smoothing_mode || 'none',
-            smoothing_iterations: shape.smoothing_iterations || 0,
+            smoothing_iterations: shape.smoothing_iterations || 1,
             animations: shape.animations || [],
             style: {
                 color: normalizedColor,
@@ -13798,7 +13815,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             if (formData.smoothing_mode && formData.smoothing_mode !== 'none') {
                 fields.smoothing_mode = formData.smoothing_mode;
             }
-            if (formData.smoothing_iterations != null && formData.smoothing_iterations !== 0) {
+            if (formData.smoothing_iterations != null && formData.smoothing_iterations !== 1) { // 1: the router's default with a smoothing mode
                 fields.smoothing_iterations = formData.smoothing_iterations;
             }
         }
@@ -13873,6 +13890,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         if (this._shapeFormData.z_index != null) {
             shapeOverlay.z_index = this._shapeFormData.z_index;
+        }
+        if (this._shapeFormData.obstacle && kind !== 'polyline') {
+            shapeOverlay.obstacle = true;
         }
         if (this._shapeFormData.locked) {
             shapeOverlay.locked = true;
@@ -14189,6 +14209,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     { value: 'bundling', label: 'Bundling (Trunk-and-Branch)' },
                                     { value: 'crossing', label: 'Crossing Avoidance' },
                                     { value: 'direct', label: 'Direct (Straight Line)' },
+                                    { value: 'angled', label: 'Angled (Leader Line)' },
                                     { value: 'manual', label: 'Manual (Custom Waypoints)' }
                                 ]
                             }
@@ -14353,6 +14374,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             .label=${'Bundling Pull'}
                             @value-changed=${(e) => this._updateRoutingConfig('trunk_bundle_weight', e.detail.value)}
                             helper="How strongly joining a bundle is rewarded (default: 0.5)">
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 0, step: 10, mode: 'box' } }}
+                            .value=${routing.trunk_bundle_discount_cap}
+                            .label=${'Bundling Reward Cap'}
+                            @value-changed=${(e) => this._updateRoutingConfig('trunk_bundle_discount_cap', e.detail.value)}
+                            helper="Longest stretch of a bundle that earns the reward, so a long detour along one never pays (default: 150)">
                         </ha-selector>
                         <ha-selector
                             .hass=${this.hass}
@@ -15351,7 +15380,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             corner_room_weight: undefined, // Will use the card-wide routing.corner_room_weight default
             corner_angle: 45,
             smoothing_mode: 'none',
-            smoothing_iterations: 0,
+            smoothing_iterations: 1,
             // Channel routing
             route_channels: [],
             channel_mode: 'prefer',
@@ -15419,7 +15448,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             corner_room_weight: line.corner_room_weight,
             corner_angle: line.corner_angle ?? 45,
             smoothing_mode: line.smoothing_mode || 'none',
-            smoothing_iterations: line.smoothing_iterations || 0,
+            smoothing_iterations: line.smoothing_iterations || 1,
             // Channel routing
             route_channels: line.route_channels || [],
             // Animations
@@ -15502,7 +15531,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (formData.smoothing_mode && formData.smoothing_mode !== 'none') {
             fields.smoothing_mode = formData.smoothing_mode;
         }
-        if (formData.smoothing_iterations != null && formData.smoothing_iterations !== 0) {
+        if (formData.smoothing_iterations != null && formData.smoothing_iterations !== 1) { // 1: the router's default with a smoothing mode
             fields.smoothing_iterations = formData.smoothing_iterations;
         }
 
@@ -15980,6 +16009,27 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </ha-input>
                 </lcards-form-section>
 
+                ${this._shapeFormData.kind !== 'polyline' ? html`
+                    <lcards-form-section
+                        header="Routing"
+                        description="Whether routed lines go round this shape"
+                        icon="mdi:sign-direction"
+                        secondary=${this._shapeFormData.obstacle ? 'Obstacle' : 'Lines pass over'}
+                        ?expanded=${this._shapeFormData.obstacle === true}>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Treat as obstacle for line routing'}
+                            .helper=${'When enabled, lines with route: auto go round this shape'}
+                            .selector=${{ boolean: {} }}
+                            .value=${this._shapeFormData.obstacle === true}
+                            @value-changed=${(e) => {
+                                this._shapeFormData = { ...this._shapeFormData, obstacle: e.detail.value };
+                                this.requestUpdate();
+                            }}>
+                        </ha-selector>
+                    </lcards-form-section>
+                ` : ''}
+
                 <lcards-form-section
                     header="Editor Lock"
                     description="Prevent accidental drag/resize on the MSD Studio canvas"
@@ -16387,8 +16437,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             ${(this._shapeFormData.smoothing_mode === 'chaikin') ? html`
                                 <ha-selector
                                     .hass=${this.hass}
-                                    .selector=${{ number: { min: 0, max: 5, step: 1, mode: 'slider' } }}
-                                    .value=${this._shapeFormData.smoothing_iterations || 0}
+                                    .selector=${{ number: { min: 1, max: 5, step: 1, mode: 'slider' } }}
+                                    .value=${this._shapeFormData.smoothing_iterations || 1}
                                     .label=${'Smoothing Iterations'}
                                     @value-changed=${(e) => {
                                         this._shapeFormData = { ...this._shapeFormData, smoothing_iterations: e.detail.value };
@@ -18422,14 +18472,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             ${(this._lineFormData.smoothing_mode === 'chaikin') ? html`
                                 <ha-selector
                                     .hass=${this.hass}
-                                    .selector=${{ number: { min: 0, max: 5, step: 1, mode: 'slider' } }}
-                                    .value=${this._lineFormData.smoothing_iterations || 0}
+                                    .selector=${{ number: { min: 1, max: 5, step: 1, mode: 'slider' } }}
+                                    .value=${this._lineFormData.smoothing_iterations || 1}
                                     .label=${'Smoothing Iterations'}
                                     @value-changed=${(e) => {
                                         this._lineFormData.smoothing_iterations = e.detail.value;
                                         this.requestUpdate();
                                     }}
-                                    helper="More iterations = smoother curves (default: 0)"
+                                    helper="More iterations = smoother curves (default: 1)"
                                     style="margin-top: 12px;">
                                 </ha-selector>
                             ` : ''}

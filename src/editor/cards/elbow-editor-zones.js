@@ -18,16 +18,25 @@ const FRAME_SIDES = [['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['r
  */
 export function elbowEditorZones(elbowCfg = {}) {
     return {
-        body: elbowCfg.type === 'frame' ? 'Body (interior)' : 'Body (open area)',
+        body: elbowCfg.type === 'frame' ? 'Body (interior)'
+            : isBarType(elbowCfg.type) ? 'Body (the bar)' : 'Body (open area)',
         full: 'Full (entire card)',
         ...shapeZones(elbowCfg),
     };
+}
+
+/** The straight bar types (bar-slant-*, bar-parallelogram): the card is the bar. */
+function isBarType(type) {
+    return String(type || '').startsWith('bar-');
 }
 
 /** The bar and side zones for the elbow's shape. */
 function shapeZones(elbowCfg) {
     const type  = elbowCfg.type  || 'header-left';
     const style = elbowCfg.style || 'simple';
+
+    // Bar types have only full and body (the bar itself), as the card builds them
+    if (isBarType(type)) return {};
 
     // Frame: one zone per drawn side. Sides live at elbow.frame.<side> and are on
     // unless `enabled: false` (lcards-elbow.js _validateElbowConfig); a side drawn

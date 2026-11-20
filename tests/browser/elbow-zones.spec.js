@@ -21,6 +21,9 @@ const CASES = [
     ['simple header-open', { type: 'custom:lcards-elbow', elbow: { type: 'header-open', segment: { bar_height: 20 } } }],
     ['simple footer-contained', { type: 'custom:lcards-elbow', elbow: { type: 'footer-contained', segment: { bar_width: 60, bar_height: 20 } } }],
     ['simple diagonal-cap-left', { type: 'custom:lcards-elbow', elbow: { type: 'diagonal-cap-left', segment: { bar_width: 90, bar_height: 20 } } }],
+    ['bar-slant-right', { type: 'custom:lcards-elbow', elbow: { type: 'bar-slant-right', segment: { diagonal_angle: 30 } } }],
+    ['bar-slant-left', { type: 'custom:lcards-elbow', elbow: { type: 'bar-slant-left' } }],
+    ['bar-parallelogram', { type: 'custom:lcards-elbow', elbow: { type: 'bar-parallelogram' } }],
     ['segmented header-left', { type: 'custom:lcards-elbow', elbow: { type: 'header-left', style: 'segmented', segments: { gap: 4, outer_segment: { bar_width: 90, bar_height: 20 }, inner_segment: { bar_width: 30, bar_height: 10 } } } }],
 ];
 

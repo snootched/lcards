@@ -235,6 +235,10 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                 ${FormField.renderField(this.editor, 'text.default.font_family', {
                     label: 'Font Family'
                 })}
+
+                ${FormField.renderField(this.editor, 'text.default.letter_spacing', {
+                    label: 'Letter Spacing'
+                })}
             </lcards-form-section>
 
             <!-- Alignment Section -->

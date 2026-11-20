@@ -1,6 +1,6 @@
 /**
- * MSD Studio line and shape forms keep the keys they don't manage (tags, a
- * shape's obstacle, style.marker_mid, anything set in YAML) when saving; keys
+ * MSD Studio line and shape forms keep the keys they don't manage (tags,
+ * style.marker_mid, anything set in YAML) when saving; keys
  * they manage and leave out are removed. Before 2026-11-20 _saveLine and
  * _saveShape built a fresh overlay and dropped everything else. Also: the fill
  * picker's (None) row ('') saves no fill instead of an invalid `fill: ''`.
@@ -34,7 +34,7 @@ function fakeStudio(overlays, formProp, formData, editingProp) {
     return studio;
 }
 
-test('saving a shape keeps tags, obstacle and an unmanaged style key; a cleared managed key goes', () => {
+test('saving a shape keeps tags and an unmanaged style key; a cleared managed key goes', () => {
     const existing = {
         type: 'shape', id: 's', kind: 'rect', position: [0, 0], size: [10, 10], obstacle: true, tags: ['hull'],
         entity: 'binary_sensor.door', style: { color: 'var(--lcars-blue)', marker_mid: { type: 'dot' }, fill_opacity: 0.5 },
@@ -43,7 +43,7 @@ test('saving a shape keeps tags, obstacle and an unmanaged style key; a cleared 
         { id: 's', kind: 'rect', position: [5, 5], size: [10, 10], style: { color: 'var(--lcars-orange)', fill: '' } }, '_editingShapeId');
     studio._saveShape();
     const saved = studio._workingConfig.msd.overlays[0];
-    assert.equal(saved.obstacle, true);
+    assert.equal(saved.obstacle, undefined, 'obstacle is a form key now (its toggle was off in this form)');
     assert.deepEqual(saved.tags, ['hull']);
     assert.deepEqual(saved.position, [5, 5]);
     assert.equal(saved.entity, undefined, 'entity cleared in the form');
@@ -65,4 +65,21 @@ test('saving a line keeps tags and marker_mid', () => {
 
 test('a new overlay is just what the form built', () => {
     assert.deepEqual(merge(null, { id: 'x' }, new Set(['id']), new Set()), { id: 'x' });
+});
+
+test("a rect's obstacle toggle saves obstacle: true; a polyline never gets one", () => {
+    let studio = fakeStudio([{ type: 'shape', id: 'r', kind: 'rect' }], '_shapeFormData',
+        { id: 'r', kind: 'rect', position: [0, 0], size: [10, 10], obstacle: true, style: {} }, '_editingShapeId');
+    studio._saveShape();
+    assert.equal(studio._workingConfig.msd.overlays[0].obstacle, true);
+    studio = fakeStudio([{ type: 'shape', id: 'p', kind: 'polyline', obstacle: true }], '_shapeFormData',
+        { id: 'p', kind: 'polyline', points: [[0, 0], [5, 5]], obstacle: true, style: {} }, '_editingShapeId');
+    studio._saveShape();
+    assert.equal(studio._workingConfig.msd.overlays[0].obstacle, undefined);
+});
+
+test('smoothing iterations of 1 (the router default with a smoothing mode) are left out; 3 is saved', () => {
+    const fields = (n) => Studio.prototype._buildShapeStyleFields.call({}, { kind: 'polyline', smoothing_mode: 'chaikin', smoothing_iterations: n, style: {} });
+    assert.equal(fields(1).smoothing_iterations, undefined);
+    assert.equal(fields(3).smoothing_iterations, 3);
 });

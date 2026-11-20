@@ -32,6 +32,8 @@ import '../shared/lcards-message.js';
 import '../shared/lcards-color-picker.js';
 import './lcards-text-field-editor.js';
 import './lcards-position-picker.js';
+import './lcards-color-section-v2.js';
+import '../../dialogs/astro-studio/lcards-astro-schema-form.js';
 import { astrometricsSchema } from '../../../cards/schemas/astrometrics-schema.js';
 import { valueEditor } from '../../dialogs/astro-studio/text-adapter.js';
 
@@ -119,6 +121,41 @@ export const builtinParts = (obj) => {
 };
 
 let pickSeq = 0;
+
+/** A point's keys, for the schema forms below */
+const POINT_PROPS = astrometricsSchema.properties.points.items.properties;
+
+/** The point keys shown as generated forms, by section (the other keys have their own controls above) */
+const POINT_GROUPS = [
+  { header: 'Visibility and distance', icon: 'mdi:map-marker-distance', description: 'When the label and marker show',
+    keys: ['visible', 'opacity', 'fade', 'min_distance', 'max_distance', 'hide_in_systems', 'look', 'below_horizon'] },
+  { header: 'Label placement', icon: 'mdi:layers-outline', description: 'Which label wins when two overlap, and standing off a model at the point',
+    keys: ['priority', 'overlap', 'leader'] },
+  { header: 'Actions and tags', icon: 'mdi:gesture-tap', description: 'Tap and hold, the view a fly-to lands on, and tags for rules',
+    keys: ['tap_action', 'hold_action', 'view', 'tags'] }
+];
+
+/**
+ * A colour state map as saved: `{ default: x }` alone becomes `x`, an empty map nothing.
+ * @param {any} map
+ */
+export function colorOf(map) {
+  if (!map || typeof map !== 'object') return map || undefined;
+  const set = Object.fromEntries(Object.entries(map).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+  const keys = Object.keys(set);
+  if (!keys.length) return undefined;
+  return keys.length === 1 && keys[0] === 'default' ? set.default : set;
+}
+
+/**
+ * A card offset with one axis changed; both unset (or 0) drops it.
+ * @param {any} cur @param {0 | 1} i @param {number | undefined} v
+ */
+export function offsetOf(cur, i, v) {
+  const next = Array.isArray(cur) ? [...cur] : [0, 0];
+  next[i] = v ?? 0;
+  return next[0] || next[1] ? next.map((n) => n ?? 0) : undefined;
+}
 
 export class LCARdSAstroPointsEditor extends LitElement {
   static get properties() {
@@ -581,6 +618,14 @@ export class LCARdSAstroPointsEditor extends LitElement {
           @value-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); patchPin({ position: e.detail.value === 'center-right' ? undefined : e.detail.value }); }}>
         </lcards-position-picker>
         ${this._number('Width (px)', pin.width, (v) => patchPin({ width: v }), { min: 80, max: 1200 })}
+        ${this._number('Height (px)', pin.height, (v) => patchPin({ height: v }), { min: 40 })}
+        ${this._number('Offset x (px)', pin.offset?.[0], (v) => patchPin({ offset: offsetOf(pin.offset, 0, v) }))}
+        ${this._number('Offset y (px)', pin.offset?.[1], (v) => patchPin({ offset: offsetOf(pin.offset, 1, v) }))}
+        <ha-selector .hass=${this.hass} .label=${'Leader line'} .value=${pin.leader === true}
+          .helper=${'A thin line from the point to the card, in the point\'s colour'}
+          .selector=${{ boolean: {} }}
+          @value-changed=${(/** @type {CustomEvent} */ e) => patchPin({ leader: e.detail.value || undefined })}>
+        </ha-selector>
         <div class="card-actions">
           <ha-button appearance="plain" @click=${() => this._chooseCard(index)}>
             <ha-icon icon="mdi:swap-horizontal" slot="start"></ha-icon>Change card
@@ -624,8 +669,19 @@ export class LCARdSAstroPointsEditor extends LitElement {
           @value-changed=${(/** @type {CustomEvent} */ e) => this._patch(index, { entity: e.detail.value || undefined })}>
         </ha-selector>
         <div class="full">
-          ${color && typeof color === 'object'
-            ? html`<div class="hint">Colour by state: edit the map in YAML.</div>`
+          ${(color && typeof color === 'object') || point.entity
+            ? html`<lcards-color-section-v2
+                .editor=${{
+                  hass: this.hass,
+                  config: { entity: point.entity },
+                  _getConfigValue: () => (color && typeof color === 'object' ? color : (color ? { default: color } : {})),
+                  _setConfigValue: (/** @type {string} */ _path, /** @type {any} */ next) => this._patch(index, { color: colorOf(next) })
+                }}
+                basePath="color" .entityId=${point.entity || ''}
+                header="Colour" description="The marker, and the default for the label text. By the point's entity state, else Default."
+                .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                ?allowCustomStates=${true} ?expanded=${true}>
+              </lcards-color-section-v2>`
             : html`<lcards-color-picker .hass=${this.hass} .value=${color ?? ''} .showPreview=${true}
                 @value-changed=${(/** @type {CustomEvent} */ e) => this._patch(index, { color: e.detail.value || undefined })}>
               </lcards-color-picker>`}
@@ -688,6 +744,14 @@ export class LCARdSAstroPointsEditor extends LitElement {
           ?expanded=${!!point.card}>
           ${this._renderCard(point, index)}
         </lcards-form-section>
+        ${POINT_GROUPS.map((g) => html`
+          <lcards-form-section header=${g.header} description=${g.description} icon=${g.icon} nested outlined
+            ?expanded=${g.keys.some((k) => point[k] !== undefined)}>
+            <lcards-astro-schema-form .hass=${this.hass} .schema=${POINT_PROPS} .keys=${g.keys} .value=${point}
+              .pointIds=${this._points.map((p) => p?.id).filter(Boolean)} .units=${this.config?.units ?? ''}
+              @form-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._replace(index, e.detail.value); }}>
+            </lcards-astro-schema-form>
+          </lcards-form-section>`)}
       </lcards-form-section>
     `;
   }

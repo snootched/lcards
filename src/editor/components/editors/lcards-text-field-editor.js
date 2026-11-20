@@ -89,6 +89,62 @@ export class LCARdSTextFieldEditor extends LitElement {
         return this.inherits && this._value(key) === undefined ? inherited : own;
     }
 
+    /**
+     * `fit`: true, or { min_font_size, max_lines, overflow }. A switch, and the
+     * three limits while it is on; limits left blank use the card's defaults
+     * and fold back to plain `fit: true`.
+     */
+    _renderFit() {
+        if (!this._has('fit')) return nothing;
+        const fit = this._value('fit');
+        const on = fit === true || (fit && typeof fit === 'object');
+        const opts = fit && typeof fit === 'object' ? fit : {};
+        const hass = this.editor?.hass;
+        return html`
+            <ha-selector
+                .hass=${hass}
+                .selector=${{ boolean: {} }}
+                .value=${on}
+                .label=${'Fit text to its zone'}
+                .helper=${this._help('fit', 'Shrink, then wrap, then cut text that is too long for its zone. Ignored with Stretch Width.', 'Inherits from defaults (off)')}
+                @value-changed=${(/** @type {CustomEvent} */ e) => this._setFit(e.detail.value ? (on ? fit : true) : undefined)}>
+            </ha-selector>
+            ${on ? html`
+                <ha-selector .hass=${hass} .selector=${{ number: { mode: 'box', min: 1, unit_of_measurement: 'px' } }}
+                    .value=${opts.min_font_size} .label=${'Smallest font size'}
+                    .helper=${'Blank: 60% of the font size, not below 8'}
+                    @value-changed=${(/** @type {CustomEvent} */ e) => this._setFitOption('min_font_size', e.detail.value)}>
+                </ha-selector>
+                <ha-selector .hass=${hass} .selector=${{ number: { mode: 'box', min: 1, step: 1 } }}
+                    .value=${opts.max_lines} .label=${'Most lines'}
+                    .helper=${'Blank: 2. 1 shrinks the text without wrapping it'}
+                    @value-changed=${(/** @type {CustomEvent} */ e) => this._setFitOption('max_lines', e.detail.value)}>
+                </ha-selector>
+                <ha-selector .hass=${hass}
+                    .selector=${{ select: { mode: 'dropdown', options: [
+                        { value: 'ellipsis', label: 'End with an ellipsis' },
+                        { value: 'clip', label: 'Cut it off' }
+                    ] } }}
+                    .value=${opts.overflow ?? 'ellipsis'} .label=${'Still too long'}
+                    @value-changed=${(/** @type {CustomEvent} */ e) => this._setFitOption('overflow', e.detail.value === 'ellipsis' ? undefined : e.detail.value)}>
+                </ha-selector>
+            ` : nothing}
+        `;
+    }
+
+    /** @param {any} value */
+    _setFit(value) {
+        this.editor?._setConfigValue?.(`${this.basePath}.fit`, value);
+    }
+
+    /** @param {string} key @param {any} value */
+    _setFitOption(key, value) {
+        const cur = this._value('fit');
+        const next = { ...(cur && typeof cur === 'object' ? cur : {}) };
+        if (value === undefined || value === null || value === '') delete next[key]; else next[key] = value;
+        this._setFit(Object.keys(next).length ? next : true);
+    }
+
     render() {
         const p = this.basePath;
         const title = this.name ? this.name.charAt(0).toUpperCase() + this.name.slice(1) : '';
@@ -120,7 +176,7 @@ export class LCARdSTextFieldEditor extends LitElement {
                 </ha-selector>
             ` : nothing}
 
-            ${any(['font_weight', 'font_family', 'font_size', 'letter_spacing']) ? html`
+            ${any(['font_weight', 'font_family', 'font_size', 'letter_spacing', 'fit']) ? html`
                 <lcards-form-section header="Font" description="Set font family, weight, size and spacing" icon="mdi:format-font"
                     ?expanded=${false} ?outlined=${true} headerLevel="6" ?compact=${true}>
                     ${this._field('font_family', { label: 'Font Family', helper: this._help('font_family', '') })}
@@ -132,6 +188,7 @@ export class LCARdSTextFieldEditor extends LitElement {
                             : this._help('font_size', '')
                     })}
                     ${this._field('letter_spacing', { label: 'Letter Spacing', helper: this._help('letter_spacing', '') })}
+                    ${this._renderFit()}
 
                     ${any(['font_size_percent', 'cap_height_ratio', 'stretch']) ? html`
                         <lcards-form-section header="Fill Sizing"

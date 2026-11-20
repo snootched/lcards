@@ -517,6 +517,18 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                         .value=${g['grid-auto-rows'] || ''}
                         @value-changed=${(e) => this._setConfigValue('grid.grid-auto-rows', e.detail.value || undefined)}>
                     </ha-selector>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Rows'}
+                        .helper=${'Number of rows (e.g. 2) or CSS grid-template-rows. Blank: as many as the options need'}
+                        .selector=${{ text: {} }}
+                        .value=${g.rows !== undefined ? String(g.rows) : ''}
+                        @value-changed=${(e) => {
+                            const v = e.detail.value;
+                            const n = Number(v);
+                            this._setConfigValue('grid.rows', !v ? undefined : (isNaN(n) ? v : n));
+                        }}>
+                    </ha-selector>
                 </div>
             </lcards-form-section>
 
@@ -576,6 +588,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                                 options: [
                                     { value: '',              label: 'row (default)' },
                                     { value: 'column',        label: 'column' },
+                                    { value: 'dense',         label: 'dense' },
                                     { value: 'row dense',     label: 'row dense' },
                                     { value: 'column dense',  label: 'column dense' },
                                 ]

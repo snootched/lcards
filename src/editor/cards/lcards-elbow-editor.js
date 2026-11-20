@@ -14,7 +14,7 @@
  * - Inherits button card functionality (text, actions, etc.)
  */
 
-import { html, svg } from 'lit';
+import { html, svg, nothing } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { editorComponentStyles } from '../base/editor-component-styles.js';
@@ -913,6 +913,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const innerCurveModeValue = isCssInnerCurve ? 'css' : (typeof innerCurve === 'number' ? 'manual' : (innerCurve ?? 'auto'));
 
         return html`
+            ${this._isBarType() ? this._renderBarSlant(segment) : html`
             <!-- Static reference diagram -->
             <lcards-form-section
                 variant="guide"
@@ -1203,6 +1204,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     `}
                 ` : ''}
             </lcards-form-section>
+            `}
 
             <lcards-form-section
                 header="Elbow Colours"
@@ -2301,6 +2303,56 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     _isDiagonalCapType() {
         const elbowType = this.config.elbow?.type || 'header-left';
         return elbowType.includes('diagonal-cap');
+    }
+
+    /**
+     * The straight bar types (bar-slant-left/right, bar-parallelogram): the card
+     * is the bar, so only the end angle shapes them (no arms, curves or clamp).
+     * @returns {boolean}
+     * @private
+     */
+    _isBarType() {
+        return String(this.config.elbow?.type || '').startsWith('bar-');
+    }
+
+    /**
+     * A bar type's one design setting: the slant of its ends, 10-90 degrees
+     * (90 = square), as the path generator clamps it.
+     * @param {Object} segment
+     * @private
+     */
+    _renderBarSlant(segment) {
+        const angle = segment.diagonal_angle;
+        return html`
+            <lcards-form-section
+                header="Slant"
+                description="The bar fills the card; its height is the bar's thickness"
+                icon="mdi:angle-acute"
+                ?expanded=${true}
+                ?outlined=${true}>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Slant Angle Mode'}
+                    .helper=${angle === 'theme' ? 'Dynamic: follows input_number.lcars_elbow_angle' : 'Static angle value'}
+                    .selector=${{ select: { mode: 'dropdown', options: [
+                        { value: 'static', label: 'Static Value' },
+                        { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
+                    ] } }}
+                    .value=${angle === 'theme' ? 'theme' : 'static'}
+                    @value-changed=${(e) => this._handleDiagonalAngleModeChange(e)}>
+                </ha-selector>
+                ${angle !== 'theme' ? html`
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Slant Angle'}
+                        .helper=${'90° = a square end; 45° = a cut as long as the bar is thick; lower is a longer slant'}
+                        .selector=${{ number: { min: 10, max: 90, step: 5, mode: 'slider', unit_of_measurement: '°' } }}
+                        .value=${typeof angle === 'number' ? angle : 45}
+                        @value-changed=${(e) => this._setConfigValue('elbow.segment.diagonal_angle', e.detail.value)}>
+                    </ha-selector>
+                ` : nothing}
+            </lcards-form-section>
+        `;
     }
 
     /**
