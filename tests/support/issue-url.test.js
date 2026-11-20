@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
     buildIssueUrl, formatSupportMarkdown, evaluateSupportChecks,
-    ISSUE_FIELDS, ISSUE_TEMPLATE, MAX_ISSUE_URL_LENGTH,
+    ISSUE_FIELDS, ISSUE_TEMPLATE, MAX_ISSUE_URL_LENGTH, issueUrlFits,
 } from '../../src/utils/support-info-format.js';
 
 const info = {
@@ -53,18 +53,30 @@ test('oversized diagnostics fall back to the compact summary + paste note', () =
     const huge = full + '\n' + 'x'.repeat(20000);
     const { url, truncated } = buildIssueUrl(info, huge, compact);
     assert.equal(truncated, true);
-    assert.ok(url.length <= MAX_ISSUE_URL_LENGTH);
+    assert.ok(issueUrlFits(url));
     assert.match(new URL(url).searchParams.get(ISSUE_FIELDS.diagnostics), /copied to your clipboard/);
 });
 
 test('even an oversized compact summary stays under the cap', () => {
     const { url, truncated } = buildIssueUrl(info, 'y'.repeat(20000), 'z'.repeat(20000));
     assert.equal(truncated, true);
-    assert.ok(url.length <= MAX_ISSUE_URL_LENGTH);
+    assert.ok(issueUrlFits(url));
 });
 
 test('config (entity IDs) only appears when collected', () => {
     assert.doesNotMatch(full, /sensor\./);
     const withCfg = formatSupportMarkdown({ ...info, config: { dataSources: [{ name: 'temp', entity: 'sensor.kitchen' }] } }, checks);
     assert.match(withCfg, /sensor\.kitchen/);
+});
+
+test('the URL fits GitHub\'s signed-out login redirect, which fails past about 6,000 encoded characters', () => {
+    // Signed out, GitHub redirects to /login?return_to=<the URL, encoded again>; a
+    // 3,500 character prefilled URL made that 6,567 characters and the login page
+    // answered "Whoops, something went wrong" (measured 2026-11-20).
+    const info = { lcards: { version: '2026.11.0' }, ha: { version: '2026.11.1' } };
+    const table = '| Component | Version / value |\n|---|---|\n' + '| Some row | some `value` · (x) |\n'.repeat(80);
+    const { url, truncated } = buildIssueUrl(info, table, table.slice(0, 600));
+    assert.equal(truncated, true);
+    assert.ok(encodeURIComponent(url).length <= MAX_ISSUE_URL_LENGTH);
+    assert.ok(encodeURIComponent(url).length < 6000);
 });

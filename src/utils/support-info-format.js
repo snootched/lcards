@@ -19,8 +19,19 @@ export const DEFAULT_ISSUE_REPO = 'snootched/LCARdS';
 export const ISSUE_TEMPLATE = 'bug_report.yml';
 /** Field ids in .github/ISSUE_TEMPLATE/bug_report.yml prefilled by buildIssueUrl. */
 export const ISSUE_FIELDS = { lcardsVersion: 'lcards_version', haVersion: 'ha_version', diagnostics: 'diagnostics' };
-/** Conservative cap — GitHub/browsers reject very long URLs (~8k). */
-export const MAX_ISSUE_URL_LENGTH = 7000;
+/**
+ * Longest prefilled issue URL, measured as it appears inside GitHub's login redirect
+ * (encodeURIComponent of the URL). Signed out, GitHub sends the user to
+ * /login?return_to=<this URL, encoded again>, and its login page fails ("Whoops,
+ * something went wrong") once that passes about 6,000 characters (measured
+ * 2026-11-20: 6,001 worked, 6,567 failed; a 7,000 character URL already failed at
+ * /issues/new). Encoding roughly doubles a markdown-heavy URL, so this keeps raw
+ * URLs near 2,500 characters.
+ */
+export const MAX_ISSUE_URL_LENGTH = 5000;
+
+/** Whether an issue URL survives GitHub's signed-out login redirect. */
+export const issueUrlFits = (/** @type {string} */ url) => encodeURIComponent(url).length <= MAX_ISSUE_URL_LENGTH;
 
 /**
  * @typedef {'ok'|'warn'|'error'|'info'} CheckStatus
@@ -230,8 +241,8 @@ export function buildIssueUrl(info, fullMarkdown, compactMarkdown, { repo = DEFA
     };
     const note = '\n\n> Full support info was copied to your clipboard. Paste it here to replace this summary.';
     let url = make(fullMarkdown);
-    if (url.length <= MAX_ISSUE_URL_LENGTH) return { url, truncated: false };
+    if (issueUrlFits(url)) return { url, truncated: false };
     url = make(compactMarkdown + note);
-    if (url.length <= MAX_ISSUE_URL_LENGTH) return { url, truncated: true };
+    if (issueUrlFits(url)) return { url, truncated: true };
     return { url: make('Support info was copied to your clipboard. Paste it here.'), truncated: true };
 }
