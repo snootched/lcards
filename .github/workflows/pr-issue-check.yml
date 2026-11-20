@@ -1,0 +1,83 @@
+name: Pull request issue check
+
+# CONTRIBUTING.md asks every pull request to link the issue it fixes. A pull
+# request from outside whose description links none gets a `needs-issue` label
+# and one comment asking for one. It never closes anything; the label comes off
+# once an issue is linked. Owners, members, collaborators and bots are exempt.
+#
+# pull_request_target runs with a token that can comment on pull requests from
+# forks. It is safe here because this job never checks out or runs the pull
+# request's code: it only reads the description through the API.
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, ready_for_review]
+
+permissions:
+  pull-requests: write
+  issues: write              # labels and comments go through the issues API
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.user.type != 'Bot' &&
+      !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const LABEL = 'needs-issue';
+            const MARKER = '<!-- lcards-pr-issue-check -->';
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+
+            // The description without the template's HTML comments
+            const body = (pr.body ?? '').replace(/<!--[\s\S]*?-->/g, '');
+            // #123, owner/repo#123, or a link to an issue
+            const refs = [
+              ...[...body.matchAll(/(?:^|[\s(])(?:([\w.-]+)\/([\w.-]+))?#(\d+)\b/g)]
+                .map((m) => ({ owner: m[1] ?? owner, repo: m[2] ?? repo, number: Number(m[3]) })),
+              ...[...body.matchAll(/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/(\d+)/gi)]
+                .map((m) => ({ owner: m[1], repo: m[2], number: Number(m[3]) })),
+            ];
+
+            // At least one of them must be an issue (a #number can also be a pull request)
+            let linked = false;
+            for (const ref of refs) {
+              if (ref.number === pr.number && ref.owner === owner && ref.repo === repo) continue;
+              const issue = await github.rest.issues.get({ owner: ref.owner, repo: ref.repo, issue_number: ref.number }).catch(() => null);
+              if (issue && !issue.data.pull_request) { linked = true; break; }
+            }
+
+            const hasLabel = pr.labels.some((l) => l.name === LABEL);
+            if (linked) {
+              if (hasLabel) {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: pr.number, name: LABEL }).catch(() => {});
+                core.info(`#${pr.number} now links an issue: removed ${LABEL}`);
+              }
+              return;
+            }
+
+            await github.rest.issues.getLabel({ owner, repo, name: LABEL }).catch(() =>
+              github.rest.issues.createLabel({ owner, repo, name: LABEL, color: 'fbca04',
+                description: 'Pull request does not link an issue' }));
+            if (!hasLabel) {
+              await github.rest.issues.addLabels({ owner, repo, issue_number: pr.number, labels: [LABEL] });
+            }
+
+            // Comment once per pull request
+            const comments = await github.paginate(github.rest.issues.listComments,
+              { owner, repo, issue_number: pr.number, per_page: 100 });
+            if (comments.some((c) => c.body?.includes(MARKER))) return;
+
+            const newIssue = `https://github.com/${owner}/${repo}/issues/new/choose`;
+            const guide = `https://github.com/${owner}/${repo}/blob/${context.payload.repository.default_branch}/CONTRIBUTING.md`;
+            await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body: [
+              MARKER,
+              `Thanks for the pull request! Every pull request here links the issue it fixes, so we can agree on the problem first and others who hit it can find the answer later.`,
+              '',
+              `Please [open an issue](${newIssue}) that describes the bug or the feature (or find an existing one), then add \`Fixes #<number>\` to this pull request's description. The \`${LABEL}\` label comes off by itself once an issue is linked, and this pull request stays open meanwhile.`,
+              '',
+              `More in [CONTRIBUTING.md](${guide}).`,
+            ].join('\n') });

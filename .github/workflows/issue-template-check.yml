@@ -68,5 +68,5 @@ jobs:
               '',
               `Or use the forms directly: [🐞 Bug report](${base}?template=bug_report.yml) · [✨ Feature request](${base}?template=feature_request.yml)`,
               '',
-              `You can also edit this issue to include the template sections — the \`${LABEL}\` label is removed automatically once they're present.`,
+              `You can also edit this issue to include the template sections; the \`${LABEL}\` label is removed automatically once they're present.`,
             ].join('\n') });

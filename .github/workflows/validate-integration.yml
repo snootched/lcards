@@ -2,9 +2,9 @@ name: Validate
 
 on:
   push:
-    branches: [ "main", "dev", "develop" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main", "dev", "develop" ]
+    branches: [ "main", "dev" ]
   schedule:
     - cron: "0 0 * * *"
   workflow_dispatch:
@@ -13,6 +13,13 @@ on:
 # Checkout and tests only: the token needs no write access (CodeQL actions/missing-workflow-permissions)
 permissions:
   contents: read
+
+# A newer push to the same pull request or to dev cancels the older run. Runs on
+# main, manual and scheduled runs, and the Release gate (workflow_call: github.workflow
+# is then "Release", its own group) always finish.
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && github.ref != 'refs/heads/main' }}
 
 jobs:
   validate-hassfest:

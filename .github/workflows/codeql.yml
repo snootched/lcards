@@ -16,6 +16,11 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same pull request or to dev cancels the older scan; main's always finish
+concurrency:
+  group: codeql-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && github.ref != 'refs/heads/main' }}
+
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
