@@ -4,6 +4,7 @@
  * @module cards/button-config
  */
 import { deepMergeImmutable } from '../utils/deepMerge.js';
+import { stateMapOverColor } from '../core/themes/color-syntax.js';
 
 /**
  * Default sections-view cell for each built-in component (they draw to their cell
@@ -27,7 +28,9 @@ const POINTER_STATES = ['hover', 'pressed'];
  * replaces the value under it whole, so a user's `fill: { default, active }` dropped
  * the theme's pointer colours and the segments stopped reacting to hover and press
  * (2026-11-17). Only the pointer states: the theme's `inactive` or `unavailable`
- * would beat the user's own `default`.
+ * would beat the user's own `default`. A plain colour under the map becomes its
+ * `default` when the map has none, so `fill: { active: x }` over a component's
+ * fill keeps that fill for the other states (2026-11-20).
  * @param {Record<string, any>} base
  * @param {Record<string, any>|undefined} over
  * @param {(token: string) => any} [resolveToken]
@@ -41,13 +44,20 @@ function keepPointerStates(base, over, resolveToken) {
     let style = null;
     for (const [prop, value] of Object.entries(overStyle)) {
         if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
-        if (POINTER_STATES.every((k) => value[k] !== undefined)) continue;
-        let under = baseStyle[prop];
+        if (POINTER_STATES.every((k) => value[k] !== undefined) && value.default !== undefined) continue;
+        const raw = baseStyle[prop];
+        let under = raw;
         if (typeof under === 'string' && under.startsWith('theme:') && resolveToken) under = resolveToken(under);
-        if (!under || typeof under !== 'object') continue;
         /** @type {Record<string, any>} */
         const add = {};
-        for (const k of POINTER_STATES) if (value[k] === undefined && under[k] !== undefined) add[k] = under[k];
+        if (typeof raw === 'string' && (!under || typeof under !== 'object')) {
+            // A plain colour under a state map is that map's default: fill: { active: x }
+            // over the component's fill keeps it for every other state (2026-11-20)
+            const withDefault = stateMapOverColor(raw, value);
+            if (withDefault) add.default = withDefault.default;
+        } else if (under && typeof under === 'object') {
+            for (const k of POINTER_STATES) if (value[k] === undefined && under[k] !== undefined) add[k] = under[k];
+        }
         if (!Object.keys(add).length) continue;
         const next = style ?? { ...overStyle };
         next[prop] = { ...value, ...add };

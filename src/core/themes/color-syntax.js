@@ -111,6 +111,24 @@ export const COLOR_VALUE_PATTERN =
  */
 export const FILL_VALUE_PATTERN = '^none$|' + COLOR_VALUE_PATTERN;
 
+/**
+ * A state map merged over a plain colour: the colour becomes the map's `default`
+ * (a colour and `{ default: colour }` mean the same), so `{ active: x }` over a
+ * preset's or component's colour keeps that colour for every other state.
+ * Returns null when it does not apply: `under` is not a colour, the map already
+ * has a `default`, or `over` is not a flat map of values (a gradient, a list).
+ * @param {*} under - the lower layer's value
+ * @param {*} over - the upper layer's value
+ * @returns {Record<string, any>|null}
+ */
+export function stateMapOverColor(under, over) {
+    if (typeof under !== 'string' || !isColorValue(under) && under !== 'none') return null;
+    if (!over || typeof over !== 'object' || Array.isArray(over) || over.default !== undefined) return null;
+    const values = Object.values(over);
+    if (!values.length || values.some((v) => v !== null && typeof v === 'object')) return null;
+    return { default: under, ...over };
+}
+
 /** @param {*} value @returns {boolean} True for a computed colour expression (`darken(...)` etc.). */
 export function isComputedColor(value) {
     return typeof value === 'string' && COMPUTED_COLOR_RE.test(value);

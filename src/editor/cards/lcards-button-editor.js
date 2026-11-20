@@ -280,7 +280,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             if (!allPresetNames.includes(name)) allPresetNames.push(name);
         }
 
-        if (allPresetNames.length === 0) return html``;
+        // Only default (brackets, the D-pads): nothing to choose
+        if (allPresetNames.length <= 1 && !this.config?.preset) return html``;
 
         const options = allPresetNames.map(name => ({
             value: name,
@@ -1144,6 +1145,9 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         }));
 
         const ranges = this.config?.ranges || [];
+        // Ranges switch between presets: with only default (brackets, the D-pads)
+        // there is nothing to switch to, unless the config already has ranges
+        if (allPresetNames.length <= 1 && ranges.length === 0) return html``;
 
         const sectionStyle = 'display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px;';
         const emptyStyle = 'text-align: center; padding: 24px 16px; color: var(--secondary-text-color);';

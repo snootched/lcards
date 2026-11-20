@@ -60,6 +60,31 @@ test('component segments: a state map keeps the pointer colours of the value it 
     assert.deepEqual(mergeSegmentLayers([component, user]).up.style.fill, { default: 'grey', active: 'orange' });
 });
 
+test('component segments: a state map over a plain colour keeps that colour as its default (brackets, 2026-11-20)', () => {
+    const brackets = { left: { style: { fill: 'theme:colors.ui.secondary', stroke: 'none' } }, right: { style: { fill: 'theme:colors.ui.secondary' } } };
+    const resolve = () => 'var(--lcars-gray)';
+    const user = { left: { style: { fill: { active: 'var(--lcars-orange)' } } }, right: { style: { fill: { default: 'var(--lcars-blue)', active: 'var(--lcars-orange)' } } } };
+    const m = mergeSegmentLayers([brackets, null, user], resolve);
+    assert.deepEqual(m.left.style.fill, { active: 'var(--lcars-orange)', default: 'theme:colors.ui.secondary' });
+    // the user's own default wins
+    assert.deepEqual(m.right.style.fill, { default: 'var(--lcars-blue)', active: 'var(--lcars-orange)' });
+    // through segments.default too
+    const viaDefault = mergeSegmentLayers([brackets, null, { default: { style: { fill: { active: 'var(--lcars-orange)' } } } }], resolve);
+    assert.equal(viaDefault.left.style.fill.default, 'theme:colors.ui.secondary');
+    // stroke: none stays the default under a map as well
+    assert.equal(mergeSegmentLayers([brackets, { left: { style: { stroke: { active: 'var(--lcars-orange)' } } } }], resolve).left.style.stroke.default, 'none');
+});
+
+test('config merge (preset under user): a state map over a plain colour keeps it as default; other objects over scalars replace them', async () => {
+    const { deepMerge } = await import('../../src/core/config-manager/merge-helpers.js');
+    // was { 0: 'v', 1: 'a', ..., active } (the string spread into keys)
+    assert.deepEqual(deepMerge({ style: { color: 'var(--a)' } }, { style: { color: { active: 'var(--b)' } } }), { style: { color: { default: 'var(--a)', active: 'var(--b)' } } });
+    assert.deepEqual(deepMerge({ style: { color: 'var(--a)' } }, { style: { color: { default: 'var(--c)', active: 'var(--b)' } } }), { style: { color: { default: 'var(--c)', active: 'var(--b)' } } });
+    assert.deepEqual(deepMerge({ style: { width: 2 } }, { style: { width: { top: 4 } } }), { style: { width: { top: 4 } } });
+    assert.deepEqual(deepMerge({ fill: 'var(--a)' }, { fill: { type: 'linear', stops: ['a', 'b'] } }), { fill: { type: 'linear', stops: ['a', 'b'] } });
+    assert.deepEqual(deepMerge({ label: 'Hello' }, { label: { content: 'x' } }), { label: { content: 'x' } }, 'not a colour: replaced, not spread');
+});
+
 test('border: a per-side object over a single preset value keeps that value on the other sides', () => {
     const preset = { border: { width: 'theme:components.button.border.width', radius: 0, color: 'c' } };
     const user = { border: { width: { left: 6 }, radius: { top_left: 24 } } };
