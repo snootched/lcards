@@ -150,3 +150,17 @@ test('pulse and fade clean up when they finish', async ({ page }) => {
     expect(result).toEqual({ opacity: '1', filter: '', transform: '' });
     await expectNoErrors(page);
 });
+
+test('a fade-in with alternate but no loop stays faded in', async ({ page }) => {
+    // anime.js alternates only when it loops; the cleanup reset an MSD base_svg
+    // faded from 0 to 1 back to 0 (2026-11-20)
+    await setup(page, 'life_fadein', ['r1']);
+    const opacity = await page.evaluate(async () => {
+        const am = window.lcards.core.animationManager;
+        await am.playAnimation('life_fadein', { trigger: 'on_load', preset: 'fade', target: '#r1', params: { from: 0, to: 1, duration: 40, loop: false, alternate: true } });
+        await new Promise(r => setTimeout(r, 300));
+        return window.__svg.querySelector('#r1').style.opacity;
+    });
+    expect(opacity).toBe('1');
+    await expectNoErrors(page);
+});

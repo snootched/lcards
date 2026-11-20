@@ -136,7 +136,10 @@ registerAnimationPreset('fade', (def) => {
       // anime.js v4's real callback name is `onComplete`, not `complete` — see
       // the `pulse` preset above for why (the latter is silently misinterpreted
       // as a bogus tween property and never fires as a callback).
-      onComplete: alternate ? (anim) => {
+      // Only a looping alternate comes back: with no loop anime.js plays once,
+      // so resetting to `from` would undo a fade-in (an MSD base_svg faded
+      // from 0 to 1 vanished at the end, 2026-11-20).
+      onComplete: alternate && loop ? (anim) => {
         // Ensure element returns to starting opacity after alternate completes
         for (const target of anim?.targets ?? []) {
           if (target?.style) target.style.opacity = from;
