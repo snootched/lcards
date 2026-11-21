@@ -913,15 +913,12 @@ test('studio UX1 P6a: fly forward and back on the toolbar move the preview camer
     const keys = () => page.evaluate(() => window.__studio._previewCard._scene.debug().keys);
     const a = await keys();
     await dialog.locator('[data-tool="fly-forward"]').click();
-    await expect.poll(async () => (await keys()).tx !== a.tx || (await keys()).tz !== a.tz, { timeout: 3_000 }).toBe(true);
-    await page.waitForTimeout(400);
-    const b = await keys();
-    expect(b.distance).toBeCloseTo(a.distance, 6);
-    expect(Math.hypot(b.tx - a.tx, b.ty - a.ty, b.tz - a.tz)).toBeCloseTo(a.distance / 2, 3);
+    // each move is an eased glide: wait for it to settle (a busy CI runner takes longer than 400 ms)
+    const moved = async () => { const k = await keys(); return Math.hypot(k.tx - a.tx, k.ty - a.ty, k.tz - a.tz); };
+    await expect.poll(moved, { timeout: 5_000 }).toBeCloseTo(a.distance / 2, 3);
+    expect((await keys()).distance).toBeCloseTo(a.distance, 6);
     await dialog.locator('[data-tool="fly-back"]').click();
-    await page.waitForTimeout(400);
-    const c = await keys();
-    expect(Math.hypot(c.tx - a.tx, c.ty - a.ty, c.tz - a.tz)).toBeLessThan(a.distance * 1e-3);
+    await expect.poll(moved, { timeout: 5_000 }).toBeLessThan(a.distance * 1e-3);
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });
 
