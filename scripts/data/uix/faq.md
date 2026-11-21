@@ -6,13 +6,13 @@
 - If you use extra_module_url for card-mod resource, remove and restart Home Assistant.
 - Proceed to follow the [UI eXtension quick start guide](./quick-start.md).
 
-**Add UI eXtension as a Service:**
+**UI eXtension is a Service:**
 
-UI eXtension is an integration and needs to be added as a Service once you have downloaded by HACS. Make sure you don't miss the **Add UI eXtension service** step. This is something you may miss if you are not accustomed to adding integrations like UIX as a Service.
+UI eXtension is an integration and needs to be added as a Service. If you install using Marketplace this step is done automatically. If anything seems to not be working, make sure UI eXtension has been added as a Service in [Devices and services](https://my.home-assistant.io/redirect/devices/?search=uix).
 
 **UI Lovelace Minimalist may load card-mod resource:**
 
-If you have UI Lovelace Minimalist installed it may load card-mod resource. Due to load order of integrations, UI eXtension cannot check for this conflict. To continue to use UI Lovelace Minimalist with UI eXtension you need to turn off UI Lovelace Minimalist config option `Include custom card resources it's depending on` and load any required custom cards through HACS or manually.
+If you have UI Lovelace Minimalist installed it may load card-mod resource. Due to load order of integrations, UI eXtension cannot check for this conflict. To continue to use UI Lovelace Minimalist with UI eXtension you need to turn off UI Lovelace Minimalist config option `Include custom card resources it's depending on` and load any required custom cards through Marketplace or manually.
 
 ## Is UI eXtension a drop in replacement for Card-mod?
 
@@ -79,6 +79,28 @@ UI eXtension will show a toast message when it detects that a reload is needed t
 
 While the Auto reload code is in 8.1.0, auto Reload will be available when you next update. When you install 8.1.0, device will still be running 8.0.1 code which does not have the auto reload feature.
 
+## Can the reload toast message be suppressed?
+
+No, the toast messages exist to satisfy the requirement of Frontend UIX JavaScript code matching the UIX integration code.
+
+The toast is shown when UIX has been changed and Home Assistant has restarted, but the browser is still running a cached UIX bundle from a different version.
+
+An auto reload happens after 60 seconds, allowing unattended kiosks to update their Frontend code.
+
+**Tip:**
+
+After updating UIX, restart Home Assistant when you are ready to activate the update. Until then, UIX continues serving the version that was loaded when Home Assistant started.
+
 ## How do I uninstall UI eXtension?
 
-Uninstallation of UI eXtension is a two step process. First, remove the service entry in Devices & services. Next uninstall the integration either using HACS or manually removing the `uix` folder from `custom_components` directory if you installed manually.
+### Marketplace
+
+Browse to [UIX](https://my.home-assistant.io/redirect/marketplace_repository/?owner=Lint-Free-Technology&repository=uix&category=integration) in Marketplace. Use the three dots menu and choose Uninstall. This will remove the UI eXtension service as well as remove UI eXtension files from Home Assistant.
+
+**Important:**
+
+Uninstalling via Marketplace will remove any Service configuration of UI eXtension including Foundries, custom Sidebar panels and other settings configured via the UI eXtension service. No dashboard or theme YAML is removed but will become non-functional.
+
+### Manual
+
+Uninstallation of UI eXtension is a two step process. First, remove the service entry in Devices & services. Next uninstall the integration by removing the `uix` folder from `custom_components` directory.

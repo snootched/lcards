@@ -182,6 +182,10 @@ red-theme:
 
 While the value of the `uix-<thing>-yaml` variable is actually yaml, as far as the theme is concerned it MUST be a string, which in turn contains more strings.
 
+## Context bindings
+
+`uix-<thing>-context-yaml` holds structured UIX context bindings rather than CSS. The value must be a YAML list and can be used on any UIX target; see [UIX contexts](https://uix.lf.technology/concepts/context) for anchors, entity-name rules, and examples.
+
 ## Local theme override with `uix.theme`
 
 You can force one styled card/row/badge/element to use a different Home Assistant theme than the currently active global theme. `uix.theme` takes precedence over inherited/current theme for that UIX node.
@@ -298,10 +302,6 @@ red-theme:
 Also `<any variable>-yaml`.
 
 ## Fonts
-
-**Info:**
-
-Font loading via `uix-fonts` available in 8.4.0-beta.2
 
 Use `uix-fonts` to load web fonts when a global theme is selected. UIX creates [`FontFace`](https://developer.mozilla.org/en-US/docs/Web/API/FontFace/FontFace) objects and registers them in `document.fonts`, making the fonts available to Home Assistant components, including those inside shadow roots. This setting only loads fonts; use theme variables or UIX styles to choose where they are used.
 
