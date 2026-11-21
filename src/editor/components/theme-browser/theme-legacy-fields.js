@@ -123,10 +123,10 @@ export const LEGACY_FIELD_DEFS = [
   { key: 'lcars-card-bottom-text', label: 'Card Bottom Text', group: 'Cards', live: true, description: textOn('Card Bottom') },
   { key: 'lcars-settings-card-color', label: 'Settings Card', group: 'Cards', role: 'neutral', tone: 60, description: "Background colour for HA-LCARS's settings-card card_mod class." },
   { key: 'lcars-settings-card-text', label: 'Settings Card Text', group: 'Cards', role: 'neutral', tone: 90, description: textOn('Settings Card') },
-  // MDC-themed inputs/selects still used throughout HA (ha-alert.ts, ha-radio-list-item.ts,
-  // ha-check-list-item.ts, entity pickers, …) despite HA moving new components away from MWC —
-  // confirmed live (23/3/2/3 consumer files respectively), not vestigial, before adding these.
-  { key: 'mdc-theme-primary', label: 'MDC Theme Primary', group: 'Cards', role: 'neutral', tone: 90, description: 'Primary colour for legacy Material (MWC) components still used in Home Assistant: dialogs, radio/checkbox lists, entity pickers.' },
+  // --mdc-theme-* is still read across HA (ha-alert.ts, ha-picker-field.ts, ha-entity-name-picker.ts,
+  // resources/styles.ts, color.globals.ts, …; 23 files at frontend dev 2026-11-21) even though the
+  // MWC list items that also read it were removed in 2026.12: not vestigial.
+  { key: 'mdc-theme-primary', label: 'MDC Theme Primary', group: 'Cards', role: 'neutral', tone: 90, description: 'Primary colour for legacy Material (MWC) components still used in Home Assistant: alerts, dialogs, entity pickers.' },
   { key: 'mdc-theme-secondary', label: 'MDC Theme Secondary', group: 'Cards', role: 'neutral', tone: 90, description: 'Secondary colour for the same legacy Material components.' },
   { key: 'mdc-theme-on-primary', label: 'MDC Theme On Primary', group: 'Cards', live: true, description: textOn('MDC Theme Primary') },
   { key: 'mdc-theme-on-secondary', label: 'MDC Theme On Secondary', group: 'Cards', live: true, description: textOn('MDC Theme Secondary') },

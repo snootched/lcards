@@ -79,6 +79,10 @@ test('catches dead CSS hooks', () => {
     assert.deepEqual(ids('--ha-assist-chip-label-text-color: white;'), []);
     assert.deepEqual(ids('<ha-md-list-item>'), ['md-element']);
     assert.deepEqual(ids('<md-list>'), ['md-element']);
+    assert.deepEqual(ids('<ha-list>'), ['mwc-list-element']);
+    assert.deepEqual(ids('<ha-check-list-item left>'), ['mwc-list-element']);
+    assert.deepEqual(ids('<ha-radio-list-item>'), ['mwc-list-element']);
+    assert.deepEqual(ids('<ha-list-base><ha-list-item-option></ha-list-item-option></ha-list-base>'), []);
     assert.deepEqual(ids('--mdc-dialog-max-width: 95vw;'), ['mdc-dialog-vars']);
     assert.deepEqual(ids('ha-dialog { --dialog-max-width: 600px; }'), ['mdc-dialog-vars']);
 });

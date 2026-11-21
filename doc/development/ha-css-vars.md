@@ -233,6 +233,14 @@ HA-LCARS sets `ha-font-family-body: var(--font-family)`, its LCARS font stack, i
 | `--margin-title-ltr` / `--margin-title-rtl` | `0 0 0 24px` / `0 24px 0 0` | |
 | `--ha-dialog-scrim-backdrop-filter` | `brightness(68%)` (`:53`) | Modal backdrop |
 
+Content widths (HA 2026.12+, `core.globals.ts:48-50`):
+
+| Variable | Value | Use |
+|---|---|---|
+| `--ha-content-width-narrow` | `720px` | Max width of a narrow content column (settings-style pages) |
+| `--ha-content-width-wide` | `1280px` | Max width of a wide content area |
+| `--ha-content-gutter` | `var(--ha-space-4)` (16px) | Side gutter around page content |
+
 ### Safe Area
 
 **Source:** `main.globals.ts:31-50`. For layouts that must stay clear of notches and home indicators (full-screen dialogs, overlays). Each `--safe-area-inset-*` reads `--app-safe-area-inset-*` first (set by the companion apps), then `env(safe-area-inset-*, 0px)`.
