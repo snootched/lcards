@@ -1,0 +1,32 @@
+# Alert band (alert overlay display: band). Seeded from the docs examples.
+title: Alert band
+path: alert-band
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: RED ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.red_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: YELLOW ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-alert-overlay
+        display: band
+        dismiss_mode: reset
+        band: { position: 70%, dash_radius: pill, grow: 1.6, phase: 180, speed: 0.75 }
+        conditions: { red_alert: { display: overlay } }

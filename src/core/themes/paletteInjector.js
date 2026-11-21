@@ -12,6 +12,8 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { ColorUtils } from './ColorUtils.js';
+import { isCssColor } from './color-syntax.js';
 
 /**
  * Alert mode color palettes
@@ -105,26 +107,13 @@ export const GREEN_ALERT_PALETTE = {
 
 
 /**
- * Fix ha-select helper text color by copying from ha-textfield
- * @private
- */
-function _fixMdcSelectLabelColor(rootElement = document.documentElement) {
-  const styles = getComputedStyle(rootElement);
-  const textFieldColor = styles.getPropertyValue('--mdc-text-field-label-ink-color').trim();
-
-  if (textFieldColor) {
-    rootElement.style.setProperty('--mdc-select-label-ink-color', textFieldColor);
-  }
-}
-
-/**
  * Inject palette as CSS variables on document root
  *
  * This function should be called during LCARdS core initialization to ensure
  * all --lcards-* variables are available before any components render.
  *
  * @param {Object} [palette=GREEN_ALERT_PALETTE] - Palette to inject (defaults to green_alert)
- * @param {Element} [rootElement=document.documentElement] - Element to inject variables on
+ * @param {Element|null} [rootElement=document.documentElement] - Element to inject variables on
  */
 export function injectPalette(palette = GREEN_ALERT_PALETTE, rootElement = null) {
   if (typeof document === 'undefined') {
@@ -141,18 +130,13 @@ export function injectPalette(palette = GREEN_ALERT_PALETTE, rootElement = null)
     injectedCount++;
   });
 
-  lcardsLog.info(`[PaletteInjector] ✅ Injected ${injectedCount} palette variables as --lcards-*`);
+  lcardsLog.debug(`[PaletteInjector] ✅ Injected ${injectedCount} palette variables as --lcards-*`);
   lcardsLog.debug('[PaletteInjector] Sample injected variables:', {
     '--lcards-orange-medium': palette['orange-medium'],
     '--lcards-gray-medium-light': palette['gray-medium-light'],
     '--lcards-blue-medium': palette['blue-medium'],
     '--lcards-moonlight': palette['moonlight']
   });
-
-  // Fix missing HA CSS variable: --mdc-select-label-ink-color
-  // Some HA themes don't define this variable, causing ha-select helper text to be invisible
-  // Copy from --mdc-text-field-label-ink-color which is properly defined
-  _fixMdcSelectLabelColor(/** @type {HTMLElement} */ (root));
 }
 
 /**
@@ -170,7 +154,7 @@ export function getPaletteColor(key, palette = GREEN_ALERT_PALETTE) {
  * Get CSS variable reference for palette color
  *
  * @param {string} key - Palette key (e.g., 'orange-medium')
- * @param {string} [fallback] - Optional fallback color
+ * @param {string|null} [fallback] - Optional fallback color
  * @returns {string} CSS var() expression
  *
  * @example
@@ -188,7 +172,7 @@ export function getPaletteCSSVar(key, fallback = null) {
 /**
  * Check if palette has been injected
  *
- * @param {Element} [rootElement=document.documentElement] - Element to check
+ * @param {Element|null} [rootElement=document.documentElement] - Element to check
  * @returns {boolean} True if palette variables are present
  */
 export function isPaletteInjected(rootElement = null) {
@@ -205,11 +189,10 @@ export function isPaletteInjected(rootElement = null) {
 // ALERT MODE SYSTEM
 // ============================================================================
 
-import { transformColorToAlertMode, ALERT_MODE_TRANSFORMS } from './alertModeTransform.js';
+import { transformColorToAlertMode, isKnownAlertMode } from './alertModeTransform.js';
 import { runTransitionEffect } from './alertTransitions.js';
+import { applyAlertToScopes, restoreThemeScopes } from './alertThemeScopes.js';
 
-// Re-export ALERT_MODE_TRANSFORMS for external use
-export { ALERT_MODE_TRANSFORMS } from './alertModeTransform.js';
 
 /**
  * Reload Home Assistant theme to restore original CSS variables
@@ -224,14 +207,14 @@ export async function reloadHATheme(hass) {
   }
 
   try {
-    lcardsLog.info('[PaletteInjector] Reloading HA theme...');
+    lcardsLog.debug('[PaletteInjector] Reloading HA theme...');
     await hass.callService('frontend', 'reload_themes');
 
     // CRITICAL: Wait for theme to actually apply in the DOM
     // The service call returns immediately but theme application is async
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    lcardsLog.info('[PaletteInjector] ✅ Theme reloaded and applied');
+    lcardsLog.debug('[PaletteInjector] ✅ Theme reloaded and applied');
   } catch (error) {
     // Log but do not re-throw — this service requires admin privileges in HA.
     // The primary restore path uses restoreOriginalColors() instead.
@@ -256,7 +239,7 @@ function restoreOriginalColors(root, colors) {
     /** @type {HTMLElement} */ (root).style.setProperty(varName, value);
     restored++;
   });
-  lcardsLog.info(`[PaletteInjector] ✅ Restored ${restored} original --lcars-* variables from snapshot (no HA service call required)`);
+  lcardsLog.debug(`[PaletteInjector] ✅ Restored ${restored} original --lcars-* variables from snapshot (no HA service call required)`);
 }
 
 /**
@@ -278,10 +261,28 @@ export function getBaselineColors() {
 }
 
 /**
+ * A theme variable's value as a fixed baseline colour, or null when it is not
+ * a colour. var() references are materialised so the snapshot cannot follow
+ * a later (alert-mode) change; named colours and color-mix(in oklch, ...)
+ * values, which ha-lcars uses, count as colours.
+ *
+ * @param {string} value - Raw custom-property value
+ * @param {Element} element - Element the value was read from
+ * @returns {string|null}
+ */
+function baselineColor(value, element) {
+  if (!value) return null;
+  const MISSING = '\u0000';
+  const concrete = value.includes('var(') ? ColorUtils.resolveCssVariable(value, MISSING, element) : value;
+  if (concrete.includes(MISSING) || concrete.includes('var(')) return null;
+  return isCssColor(concrete) ? concrete : null;
+}
+
+/**
  * Capture and store original --lcars-* color values from current theme
  * Should be called after theme is loaded to capture baseline colors
  *
- * @param {Element} root - Root element
+ * @param {Element|null} root - Root element
  * @returns {Object} Map of --lcars-* variable names to color values
  */
 export function captureOriginalColors(root = null) {
@@ -298,8 +299,9 @@ export function captureOriginalColors(root = null) {
       const value = computedStyle.getPropertyValue(varName).trim();
 
       // Only store color values (skip dimensions, etc.)
-      if (value && value.match(/^#|^rgb|^hsl/i)) {
-        colors[varName] = value;
+      const baseline = baselineColor(value, element);
+      if (baseline) {
+        colors[varName] = baseline;
         colorCount++;
       }
     }
@@ -314,8 +316,9 @@ export function captureOriginalColors(root = null) {
   ];
   for (const varName of stateColors) {
     const value = computedStyle.getPropertyValue(varName).trim();
-    if (value && value.match(/^#|^rgb|^hsl/i)) {
-      colors[varName] = value;
+    const baseline = baselineColor(value, element);
+    if (baseline) {
+      colors[varName] = baseline;
       colorCount++;
     }
   }
@@ -340,15 +343,19 @@ export function captureOriginalColors(root = null) {
  *
  * @param {string} mode - Alert mode ('green_alert', 'red_alert', etc.)
  * @param {Object} hass - Home Assistant instance (required for theme reload)
- * @param {Element} [rootElement] - Target element (default: document.documentElement)
+ * @param {Element|null} [rootElement] - Target element (default: document.documentElement)
+ * @param {Object} [opts]
+ * @param {string} [opts.transitionStyle='off'] - Transition effect
+ * @param {Function|null} [opts.onApplied] - Called (and awaited) as soon as the palette
+ *   variables are written, mid-transition; ThemeManager notifies cards from it
  * @returns {Promise<void>}
  */
 export async function setAlertMode(mode, hass, rootElement = null, opts = {}) {
   const root = rootElement || document.documentElement;
-  const { transitionStyle = 'off' } = opts;
+  const { transitionStyle = 'off', onApplied = null } = opts;
 
   // Validate mode
-  if (!ALERT_MODE_TRANSFORMS[mode]) {
+  if (!isKnownAlertMode(mode)) {
     lcardsLog.warn(`[PaletteInjector] Unknown alert mode: ${mode}, using green_alert`);
     mode = 'green_alert';
   }
@@ -383,19 +390,27 @@ export async function setAlertMode(mode, hass, rootElement = null, opts = {}) {
         restoreOriginalColors(root, originalLcarsColors);
       // Restore LCARdS fallback palette variables (--lcards-*)
       injectPalette(GREEN_ALERT_PALETTE, root);
+      // Views, sections and cards with their own theme (alertThemeScopes.js)
+      if (root === document.documentElement) restoreThemeScopes();
     } else {
       // Transform from ORIGINAL colours (prevents drift when switching modes)
       await transformAndApplyAlertMode(mode, root, originalLcarsColors);
       // Transform LCARdS fallback variables (--lcards-*) from green_alert baseline
       injectTransformedPalette(mode, root);
+      // Views, sections and cards with their own theme: their values win inside
+      // them, so each is shifted from its own originals (alertThemeScopes.js)
+      if (root === document.documentElement) applyAlertToScopes(mode);
     }
+    // Cards repaint now, while the transition still hides the swap (colours
+    // resolved to concrete values cannot follow a CSS variable change alone).
+    await onApplied?.();
     // Wait one frame to ensure styles are applied before transition reveals them
     await new Promise(resolve => requestAnimationFrame(resolve));
   };
 
   await runTransitionEffect(transitionStyle, mainView, mode, colorApplyFn);
 
-  lcardsLog.info(`[PaletteInjector] ✅ Alert mode: ${mode}`);
+  lcardsLog.debug(`[PaletteInjector] ✅ Alert mode: ${mode}`);
 }
 
 /**
@@ -435,7 +450,7 @@ async function transformAndApplyAlertMode(mode, root, originalColors) {
     }
   });
 
-  lcardsLog.info(`[PaletteInjector] Alert mode '${mode}': Transformed ${transformCount} variables`);
+  lcardsLog.debug(`[PaletteInjector] Alert mode '${mode}': Transformed ${transformCount} variables`);
 }
 
 /**

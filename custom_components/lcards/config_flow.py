@@ -8,7 +8,7 @@ are surfaced via the "Configure" button on the integration card,
 handled by LCARdSOptionsFlow.
 """
 import logging
-import voluptuous as vol
+import probatio as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 

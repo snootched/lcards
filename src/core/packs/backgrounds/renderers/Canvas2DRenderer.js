@@ -1,4 +1,5 @@
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { prefersReducedMotion, onReducedMotionChange } from '../../../../utils/reduced-motion.js';
 
 /**
  * Canvas2DRenderer - Manages multiple Canvas2D effects with additive composition
@@ -49,7 +50,7 @@ export class Canvas2DRenderer {
    */
   constructor(canvas, options = {}) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
+    this.ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
     this.effects = []; // Array of BaseEffect instances
     this._animationId = null;
     this._lastFrameTime = performance.now();
@@ -61,7 +62,14 @@ export class Canvas2DRenderer {
     this._visibilityHandler = null;   // document visibilitychange handler
     this._pausedForVisibility = false; // true when RAF paused because tab is hidden
     this._isSuspended = false;         // true when externally suspended (e.g. IntersectionObserver)
+    this._pausedForReducedMotion = false; // true while prefers-reduced-motion holds the last drawn frame
+    /** @type {number|null} pending requestFrame() redraw */
+    this._frameRequestId = null;
+    /** @type {(() => void)|null} */
+    this._unsubscribeReducedMotion = null;
     this._pmPaused = false;            // true when we have decremented the PerformanceMonitor ref count
+    /** Update+draw time per rendered frame (window.lcards.debug.webgl.frameStats) */
+    this.frameStats = { frames: 0, workMs: 0, maxMs: 0 };
 
     // Performance recovery state
     this._disabledByPerformance = false; // true when stopped by PerformanceMonitor (not deliberately)
@@ -126,6 +134,21 @@ export class Canvas2DRenderer {
         totalEffects: this.effects.length
       });
     }
+  }
+
+  /**
+   * Swap a group of effects for new ones at the same place in the stack (one
+   * `background_animation` entry rebuilt), destroying the old ones.
+   *
+   * @param {Object[]} oldEffects
+   * @param {Object[]} newEffects
+   */
+  replaceEffects(oldEffects, newEffects) {
+    const positions = oldEffects.map((e) => this.effects.indexOf(e)).filter((i) => i >= 0);
+    const at = positions.length > 0 ? Math.min(...positions) : this.effects.length;
+    this.effects = this.effects.filter((e) => !oldEffects.includes(e));
+    oldEffects.forEach((e) => e.destroy());
+    this.effects.splice(Math.min(at, this.effects.length), 0, ...newEffects);
   }
 
   /**
@@ -202,6 +225,19 @@ export class Canvas2DRenderer {
     };
     document.addEventListener('visibilitychange', this._visibilityHandler);
 
+    // Under prefers-reduced-motion _animate() draws one frame and then holds it;
+    // switching the setting off picks the loop back up.
+    this._unsubscribeReducedMotion = onReducedMotionChange((reduced) => {
+      if (reduced || !this._pausedForReducedMotion) return;
+      this._pausedForReducedMotion = false;
+      if (this._isRunning && !this._isSuspended && !this._pausedForVisibility) {
+        this._lastFrameTime = performance.now();
+        this._resumePerformanceMonitor();
+        lcardsLog.debug('[Canvas2DRenderer] Resumed: reduced motion off');
+        this._animate();
+      }
+    });
+
     // Deferred via rAF rather than called directly (unlike this file's other
     // _animate() resume call sites, deliberately left as direct calls — see
     // this method's own _coldStartFramesRemaining reset above for why THIS
@@ -228,6 +264,10 @@ export class Canvas2DRenderer {
       cancelAnimationFrame(this._animationId);
       this._animationId = null;
     }
+    if (this._frameRequestId) {
+      cancelAnimationFrame(this._frameRequestId);
+      this._frameRequestId = null;
+    }
 
     // Clean up PerformanceMonitor listener
     if (this._perfCheckHandler) {
@@ -246,6 +286,10 @@ export class Canvas2DRenderer {
       this._visibilityHandler = null;
     }
     this._pausedForVisibility = false;
+
+    this._unsubscribeReducedMotion?.();
+    this._unsubscribeReducedMotion = null;
+    this._pausedForReducedMotion = false;
 
     // If this is a deliberate stop (not triggered by the PerformanceMonitor),
     // cancel any pending recovery probe and reset the backoff counter so the
@@ -301,7 +345,7 @@ export class Canvas2DRenderer {
     const delayMin = Math.min(5 * Math.pow(2, this._recoveryAttempts - 1), 30);
     const delayMs = delayMin * 60_000;
 
-    lcardsLog.info(`[Canvas2DRenderer] Performance recovery probe in ${delayMin}min (attempt ${this._recoveryAttempts})`);
+    lcardsLog.debug(`[Canvas2DRenderer] Performance recovery probe in ${delayMin}min (attempt ${this._recoveryAttempts})`);
 
     this._recoveryTimer = setTimeout(() => {
       this._recoveryTimer = null;
@@ -315,7 +359,7 @@ export class Canvas2DRenderer {
         return;
       }
 
-      lcardsLog.info(`[Canvas2DRenderer] Attempting performance recovery (attempt ${this._recoveryAttempts})`);
+      lcardsLog.debug(`[Canvas2DRenderer] Attempting performance recovery (attempt ${this._recoveryAttempts})`);
       this._disabledByPerformance = false; // allow stop() to do full cleanup if needed
       this.start(); // PM settle window resets — fresh FPS evaluation after 5s
     }, delayMs);
@@ -417,28 +461,15 @@ export class Canvas2DRenderer {
     const deltaTime = currentTime - this._lastFrameTime;
     this._lastFrameTime = currentTime;
 
-    // Clear canvas
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
     // Update and draw each effect, timing the whole pass for the hard
     // frame-budget check below.
     const frameWorkStart = performance.now();
-    for (let i = this.effects.length - 1; i >= 0; i--) {
-      const effect = this.effects[i];
-
-      // Remove inactive effects
-      if (!effect.isActive()) {
-        this.removeEffect(effect);
-        continue;
-      }
-
-      // Update effect state
-      effect.update(deltaTime, this.canvas.width, this.canvas.height);
-
-      // Draw effect
-      effect.draw(this.ctx, this.canvas.width, this.canvas.height);
-    }
+    this._drawEffects(deltaTime);
     const frameWorkMs = performance.now() - frameWorkStart;
+    const stats = this.frameStats;
+    stats.frames++;
+    stats.workMs += frameWorkMs;
+    if (frameWorkMs > stats.maxMs) stats.maxMs = frameWorkMs;
 
     // Hard backstop: a single pathologically slow frame trips the same
     // disable+recovery-backoff path the FPS-averaged PerformanceMonitor uses,
@@ -471,8 +502,68 @@ export class Canvas2DRenderer {
     }
     if (this._coldStartFramesRemaining > 0) this._coldStartFramesRemaining--;
 
+    // Reduced motion: keep this frame as a static picture, schedule no more
+    if (prefersReducedMotion()) {
+      this._pausedForReducedMotion = true;
+      this._pausePerformanceMonitor();
+      return;
+    }
+
     // Request next frame
     this._animationId = requestAnimationFrame(() => this._animate());
+  }
+
+  /**
+   * Clear the canvas, then update and draw every effect in order: the first
+   * effect is the bottom layer. Inactive effects are dropped after the pass.
+   * An effect's `_xform` (x/y offset in px, rotate in degrees, scale; set by
+   * the background effect adapter) is applied around its centre.
+   *
+   * @param {number} deltaTime - ms since the last frame (0 redraws in place)
+   * @private
+   */
+  _drawEffects(deltaTime) {
+    const { ctx, canvas } = this;
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    let inactive = null;
+    for (const effect of this.effects) {
+      if (!effect.isActive()) {
+        (inactive ??= []).push(effect);
+        continue;
+      }
+      if (deltaTime > 0) effect.update(deltaTime, w, h);
+
+      const xf = effect._xform;
+      if (xf && (xf.x || xf.y || xf.rotate || xf.scale !== 1)) {
+        ctx.save();
+        ctx.translate(w / 2 + xf.x, h / 2 + xf.y);
+        if (xf.rotate) ctx.rotate((xf.rotate * Math.PI) / 180);
+        if (xf.scale !== 1) ctx.scale(xf.scale, xf.scale);
+        ctx.translate(-w / 2, -h / 2);
+        effect.draw(ctx, w, h);
+        ctx.restore();
+      } else {
+        effect.draw(ctx, w, h);
+      }
+    }
+    inactive?.forEach((effect) => this.removeEffect(effect));
+  }
+
+  /**
+   * Redraw once without advancing time, for a parameter change while the
+   * loop is holding a static frame (prefers-reduced-motion). While the loop
+   * runs, the next frame shows the change anyway.
+   */
+  requestFrame() {
+    if (!this._pausedForReducedMotion || this._isSuspended || this._pausedForVisibility) return;
+    if (this._frameRequestId) return;
+    this._frameRequestId = requestAnimationFrame(() => {
+      this._frameRequestId = null;
+      if (this._pausedForReducedMotion) this._drawEffects(0);
+    });
   }
 
   /**

@@ -1,0 +1,10 @@
+# doc/cards/slider-card/index.md: read-only temperature gauge
+type: custom:lcards-slider
+entity: sensor.demo_temperature
+preset: gauge-basic
+style:
+  track:
+    display:
+      min: -10
+      max: 40
+      unit: "°C"

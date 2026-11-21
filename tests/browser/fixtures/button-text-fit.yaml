@@ -1,0 +1,11 @@
+# fit on a text field (reports/text-fit-plan.md): a long label in a small block
+type: custom:lcards-button
+preset: panel-light
+min_height: 0
+height: 48
+text:
+  label:
+    content: PRIMARY SYSTEMS DISPLAY
+    position: center-right
+    font_size: 20
+    fit: true

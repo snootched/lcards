@@ -1,0 +1,14 @@
+# style.text.default letter_spacing, font_size and colour reach the option labels (over the preset's text colour)
+type: custom:lcards-select-menu
+entity: input_select.demo_mode
+preset: lozenge
+grid:
+  columns: 2
+style:
+  text:
+    default:
+      letter_spacing: 6px
+      font_size: 22
+      color:
+        active: "#00ff00"
+        inactive: "#ff0000"

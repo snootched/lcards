@@ -1,0 +1,25 @@
+# Settings by state: a number per state (the state colour keys), the range from an active
+# player's state, a range key on a number
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 20, tilt: 20, distance: 160 }
+objects:
+  - type: sphere
+    id: bubble
+    at: [-35, 0, 0]
+    radius: 30
+    opacity: { entity: input_boolean.lcards_test_toggle, active: 0.15, inactive: 0.6 }
+  - type: glow
+    id: beacon
+    at: [40, 0, 0]
+    size: { entity: input_select.lcards_test_mode, alpha: 15, beta: 35, gamma: 60, default: 5 }
+  - type: glow
+    id: player
+    at: [0, 30, 0]
+    size: { entity: media_player.tv, output: [4, 40], default: 4 }
+  - type: glow
+    id: cpu
+    at: [0, -30, 0]
+    size: { entity: sensor.cpu, above:80: 50, output: [5, 20] }

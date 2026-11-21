@@ -8,6 +8,8 @@
 import { LitElement, html, css } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
 import { editorStyles } from './editor-styles.js';
+import { messageStyles } from './surface-styles.js';
+import { renderInfoGuide } from '../components/shared/info-guide.js';
 import { configToYaml, yamlToConfig, validateYaml } from '../utils/yaml-utils.js';
 import { deepMerge } from '../../core/config-manager/merge-helpers.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -16,6 +18,18 @@ import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-
 import '../components/sound/lcards-card-sound-tab.js';
 import '../components/lcards-zone-list-editor.js';
 import '../components/shared/lcards-form-section.js';
+import '../components/theme-browser/lcards-card-theme-tab.js';
+// Elements this base renders (grid entries, object fields, the YAML and Main Engineering tabs):
+// imported here so every editor gets them, not only the ones that import them too.
+import '../components/editors/lcards-grid-layout.js';
+import '../components/editors/lcards-object-editor.js';
+import '../components/yaml/lcards-yaml-editor.js';
+import '../components/datasources/lcards-datasource-editor-tab.js';
+import '../components/dashboard/lcards-rules-dashboard.js';
+import '../components/templates/lcards-template-evaluation-tab.js';
+import '../components/provenance/lcards-provenance-tab.js';
+import { docsUrl, DOCS } from '../../utils/docs-url.js';
+import { editorTabDocs } from '../utils/yaml-docs-links.js';
 
 export class LCARdSBaseEditor extends LitElement {
 
@@ -52,8 +66,42 @@ export class LCARdSBaseEditor extends LitElement {
         this._developerSubTab = 0;
     }
 
+    /** @returns {import('lit').CSSResultArray} */
     static get styles() {
-        return [editorStyles];
+        return [editorStyles, messageStyles, css`
+            .main-engineering-hint {
+                margin: 0 0 var(--ha-space-2);
+            }
+            ha-tab-group-tab ha-icon {
+                --mdc-icon-size: 18px;
+                margin-right: var(--ha-space-2);
+            }
+            /* "Docs" link at the top of each tab: opens the page in a new tab */
+            .tab-docs {
+                display: flex;
+                justify-content: flex-end;
+                margin: var(--ha-space-3) 0 var(--ha-space-3);
+            }
+            .tab-docs a {
+                display: inline-flex;
+                align-items: center;
+                gap: var(--ha-space-1);
+                padding: var(--ha-space-1) var(--ha-space-3);
+                background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
+                border-radius: var(--ha-border-radius-pill);
+                color: var(--primary-text-color);
+                font-size: var(--ha-font-size-m, 14px);
+                font-weight: var(--ha-font-weight-medium, 500);
+                line-height: 1.4;
+                text-decoration: none;
+            }
+            .tab-docs a:hover {
+                background: color-mix(in srgb, var(--primary-text-color) 20%, transparent);
+            }
+            .tab-docs ha-icon {
+                --mdc-icon-size: 18px;
+            }
+        `];
     }
 
     /**
@@ -137,7 +185,7 @@ export class LCARdSBaseEditor extends LitElement {
                             <code>core.configManager.registerCardSchema('${this.cardType}', schema)</code>
                         </p>
                         <p>
-                            See the <a href="https://github.com/snootched/LCARdS#schema-registration" target="_blank">documentation</a>
+                            See <a href=${docsUrl(DOCS.buildingAnEditor)} target="_blank" rel="noopener">Building a Studio Editor</a>
                             for more information on schema registration.
                         </p>
                     </ha-alert>
@@ -154,9 +202,9 @@ export class LCARdSBaseEditor extends LitElement {
                     `)}
 
                     ${tabs.map((tab, index) => html`
-                        <ha-tab-panel value="${index}" ?hidden=${this._selectedTab !== index}>
+                        <div class="tab-panel" ?hidden=${this._selectedTab !== index}>
                             ${this._renderTabContent(tab)}
-                        </ha-tab-panel>
+                        </div>
                     `)}
                 </ha-tab-group>
             </div>
@@ -174,7 +222,18 @@ export class LCARdSBaseEditor extends LitElement {
             return html`<div>No content available</div>`;
         }
 
-        return tab.content();
+        // A tab may name its own page (`docs:`); otherwise the card's tab map.
+        const docs = tab.docs ?? editorTabDocs(this.cardType, tab.label);
+        return html`
+            ${docs ? html`
+                <div class="tab-docs">
+                    <a href=${docsUrl(docs)} target="_blank" rel="noopener noreferrer">
+                        Docs<ha-icon icon="mdi:open-in-new"></ha-icon>
+                    </a>
+                </div>
+            ` : ''}
+            ${tab.content()}
+        `;
     }
 
     /**
@@ -422,6 +481,7 @@ export class LCARdSBaseEditor extends LitElement {
             // Navigate to the parent of the final key, creating structure as needed
             for (let i = 0; i < keys.length - 1; i++) {
                 const key = keys[i];
+                if (key === '__proto__' || key === 'constructor' || key === 'prototype') return; // never config (prototype pollution)
                 const nextKey = keys[i + 1];
                 const isNextNumeric = !isNaN(Number(nextKey));
 
@@ -442,6 +502,7 @@ export class LCARdSBaseEditor extends LitElement {
 
             // Set the final value
             const finalKey = keys[keys.length - 1];
+            if (finalKey === '__proto__' || finalKey === 'constructor' || finalKey === 'prototype') return;
             current[finalKey] = value;
 
             // Fire config change event
@@ -458,12 +519,16 @@ export class LCARdSBaseEditor extends LitElement {
 
         // Build nested object structure
         for (let i = 0; i < keys.length - 1; i++) {
-            current[keys[i]] = {};
-            current = current[keys[i]];
+            const key = keys[i];
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') return; // never config (prototype pollution)
+            current[key] = {};
+            current = current[key];
         }
 
         // Set final value
-        current[keys[keys.length - 1]] = value;
+        const lastKey = keys[keys.length - 1];
+        if (lastKey === '__proto__' || lastKey === 'constructor' || lastKey === 'prototype') return;
+        current[lastKey] = value;
 
         // Check if value is empty/null/undefined - if so, remove it and clean up empty parents
         if (value === undefined || value === null || value === '') {
@@ -483,6 +548,7 @@ export class LCARdSBaseEditor extends LitElement {
         if (!path) return;
 
         const keys = path.split('.');
+        if (keys.some((k) => k === '__proto__' || k === 'constructor' || k === 'prototype')) return;
         const newConfig = JSON.parse(JSON.stringify(this.config || {}));
 
         // Navigate to parent and delete the key
@@ -932,80 +998,6 @@ export class LCARdSBaseEditor extends LitElement {
     }
 
     /**
-     * Helper: Render text colors section (state-based)
-     * @param {string} basePath - Path to color config (e.g., 'text.name.color')
-     * @param {Array} states - Array of state names
-     * @returns {TemplateResult}
-     * @protected
-     */
-    _renderTextColors(basePath, states = ['default', 'active', 'inactive', 'unavailable']) {
-        return html`
-            <lcards-color-section
-                .editor=${this}
-                .config=${this.config}
-                basePath="${basePath}"
-                header="Text Colours"
-                description="State-based text colours"
-                .states=${states}
-                ?expanded=${false}>
-            </lcards-color-section>
-        `;
-    }
-
-    /**
-     * Helper: Render complete text field section
-     * @param {string} fieldName - Field name (e.g., 'name', 'label', 'state')
-     * @param {boolean} expanded - Initial expanded state
-     * @returns {TemplateResult}
-     * @protected
-     */
-    _renderTextFieldSection(fieldName, expanded = false) {
-        const basePath = `text.${fieldName}`;
-        const fieldLabel = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
-
-        return html`
-            <lcards-form-section
-                header="${fieldLabel} Text"
-                description="Configure ${fieldLabel.toLowerCase()} text content and styling"
-                icon="mdi:text-box"
-                ?expanded=${expanded}
-                ?outlined=${true}
-                headerLevel="4">
-
-                <!-- Content -->
-                ${FormField.renderField(this, `${basePath}.content`, {
-                    label: 'Content',
-                    helper: 'Text content or template (e.g., {{entity.state}})'
-                })}
-
-                <!-- Show Toggle -->
-                ${FormField.renderField(this, `${basePath}.show`, {
-                    label: `Show ${fieldLabel}`
-                })}
-
-                <!-- Padding -->
-                <lcards-form-section
-                    header="Padding"
-                    description="Text padding (top, right, bottom, left)"
-                    ?expanded=${false}
-                    ?outlined=${false}
-                    headerLevel="5">
-                    ${this._renderTextPadding(`${basePath}.padding`)}
-                </lcards-form-section>
-
-                <!-- Font Settings -->
-                ${this._renderFontConfig(basePath)}
-
-                <!-- Alignment -->
-                ${this._renderTextAlignment(basePath)}
-
-                <!-- Colors -->
-                ${this._renderTextColors(`${basePath}.color`)}
-            </lcards-form-section>
-        `;
-    }
-
-    /**
      * Build ha-selector option list for the ranges_attribute dropdown.
      * Injects the virtual "brightness_pct" option right after "brightness" (when present)
      * so users get a clearly-labelled 0–100% computed value instead of the raw 0–255.
@@ -1036,14 +1028,14 @@ export class LCARdSBaseEditor extends LitElement {
         const entityId = this.config?.entity;
         const current = this.config?.ranges_attribute || '';
         const options = [
-            { value: '__none__', label: '— Use entity state' },
+            { value: '__none__', label: '(Use entity state)' },
             ...this._getRangesAttributeOptions()
         ];
         return html`
             <ha-selector
                 .hass=${this.hass}
                 .label=${'Range Attribute'}
-                .helper=${'Attribute value compared against range conditions (above:/below:/between:). Select "— Use entity state" to clear.'}
+                .helper=${'Attribute value compared against range conditions (above:/below:/between:). Select "(Use entity state)" to clear.'}
                 .disabled=${!entityId}
                 .selector=${{ select: { mode: 'dropdown', options, custom_value: true } }}
                 .value=${current || '__none__'}
@@ -1095,14 +1087,14 @@ export class LCARdSBaseEditor extends LitElement {
                   .map(attr => ({ value: attr, label: attr }))
             : [];
         const allOptions = [
-            { value: '__none__', label: '— Use entity state' },
+            { value: '__none__', label: '(Use entity state)' },
             ...options
         ];
         return html`
             <ha-selector
                 .hass=${this.hass}
                 .label=${'State Attribute'}
-                .helper=${'Attribute whose string value is matched against color-config keys (e.g. "fade", "true"). Select "— Use entity state" to clear.'}
+                .helper=${'Attribute whose string value is matched against color-config keys (e.g. "fade", "true"). Select "(Use entity state)" to clear.'}
                 .disabled=${!entityId}
                 .selector=${{ select: { mode: 'dropdown', options: allOptions, custom_value: true } }}
                 .value=${current || '__none__'}
@@ -1128,7 +1120,7 @@ export class LCARdSBaseEditor extends LitElement {
     _renderStateClassificationElseSelector() {
         const current = this.config?.state_classification?.else ?? '__none__';
         const options = [
-            { value: '__none__',  label: '— Inactive (default)' },
+            { value: '__none__',  label: '(Inactive, default)' },
             { value: 'default',   label: 'Default' },
             { value: 'active',    label: 'Active' },
             { value: 'inactive',  label: 'Inactive' },
@@ -1164,15 +1156,15 @@ export class LCARdSBaseEditor extends LitElement {
     /**
      * Build standard config tab structure with flexible field control
      *
-     * @param {Object} options - Config tab options
-     * @param {string} options.infoMessage - Info message at top of tab
-     * @param {Array} options.modeSections - Mode-specific sections (preset/component/svg)
-     * @param {Array} options.basicFields - Basic config fields (default: entity, id, tags)
-     * @param {boolean} options.showBasicSection - Show Basic Configuration section (default: true)
-     * @param {string} options.basicSectionHeader - Header for basic section (default: 'Basic Configuration')
-     * @param {string} options.basicSectionDescription - Description for basic section
-     * @param {string} options.basicSectionIcon - Icon for basic section (default: 'mdi:cog')
-     * @param {boolean} options.basicSectionExpanded - Expand basic section (default: true)
+     * @param {Object} [options] - Config tab options
+     * @param {string} [options.infoMessage] - Info message at top of tab
+     * @param {Array} [options.modeSections] - Mode-specific sections (preset/component/svg)
+     * @param {Array} [options.basicFields] - Basic config fields (default: entity, id, tags)
+     * @param {boolean} [options.showBasicSection] - Show Basic Configuration section (default: true)
+     * @param {string} [options.basicSectionHeader] - Header for basic section (default: 'Basic Configuration')
+     * @param {string} [options.basicSectionDescription] - Description for basic section
+     * @param {string} [options.basicSectionIcon] - Icon for basic section (default: 'mdi:cog')
+     * @param {boolean} [options.basicSectionExpanded] - Expand basic section (default: true)
      *
      * @returns {Array} Config tab definition
      *
@@ -1205,10 +1197,8 @@ export class LCARdSBaseEditor extends LitElement {
      *     });
      * }
      *
-     * @param {any} [options]
      * @protected
      */
-    // @ts-ignore - TS2740: auto-suppressed
     _buildConfigTab(options = {}) {
         const {
             infoMessage = 'Configure your LCARdS card settings.',
@@ -1289,82 +1279,15 @@ export class LCARdSBaseEditor extends LitElement {
     }
 
     /**
-     * Helper: Render icon section
-     * @returns {TemplateResult}
-     * @protected
-     */
-    _renderIconSection() {
-        return html`
-            <lcards-form-section
-                header="Icon Configuration"
-                description="Configure icon display and styling"
-                icon="mdi:image"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="4">
-
-                <!-- Icon Picker -->
-                ${FormField.renderField(this, 'icon', {
-                    label: 'Icon'
-                })}
-
-                <!-- Show Toggle -->
-                ${FormField.renderField(this, 'show_icon', {
-                    label: 'Show Icon'
-                })}
-
-                <!-- Icon Area -->
-                ${FormField.renderField(this, 'icon_area', {
-                    label: 'Icon Area',
-                    helper: 'Reserved space for icon (left, right, top, bottom)'
-                })}
-
-                <!-- Icon Size -->
-                <lcards-grid-layout>
-                    ${FormField.renderField(this, 'icon_style.size', {
-                        label: 'Icon Size'
-                    })}
-
-                    ${FormField.renderField(this, 'icon_style.padding', {
-                        label: 'Icon Padding'
-                    })}
-                </lcards-grid-layout>
-
-                <!-- Icon Colors -->
-                <lcards-color-section
-                    .editor=${this}
-                    .config=${this.config}
-                    basePath="icon_style.color"
-                    header="Icon Colours"
-                    description="State-based icon colours"
-                    .states=${['default', 'active', 'inactive', 'unavailable']}
-                    ?expanded=${false}>
-                </lcards-color-section>
-
-                <!-- Icon Area Background Colors -->
-                <lcards-color-section
-                    .editor=${this}
-                    .config=${this.config}
-                    basePath="icon_area_background"
-                    header="Icon Area Background"
-                    description="State-based icon area background colours"
-                    .states=${['default', 'active', 'inactive', 'unavailable']}
-                    ?expanded=${false}>
-                </lcards-color-section>
-            </lcards-form-section>
-        `;
-    }
-
-    /**
      * Standard utility tab renderers
      * Override in child classes if customization needed
      * @protected
      */
 
     /**
-     * Render a compact info hint for the Sizing section explaining the
-     * card-mod workaround required when this card lives inside a
-     * `custom:layout-card` grid with `layout-height: auto` (the default).
+     * Render a compact info hint for the Sizing section, shown only when
+     * lovelace-layout-card (`custom:layout-card`) is installed: LCARdS cards
+     * collapse inside its grid, so it points at `custom:lcards-layout-card`.
      *
      * Called as the last child of every card's Sizing section so users
      * see it without needing to open docs.
@@ -1373,24 +1296,22 @@ export class LCARdSBaseEditor extends LitElement {
      * @protected
      */
     _renderLayoutCardHint() {
+        // Only when lovelace-layout-card is installed: otherwise there is nothing to warn about.
+        if (!customElements.get('layout-card')) return html``;
         return html`
-            <lcards-message type="info" style="margin-top:4px;">
-                <strong>Inside a <code>custom:layout-card</code>?</strong><br>
-                Cards may collapse to minimum height in a layout-card grid.
-                Add this <code>card_mod</code> to the <strong>layout-card itself</strong>
-                to restore full-height sizing:
-                <pre style="margin:6px 0 0;padding:6px 8px;background:rgba(0,0,0,0.15);border-radius:3px;font-size:12px;white-space:pre;font-family:monospace;">card_mod:
-  style: |
-    grid-layout {
-      --layout-height: 100% !important;
-    }</pre>
-                <div style="margin-top:6px;">
-                    <a href="http://lcards.unimatrix01.ca/cards/common.html#sizing-inside-custom-layout-card"
-                       target="_blank" rel="noopener noreferrer" style="font-size:12px;">
-                        Documentation ↗
-                    </a>
-                </div>
-            </lcards-message>
+            ${renderInfoGuide({
+                header: 'Inside a custom:layout-card?',
+                icon: 'mdi:view-grid-outline',
+                body: html`
+                    <p>Cards can collapse to their minimum height in a <code>custom:layout-card</code> grid, and its
+                        <code>card_margin</code> is ignored. Use LCARdS's own <strong>Layout Card</strong> instead:
+                        change <code>type</code> to <code>custom:lcards-layout-card</code> and remove
+                        <code>layout_type</code>. Your <code>layout</code> and <code>view_layout</code> keys stay the same.</p>
+                    <div class="info-guide-links">
+                        <a href=${docsUrl(DOCS.sizingInLayoutCard)} target="_blank" rel="noopener noreferrer">Documentation</a>
+                    </div>
+                `,
+            })}
         `;
     }
 
@@ -1440,17 +1361,16 @@ export class LCARdSBaseEditor extends LitElement {
     }
 
     /**
-     * Render Theme Token Browser tab
+     * Render the card's Theme tab (its tokens; links to the panel's Theme Studio)
      * @returns {TemplateResult}
      * @protected
      */
     _renderThemeTokensTab() {
         return html`
-            <lcards-theme-token-browser-tab
-                .editor=${this}
+            <lcards-card-theme-tab
                 .config=${this.config}
                 .hass=${this.hass}>
-            </lcards-theme-token-browser-tab>
+            </lcards-card-theme-tab>
         `;
     }
 
@@ -1476,24 +1396,28 @@ export class LCARdSBaseEditor extends LitElement {
      * @protected
      */
     _renderDeveloperTab() {
+        const active = this._developerSubTab || 0;
+        const tabs = [
+            { icon: 'mdi:database', label: 'Data Sources', render: () => this._renderDataSourcesTab() },
+            { icon: 'mdi:format-list-checks', label: 'Rules', render: () => this._renderRulesTab() },
+            { icon: 'mdi:palette-swatch', label: 'Theme', render: () => this._renderThemeTokensTab() },
+            { icon: 'mdi:layers-search', label: 'Provenance', render: () => this._renderProvenanceTab() },
+            { icon: 'mdi:code-braces-box', label: 'Templates', render: () => this._renderTemplatesTab() },
+        ];
         return html`
-            <lcards-message
-                type="info"
-                message="Access and manage core LCARdS systems:\nData Sources\nrules, templates, theme tokens, and provenance tracking.">
-            </lcards-message>
+            <p class="hint main-engineering-hint">
+                This card's data sources, rules, theme tokens, templates, and where each setting comes from.
+            </p>
 
             <ha-tab-group @wa-tab-show=${this._handleDeveloperSubTabChange}>
-                <ha-tab-group-tab value="0" ?active=${(this._developerSubTab || 0) === 0}>Data Sources</ha-tab-group-tab>
-                <ha-tab-group-tab value="1" ?active=${(this._developerSubTab || 0) === 1}>Rules</ha-tab-group-tab>
-                <ha-tab-group-tab value="2" ?active=${(this._developerSubTab || 0) === 2}>Theme Browser</ha-tab-group-tab>
-                <ha-tab-group-tab value="3" ?active=${(this._developerSubTab || 0) === 3}>Provenance</ha-tab-group-tab>
-                <ha-tab-group-tab value="4" ?active=${(this._developerSubTab || 0) === 4}>Templates</ha-tab-group-tab>
-
-                <ha-tab-panel value="0" ?hidden=${(this._developerSubTab || 0) !== 0}>${this._renderDataSourcesTab()}</ha-tab-panel>
-                <ha-tab-panel value="1" ?hidden=${(this._developerSubTab || 0) !== 1}>${this._renderRulesTab()}</ha-tab-panel>
-                <ha-tab-panel value="2" ?hidden=${(this._developerSubTab || 0) !== 2}>${this._renderThemeTokensTab()}</ha-tab-panel>
-                <ha-tab-panel value="3" ?hidden=${(this._developerSubTab || 0) !== 3}>${this._renderProvenanceTab()}</ha-tab-panel>
-                <ha-tab-panel value="4" ?hidden=${(this._developerSubTab || 0) !== 4}>${this._renderTemplatesTab()}</ha-tab-panel>
+                ${tabs.map((tab, i) => html`
+                    <ha-tab-group-tab value=${String(i)} ?active=${active === i}>
+                        <ha-icon icon=${tab.icon}></ha-icon>
+                        ${tab.label}
+                    </ha-tab-group-tab>
+                `)}
+                <!-- Only the active sub-tab is rendered (the others would poll and load for nothing). -->
+                <div class="tab-panel">${tabs[active]?.render()}</div>
             </ha-tab-group>
         `;
     }
@@ -1635,6 +1559,7 @@ export class LCARdSBaseEditor extends LitElement {
                     .value=${this._yamlValue}
                     .schema=${this._getSchema()}
                     .hass=${this.hass}
+                    .cardType=${this.cardType}
                     @value-changed=${this._handleYamlChange}>
                 </lcards-yaml-editor>
             </div>

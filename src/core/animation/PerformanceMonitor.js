@@ -13,7 +13,10 @@ export class AnimationPerformanceMonitor {
     this._startTime = null;
     this._settleMs = 5000;       // Ignore readings for first 5s (startup jank + page load)
     this._consecutiveLow = 0;   // Consecutive checks below disable3D threshold
-    this._lowRequiredCount = 3; // Require 3 consecutive low-FPS checks before triggering disable
+    this._framesSinceCheck = 0; // Frames since the last FPS check (one check per 60 frames)
+    this._lowRequiredCount = 3; // Require 3 consecutive low-FPS checks (about 3 s at 60 fps) before triggering disable
+    /** @type {number | null} the queued measurement frame */
+    this._rafId = null;
     this._refCount = 0;          // Number of active subscribers (Canvas2DRenderer instances)
     this.thresholds = {
       disable3D: 12,      // Stop renderer entirely if FPS < 12 (3 consecutive checks required)
@@ -40,6 +43,11 @@ export class AnimationPerformanceMonitor {
     this._consecutiveLow = 0;
     if (this.isMonitoring) return; // loop already running, settle was just reset
     this.isMonitoring = true;
+    // Fresh window: the time since the last stop() is not a frame
+    this.lastTime = performance.now();
+    this.frames = [];
+    this._framesSinceCheck = 0;
+    if (this._rafId != null) cancelAnimationFrame(this._rafId);
     this._measure();
   }
 
@@ -52,6 +60,12 @@ export class AnimationPerformanceMonitor {
     this._refCount = Math.max(0, this._refCount - 1);
     if (this._refCount > 0) return; // other subscribers still active
     this.isMonitoring = false;
+    // Cancel the queued frame: while the tab is hidden it doesn't run, and a
+    // start() on show would then run beside it, one more loop per hide/show
+    // (the extra near-zero frame times also made currentFPS read high, so the
+    // low-FPS fallbacks never fired). 2026-11-17
+    if (this._rafId != null) cancelAnimationFrame(this._rafId);
+    this._rafId = null;
   }
 
   /**
@@ -67,20 +81,23 @@ export class AnimationPerformanceMonitor {
 
     this.frames.push(delta);
     if (this.frames.length > 60) this.frames.shift(); // Keep last 60 frames
+    this._framesSinceCheck++;
 
-    // Calculate FPS every 60 frames
-    if (this.frames.length === 60) {
+    // Calculate FPS once every 60 frames (about once a second at 60 fps), so
+    // "3 consecutive low checks" spans about 3 s, not 3 frames
+    if (this.frames.length === 60 && this._framesSinceCheck >= 60) {
+      this._framesSinceCheck = 0;
       const avg = this.frames.reduce((a, b) => a + b) / 60;
       this.currentFPS = Math.round(1000 / avg);
 
       // Only check thresholds after settle period
-      const elapsed = performance.now() - this._startTime;
+      const elapsed = performance.now() - (this._startTime ?? 0); // null (not started) acted as 0
       if (elapsed >= this._settleMs) {
         this._checkPerformance();
       }
     }
 
-    requestAnimationFrame(() => this._measure());
+    this._rafId = requestAnimationFrame(() => this._measure());
   }
 
   /**

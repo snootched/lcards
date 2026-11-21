@@ -1,0 +1,9 @@
+# grid.height fit counts repeat(N, ...) columns (4 options in 4 columns: one 40px row)
+type: custom:lcards-select-menu
+entity: input_select.demo_mode
+preset: lozenge
+grid:
+  columns: repeat(4, 1fr)
+  gap: 4px
+  grid-auto-rows: 40px
+  height: fit

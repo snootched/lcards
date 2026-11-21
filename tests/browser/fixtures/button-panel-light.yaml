@@ -1,0 +1,9 @@
+# preset: panel-light (doc/core/presets.md): a code panel; with an entity, the accent when on, the dark structure tone when off
+type: custom:lcards-button
+entity: input_boolean.demo_toggle
+preset: panel-light
+min_height: 28
+text:
+  label:
+    content: 13-650
+    position: center-right

@@ -1,0 +1,100 @@
+# Data grid (rebuilt, R3): data mode on live helpers. Entity cells, an
+# attribute, a template, a data source, header rows, conditional colours and
+# tap actions; the controls change the values the grid shows.
+title: Data grid live data
+path: datagrid-data
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: POWER } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SHIELDS } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_temperature
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: TEMPERATURE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_lights
+        text: { name: { content: LIGHTS, show: true }, state: { show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_doors
+        text: { name: { content: DOORS, show: true }, state: { show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-data-grid
+        data_mode: data
+        data_sources:
+          power_smooth:
+            entity: input_number.lcards_test_power
+            processing:
+              smoothed: { type: smooth, method: exponential, alpha: 0.3 }
+        rows:
+          - values: [System, Reading, Note]
+            header: true
+          - - Power
+            - value: input_number.lcards_test_power
+              style:
+                color:
+                  default: var(--lcars-green)
+                  above:60: var(--lcars-yellow)
+                  above:85: var(--lcars-red)
+            - "Smoothed {datasource:power_smooth.smoothed:.0f} %"
+          - - Shields
+            - value: input_number.lcards_test_shields
+              style:
+                background:
+                  default: transparent
+                  below:25: var(--lcars-red)
+            - "{{ 'CRITICAL' if states('input_number.lcards_test_shields') | float(0) < 25 else 'Holding' }}"
+          - - Deck temperature
+            - input_number.lcards_test_temperature
+            - entity: input_number.lcards_test_temperature
+              attribute: max
+          - values: [Deck systems]
+            header: true
+          - - Lights
+            - value: input_boolean.lcards_test_lights
+              tap_action: { action: toggle }
+              style: { color: { active: var(--lcars-yellow), inactive: var(--lcars-gray) } }
+            - Tap to toggle
+          - - Doors
+            - value: input_boolean.lcards_test_doors
+              tap_action: { action: toggle }
+              style: { color: { active: var(--lcars-orange), inactive: var(--lcars-gray) } }
+            - Tap to toggle
+          - - Sensor
+            - sensor.desk_sensor_temperature
+            - "[[[ return 'Updated ' + new Date(hass.states['sensor.desk_sensor_temperature'].last_changed).toLocaleTimeString() ]]]"
+        grid:
+          grid-template-columns: 1fr 1fr 1.4fr
+          gap: 8px
+        style: { font_size: 22px, color: var(--lcards-moonlight) }
+        header_style: { color: var(--lcars-orange) }
+        columns:
+          - style: { color: var(--lcars-blue), text_transform: uppercase }
+        highlight_changes: { preset: pulse, duration: 400 }
+        grid_options: { columns: full, rows: 6 }

@@ -10,6 +10,9 @@ import { html } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { deepMerge } from '../../utils/deepMerge.js';
+import { fireEvent } from 'custom-card-helpers';
+import { dropStrayRangeLabels } from '../utils/slider-config-cleanup.js';
+import { controlSetter, settableAttributes } from '../../cards/slider-control.js';
 
 // Import shared form components
 import '../components/editors/lcards-color-section-v2.js';
@@ -36,7 +39,6 @@ import '../components/datasources/lcards-datasource-editor-tab.js';
 import '../components/templates/lcards-template-evaluation-tab.js';
 
 // Import theme browser
-import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 
 // Import provenance tab
 import '../components/provenance/lcards-provenance-tab.js';
@@ -64,6 +66,11 @@ class SliderConfigState {
     // Track type: Visual rendering style (pills, gauge, or shaped)
     // Checks: explicit config → component name → preset name → default
     get trackType() {
+        // 0. The ring component always draws a ring (style.track.type doesn't apply)
+        if ((this.config.component || this.config.style?.component) === 'ring') {
+            return 'ring';
+        }
+
         // 1. Explicit config wins
         if (this.config.style?.track?.type) {
             return this.config.style.track.type;
@@ -118,38 +125,43 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Drop range `label` values that aren't objects before the base editor sees
+     * the config: older versions of this editor added `label: ''` to every new
+     * band range, which fails validation (label is an object with text, colour,
+     * ...). On the first setConfig() after opening, the cleaned config is sent
+     * back so Save keeps it.
+     * @param {Object} config
+     * @override
+     */
+    setConfig(config) {
+        const { config: cleaned, changed: stray } = dropStrayRangeLabels(config);
+        config = cleaned;
+        const firstCall = !this._openedConfigSeen;
+        this._openedConfigSeen = true;
+        super.setConfig(config);
+        if (stray && firstCall) {
+            lcardsLog.info('[LCARdSSliderEditor] Removed empty range labels from the config');
+            this.updateComplete.then(() => fireEvent(this, 'config-changed', { config: this.config }));
+        }
+    }
+
+    /**
      * Handle range changes from visualizer
      * @private
      */
     _handleRangeChanged(event) {
         const updates = event.detail;
-        const newConfig = { ...this.config };
-
-        // Update control range
-        if ('controlMin' in updates) {
-            if (!newConfig.control) newConfig.control = {};
-            newConfig.control.min = updates.controlMin;
-        }
-        if ('controlMax' in updates) {
-            if (!newConfig.control) newConfig.control = {};
-            newConfig.control.max = updates.controlMax;
-        }
-
-        // Update display range
-        if ('displayMin' in updates) {
-            if (!newConfig.style) newConfig.style = {};
-            if (!newConfig.style.track) newConfig.style.track = {};
-            if (!newConfig.style.track.display) newConfig.style.track.display = {};
-            newConfig.style.track.display.min = updates.displayMin;
-        }
-        if ('displayMax' in updates) {
-            if (!newConfig.style) newConfig.style = {};
-            if (!newConfig.style.track) newConfig.style.track = {};
-            if (!newConfig.style.track.display) newConfig.style.track.display = {};
-            newConfig.style.track.display.max = updates.displayMax;
-        }
-
-        this._updateConfig(newConfig);
+        // Partial updates: _updateConfig deep-merges (configs are frozen; never mutate)
+        const control = {};
+        const display = {};
+        if ('controlMin' in updates) control.min = updates.controlMin;
+        if ('controlMax' in updates) control.max = updates.controlMax;
+        if ('displayMin' in updates) display.min = updates.displayMin;
+        if ('displayMax' in updates) display.max = updates.displayMax;
+        this._updateConfig({
+            ...(Object.keys(control).length ? { control } : {}),
+            ...(Object.keys(display).length ? { style: { track: { display } } } : {}),
+        });
     }
 
     /**
@@ -158,19 +170,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _handleDirectionChanged(event) {
         const { orientation, invertFill, invertValue } = event.detail;
-        const newConfig = { ...this.config };
-
-        // Update orientation
-        if (!newConfig.style) newConfig.style = {};
-        if (!newConfig.style.track) newConfig.style.track = {};
-        newConfig.style.track.orientation = orientation;
-        newConfig.style.track.invert_fill = invertFill;
-
-        // Update value inversion
-        if (!newConfig.control) newConfig.control = {};
-        newConfig.control.invert_value = invertValue;
-
-        this._updateConfig(newConfig);
+        this._updateConfig({
+            style: { track: { orientation, invert_fill: invertFill } },
+            control: { invert_value: invertValue },
+        });
     }
 
     /**
@@ -199,7 +202,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             });
 
             if (this._previousTrackType !== currentTrackType) {
-                lcardsLog.info('[LCARdSSliderEditor] Track type changed - forcing re-render', {
+                lcardsLog.debug('[LCARdSSliderEditor] Track type changed - forcing re-render', {
                     from: this._previousTrackType,
                     to: currentTrackType,
                     preset: this.config?.preset
@@ -246,6 +249,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _renderOrientationSelector() {
         const componentName = this.config?.component;
+        // The ring has no orientation: its arc angles live in the Slider Track tab.
+        if (this._getSliderState().trackType === 'ring') return html``;
         const metadata = this._getComponentMetadata(componentName);
 
         // If component has fixed orientation, show it as disabled text
@@ -258,7 +263,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .label=${'Orientation'}
                     .value=${`${orientationLabel} (fixed)`}
                     .disabled=${true}
-                    .helper=${'This component only supports ${metadata.orientation} orientation'}
+                    .hint=${`This component only supports ${metadata.orientation} orientation`}
                 ></ha-input>
             `;
         }
@@ -266,12 +271,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         // Show full orientation selector
         return FormField.renderField(this, 'style.track.orientation', {
             label: 'Orientation',
-            // @ts-ignore - TS2353: auto-suppressed
-            type: 'select',
-            options: [
-                { value: 'horizontal', label: 'Horizontal' },
-                { value: 'vertical', label: 'Vertical' }
-            ]
         });
     }
 
@@ -287,6 +286,24 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      * @returns {TemplateResult}
      * @private
      */
+    /**
+     * Commit a preset; when it does not run on the current component (a family
+     * preset such as picard-gauge-column picked under 'picard'), switch to the
+     * component it runs on.
+     * @param {string|undefined} name
+     * @private
+     */
+    _selectPreset(name) {
+        const presetData = name ? window.lcards?.core?.stylePresetManager?.getPreset('slider', name) : null;
+        const compatible = presetData?.compatibleComponents;
+        const current = this.config?.component || '';
+        if (current && compatible && !compatible.includes(current)) {
+            this._updateConfig({ preset: name, component: presetData.component ?? compatible[0] });
+            return;
+        }
+        this._setConfigValue('preset', name);
+    }
+
     _renderPresetSelector() {
         const stylePresetManager = window.lcards?.core?.stylePresetManager;
         if (!stylePresetManager) return html``;
@@ -316,13 +333,13 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .label=${'Style Preset'}
                     .value=${'No presets available for this component'}
                     .disabled=${true}
-                    .helper=${'Change or clear the component to see presets'}
+                    .hint=${'Change or clear the component to see presets'}
                 ></ha-input>
             `;
         }
 
         const options = [
-            { value: '', label: '— None —' },
+            { value: '', label: '(None)' },
             ...filteredPresets.map(name => ({
                 value: name,
                 label: name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -334,7 +351,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
         const helperText = currentComponent
             ? `Presets compatible with the '${currentComponent}' component`
-            : 'Quick styling — select a component first to narrow the list';
+            : 'Quick styling: select a component first to narrow the list';
 
         return html`
             <ha-selector
@@ -343,13 +360,13 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 .helper=${helperText}
                 .selector=${{ select: { mode: 'dropdown', options } }}
                 .value=${currentPreset}
-                @value-changed=${(e) => this._setConfigValue('preset', e.detail.value || undefined)}>
+                @value-changed=${(e) => this._selectPreset(e.detail.value || undefined)}>
             </ha-selector>
             ${isIncompatible ? html`
-                <ha-alert alert-type="warning">
-                    Preset '${currentPreset}' is not compatible with component '${currentComponent}'.
-                    Choose a compatible preset or clear the component field.
-                </ha-alert>
+                <lcards-message type="warning">
+                    Preset '${currentPreset}' doesn't work with component '${currentComponent}'.
+                    Choose a compatible preset, or clear the component.
+                </lcards-message>
             ` : ''}
         `;
     }
@@ -371,22 +388,28 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             ? Object.keys(this.hass.states[entityId].attributes || {}).sort()
                   .map(attr => ({ value: attr, label: attr }))
             : [];
-        const options = [{ value: '__none__', label: '— Control entity state' }, ...attrOpts];
+        const options = [{ value: '__none__', label: '(Control entity state)' }, ...attrOpts];
         return html`
             <ha-selector
                 .hass=${this.hass}
                 .label=${'Attribute'}
-                .helper=${'Entity attribute to control (e.g. brightness). Select "— Control entity state" to clear.'}
+                .helper=${'Entity attribute to control (e.g. brightness). Select "(Control entity state)" to clear.'}
                 .disabled=${!entityId}
                 .selector=${{ select: { mode: 'dropdown', options, custom_value: true } }}
                 .value=${currentValue || '__none__'}
                 @value-changed=${(e) => this._handleAttributeChange(e)}>
             </ha-selector>
 
-            ${!isValidAttribute && currentValue ? html`
+            ${!isValidAttribute && currentValue && !currentValue.includes('{') && !currentValue.includes('[[[') ? html`
                 <lcards-message
                     type="warning"
-                    message="⚠️ Attribute '${currentValue}' does not exist on entity '${entityId}'. The slider will control the entity state instead.">
+                    message="Attribute '${currentValue}' does not exist on entity '${entityId}' right now. The slider reads the entity state until it does.">
+                </lcards-message>
+            ` : ''}
+            ${entityId && currentValue && !currentValue.includes('{') && !currentValue.includes('[[[') && !controlSetter(entityId.split('.')[0], currentValue) ? html`
+                <lcards-message
+                    type="info"
+                    message="The slider can show '${currentValue}' but no action sets it, so the slider is read-only. Attributes it can set here: ${settableAttributes(entityId.split('.')[0]).join(', ') || 'none'}.">
                 </lcards-message>
             ` : ''}
         `;
@@ -431,6 +454,9 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             if (metadata?.configurableOptions?.length > 0) {
                 baseTabs.push({
                     label: 'Component Options',
+                    docs: componentName === 'picard' ? '/cards/slider-card/components#picard-component'
+                        : componentName === 'ring' ? '/cards/slider-card/components#ring-gauge'
+                        : '/cards/slider-card/components#shaped-component',
                     content: () => this._renderComponentOptionsTab()
                 });
             }
@@ -439,7 +465,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         // Add remaining tabs
         baseTabs.push(
             { label: 'Slider Track', content: () => this._renderTrackTab() },
-            { label: 'Borders', content: () => this._renderBordersTab() },
+            // Borders frame the card's edges; a ring has none, so the tab is left out.
+            ...(this._getSliderState().trackType === 'ring' ? [] : [{ label: 'Borders', content: () => this._renderBordersTab() }]),
             { label: 'Zones', content: () => this._renderZonesTab() },
             { label: 'Text Fields', content: () => this._renderTextTab() },
             { label: 'Actions', content: () => this._renderActionsTab() },
@@ -529,7 +556,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             {
                 type: 'section',
                 header: 'Sizing',
-                description: 'Override card dimensions — useful in stacks, overlays, or any auto-height container',
+                description: 'Override card dimensions: useful in stacks, overlays, or any auto-height container',
                 icon: 'mdi:resize',
                 expanded: false,
                 outlined: true,
@@ -603,21 +630,29 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, 'control.locked', {
                         label: 'Display Only',
-                        helper: 'Disable interaction (auto-locked for sensors)'
+                        helper: 'Only show the value. Always on when nothing can be set (sensors, attributes no action sets)'
                     })}
 
                     ${FormField.renderField(this, 'control.step', {
                         label: 'Step Size',
                         helper: 'Increment size'
                     })}
+
+                    ${FormField.renderField(this, 'control.live_update', {
+                        label: 'Live update',
+                        helper: 'The entity follows the slider while you drag it. On for lights, off for everything else unless set',
+                        value: this.config?.control?.live_update ?? String(this.config?.entity ?? '').startsWith('light.')
+                    })}
                 </lcards-grid-layout>
 
                 <lcards-slider-range-visualizer
+                    .hass=${this.hass}
                     .displayMin=${this.config?.style?.track?.display?.min ?? this.config?.control?.min ?? 0}
                     .displayMax=${this.config?.style?.track?.display?.max ?? this.config?.control?.max ?? 100}
                     .controlMin=${this.config?.control?.min ?? 0}
                     .controlMax=${this.config?.control?.max ?? 100}
                     .orientation=${state.orientation}
+                    ?hideOrientation=${trackType === 'ring'}
                     .invertFill=${this.config?.style?.track?.invert_fill ?? false}
                     .invertValue=${this.config?.control?.invert_value ?? false}
                     .currentValue=${50}
@@ -632,10 +667,12 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 ? this._renderPillsConfiguration()
                 : trackType === 'shaped'
                     ? this._renderShapedConfiguration()
-                    : this._renderGaugeConfiguration()}
+                    : trackType === 'ring'
+                        ? this._renderRingConfiguration()
+                        : this._renderGaugeConfiguration()}
 
-            <!-- Track Margins -->
-            <lcards-form-section
+            <!-- Track Margins (not for the ring: it sizes itself from the card) -->
+            ${trackType === 'ring' ? '' : html`<lcards-form-section
                 header="Track Margins"
                 description="Spacing around slider track"
                 icon="mdi:arrow-expand-all"
@@ -651,7 +688,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .controlConfig=${{ min: 0, max: 100, mode: 'box', unit_of_measurement: 'px' }}
                     columns="2">
                 </lcards-object-editor>
-            </lcards-form-section>
+            </lcards-form-section>`}
 
             <!-- Value Tween -->
             <lcards-form-section
@@ -695,8 +732,125 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 ` : ''}
             </lcards-form-section>
 
+            <!-- Live Drag-Value Badge -->
+            ${this._renderDragBadgeConfiguration()}
+
             <!-- Color-Coded Ranges -->
             ${this._renderRangesConfiguration()}
+        `;
+    }
+
+    /**
+     * Live drag-value badge configuration — a floating badge that follows the drag
+     * position while the user is actively dragging the slider (mirrors HA's native
+     * slider drag badge). Never shown for entity-driven/external value changes.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderDragBadgeConfiguration() {
+        const enabled = this.config?.drag_badge?.enabled === true;
+        const backgroundEnabled = this.config?.drag_badge?.background?.enabled !== false;
+        const borderEnabled = this.config?.drag_badge?.border?.enabled !== false;
+        const releaseBehavior = this.config?.drag_badge?.release?.behavior ?? 'fade';
+
+        return html`
+            <lcards-form-section
+                header="Live Value Badge"
+                description="Floating badge that follows the drag position while dragging; shows the value before it's committed to the entity, like Home Assistant's native slider drag indicator."
+                icon="mdi:tooltip-text"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                ${FormField.renderField(this, 'drag_badge.enabled', {
+                    label: 'Enable Value Badge'
+                })}
+
+                ${enabled ? html`
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'drag_badge.format.decimals', {
+                            label: 'Decimal Places',
+                            helper: 'Leave blank for locale-default formatting'
+                        })}
+                        ${FormField.renderField(this, 'drag_badge.format.show_unit', {
+                            label: 'Show Unit'
+                        })}
+                    </lcards-grid-layout>
+                    ${FormField.renderField(this, 'drag_badge.format.unit', {
+                        label: 'Unit Override',
+                        helper: 'Leave blank to use the track\'s display unit'
+                    })}
+
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'drag_badge.font_size', {
+                            label: 'Font Size (px)'
+                        })}
+                        ${FormField.renderField(this, 'drag_badge.offset.x', {
+                            label: 'Offset X (px)'
+                        })}
+                    </lcards-grid-layout>
+                    ${FormField.renderField(this, 'drag_badge.offset.y', {
+                        label: 'Offset Y (px)',
+                        helper: 'Default anchor is above the track (horizontal) or beside it (vertical)'
+                    })}
+
+                    <lcards-color-section-v2
+                        .editor=${this}
+                        .entityId=${this.config?.entity || ''}
+                        basePath="drag_badge.color"
+                        header="Badge Text Colour"
+                        description="State-based colour of the badge text"
+                        .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                        ?allowCustomStates=${true}
+                        ?expanded=${false}>
+                    </lcards-color-section-v2>
+
+                    ${FormField.renderField(this, 'drag_badge.background.enabled', {
+                        label: 'Show Background'
+                    })}
+                    ${backgroundEnabled ? html`
+                        <lcards-color-section-v2
+                            .editor=${this}
+                            .entityId=${this.config?.entity || ''}
+                            basePath="drag_badge.background.color"
+                            header="Badge Background Colour"
+                            description="State-based colour of the badge background chip"
+                            .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                            ?allowCustomStates=${true}
+                            ?expanded=${false}>
+                        </lcards-color-section-v2>
+                    ` : ''}
+
+                    ${FormField.renderField(this, 'drag_badge.border.enabled', {
+                        label: 'Show Border'
+                    })}
+                    ${borderEnabled ? html`
+                        ${FormField.renderField(this, 'drag_badge.border.width', {
+                            label: 'Border Width (px)'
+                        })}
+                        <lcards-color-section-v2
+                            .editor=${this}
+                            .entityId=${this.config?.entity || ''}
+                            basePath="drag_badge.border.color"
+                            header="Badge Border Colour"
+                            description="State-based colour of the badge border"
+                            .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                            ?allowCustomStates=${true}
+                            ?expanded=${false}>
+                        </lcards-color-section-v2>
+                    ` : ''}
+
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'drag_badge.release.behavior', {
+                            label: 'Release Behaviour',
+                            helper: 'What happens when you let go, before the entity commit. Always instant when reduced-motion is enabled.'
+                        })}
+                        ${releaseBehavior === 'fade' ? FormField.renderField(this, 'drag_badge.release.duration', {
+                            label: 'Fade Duration'
+                        }) : ''}
+                    </lcards-grid-layout>
+                ` : ''}
+            </lcards-form-section>
         `;
     }
 
@@ -720,7 +874,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 <lcards-message
                     type="info"
-                    message="Band ranges colour a fixed zone on the track. Value markers track a live entity attribute (e.g. current temperature) — shown as an indicator shape in gauge mode and a highlighted pill in pills mode.">
+                    message="Bands colour a fixed part of the track. Value markers follow a live attribute: an indicator in gauge mode, a pill in pills mode, a line or shape on the ring.">
                 </lcards-message>
 
                 <div class="range-list" style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0;">
@@ -822,9 +976,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      * @private
      */
     _renderBandRangeContent(range, basePath, trackType = 'gauge') {
-        const opacityHelper = (trackType === 'pills' || trackType === 'shaped')
+        const opacityHelper = trackType === 'pills'
             ? 'Gauge mode only. In pills mode use Track Settings › Appearance › Unfilled Opacity instead.'
-            : 'Background opacity (0–1, default: 0.3)';
+            : (trackType === 'shaped' || trackType === 'ring')
+                ? 'Opacity (0–1, default: 1)'
+                : 'Background opacity (0–1, default: 0.3)';
         return html`
             <lcards-grid-layout columns="2">
                 ${FormField.renderField(this, `${basePath}.min`, {
@@ -862,10 +1018,21 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _renderMarkerRangeContent(range, basePath, trackType) {
         const isGauge = trackType === 'gauge';
-        const isPills = trackType === 'pills' || trackType === 'shaped';
+        const isRing = trackType === 'ring';
+        const isPills = trackType === 'pills';
+
+        // The shaped component doesn't draw value markers at all.
+        if (trackType === 'shaped') {
+            return html`
+                ${FormField.renderField(this, `${basePath}.value`, { label: 'Marker Value / Template' })}
+                <lcards-message type="info"
+                    message="The shaped component doesn't draw value markers. Switch to a gauge, pills or ring style to see them.">
+                </lcards-message>
+            `;
+        }
+        if (isRing) return this._renderRingMarkerContent(basePath);
         const indExpanded = this._expandedRanges[`${basePath}_ind`] || false;
         const pillExpanded = this._expandedRanges[`${basePath}_pill`] || false;
-        const labelExpanded = this._expandedRanges[`${basePath}_label`] || false;
 
         return html`
             <!-- Value template -->
@@ -888,7 +1055,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             ` : ''}
 
             <!-- Indicator shape settings (gauge mode) -->
-            <lcards-form-section
+            ${isGauge ? html`<lcards-form-section
                 header="Indicator Shape"
                 description="Gauge mode: shape used for this marker. Falls back to the global gauge indicator settings if not set."
                 icon="mdi:map-marker"
@@ -897,23 +1064,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 headerLevel="5"
                 @expanded-changed=${(e) => { this._expandedRanges[`${basePath}_ind`] = e.detail.expanded; this.requestUpdate(); }}>
 
-                ${!isGauge ? html`
-                    <lcards-message type="info"
-                        message="These settings only apply in gauge mode. Switch the preset to a gauge style to use them.">
-                    </lcards-message>
-                ` : ''}
 
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.indicator.type`, {
                         label: 'Shape',
-                        // @ts-ignore - TS2353: auto-suppressed
-                        type: 'select',
-                        options: [
-                            { value: '', label: '— Inherit from gauge.indicator —' },
-                            { value: 'line', label: 'Line' },
-                            { value: 'round', label: 'Round (ellipse)' },
-                            { value: 'triangle', label: 'Triangle' }
-                        ],
                         helper: 'Defaults to style.gauge.indicator.type'
                     })}
 
@@ -956,9 +1110,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.indicator.border.enabled`, {
+                        value: this._getConfigValue(`${basePath}.indicator.border.enabled`) === true,
                         label: 'Show Border',
-                        // @ts-ignore - TS2353: auto-suppressed
-                        type: 'boolean',
                         helper: 'Outline border on the indicator shape'
                     })}
                     ${FormField.renderField(this, `${basePath}.indicator.border.width`, {
@@ -976,10 +1129,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
                 </lcards-color-section-v2>
-            </lcards-form-section>
+            </lcards-form-section>` : ''}
 
             <!-- Pill style settings (pills mode) -->
-            <lcards-form-section
+            ${isPills ? html`<lcards-form-section
                 header="Pill Marker Style"
                 description="Pills mode: how the highlighted pill looks."
                 icon="mdi:pill"
@@ -988,17 +1141,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 headerLevel="5"
                 @expanded-changed=${(e) => { this._expandedRanges[`${basePath}_pill`] = e.detail.expanded; this.requestUpdate(); }}>
 
-                ${!isPills ? html`
-                    <lcards-message type="info"
-                        message="These settings only apply in pills mode. Switch the preset to a pills style to use them.">
-                    </lcards-message>
-                ` : ''}
 
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.pill_style.stroke`, {
                         label: 'Show Outline',
-                        // @ts-ignore - TS2353: auto-suppressed
-                        type: 'boolean',
                         helper: 'Draw a border on the marker pill to distinguish it from neighbours'
                     })}
                     ${FormField.renderField(this, `${basePath}.pill_style.stroke_width`, {
@@ -1017,12 +1163,26 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
                 </lcards-color-section-v2>
-            </lcards-form-section>
+            </lcards-form-section>` : ''}
 
+            ${this._renderMarkerLabelSection(basePath)}
+        `;
+    }
+
+    /**
+     * Value marker label section (gauge, pills and ring).
+     * @param {string} basePath - style.ranges.N
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderMarkerLabelSection(basePath) {
+        const labelExpanded = this._expandedRanges[`${basePath}_label`] || false;
+        const isRing = this._getSliderState().trackType === 'ring';
+        return html`
             <!-- Label settings (optional text caption) -->
             <lcards-form-section
                 header="Label"
-                description="Optional text caption shown next to the marker (gauge mode) or highlighted pill (pills mode)."
+                description="${isRing ? 'Optional text caption outside the ring, beyond the marker' : 'Optional text caption shown next to the marker (gauge mode) or highlighted pill (pills mode)'}"
                 icon="mdi:tag-text"
                 ?expanded=${labelExpanded}
                 ?outlined=${true}
@@ -1031,13 +1191,13 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 ${FormField.renderField(this, `${basePath}.label.text`, {
                     label: 'Label Text',
-                    helper: 'Static text or a template — {entity.attributes.x} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], or {datasource:name} are all supported.'
+                    helper: 'Static text or a template: {entity.attributes.x} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], or {datasource:name} are all supported.'
                 })}
 
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.label.font_size`, {
                         label: 'Font Size (px)',
-                        helper: 'Defaults to the gauge tick-label size (14px)'
+                        helper: isRing ? 'Default 12px on the ring' : 'Defaults to the gauge tick-label size (14px)'
                     })}
                     ${FormField.renderField(this, `${basePath}.label.offset.x`, {
                         label: 'Offset X (px)'
@@ -1062,6 +1222,90 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Value marker settings on the ring: shape, anchoring, size, radial offset,
+     * colours and the label. Rotation follows the ring, so it isn't offered.
+     * @param {string} basePath - style.ranges.N
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRingMarkerContent(basePath) {
+        const indExpanded = this._expandedRanges[`${basePath}_ind`] ?? true;
+        return html`
+            ${FormField.renderField(this, `${basePath}.value`, {
+                label: 'Marker Value / Template',
+                helper: 'Template resolving to a position on the ring. Examples: {entity.attributes.current_temperature}, {states.sensor.outdoor_temp.state}, {datasource:name}'
+            })}
+
+            <lcards-form-section
+                header="Marker Shape"
+                description="Line (default) across the ring, triangle pointing at it, or a dot"
+                icon="mdi:map-marker"
+                ?expanded=${indExpanded}
+                ?outlined=${true}
+                headerLevel="5"
+                @expanded-changed=${(e) => { this._expandedRanges[`${basePath}_ind`] = e.detail.expanded; this.requestUpdate(); }}>
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, `${basePath}.indicator.type`, {
+                        label: 'Shape',
+                        helper: 'line (default), triangle or round'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.align`, {
+                        label: 'Anchor',
+                        helper: 'start = inner edge, center = band, end = outer edge'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.size.width`, {
+                        label: 'Width (px)',
+                        helper: 'Across the ring (a dot: its diameter)'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.size.height`, {
+                        label: 'Length (px)',
+                        helper: 'Along the radius (line, triangle)'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.offset.y`, {
+                        label: 'Radial Offset (px)',
+                        helper: 'Positive moves it outward'
+                    })}
+                </lcards-grid-layout>
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="${basePath}.indicator.color"
+                    header="Marker Colour"
+                    description="State-based colour of the marker"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${true}>
+                </lcards-color-section-v2>
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, `${basePath}.indicator.border.enabled`, {
+                        value: this._getConfigValue(`${basePath}.indicator.border.enabled`) === true,
+                        label: 'Show Border',
+                        helper: 'Outline on a triangle or dot'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.border.width`, {
+                        label: 'Border Width (px)'
+                    })}
+                </lcards-grid-layout>
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="${basePath}.indicator.border.color"
+                    header="Border Colour"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
+            </lcards-form-section>
+
+            ${this._renderMarkerLabelSection(basePath)}
+        `;
+    }
+
+    /**
      * Toggle range expanded state
      * @param {number} index - Range index
      * @private
@@ -1081,7 +1325,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             min: 0,
             max: 100,
             color: 'var(--primary-color)',
-            label: '',
             opacity: 0.3
         };
         this._updateConfig({
@@ -1251,25 +1494,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         ${FormField.renderField(this, 'style.gauge.progress_bar.align', {
                             label: 'Alignment',
                             helper: 'Cross-sectional alignment',
-                            // @ts-ignore - TS2353: auto-suppressed
-                            type: 'select',
-                            mode: 'dropdown',
-                            options: [
-                                { value: 'start', label: 'Start' },
-                                { value: 'middle', label: 'Middle' },
-                                { value: 'end', label: 'End' }
-                            ]
                         })}
                         ${FormField.renderField(this, 'style.gauge.progress_bar.layer', {
                             label: 'Layer',
                             helper: 'Render behind or in front of tick marks',
-                            // @ts-ignore - TS2353: auto-suppressed
-                            type: 'select',
-                            mode: 'dropdown',
-                            options: [
-                                { value: 'background', label: 'Behind ticks' },
-                                { value: 'foreground', label: 'In front of ticks' }
-                            ]
                         })}
                     </lcards-grid-layout>
 
@@ -1277,11 +1505,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     <lcards-grid-layout>
                         ${FormField.renderField(this, 'style.gauge.progress_bar.radius.start', {
                             label: 'Radius Start',
-                            helper: 'Fill bar start-end radius — left (horizontal) or bottom (vertical)'
+                            helper: 'Fill bar start-end radius: left (horizontal) or bottom (vertical)'
                         })}
                         ${FormField.renderField(this, 'style.gauge.progress_bar.radius.end', {
                             label: 'Radius End',
-                            helper: 'Fill bar end radius — right (horizontal) or top (vertical)'
+                            helper: 'Fill bar end radius: right (horizontal) or top (vertical)'
                         })}
                     </lcards-grid-layout>
 
@@ -1348,11 +1576,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     <lcards-grid-layout>
                         ${FormField.renderField(this, 'style.gauge.progress_bar.background.radius.start', {
                             label: 'Radius Start',
-                            helper: 'Background start-end radius — left (horizontal) or bottom (vertical). Defaults to fill radius.'
+                            helper: 'Background start-end radius: left (horizontal) or bottom (vertical). Defaults to fill radius.'
                         })}
                         ${FormField.renderField(this, 'style.gauge.progress_bar.background.radius.end', {
                             label: 'Radius End',
-                            helper: 'Background end radius — right (horizontal) or top (vertical). Defaults to fill radius.'
+                            helper: 'Background end radius: right (horizontal) or top (vertical). Defaults to fill radius.'
                         })}
                     </lcards-grid-layout>
 
@@ -1493,6 +1721,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         label: 'Padding',
                         helper: 'Space between tick and label in pixels'
                     })}
+
+                        ${FormField.renderField(this, 'style.gauge.scale.labels.align', {
+                        label: 'Label position',
+                        helper: 'Beside the ticks, or at the far edge of the track'
+                    })}
                     </lcards-grid-layout>
 
                     <!-- State-aware label colors -->
@@ -1590,6 +1823,163 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Whether a ring scale level (or the labels) is drawn: its block is set and
+     * not `enabled: false`. The editor's Show switches use this rather than the
+     * schema default, which would show them on before anything is drawn.
+     * @param {string} path - e.g. style.ring.scale.tick_marks.major
+     * @returns {boolean}
+     * @private
+     */
+    _ringScaleShown(path) {
+        const block = this._getConfigValue?.(path);
+        return !!block && typeof block === 'object' && block.enabled !== false;
+    }
+
+    /**
+     * Ring component settings (style.ring): angles, thickness, ends, colours, ticks.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRingConfiguration() {
+        return html`
+            <lcards-form-section
+                header="Ring"
+                description="Arc angles (0 = top, clockwise), thickness and ends"
+                icon="mdi:circle-slice-7"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, 'style.ring.start_angle', {
+                        label: 'Start Angle',
+                        helper: 'Where the minimum sits (default -135)'
+                    })}
+                    ${FormField.renderField(this, 'style.ring.end_angle', {
+                        label: 'End Angle',
+                        helper: 'Where the maximum sits (default 135); equal to start = full ring'
+                    })}
+                    ${FormField.renderField(this, 'style.ring.thickness', {
+                        label: 'Thickness',
+                        helper: 'Percent of the diameter (12%) or pixels (14)'
+                    })}
+                    ${FormField.renderField(this, 'style.ring.cap', {
+                        label: 'Arc Ends'
+                    })}
+                    ${FormField.renderField(this, 'style.ring.focus_ring', {
+                        label: 'Show Focus Outline',
+                        helper: 'Outline while focused from the keyboard (off by default)'
+                    })}
+                </lcards-grid-layout>
+            </lcards-form-section>
+
+            <lcards-form-section
+                header="Colours"
+                description="Value arc and track colours"
+                icon="mdi:water"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="style.ring.fill.color"
+                    header="Value Arc Colour"
+                    description="State-based colour of the value arc"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${true}>
+                </lcards-color-section-v2>
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="style.ring.track.color"
+                    header="Track Colour"
+                    description="State-based colour of the unfilled ring"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
+            </lcards-form-section>
+
+            <lcards-form-section
+                header="Scale"
+                description="Ticks and value labels outside the ring (the same settings as the gauge scale)"
+                icon="mdi:ruler"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-message type="info"
+                    message="A tick level or the labels show once one of their settings is set. Labels sit at the major tick interval.">
+                </lcards-message>
+
+                <lcards-form-section header="Major Ticks" icon="mdi:format-line-weight" ?expanded=${false} ?outlined=${true} headerLevel="5">
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.major.enabled', { label: 'Show', value: this._ringScaleShown('style.ring.scale.tick_marks.major') })}
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.major.interval', { label: 'Interval', helper: 'Value units (default 10)' })}
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.major.height', { label: 'Length (px)' })}
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.major.width', { label: 'Width (px)' })}
+                    </lcards-grid-layout>
+                    <lcards-color-section-v2
+                        .editor=${this}
+                        .entityId=${this.config?.entity || ''}
+                        basePath="style.ring.scale.tick_marks.major.color"
+                        header="Major Tick Colour"
+                        .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                        ?allowCustomStates=${true}
+                        ?expanded=${false}>
+                    </lcards-color-section-v2>
+                </lcards-form-section>
+
+                <lcards-form-section header="Minor Ticks" icon="mdi:format-line-style" ?expanded=${false} ?outlined=${true} headerLevel="5">
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.minor.enabled', { label: 'Show', value: this._ringScaleShown('style.ring.scale.tick_marks.minor') })}
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.minor.interval', { label: 'Interval', helper: 'Value units (default 2)' })}
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.minor.height', { label: 'Length (px)' })}
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.minor.width', { label: 'Width (px)' })}
+                    </lcards-grid-layout>
+                    <lcards-color-section-v2
+                        .editor=${this}
+                        .entityId=${this.config?.entity || ''}
+                        basePath="style.ring.scale.tick_marks.minor.color"
+                        header="Minor Tick Colour"
+                        .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                        ?allowCustomStates=${true}
+                        ?expanded=${false}>
+                    </lcards-color-section-v2>
+                </lcards-form-section>
+
+                <lcards-form-section header="Labels" icon="mdi:numeric" ?expanded=${false} ?outlined=${true} headerLevel="5">
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'style.ring.scale.labels.enabled', { label: 'Show', value: this._ringScaleShown('style.ring.scale.labels') })}
+                        ${FormField.renderField(this, 'style.ring.scale.labels.show_unit', { label: 'Show Unit' })}
+                        ${FormField.renderField(this, 'style.ring.scale.labels.unit', { label: 'Unit Override' })}
+                        ${FormField.renderField(this, 'style.ring.scale.labels.font_size', { label: 'Font Size (px)' })}
+                        ${FormField.renderField(this, 'style.ring.scale.labels.padding', { label: 'Gap (px)' })}
+                    </lcards-grid-layout>
+                    <lcards-color-section-v2
+                        .editor=${this}
+                        .entityId=${this.config?.entity || ''}
+                        basePath="style.ring.scale.labels.color"
+                        header="Label Colour"
+                        .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                        ?allowCustomStates=${true}
+                        ?expanded=${false}>
+                    </lcards-color-section-v2>
+                </lcards-form-section>
+
+                ${FormField.renderField(this, 'style.ring.padding', {
+                    label: 'Outside Padding (px)',
+                    helper: 'Room outside the ring for the scale and marker labels; empty = sized automatically'
+                })}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
      * Shaped Configuration — shape type, fill colour, track background, and label band sizes.
      * Used when the shaped component is active (e.g. shaped-vertical / shaped-horizontal preset).
      * @returns {TemplateResult}
@@ -1616,7 +2006,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 ${FormField.renderField(this, 'style.shaped.radius', {
                     label: 'Corner Radius (px)',
-                    helper: 'Override auto radius — lozenge defaults to min(w,h)/2, rounded defaults to 8'
+                    helper: 'Override auto radius: lozenge defaults to min(w,h)/2, rounded defaults to 8'
                 })}
             </lcards-form-section>
 
@@ -1665,11 +2055,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     <lcards-grid-layout columns="2">
                         ${FormField.renderField(this, 'style.shaped.text_bands.top.size', {
                             label: 'Top Band (px)',
-                            helper: 'Space above shape — typically for value label'
+                            helper: 'Space above shape: typically for value label'
                         })}
                         ${FormField.renderField(this, 'style.shaped.text_bands.bottom.size', {
                             label: 'Bottom Band (px)',
-                            helper: 'Space below shape — typically for name label'
+                            helper: 'Space below shape: typically for name label'
                         })}
                     </lcards-grid-layout>
                 ` : html`
@@ -1686,7 +2076,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 `}
 
                 <lcards-message type="info"
-                    message="These sizes reserve pixel space outside the shape body and automatically create named zones (${isVertical ? 'top / bottom' : 'left / right'}) that text fields are routed to by default. To place a field <em>inside</em> the shape instead, go to the <strong>Text Fields</strong> tab, add the field, and set its zone to <strong>Track (inner)</strong>.">
+                    message="Text fields go in these bands by default. To put one inside the shape, set its zone to Track (inner) on the Text Fields tab.">
                 </lcards-message>
             </lcards-form-section>
         `;
@@ -1718,7 +2108,13 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
         const componentName = this.config?.component || 'default';
 
-        if (componentName === 'shaped') {
+        if (componentName === 'ring') {
+            // Ring component: the centre zones inside the ring.
+            availableZones.label = 'Label (above the value)';
+            availableZones.value = 'Value (middle)';
+            availableZones.sublabel = 'Sublabel (below the value)';
+            availableZones.center = 'Centre (whole inner area)';
+        } else if (componentName === 'shaped') {
             // Shaped component: expose text band zones instead of border zones.
             // A band is only a valid target when its size is non-zero.
             const bands     = this.config?.style?.shaped?.text_bands || {};
@@ -1836,7 +2232,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         return html`
             <lcards-form-section
                 header="Corner Radius"
-                description="Round the card corners — clips all borders and content uniformly"
+                description="Round the card corners: clips all borders and content uniformly"
                 icon="mdi:rounded-corner"
                 ?expanded=${false}
                 ?outlined=${true}
@@ -1844,7 +2240,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 <lcards-message
                     type="info"
-                    message="Clips the entire card with rounded corners via SVG. Supports pixel numbers (12), px/rem strings (12px), CSS variables (var(--ha-card-border-radius)), or per-corner control for LCARS end-cap styling (e.g. round only the free end of a left-bordered slider).">
+                    message="Rounds the whole card: a number (12), a size (12px), a CSS variable, or each corner on its own for LCARS end-caps.">
                 </lcards-message>
 
                 <ha-selector
@@ -1859,7 +2255,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     <ha-input
                         label="Radius"
                         .value=${toStr(currentRadius)}
-                        helper="Number (12), px (12px), rem (0.75rem), or CSS var: var(--ha-card-border-radius)"
+                        hint="Number (12), px (12px), rem (0.75rem), or CSS var: var(--ha-card-border-radius)"
                         helperPersistent
                         @change=${handleUniform}>
                     </ha-input>
@@ -1868,25 +2264,25 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         <ha-input
                             label="Top Left"
                             .value=${toStr(currentRadius?.top_left)}
-                            helper="Number, px, rem, or CSS var"
+                            hint="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('top_left', e)}>
                         </ha-input>
                         <ha-input
                             label="Top Right"
                             .value=${toStr(currentRadius?.top_right)}
-                            helper="Number, px, rem, or CSS var"
+                            hint="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('top_right', e)}>
                         </ha-input>
                         <ha-input
                             label="Bottom Left"
                             .value=${toStr(currentRadius?.bottom_left)}
-                            helper="Number, px, rem, or CSS var"
+                            hint="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('bottom_left', e)}>
                         </ha-input>
                         <ha-input
                             label="Bottom Right"
                             .value=${toStr(currentRadius?.bottom_right)}
-                            helper="Number, px, rem, or CSS var"
+                            hint="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('bottom_right', e)}>
                         </ha-input>
                     </lcards-grid-layout>
@@ -2215,12 +2611,15 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         let target = newConfig;
         for (let i = 0; i < pathParts.length - 1; i++) {
             const part = pathParts[i];
+            if (part === '__proto__' || part === 'constructor' || part === 'prototype') return; // never config (prototype pollution)
             if (!target[part]) target[part] = {};
             target = target[part];
         }
 
         // Set the final value
-        target[pathParts[pathParts.length - 1]] = value;
+        const last = pathParts[pathParts.length - 1];
+        if (last === '__proto__' || last === 'constructor' || last === 'prototype') return;
+        target[last] = value;
 
         this._updateConfig(newConfig);
     }
@@ -2282,8 +2681,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                             .filled=${true}
                             style="
                                 --ha-assist-chip-filled-container-color: var(--primary-color);
-                                --md-sys-color-primary: white;
-                                --md-sys-color-on-surface: white;
+                                --ha-assist-chip-label-text-color: white;
                             ">
                             <ha-icon icon="mdi:phone-rotate-landscape" slot="icon"></ha-icon>
                         </ha-assist-chip>
@@ -2303,8 +2701,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                                     .filled=${true}
                                     style="
                                         --ha-assist-chip-filled-container-color: var(--success-color, #4caf50);
-                                        --md-sys-color-primary: white;
-                                        --md-sys-color-on-surface: white;
+                                        --ha-assist-chip-label-text-color: white;
                                     ">
                                     <ha-icon icon="mdi:check" slot="icon"></ha-icon>
                                 </ha-assist-chip>

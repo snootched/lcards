@@ -240,7 +240,6 @@ export class LCARdSPaddingEditor extends LitElement {
             <div class="padding-cell ${side}">
                 <div class="padding-label">${label}</div>
                 <ha-selector
-                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .selector=${{
                         number: {

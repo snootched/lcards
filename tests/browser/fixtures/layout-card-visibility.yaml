@@ -1,0 +1,30 @@
+# A layout card's child with a Visibility condition, outside Home Assistant (no
+# hui-card in the harness or the docs): the layout card checks it itself
+type: custom:lcards-layout-card
+layout:
+  grid-template-columns: 120px minmax(0, 1fr)
+  grid-template-rows: 60px
+  grid-template-areas: '"nav main"'
+  grid-gap: 0px
+  height: 60px
+cards:
+  - type: custom:lcards-button
+    preset: lozenge
+    text:
+      label:
+        content: NAV
+        show: true
+    view_layout:
+      grid-area: nav
+    visibility:
+      - condition: state
+        entity: light.demo
+        state: 'on'
+  - type: custom:lcards-button
+    preset: lozenge
+    text:
+      label:
+        content: MAIN
+        show: true
+    view_layout:
+      grid-area: main

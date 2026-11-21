@@ -1,193 +1,91 @@
 /**
- * @fileoverview Template Examples Library
- *
- * Pre-configured template examples for the Template Sandbox.
- * Each example demonstrates a specific template type with realistic use cases.
+ * @fileoverview Template examples for the sandbox's example picker. Each runs on
+ * any card: where it needs a value the page may not have, it brings test values
+ * (the sandbox's Test values box: entity, states, ds, variables).
  *
  * @module template-examples
  */
 
 /**
- * Collection of template examples organized by type
- * @type {Object.<string, {name: string, template: string, description: string, mockEntity: string, mockState?: Object, mockDataSources?: Object}>}
+ * @typedef {Object} TemplateExample
+ * @property {string} name
+ * @property {string} template
+ * @property {string} description
+ * @property {Object} [test] - Test values: { entity?: {state, attributes}, states?: {id: {state, attributes}}, ds?: {name: value}, variables?: {} }
  */
+
+/** @type {Object.<string, TemplateExample>} */
 export const EXAMPLE_TEMPLATES = {
-  'simple-entity': {
-    name: 'Simple Entity State',
-    template: '{entity.state}',
-    description: 'Display the current state of the entity',
-    mockEntity: 'light.kitchen',
-    mockState: { state: 'on', attributes: {} }
-  },
-
-  'entity-attribute': {
-    name: 'Entity Attribute',
-    template: 'Brightness: {entity.attributes.brightness}',
-    description: 'Access entity attributes like brightness, temperature, etc.',
-    mockEntity: 'light.living_room',
-    mockState: {
-      state: 'on',
-      attributes: { brightness: 200, color_temp: 300 }
-    }
-  },
-
-  'datasource-live': {
-    name: 'Live DataSource',
-    template: 'Temperature: {datasource:sensor_temp:.1f}°C',
-    description: 'Access a live DataSource with formatting',
-    mockEntity: 'sensor.temperature',
-    mockDataSources: { 'sensor_temp': 23.5 }
-  },
-
-  'datasource-short': {
-    name: 'DataSource (Short Syntax)',
-    template: 'Value: {ds:sensor_value}',
-    description: 'Use the short "ds:" prefix for datasources',
-    mockEntity: 'sensor.example',
-    mockDataSources: { 'sensor_value': 42 }
-  },
-
-  'javascript-conditional': {
-    name: 'JavaScript Conditional',
-    template: '[[[return entity.state === "on" ? "Active" : "Idle"]]]',
-    description: 'Conditional logic using JavaScript',
-    mockEntity: 'light.kitchen',
-    mockState: { state: 'on', attributes: {} }
-  },
-
-  'javascript-calculation': {
-    name: 'JavaScript Calculation',
-    template: '[[[return Math.round(entity.attributes.temperature * 1.8 + 32) + "°F"]]]',
-    description: 'Perform calculations with JavaScript',
-    mockEntity: 'sensor.temperature',
-    mockState: {
-      state: '20',
-      attributes: { temperature: 20, unit_of_measurement: '°C' }
-    }
-  },
-
-  'jinja2-basic': {
-    name: 'Jinja2 Template',
-    template: '{{states("sensor.temperature") | float | round(1)}}°C',
-    description: 'Server-side Jinja2 evaluation with filters',
-    mockEntity: 'sensor.temperature'
-  },
-
-  'jinja2-conditional': {
-    name: 'Jinja2 Conditional',
-    template: '{% if is_state("light.kitchen", "on") %}Active{% else %}Idle{% endif %}',
-    description: 'Conditional logic using Jinja2',
-    mockEntity: 'light.kitchen'
-  },
-
-  'theme-token': {
-    name: 'Theme Token',
-    template: 'Color: {theme:colors.ui.primary}',
-    description: 'Access theme tokens for styling',
-    mockEntity: 'light.kitchen'
-  },
-
-  'theme-multiple': {
-    name: 'Multiple Theme Tokens',
-    template: 'Primary: {theme:colors.ui.primary}, Text: {theme:colors.text.onDark}',
-    description: 'Use multiple theme tokens in one template',
-    mockEntity: 'light.kitchen'
-  },
-
-  'mixed-js-datasource': {
-    name: 'Mixed: JS + DataSource',
-    template: '[[[return entity.state === "on"]]] ? {datasource:sensor_temp:.1f}°C : Off',
-    description: 'Combine JavaScript and DataSource templates',
-    mockEntity: 'light.kitchen',
-    mockState: { state: 'on', attributes: {} },
-    mockDataSources: { 'sensor_temp': 23.5 }
-  },
-
-  'mixed-entity-theme': {
-    name: 'Mixed: Entity + Theme',
-    template: 'Status: {entity.state} (Color: {theme:colors.ui.primary})',
-    description: 'Combine entity tokens and theme tokens',
-    mockEntity: 'light.kitchen',
-    mockState: { state: 'on', attributes: {} }
-  },
-
-  'complex-dashboard': {
-    name: 'Complex Dashboard',
-    template: '[[[return entity.state === "on" ? "🟢" : "🔴"]]] {entity.attributes.friendly_name}: {datasource:sensor_temp:.1f}°C',
-    description: 'Complex template combining multiple types',
-    mockEntity: 'climate.living_room',
-    mockState: {
-      state: 'heat',
-      attributes: {
-        friendly_name: 'Living Room',
-        temperature: 22,
-        target_temp_high: 24
-      }
+    'entity-state': {
+        name: "The card's entity state",
+        template: '{entity.state}',
+        description: 'The state, as Home Assistant shows it',
     },
-    mockDataSources: { 'sensor_temp': 22.3 }
-  }
+    'entity-attribute': {
+        name: 'An attribute',
+        template: 'Brightness: {entity.attributes.brightness}',
+        description: 'Any attribute of the entity',
+        test: { entity: { state: 'on', attributes: { brightness: 200 } } },
+    },
+    'other-entity': {
+        name: "Another entity's state",
+        template: 'Outside: {states.sensor.outdoor_temperature.state}',
+        description: 'Any entity, by its full ID',
+        test: { states: { 'sensor.outdoor_temperature': { state: '12.5', attributes: { unit_of_measurement: '°C' } } } },
+    },
+    'datasource': {
+        name: 'A data source, formatted',
+        template: 'Core temperature: {ds:core_temp:.1f} °C',
+        description: 'A data source value with a number format',
+        test: { ds: { core_temp: 87.468 } },
+    },
+    'variables': {
+        name: 'A card variable',
+        template: 'Deck {variables.deck}: {variables.section}',
+        description: "Values from the card's variables",
+        test: { variables: { deck: 7, section: 'Sickbay' } },
+    },
+    'theme-token': {
+        name: 'A theme token',
+        template: '{theme:colors.text.onDark}',
+        description: 'A value from the active LCARdS theme',
+    },
+    'user': {
+        name: 'The current user',
+        template: 'Welcome aboard, {hass.user.name}',
+        description: 'Who is looking at the dashboard',
+    },
+    'js-conditional': {
+        name: 'JavaScript: a condition',
+        template: "[[[ return entity.state === 'on' ? 'ACTIVE' : 'STANDBY' ]]]",
+        description: 'JavaScript with entity, states, variables, config, hass, theme and user',
+        test: { entity: { state: 'on', attributes: {} } },
+    },
+    'js-calculation': {
+        name: 'JavaScript: a calculation',
+        template: "[[[ return Math.round(parseFloat(entity.state) * 1.8 + 32) + ' °F' ]]]",
+        description: 'Convert a Celsius reading to Fahrenheit',
+        test: { entity: { state: '21', attributes: { unit_of_measurement: '°C' } } },
+    },
+    'jinja-state': {
+        name: 'Jinja2: a state',
+        template: "{{ states('sun.sun') }}",
+        description: "Home Assistant's own template engine (runs in Home Assistant)",
+    },
+    'jinja-conditional': {
+        name: 'Jinja2: a condition',
+        template: "{% if is_state('sun.sun', 'above_horizon') %}Day watch{% else %}Night watch{% endif %}",
+        description: 'Jinja2 if / else',
+    },
+    'mixed': {
+        name: 'Mixed: tokens, a data source and JavaScript',
+        template: "{entity.state} · {ds:core_temp:.0f}° · [[[ return new Date().getHours() < 12 ? 'AM' : 'PM' ]]]",
+        description: 'All four kinds can share one string; they run in order JavaScript, tokens, data sources, Jinja2',
+        test: { entity: { state: 'on', attributes: {} }, ds: { core_temp: 87.4 } },
+    },
 };
 
-/**
- * Get all example template IDs
- * @returns {string[]} Array of template IDs
- */
+/** Example ids, in menu order. */
 export function getExampleIds() {
-  return Object.keys(EXAMPLE_TEMPLATES);
-}
-
-/**
- * Get example by ID
- * @param {string} id - Example template ID
- * @returns {Object|null} Example object or null if not found
- */
-export function getExample(id) {
-  return EXAMPLE_TEMPLATES[id] || null;
-}
-
-/**
- * Get examples by category
- * @param {string} category - Category: 'javascript', 'datasource', 'jinja2', 'theme', 'mixed', 'entity'
- * @returns {Object.<string, Object>} Filtered examples
- */
-export function getExamplesByCategory(category) {
-  const filtered = {};
-
-  for (const [id, example] of Object.entries(EXAMPLE_TEMPLATES)) {
-    const template = example.template.toLowerCase();
-
-    switch (category) {
-      case 'javascript':
-        if (template.includes('[[[')) filtered[id] = example;
-        break;
-      case 'datasource':
-        if (template.includes('{datasource:') || template.includes('{ds:')) {
-          filtered[id] = example;
-        }
-        break;
-      case 'jinja2':
-        if (template.includes('{{') || template.includes('{%')) {
-          filtered[id] = example;
-        }
-        break;
-      case 'theme':
-        if (template.includes('{theme:')) filtered[id] = example;
-        break;
-      case 'entity':
-        if (template.includes('{entity.')) filtered[id] = example;
-        break;
-      case 'mixed':
-        // Has multiple template types
-        let count = 0;
-        if (template.includes('[[[')) count++;
-        if (template.includes('{datasource:') || template.includes('{ds:')) count++;
-        if (template.includes('{{')) count++;
-        if (template.includes('{theme:')) count++;
-        if (template.includes('{entity.')) count++;
-        if (count > 1) filtered[id] = example;
-        break;
-    }
-  }
-
-  return filtered;
+    return Object.keys(EXAMPLE_TEMPLATES);
 }

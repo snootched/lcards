@@ -1,0 +1,26 @@
+# warp-starfield on an elbow, warping on red alert (checkpoint 2 tile 3; background-webgl.spec.js)
+type: custom:lcards-elbow
+entity: input_select.lcards_alert_mode
+elbow:
+  type: frame
+  frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+background_animation:
+  inset: auto
+  effects:
+    - preset: warp-starfield
+      config: { count: 300, seed: 5 }
+animations:
+  - trigger: on_entity_change
+    entity: input_select.lcards_alert_mode
+    to_state: red_alert
+    target: background
+    effect: 0
+    preset: custom
+    params: { speed: [1, 8], duration: 2000, ease: inOutQuad }
+  - trigger: on_entity_change
+    entity: input_select.lcards_alert_mode
+    from_state: red_alert
+    target: background
+    effect: 0
+    preset: custom
+    params: { speed: 1, duration: 3000, ease: outQuad }

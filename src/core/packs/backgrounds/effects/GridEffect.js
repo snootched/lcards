@@ -1,6 +1,96 @@
 import { BaseEffect } from './BaseEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
+import { numProp, colorProp } from './animatable-props.js';
+
+/** @param {any} e */
+const resetDimensions = (e) => { e._rowHeight = 0; e._colWidth = 0; };
+
+/**
+ * Line `index` (counted across tiles) is a major line every `interval` lines.
+ * @param {number} index
+ * @param {number} interval - 0 = no major lines
+ */
+export const isMajorLine = (index, interval) => interval > 0 && ((index % interval) + interval) % interval === 0;
+
+/**
+ * Lowest common multiple of two positive integers.
+ * @param {number} a
+ * @param {number} b
+ */
+export function lcm(a, b) {
+  /** @type {(x: number, y: number) => number} */
+  const gcd = (x, y) => (y ? gcd(y, x % y) : x);
+  return (a * b) / gcd(a, b);
+}
+
+/**
+ * The scroll period of a rows/columns grid along one axis, px: whole tiles
+ * that are also whole major intervals, so wrapping the scroll by it never
+ * moves a line or turns a minor line major.
+ * @param {number} cell - px between lines
+ * @param {number} count - lines per tile
+ * @param {number} interval - major interval (0 = none)
+ */
+export function linePeriod(cell, count, interval) {
+  return cell * lcm(Math.max(1, Math.round(count)), Math.max(1, Math.round(interval)));
+}
+
+/**
+ * `pattern: polar` scroll periods, px: scrolling by them never moves a ring
+ * or a spoke, nor turns a minor one major. Rings move outward with the
+ * vertical scroll; the horizontal scroll turns the spokes, one spoke pitch
+ * per `lineSpacing` px.
+ * @param {number} cell - px between rings
+ * @param {number} lineSpacing - px of horizontal scroll per spoke pitch
+ * @param {number} spokes - spoke count (0 = rings only)
+ * @param {number} majorRing - major ring interval (0 = none)
+ * @param {number} majorSpoke - major spoke interval (0 = none)
+ * @returns {{ ring: number, spoke: number }}
+ */
+export function polarPeriods(cell, lineSpacing, spokes, majorRing, majorSpoke) {
+  const m = Math.max(1, Math.round(majorSpoke));
+  const n = Math.max(0, Math.round(spokes));
+  // Turning by m spokes maps majors onto majors only when m divides the count;
+  // a whole turn always does
+  const turn = n > 0 && n % m !== 0 ? n : m;
+  return { ring: cell * Math.max(1, Math.round(majorRing)), spoke: lineSpacing * turn };
+}
+
+/** @param {number} v @param {number} period */
+const wrapBy = (v, period) => (period > 0 ? ((v % period) + period) % period : v);
+
+/**
+ * The rings and spokes of `pattern: polar` on a w x h card, shared by the
+ * Canvas2D drawer and the tests (the WebGL grid follows the same rules per
+ * pixel). Ring n sits at radius n x cell + the wrapped vertical scroll and is
+ * major every `majorRing` rings; spoke j at angle j x pitch + the turn from
+ * the wrapped horizontal scroll, major every `majorSpoke` spokes.
+ * @param {{ w: number, h: number, cell: number, lineSpacing: number, spokes: number,
+ *   majorRing: number, majorSpoke: number, polarX: number, polarY: number, scrollX: number, scrollY: number }} g
+ * @returns {{ cx: number, cy: number, maxR: number, rings: Array<{ r: number, major: boolean }>,
+ *   spokes: Array<{ angle: number, major: boolean }> }}
+ */
+export function polarGeometry(g) {
+  const cx = g.polarX * g.w;
+  const cy = g.polarY * g.h;
+  const maxR = Math.max(Math.hypot(cx, cy), Math.hypot(g.w - cx, cy), Math.hypot(cx, g.h - cy), Math.hypot(g.w - cx, g.h - cy));
+  const n = Math.max(0, Math.round(g.spokes));
+  const per = polarPeriods(g.cell, g.lineSpacing, n, g.majorRing, g.majorSpoke);
+  const off = wrapBy(g.scrollY, per.ring);
+  const rings = [];
+  for (let i = 0; off + i * g.cell <= maxR + g.cell; i++) {
+    const r = off + i * g.cell;
+    if (r > 0) rings.push({ r, major: isMajorLine(i, g.majorRing) });
+  }
+  const spokes = [];
+  if (n > 0) {
+    const pitch = (2 * Math.PI) / n;
+    const turn = (wrapBy(g.scrollX, per.spoke) / g.lineSpacing) * pitch;
+    for (let j = 0; j < n; j++) spokes.push({ angle: j * pitch + turn, major: isMajorLine(j, g.majorSpoke) });
+  }
+  return { cx, cy, maxR, rings, spokes };
+}
 
 /**
  * GridEffect - Highly configurable scrolling LCARS-style grid background effect
@@ -24,6 +114,24 @@ import { ColorUtils } from '../../../themes/ColorUtils.js';
  * @extends BaseEffect
  */
 export class GridEffect extends BaseEffect {
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    scroll_speed_x: numProp('scrollSpeedX'),
+    scroll_speed_y: numProp('scrollSpeedY'),
+    line_spacing: numProp('lineSpacing', { min: 1, after: resetDimensions }),
+    line_width: numProp('lineWidthMinor', { min: 0 }),
+    line_width_minor: numProp('lineWidthMinor', { min: 0 }),
+    line_width_major: numProp('lineWidthMajor', { min: 0 }),
+    color: colorProp('color'),
+    color_major: colorProp('colorMajor'),
+    fill_color: colorProp('fillColor'),
+    spoke_count: numProp('spokeCount', { min: 0 }),
+    polar_x: numProp('polarX'),
+    polar_y: numProp('polarY')
+  };
+
+  static recolorFields = ['color', 'colorMajor', 'fillColor'];
+
   /**
    * @param {object} config - Effect configuration
    *
@@ -43,13 +151,18 @@ export class GridEffect extends BaseEffect {
    * @param {number} [config.majorColInterval=3] - Draw major line every N columns
    *
    * Pattern control:
- * @param {string} [config.pattern='both'] - Which lines to draw: 'both', 'horizontal', 'vertical', 'diagonal', 'hexagonal'
+ * @param {string} [config.pattern='both'] - Which lines to draw: 'both', 'horizontal', 'vertical', 'diagonal', 'hexagonal', 'dots', 'polar'
  * @param {boolean} [config.showBorderLines=true] - Draw lines on canvas edges
  * @param {string} [config.direction] - Legacy alias for pattern (deprecated)
  * @param {string} [config.fillColor='transparent'] - Fill color for cell backgrounds
  *
  * Hexagonal pattern (when pattern='hexagonal'):
  * @param {number} [config.hexRadius=40] - Radius of hexagonal cells
+   *
+   * Polar pattern (when pattern='polar'): rings every lineSpacing px round a centre, and spokes
+   * @param {number} [config.spokeCount=12] - Spokes round the centre (0 = rings only)
+   * @param {number} [config.polarX=0.5] - Centre, fraction of the card's width
+   * @param {number} [config.polarY=0.5] - Centre, fraction of the card's height
    *
    * Dot grid pattern (when pattern='dots'):
    * @param {number} [config.dotRadius=2] - Dot radius
@@ -81,14 +194,10 @@ export class GridEffect extends BaseEffect {
     this.numCols = config.numCols !== undefined ? Math.max(1, config.numCols) : undefined;
     this.lineSpacing = Math.max(1, config.lineSpacing ?? 40);
 
-    // Line styling (resolve CSS colors using ColorUtils)
+    // Line styling (concrete colours for Canvas2D)
     this.lineWidthMinor = config.lineWidthMinor ?? config.line_width ?? 1; // Support legacy naming
     this.lineWidthMajor = config.lineWidthMajor ?? config.lineWidthMinor ?? 2;
-    // Two-step resolution: resolver handles theme: tokens and computed expressions
-    // (alpha/darken/…); resolveCssVariable materialises remaining var() refs.
-    const _gResolver = window.lcards?.core?.themeManager?.resolver;
-    const _gResolve = (c) => ColorUtils.resolveCssVariable(
-        (_gResolver ? _gResolver.resolve(c, c) : c), c);
+    const _gResolve = (c) => resolveColor(c, { concrete: true });
 
     this.color = _gResolve(config.color ?? 'rgba(255, 153, 102, 0.3)'); // LCARS orange
     this.colorMajor = config.colorMajor ? _gResolve(config.colorMajor) : this.color;
@@ -107,6 +216,11 @@ export class GridEffect extends BaseEffect {
     // Hexagonal pattern config
     this.hexRadius = Math.max(1, config.hexRadius ?? 40);
 
+    // Polar pattern config
+    this.spokeCount = Math.max(0, config.spokeCount ?? 12);
+    this.polarX = config.polarX ?? 0.5;
+    this.polarY = config.polarY ?? 0.5;
+
     // Dot grid pattern config (pattern='dots') — dotRadius=0 is harmless (just
     // draws nothing), only dotSpacing drives tile counts so only it needs a floor.
     this.dotRadius = config.dotRadius ?? config.dot_radius ?? 2;
@@ -119,10 +233,11 @@ export class GridEffect extends BaseEffect {
     this.scrollSpeedY = config.scrollSpeedY ?? config.scroll_speed_y ?? 20;
 
     // Computed properties (will be set during first draw)
-    this._rowHeight = null;
-    this._colWidth = null;
-    this._totalRows = null;
-    this._totalCols = null;
+    // Set by _computeGridDimensions(); 0 until then (every use treats 0 like the old null)
+    this._rowHeight = 0;
+    this._colWidth = 0;
+    this._totalRows = 0;
+    this._totalCols = 0;
 
     // Track total scroll distance (never wraps) for infinite grid positioning
     this._totalScrollX = 0;
@@ -196,9 +311,13 @@ export class GridEffect extends BaseEffect {
         const hexHeight = Math.sqrt(3) * this.hexRadius;
         pw = 3 * this.hexRadius;
         ph = 2 * hexHeight;
+      } else if (this.pattern === 'polar') {
+        const per = polarPeriods(this._rowHeight, this.lineSpacing, this.spokeCount, this.majorRowInterval, this.majorColInterval);
+        pw = per.spoke;
+        ph = per.ring;
       } else if (this._totalCols && this._colWidth) {
-        pw = this._totalCols * this._colWidth;
-        ph = this._totalRows * this._rowHeight;
+        pw = linePeriod(this._colWidth, this._totalCols, this.majorColInterval);
+        ph = linePeriod(this._rowHeight, this._totalRows, this.majorRowInterval);
       }
       if (pw && ph) {
         if (Math.abs(this.scrollX) > _wrapThreshold) {
@@ -227,6 +346,13 @@ export class GridEffect extends BaseEffect {
     // Ensure dimensions are computed
     if (!this._rowHeight || !this._colWidth) {
       this._computeGridDimensions(canvasWidth, canvasHeight);
+    }
+
+    // Polar: one pass over the card, not tiled
+    if (this.pattern === 'polar') {
+      this._drawPolarPattern(ctx, canvasWidth, canvasHeight);
+      ctx.restore();
+      return;
     }
 
     // Apply scroll offset via translate (unbounded - no wrapping)
@@ -270,7 +396,7 @@ export class GridEffect extends BaseEffect {
       for (let tx = 0; tx < tilesX; tx++) {
         const offsetX = (startTileX + tx) * patternWidth;
         const offsetY = (startTileY + ty) * patternHeight;
-        this._drawPattern(ctx, offsetX, offsetY, patternWidth, patternHeight);
+        this._drawPattern(ctx, offsetX, offsetY, patternWidth, patternHeight, startTileX + tx, startTileY + ty);
       }
     }
 
@@ -282,7 +408,7 @@ export class GridEffect extends BaseEffect {
    * Major/minor lines are determined by row/col position in pattern (not scroll position)
    * @private
    */
-  _drawPattern(ctx, offsetX, offsetY, patternWidth, patternHeight) {
+  _drawPattern(ctx, offsetX, offsetY, patternWidth, patternHeight, tileX = 0, tileY = 0) {
     const shouldDrawHorizontal = this.pattern === 'both' || this.pattern === 'horizontal';
     const shouldDrawVertical = this.pattern === 'both' || this.pattern === 'vertical';
     const shouldDrawDiagonal = this.pattern === 'diagonal';
@@ -314,10 +440,13 @@ export class GridEffect extends BaseEffect {
     // then stroke once. Reduces draw calls from N → 2 (minor path + major path).
     if (shouldDrawHorizontal) {
       // Minor lines
+      // Rows 0..T-1: row T is the next tile's row 0, so each line is drawn
+      // once. Majors count rows across tiles (global index), so they stay
+      // evenly spaced at every seam whatever the tile size.
       ctx.beginPath();
-      for (let row = 0; row <= this._totalRows; row++) {
-        if (!this.showBorderLines && (row === 0 || row === this._totalRows)) continue;
-        if (this.majorRowInterval > 0 && row % this.majorRowInterval === 0) continue;
+      for (let row = 0; row < this._totalRows; row++) {
+        if (!this.showBorderLines && row === 0) continue;
+        if (isMajorLine(tileY * this._totalRows + row, this.majorRowInterval)) continue;
         const y = offsetY + (row * this._rowHeight);
         ctx.moveTo(offsetX, y);
         ctx.lineTo(offsetX + patternWidth, y);
@@ -329,9 +458,9 @@ export class GridEffect extends BaseEffect {
       // Major lines
       if (this.majorRowInterval > 0) {
         ctx.beginPath();
-        for (let row = 0; row <= this._totalRows; row++) {
-          if (!this.showBorderLines && (row === 0 || row === this._totalRows)) continue;
-          if (row % this.majorRowInterval !== 0) continue;
+        for (let row = 0; row < this._totalRows; row++) {
+          if (!this.showBorderLines && row === 0) continue;
+          if (!isMajorLine(tileY * this._totalRows + row, this.majorRowInterval)) continue;
           const y = offsetY + (row * this._rowHeight);
           ctx.moveTo(offsetX, y);
           ctx.lineTo(offsetX + patternWidth, y);
@@ -346,9 +475,9 @@ export class GridEffect extends BaseEffect {
     if (shouldDrawVertical) {
       // Minor lines
       ctx.beginPath();
-      for (let col = 0; col <= this._totalCols; col++) {
-        if (!this.showBorderLines && (col === 0 || col === this._totalCols)) continue;
-        if (this.majorColInterval > 0 && col % this.majorColInterval === 0) continue;
+      for (let col = 0; col < this._totalCols; col++) {
+        if (!this.showBorderLines && col === 0) continue;
+        if (isMajorLine(tileX * this._totalCols + col, this.majorColInterval)) continue;
         const x = offsetX + (col * this._colWidth);
         ctx.moveTo(x, offsetY);
         ctx.lineTo(x, offsetY + patternHeight);
@@ -360,9 +489,9 @@ export class GridEffect extends BaseEffect {
       // Major lines
       if (this.majorColInterval > 0) {
         ctx.beginPath();
-        for (let col = 0; col <= this._totalCols; col++) {
-          if (!this.showBorderLines && (col === 0 || col === this._totalCols)) continue;
-          if (col % this.majorColInterval !== 0) continue;
+        for (let col = 0; col < this._totalCols; col++) {
+          if (!this.showBorderLines && col === 0) continue;
+          if (!isMajorLine(tileX * this._totalCols + col, this.majorColInterval)) continue;
           const x = offsetX + (col * this._colWidth);
           ctx.moveTo(x, offsetY);
           ctx.lineTo(x, offsetY + patternHeight);
@@ -371,6 +500,48 @@ export class GridEffect extends BaseEffect {
         ctx.lineWidth = this.lineWidthMajor;
         ctx.stroke();
       }
+    }
+  }
+
+  /**
+   * Draw the polar pattern: rings, then spokes (each minor then major, one
+   * path per style), in the WebGL grid's order so crossings composite the same.
+   * @private
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {number} w
+   * @param {number} h
+   */
+  _drawPolarPattern(ctx, w, h) {
+    const g = polarGeometry({
+      w, h, cell: this._rowHeight, lineSpacing: this.lineSpacing, spokes: this.spokeCount,
+      majorRing: this.majorRowInterval, majorSpoke: this.majorColInterval,
+      polarX: this.polarX, polarY: this.polarY, scrollX: this.scrollX, scrollY: this.scrollY
+    });
+    if (this.fillColor && this.fillColor !== 'transparent') {
+      ctx.fillStyle = this.fillColor;
+      ctx.fillRect(0, 0, w, h);
+    }
+    for (const major of [false, true]) {
+      ctx.beginPath();
+      for (const ring of g.rings) {
+        if (ring.major !== major) continue;
+        ctx.moveTo(g.cx + ring.r, g.cy);
+        ctx.arc(g.cx, g.cy, ring.r, 0, Math.PI * 2);
+      }
+      ctx.strokeStyle = major ? this.colorMajor : this.color;
+      ctx.lineWidth = major ? this.lineWidthMajor : this.lineWidthMinor;
+      ctx.stroke();
+    }
+    for (const major of [false, true]) {
+      ctx.beginPath();
+      for (const spoke of g.spokes) {
+        if (spoke.major !== major) continue;
+        ctx.moveTo(g.cx, g.cy);
+        ctx.lineTo(g.cx + g.maxR * Math.cos(spoke.angle), g.cy + g.maxR * Math.sin(spoke.angle));
+      }
+      ctx.strokeStyle = major ? this.colorMajor : this.color;
+      ctx.lineWidth = major ? this.lineWidthMajor : this.lineWidthMinor;
+      ctx.stroke();
     }
   }
 

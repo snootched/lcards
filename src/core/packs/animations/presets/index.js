@@ -19,12 +19,23 @@
  * @module core/packs/animations/presets
  */
 
-import { registerAnimationPreset } from '../../../animation/presets.js';
+import { registerAnimationPreset as registerPreset } from '../../../animation/presets.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
-import { resolvePresetParams, getResolvedEasing } from '../../../../utils/lcards-anim-helpers.js';
+import { resolvePresetParams, getResolvedEasing, presetRandom } from '../../../../utils/lcards-anim-helpers.js';
 import { TIMELINE_PRESETS } from './timeline-presets.js';
 import { STAGGER_PRESETS } from './stagger-presets.js';
 import { TEXT_PRESETS } from './text-presets.js';
+import { EFFECT_PRESETS } from './effect-presets.js';
+
+/**
+ * Register one built-in preset: every built-in belongs to the `core` pack.
+ * @param {string} name - Preset name
+ * @param {Function} factory - Preset function that returns {anime, styles}
+ * @param {string} [category] - `basic` (this file), `timeline`, `stagger`, `text` or `effect`
+ */
+function registerAnimationPreset(name, factory, category = 'basic') {
+  registerPreset(name, factory, { pack: 'core', category });
+}
 
 /**
  * Register all builtin animation presets
@@ -76,14 +87,11 @@ registerAnimationPreset('pulse', (def) => {
       // being silently misinterpreted as a bogus tween property (attempting to
       // animate a function value) instead of ever firing as a callback.
       onComplete: (anim) => {
-        // Ensure final values after animation completes
-        if (anim && anim.animatables && anim.animatables.length > 0) {
-          const target = anim.animatables[0].target;
-          if (target) {
-            // Force remove anime-applied inline styles to return to original CSS
-            target.style.removeProperty('filter');
-            target.style.removeProperty('transform');
-          }
+        // Ensure final values after animation completes: remove the anime-applied
+        // inline styles to return to the original CSS (v4: `targets`, not v3 `animatables`)
+        for (const target of anim?.targets ?? []) {
+          target?.style?.removeProperty('filter');
+          target?.style?.removeProperty('transform');
         }
       }
     },
@@ -128,10 +136,13 @@ registerAnimationPreset('fade', (def) => {
       // anime.js v4's real callback name is `onComplete`, not `complete` — see
       // the `pulse` preset above for why (the latter is silently misinterpreted
       // as a bogus tween property and never fires as a callback).
-      onComplete: alternate ? (anim) => {
+      // Only a looping alternate comes back: with no loop anime.js plays once,
+      // so resetting to `from` would undo a fade-in (an MSD base_svg faded
+      // from 0 to 1 vanished at the end, 2026-11-20).
+      onComplete: alternate && loop ? (anim) => {
         // Ensure element returns to starting opacity after alternate completes
-        if (anim.animatables && anim.animatables[0] && anim.animatables[0].target) {
-          anim.animatables[0].target.style.opacity = from;
+        for (const target of anim?.targets ?? []) {
+          if (target?.style) target.style.opacity = from;
         }
       } : undefined
     },
@@ -294,9 +305,12 @@ registerAnimationPreset('march', (def) => {
                         (loopValue === false || loopValue === 0) ? '1' :
                         typeof loopValue === 'number' ? Math.max(1, loopValue) : 'infinite';
 
-  // Generate unique animation name (will be used in setup)
-  const animId = `march_${Math.random().toString(36).substring(2, 9)}`;
-  const animationName = `march_${animId}`;
+  // The keyframes' name is set in setup(), from the pattern length and direction
+  // (the only things in them): the same march shares one rule. It was a random name
+  // per run, and a rule was added on every run and never removed, so a line that
+  // re-renders (state changes, rules) grew its shadow root's stylesheet for good.
+  // 2026-11-17
+  let animationName = 'lcards-march';
 
   // Return CSS animation config with setup function
   return {
@@ -357,6 +371,8 @@ registerAnimationPreset('march', (def) => {
         totalLength = dashLength + gapLength;
       }
 
+      animationName = `lcards-march-${direction === 'reverse' ? 'r' : 'f'}-${String(+Number(totalLength).toFixed(3)).replace(/[^0-9]/g, '_')}`;
+
       // For seamless infinite loop, animate the full pattern length
       // Start at totalLength and animate to 0 (forward) or start at 0 and animate to totalLength (reverse)
       const keyframesStr = direction === 'reverse'
@@ -369,6 +385,12 @@ registerAnimationPreset('march', (def) => {
       }
 
       // Apply the animation (starting offset will be set by keyframe 'from')
+      // The same name again on this element (a trigger playing it again) would not
+      // restart it: the random name used to. Clear it and restyle first.
+      if (element.style.animationName === animationName) {
+        element.style.animation = 'none';
+        void element.getBoundingClientRect();
+      }
       element.style.animation = `${animationName} ${speed}s linear ${iterationCount}`;
 
       // Find the appropriate document to inject styles into
@@ -388,7 +410,11 @@ registerAnimationPreset('march', (def) => {
             targetDoc.adoptedStyleSheets = [...targetDoc.adoptedStyleSheets, styleSheet];
           }
 
-          styleSheet.insertRule(keyframesStr, styleSheet.cssRules.length);
+          if (!styleSheet.marchNames) styleSheet.marchNames = new Set();
+          if (!styleSheet.marchNames.has(animationName)) {
+            styleSheet.insertRule(keyframesStr, styleSheet.cssRules.length);
+            styleSheet.marchNames.add(animationName);
+          }
         } catch (e) {
           lcardsLog.error('[march preset] ❌ Failed to add CSS animation to Shadow DOM:', e);
           fallbackStyleInjection();
@@ -409,7 +435,7 @@ registerAnimationPreset('march', (def) => {
           target.appendChild(styleEl);
         }
 
-        if (!styleEl.textContent.includes(animationName)) {
+        if (!styleEl.textContent.includes(`@keyframes ${animationName} {`)) {
           styleEl.textContent += keyframesStr;
         }
       }
@@ -533,6 +559,13 @@ registerAnimationPreset('strobe', (def) => {
 });
 
 /**
+ * onLoop for the random presets: re-evaluate their function-based values so each
+ * loop draws a new pattern instead of replaying the first one.
+ * @param {any} anim
+ */
+const rerollOnLoop = (anim) => { anim?.refresh?.(); };
+
+/**
  * Flicker - Randomized opacity animation
  *
  * Parameters:
@@ -541,6 +574,9 @@ registerAnimationPreset('strobe', (def) => {
  * - duration (default: 1000)
  * - ease (default: 'linear')
  * - loop (default: true)
+ * - seed (optional) - Number: the same flicker pattern on every load
+ *
+ * Each loop draws a new pattern.
  */
 registerAnimationPreset('flicker', (def) => {
   const p = resolvePresetParams(def);
@@ -550,12 +586,12 @@ registerAnimationPreset('flicker', (def) => {
   const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : true;
 
-  // Generate random opacity keyframes
+  // Random opacity keyframes: function-based, so rerollOnLoop draws new ones
+  const random = presetRandom(p.seed);
   const keyframes = [];
   const steps = 10;
   for (let i = 0; i <= steps; i++) {
-    const randomOpacity = minOpacity + Math.random() * (maxOpacity - minOpacity);
-    keyframes.push({ opacity: randomOpacity });
+    keyframes.push({ opacity: () => minOpacity + random() * (maxOpacity - minOpacity) });
   }
 
   // Always end at max opacity to return to normal when used with alternate
@@ -566,7 +602,8 @@ registerAnimationPreset('flicker', (def) => {
       keyframes,
       duration,
       ease,
-      loop
+      loop,
+      onLoop: rerollOnLoop
     },
     styles: {}
   };
@@ -599,7 +636,9 @@ registerAnimationPreset('cascade', (def) => {
       [property]: [from, to],
       duration,
       ease,
-      delay: window.lcards?.animejs?.stagger?.(stagger) || ((el, i) => i * stagger),
+      // The marker (not a ready stagger function) sends multiple targets through
+      // animateElement's single-call batch path; per-element calls are all index 0
+      delay: { _stagger: true, value: stagger },
       loop
     },
     styles: {}
@@ -661,13 +700,15 @@ registerAnimationPreset('cascade', (def) => {
  * @example User Config (data-grid)
  * ```yaml
  * type: custom:lcards-data-grid
- * animation:
- *   type: cascade
- *   pattern: default  # Applies timing pattern to rows automatically
- *   colors:
- *     start: colors.lcars.blue
- *     text: colors.lcars.dark-blue
- *     end: colors.lcars.moonlight
+ * animations:
+ *   - trigger: on_load
+ *     preset: cascade-color
+ *     params:
+ *       pattern: default  # The card applies the per-row timing pattern
+ *       colors:
+ *         start: var(--lcars-blue)
+ *         text: var(--lcars-dark-blue)
+ *         end: var(--lcards-moonlight)
  * ```
  */
 registerAnimationPreset('cascade-color', (def) => {
@@ -746,12 +787,15 @@ registerAnimationPreset('cascade-color', (def) => {
     alternate
   };
 
-  // Add stagger if specified
+  // Add stagger if specified. The default 'row' axis is plain element order; a
+  // 'column' axis staggers by layout position (grid: true), row by row downward.
   if (staggerFrom) {
-    animeParams.delay = window.lcards?.animejs?.stagger?.(staggerDelay, {
+    animeParams.delay = {
+      _stagger: true,
+      value: staggerDelay,
       from: staggerFrom,
-      axis: axis
-    }) || ((el, i) => i * staggerDelay);
+      ...(axis !== 'row' ? { grid: true, axis } : {})
+    };
   } else {
     animeParams.delay = rowDelay;
   }
@@ -1244,6 +1288,9 @@ registerAnimationPreset('skew', (def) => {
  * - frequency (default: 10) - Number of glitch steps
  * - duration (default: 1000)
  * - loop (default: false)
+ * - seed (optional) - Number: the same glitch pattern on every load
+ *
+ * Each loop draws a new pattern.
  */
 registerAnimationPreset('glitch', (def) => {
   const p = resolvePresetParams(def);
@@ -1252,18 +1299,15 @@ registerAnimationPreset('glitch', (def) => {
   const duration = p.duration || 1000;
   const loop = p.loop !== undefined ? p.loop : false;
 
-  // Generate random keyframes for glitch effect
+  // Random keyframes: function-based, so rerollOnLoop draws new ones
+  const random = presetRandom(p.seed);
   const keyframes = [];
   for (let i = 0; i < frequency; i++) {
-    // Random position shifts
-    const randomX = (Math.random() - 0.5) * 2 * intensity;
-    const randomY = (Math.random() - 0.5) * 2 * intensity;
-
     keyframes.push({
-      translateX: randomX,
-      translateY: randomY,
-      // Optional: add filter effects for more intense glitch
-      filter: Math.random() > 0.7 ? `hue-rotate(${Math.random() * 360}deg)` : 'hue-rotate(0deg)'
+      translateX: () => (random() - 0.5) * 2 * intensity,
+      translateY: () => (random() - 0.5) * 2 * intensity,
+      // Occasional hue shift for a more intense glitch
+      filter: () => (random() > 0.7 ? `hue-rotate(${random() * 360}deg)` : 'hue-rotate(0deg)')
     });
   }
 
@@ -1279,7 +1323,8 @@ registerAnimationPreset('glitch', (def) => {
       keyframes,
       duration,
       ease: 'linear', // Use linear for chaotic glitch effect
-      loop
+      loop,
+      onLoop: rerollOnLoop
     },
     styles: {}
   };
@@ -1533,6 +1578,66 @@ registerAnimationPreset('motionpath', (def) => {
   };
 });
 
+const MORPHABLE = /^(path|polygon|polyline)$/i;
+
+/**
+ * Morph - change one SVG shape into another (anime.js v4 morphTo)
+ *
+ * The animated shape (the target, or the first path/polygon/polyline inside it, so an
+ * MSD shape overlay's group works) takes the geometry of the `to` shape, found in the
+ * same card. Stopping puts the original geometry back. `loop` + `alternate` flips
+ * between the two, e.g. an MSD status indicator going from a circle to a warning
+ * triangle.
+ *
+ * Parameters:
+ * - to (required) - CSS selector of the shape to become (often a hidden path in the
+ *   base SVG or an MSD shape overlay: `[data-overlay-id="warn_shape"]`)
+ * - precision (default 0.33) - points sampled per SVG unit of length; 0 interpolates
+ *   the raw `d`/`points` (only works when both shapes have the same commands)
+ * - duration (default 800), ease (default 'inOutQuad'), loop, alternate
+ * - morph_to_selector - old name for `to`
+ */
+registerAnimationPreset('morph', (def) => {
+  const p = resolvePresetParams(def);
+  const to = p.to ?? p.morph_to_selector ?? def.morph_to_selector;
+  const precision = typeof p.precision === 'number' && p.precision >= 0 ? p.precision : 0.33;
+
+  return {
+    anime: {
+      duration: p.duration || 800,
+      ease: getResolvedEasing(p) || 'inOutQuad',
+      loop: p.loop !== undefined ? p.loop : false,
+      alternate: p.alternate !== undefined ? p.alternate : false,
+    },
+    styles: {},
+    setup: (element) => {
+      if (!to || typeof to !== 'string') {
+        lcardsLog.warn('[morph preset] Missing the `to` selector of the shape to morph into');
+        element._animTargets = null;
+        return;
+      }
+      const findShape = (/** @type {Element|null} */ el) => (!el ? null
+        : MORPHABLE.test(el.tagName) ? el
+          // The visible MSD geometry first (shapes and lines also carry a wider hit-area path)
+          : el.querySelector('.shape-path, .line-path')
+            ?? el.querySelector('path:not(.shape-hit-area):not(.line-hit-area), polygon, polyline'));
+      const source = findShape(element);
+      const root = /** @type {ParentNode} */ (element.getRootNode());
+      const target = findShape(root.querySelector?.(to) ?? null);
+      if (!source || !target) {
+        lcardsLog.warn('[morph preset] Needs a <path>, <polygon> or <polyline> to animate and to morph into', {
+          to, hasSource: !!source, hasTarget: !!target,
+        });
+        element._animTargets = null; // nothing to animate
+        return;
+      }
+      if (source !== element) element._animTargets = source;
+      const attribute = source.tagName.toLowerCase() === 'path' ? 'd' : 'points';
+      element._presetTweens = { [attribute]: window.lcards.anim.animejs.morphTo(target, precision) };
+    }
+  };
+});
+
 // ==============================================================================
 // ADVANCED PRESETS
 // ==============================================================================
@@ -1605,6 +1710,24 @@ registerAnimationPreset('sequence', (def) => {
 });
 
 /**
+ * Custom - raw anime.js v4 animation properties, passed through to animate()
+ *
+ * `params` holds any anime.js v4 animation properties (opacity, scale, translateX,
+ * keyframes, loop, alternate, ease, ...). The target comes from the animation's own
+ * `target`/`targets`, so a `targets` key inside params is ignored. Colours and the
+ * reduced-motion gate apply as for every preset.
+ *
+ * Legacy: the animation editor used to write `type: custom` with the properties in
+ * `animejs:`; that shape is read too (the editor rewrites it to this one on edit).
+ */
+registerAnimationPreset('custom', (def) => {
+  const raw = (def.animejs && typeof def.animejs === 'object') ? def.animejs : (def.params || {});
+  const { targets: _targets, target: _target, ...props } = raw;
+  if (props.ease !== undefined) props.ease = getResolvedEasing(props);
+  return { anime: props, styles: {} };
+});
+
+/**
  * Chaos - Randomized multi-property animation for glitch/malfunction effects
  *
  * Creates unpredictable, chaotic motion by randomizing multiple properties
@@ -1618,6 +1741,9 @@ registerAnimationPreset('sequence', (def) => {
  * - ease (default: 'inOutQuad')
  * - loop (default: true)
  * - composition (default: 'blend') - 'blend' or 'replace'
+ * - seed (optional) - Number: the same motion on every load
+ *
+ * Each loop moves to new random values.
  */
 registerAnimationPreset('chaos', (def) => {
   const p = resolvePresetParams(def);
@@ -1629,6 +1755,7 @@ registerAnimationPreset('chaos', (def) => {
   const ease = getResolvedEasing(p) || 'inOutQuad'; // v4 easing name (was 'easeInOutQuad')
   const loop = p.loop !== undefined ? p.loop : true;
   const composition = p.composition || 'blend';
+  const random = presetRandom(p.seed);
 
   // Build animation parameters with function-based random values
   const animeParams = {
@@ -1636,7 +1763,8 @@ registerAnimationPreset('chaos', (def) => {
     loop,
     composition,
     // Randomize duration for each element
-    duration: () => durationMin + Math.random() * (durationMax - durationMin)
+    duration: () => durationMin + random() * (durationMax - durationMin),
+    onLoop: rerollOnLoop
   };
 
   // Add randomized properties
@@ -1648,7 +1776,7 @@ registerAnimationPreset('chaos', (def) => {
 
       // Use function to generate random value for each element
       animeParams[animeProp] = () => {
-        return propRange[0] + Math.random() * (propRange[1] - propRange[0]);
+        return propRange[0] + random() * (propRange[1] - propRange[0]);
       };
     }
   });
@@ -1723,7 +1851,7 @@ registerAnimationPreset('physics-spring', (def) => {
 // ==============================================================================
 
 Object.entries(TIMELINE_PRESETS).forEach(([name, factory]) => {
-  registerAnimationPreset(name, factory);
+  registerAnimationPreset(name, factory, 'timeline');
 });
 
 // ==============================================================================
@@ -1731,7 +1859,7 @@ Object.entries(TIMELINE_PRESETS).forEach(([name, factory]) => {
 // ==============================================================================
 
 Object.entries(STAGGER_PRESETS).forEach(([name, factory]) => {
-  registerAnimationPreset(name, factory);
+  registerAnimationPreset(name, factory, 'stagger');
 });
 
 // ==============================================================================
@@ -1739,7 +1867,15 @@ Object.entries(STAGGER_PRESETS).forEach(([name, factory]) => {
 // ==============================================================================
 
 Object.entries(TEXT_PRESETS).forEach(([name, factory]) => {
-  registerAnimationPreset(name, factory);
+  registerAnimationPreset(name, factory, 'text');
+});
+
+// ==============================================================================
+// EFFECT PRESETS (boot-sequence, sensor-sweep)
+// ==============================================================================
+
+Object.entries(EFFECT_PRESETS).forEach(([name, factory]) => {
+  registerAnimationPreset(name, factory, 'effect');
 });
 
 }

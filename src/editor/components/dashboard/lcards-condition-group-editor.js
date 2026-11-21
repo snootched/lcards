@@ -205,7 +205,8 @@ export class LCARdSConditionGroupEditor extends LitElement {
         if (cond.condition !== undefined) {
             const cs = String(cond.condition);
             if (cs.includes('[[[') && cs.includes(']]]')) {
-                return { _type: 'javascript', template: cs.slice(3, -3).trim() };
+                // Trimmed: a YAML block scalar (`condition: |`) keeps a trailing newline.
+                return { _type: 'javascript', template: cs.trim().slice(3, -3).trim() };
             }
             return { _type: 'jinja2', template: cs };
         }
@@ -221,18 +222,13 @@ export class LCARdSConditionGroupEditor extends LitElement {
             const se = cond.sun_elevation || {};
             return { _type: 'sun_elevation', above: se.above, below: se.below, at_least: se.at_least, at_most: se.at_most };
         }
-        if (cond.perf_metric !== undefined) {
-            const pm = cond.perf_metric || {};
-            return { _type: 'perf_metric', metric: pm.key || '', above: pm.above, below: pm.below, at_least: pm.at_least, at_most: pm.at_most };
-        }
-        if (cond.flag !== undefined) {
-            const f = cond.flag || {};
-            return { _type: 'flag', flag: f.debugFlagName || '', is: f.is !== undefined ? f.is : true };
-        }
         if (cond.random_chance !== undefined) return { _type: 'random_chance', probability: cond.random_chance };
         if (cond.map_range_cond !== undefined) {
             const m = cond.map_range_cond || {};
-            return { _type: 'map_range_cond', entity: m.entity || '', input_min: m.input?.[0] ?? 0, input_max: m.input?.[1] ?? 100, output_min: m.output?.[0] ?? 0, output_max: m.output?.[1] ?? 100 };
+            // The comparison (above, equals, ...) and clamp have no fields here: keep them
+            // so a save writes them back (they were dropped, and the rule matched differently)
+            const { entity, input, output, ...kept } = m;
+            return { _type: 'map_range_cond', entity: entity || '', input_min: input?.[0] ?? 0, input_max: input?.[1] ?? 100, output_min: output?.[0] ?? 0, output_max: output?.[1] ?? 100, _kept: kept };
         }
 
         // Already has _type (editor format coming back from nested group)
@@ -308,20 +304,11 @@ export class LCARdSConditionGroupEditor extends LitElement {
                 if (cond.at_most !== undefined && cond.at_most !== '') s.at_most = Number(cond.at_most);
                 return { sun_elevation: s };
             }
-            case 'perf_metric': {
-                const p = { key: cond.metric || '' };
-                if (cond.above !== undefined && cond.above !== '') p.above = Number(cond.above);
-                if (cond.at_least !== undefined && cond.at_least !== '') p.at_least = Number(cond.at_least);
-                if (cond.below !== undefined && cond.below !== '') p.below = Number(cond.below);
-                if (cond.at_most !== undefined && cond.at_most !== '') p.at_most = Number(cond.at_most);
-                return { perf_metric: p };
-            }
-            case 'flag':
-                return { flag: { debugFlagName: cond.flag || '', is: cond.is !== undefined ? cond.is : true } };
             case 'random_chance':
                 return { random_chance: cond.probability !== undefined ? Number(cond.probability) : 0.5 };
             case 'map_range_cond': {
                 const m = {
+                    ...(cond._kept || {}),
                     entity: cond.entity || '',
                     input: [cond.input_min ?? 0, cond.input_max ?? 100],
                     output: [cond.output_min ?? 0, cond.output_max ?? 100]
@@ -451,8 +438,6 @@ export class LCARdSConditionGroupEditor extends LitElement {
         if (cond.time_range !== undefined || cond.after !== undefined) return 'time_between';
         if (cond.weekdays !== undefined) return 'weekday_in';
         if (cond.sun_elevation !== undefined || cond.sun !== undefined) return 'sun_elevation';
-        if (cond.metric !== undefined) return 'perf_metric';
-        if (cond.flag !== undefined) return 'flag';
         if (cond.probability !== undefined) return 'random_chance';
         if (cond.datasource !== undefined) return 'map_range_cond';
         return 'entity';
@@ -614,65 +599,6 @@ export class LCARdSConditionGroupEditor extends LitElement {
                             @value-changed=${(e) => set('at_most', e.detail.value)}>
                         </ha-selector>
                     </div>
-                `;
-            case 'perf_metric':
-                return html`
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Metric Key'}
-                        .selector=${{ text: {} }}
-                        .value=${cond.metric || ''}
-                        @value-changed=${(e) => set('metric', e.detail.value)}>
-                    </ha-selector>
-                    <div class="inline-grid">
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Above'}
-                            .selector=${{ number: { mode: 'box' } }}
-                            .value=${cond.above ?? ''}
-                            @value-changed=${(e) => set('above', e.detail.value)}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Below'}
-                            .selector=${{ number: { mode: 'box' } }}
-                            .value=${cond.below ?? ''}
-                            @value-changed=${(e) => set('below', e.detail.value)}>
-                        </ha-selector>
-                    </div>
-                    <div class="inline-grid">
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'At Least (≥)'}
-                            .selector=${{ number: { mode: 'box' } }}
-                            .value=${cond.at_least ?? ''}
-                            @value-changed=${(e) => set('at_least', e.detail.value)}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'At Most (≤)'}
-                            .selector=${{ number: { mode: 'box' } }}
-                            .value=${cond.at_most ?? ''}
-                            @value-changed=${(e) => set('at_most', e.detail.value)}>
-                        </ha-selector>
-                    </div>
-                `;
-            case 'flag':
-                return html`
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Flag Name'}
-                        .selector=${{ text: {} }}
-                        .value=${cond.flag || ''}
-                        @value-changed=${(e) => set('flag', e.detail.value)}>
-                    </ha-selector>
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Is Enabled'}
-                        .selector=${{ boolean: {} }}
-                        .value=${cond.is !== undefined ? cond.is : true}
-                        @value-changed=${(e) => set('is', e.detail.value)}>
-                    </ha-selector>
                 `;
             case 'random_chance':
                 return html`

@@ -12,21 +12,24 @@
  * src/core/packs/animations/presets/{index,stagger-presets,text-presets,
  * timeline-presets}.js — keep in sync when adding/changing preset fields
  * there. Each preset factory carries a one-line pointer comment back here.
+ * `'x-required'` lists the params a preset can't run without (see
+ * missingPresetParams() at the end of this file).
  *
  * @module cards/schemas/animation-preset-params-schemas
  */
 
+import { COLOR_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
+
 /**
- * Local copy of common-schemas.js's simpleColorSchema — cannot import it
- * directly: common-schemas.js needs to import ANIMATION_PRESET_PARAMS_SCHEMAS
- * from this file (for animationSchema's discriminatedBy), which would create
- * a circular import. Keep this pattern in sync with simpleColorSchema if that
- * one changes.
+ * Local copy of common-schemas.js's simpleColorSchema: it cannot be imported
+ * from there, because common-schemas.js imports ANIMATION_PRESET_PARAMS_SCHEMAS
+ * from this file (for animationSchema's discriminatedBy). The pattern itself is
+ * shared via core/themes/color-syntax.js.
  */
 const simpleColorSchema = {
   type: 'string',
-  pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-  description: 'Colour value (hex, rgb, theme token, or CSS variable)',
+  pattern: COLOR_VALUE_PATTERN,
+  description: 'Colour value (hex, rgb, named colour, theme token, or CSS variable)',
   'x-ui-hints': { widget: 'lcards-color-picker' }
 };
 
@@ -40,7 +43,7 @@ const simpleColorSchema = {
  */
 export const _CANONICAL_REDECLARED = {
   duration: {
-    type: ['number', 'object'], minimum: 0, maximum: 10000,
+    type: ['number', 'object'], minimum: 0,
     description: 'Also accepted nested here (top-level wins if both set). Also accepts a map_range descriptor for entity-driven, live-adjusting duration on looping animations.'
   },
   ease: {
@@ -67,7 +70,7 @@ export const _CANONICAL_REDECLARED = {
 
 export const pulseParamsSchema = {
   type: 'object',
-  description: 'Params for the "pulse" preset — breathing scale/brightness effect.',
+  description: 'Params for the "pulse" preset: breathing scale/brightness effect.',
   properties: {
     ..._CANONICAL_REDECLARED,
     max_scale: {
@@ -90,7 +93,7 @@ export const pulseParamsSchema = {
 
 export const fadeParamsSchema = {
   type: 'object',
-  description: 'Params for the "fade" preset — simple opacity transition.',
+  description: 'Params for the "fade" preset: simple opacity transition.',
   properties: {
     ..._CANONICAL_REDECLARED,
     from: { type: 'number', minimum: 0, maximum: 1, default: 1, description: 'Starting opacity.' },
@@ -114,12 +117,12 @@ export const glowParamsSchema = {
 
 export const drawParamsSchema = {
   type: 'object',
-  description: 'Params for the "draw" preset — SVG stroke reveal via anime.js createDrawable.',
+  description: 'Params for the "draw" preset: SVG stroke reveal via anime.js createDrawable.',
   properties: {
     ..._CANONICAL_REDECLARED,
     reverse: {
       type: 'boolean', default: false,
-      description: 'If true, draws from end to start. Only affects the default `draw` value — ignored if `draw` is explicitly supplied.'
+      description: 'If true, draws from end to start. Only affects the default `draw` value: ignored if `draw` is explicitly supplied.'
     },
     draw: {
       oneOf: [
@@ -139,7 +142,7 @@ export const drawParamsSchema = {
 
 export const marchParamsSchema = {
   type: 'object',
-  description: 'Params for the "march" preset — CSS-based marching dashed line (bypasses anime.js).',
+  description: 'Params for the "march" preset: CSS-based marching dashed line (bypasses anime.js).',
   properties: {
     ..._CANONICAL_REDECLARED,
     duration: {
@@ -150,7 +153,7 @@ export const marchParamsSchema = {
       ..._CANONICAL_REDECLARED.loop, default: true,
       description: 'Maps to CSS animation-iteration-count: true→infinite, false/0→1, N→N. Uses CSS keyframes, not the generic anime.js loop mechanism.'
     },
-    speed: { type: 'number', minimum: 0, description: 'Seconds per cycle. Takes precedence over `duration` if present.', 'x-ui-hints': { label: 'Speed (sec/cycle — lower = faster)' } },
+    speed: { type: 'number', minimum: 0, description: 'Seconds per cycle. Takes precedence over `duration` if present.', 'x-ui-hints': { label: 'Speed (sec/cycle, lower = faster)' } },
     direction: { type: 'string', enum: ['forward', 'reverse'], default: 'forward' },
     dash_length: { type: 'number', minimum: 0, description: 'Auto-detected from the element\'s stroke-dasharray if absent; fallback 10.' },
     gap_length: { type: 'number', minimum: 0, description: 'Auto-detected from the element\'s stroke-dasharray if absent; fallback 5.' }
@@ -188,7 +191,7 @@ export const strobeParamsSchema = {
   description: 'Params for the "strobe" preset.',
   properties: {
     ..._CANONICAL_REDECLARED,
-    duration: { ..._CANONICAL_REDECLARED.duration, default: 100, description: 'Unusually short vs. most presets — strobe is fast by design.' },
+    duration: { ..._CANONICAL_REDECLARED.duration, default: 100, description: 'Unusually short vs. most presets; strobe is fast by design.' },
     max_opacity: { type: 'number', minimum: 0, maximum: 1, default: 1 },
     min_opacity: { type: 'number', minimum: 0, maximum: 1, default: 0 }
   },
@@ -197,23 +200,24 @@ export const strobeParamsSchema = {
 
 export const flickerParamsSchema = {
   type: 'object',
-  description: 'Params for the "flicker" preset. Randomized keyframes are generated once at setup time (not re-randomized per loop cycle). `alternate` has no effect.',
+  description: 'Params for the "flicker" preset: random opacity keyframes, a new pattern on each loop. `alternate` has no effect.',
   properties: {
     ..._CANONICAL_REDECLARED,
     max_opacity: { type: 'number', minimum: 0, maximum: 1, default: 1 },
-    min_opacity: { type: 'number', minimum: 0, maximum: 1, default: 0.3 }
+    min_opacity: { type: 'number', minimum: 0, maximum: 1, default: 0.3 },
+    seed: { type: 'number', description: 'Any number: the same random pattern on every load. Leave unset for a new pattern each time. Targets with the same seed share the pattern.' }
   },
   additionalProperties: 'warn'
 };
 
 export const cascadeParamsSchema = {
   type: 'object',
-  description: 'Params for the "cascade" preset — staggered fade/property tween across multiple targets.',
+  description: 'Params for the "cascade" preset: staggered fade/property tween across multiple targets.',
   properties: {
     ..._CANONICAL_REDECLARED,
     loop: { ..._CANONICAL_REDECLARED.loop, default: false },
     stagger: { type: 'number', minimum: 0, default: 100, description: 'Per-element delay (ms). NOT the canonical `delay` field, which is unused here.' },
-    property: { type: 'string', default: 'opacity', description: 'Arbitrary anime/CSS property name — unvalidated passthrough.' },
+    property: { type: 'string', default: 'opacity', description: 'Arbitrary anime/CSS property name: unvalidated passthrough.' },
     from: { type: 'number', default: 0 },
     to: { type: 'number', default: 1 }
   },
@@ -222,24 +226,51 @@ export const cascadeParamsSchema = {
 
 export const cascadeColorParamsSchema = {
   type: 'object',
-  description: 'Params for the "cascade-color" preset — staggered color cascade across a grid/row of targets. NOTE: the default `property` ("color") is correct for its primary intended use (data-grid cells, plain HTML/CSS-rendered) but won\'t visibly work on an SVG-shape target (LCARdS\'s own button/elbow/slider/MSD cards) — set `property` to `fill` or `stroke` for those.',
+  description: 'Params for the "cascade-color" preset: staggered color cascade across a grid/row of targets. NOTE: the default `property` ("color") is correct for its primary intended use (data-grid cells, plain HTML/CSS-rendered) but won\'t visibly work on an SVG-shape target (LCARdS\'s own button/elbow/slider/MSD cards). Set `property` to `fill` or `stroke` for those.',
   properties: {
     ..._CANONICAL_REDECLARED,
     colors: {
-      type: 'array', minItems: 3, items: { ...simpleColorSchema },
+      anyOf: [
+        { type: 'array', minItems: 3, items: { ...simpleColorSchema } },
+        {
+          type: 'object',
+          description: 'Data grid form: { start, text, end }',
+          properties: { start: { ...simpleColorSchema }, text: { ...simpleColorSchema }, end: { ...simpleColorSchema } }
+        }
+      ],
       description: 'Only indices [0],[1],[2] are used; defaults to 3 theme tokens if omitted.',
       'x-ui-hints': { widget: 'json', label: 'Colors' }
+    },
+    // Read by lcards-data-grid, which runs one cascade per row (buildCascadeRowTimings).
+    pattern: { type: 'string', enum: ['default', 'niagara', 'fast', 'custom'], description: 'Data grid: per-row timing pattern.' },
+    speed_multiplier: { type: 'number', exclusiveMinimum: 0, description: 'Data grid: 2 = twice as fast. Ignored when duration is set.' },
+    timing: {
+      type: 'array',
+      description: 'Data grid: per-row timing for pattern: custom (repeats for further rows).',
+      items: {
+        type: 'object',
+        properties: {
+          duration: { type: 'number', minimum: 0, description: 'Colour cycle length in ms' },
+          delay: { type: 'number', minimum: 0, description: 'Row start delay in seconds' }
+        }
+      }
     },
     property: { type: 'string', default: 'color', description: "Passthrough key used inside keyframe objects. 'fill'/'stroke' for SVG shapes, 'color'/'background-color' only for plain HTML/CSS-rendered targets." },
     mode: {
       type: 'string', enum: ['css', 'animejs'],
-      description: "Both modes actually run through anime.js — despite the naming, this isn't a CSS-vs-anime.js engine choice. 'animejs' mode adds per-cell stagger (interactive/stagger_from/axis) on top of the base cascade; 'css' mode is the plain synchronized version. Auto-computed from interactive/stagger_from/axis when unset, and force-upgraded to 'animejs' whenever any of those are set even if `mode` was also set explicitly — those fields have no effect at all in 'css' mode, so silently ignoring them would be more surprising than the override."
+      description: "Both modes actually run through anime.js. Despite the naming, this isn't a CSS-vs-anime.js engine choice. 'animejs' mode adds per-cell stagger (interactive/stagger_from/axis) on top of the base cascade; 'css' mode is the plain synchronized version. Auto-computed from interactive/stagger_from/axis when unset, and force-upgraded to 'animejs' whenever any of those are set even if `mode` was also set explicitly: those fields have no effect at all in 'css' mode, so silently ignoring them would be more surprising than the override."
     },
-    interactive: { type: 'boolean', default: false, description: "Only wired up (mouseenter/mouseleave pause/play) when mode==='animejs'." },
-    stagger_from: { type: 'string', enum: ['first', 'last', 'center', 'random'], description: 'Not validated in code today — documented values only.' },
-    stagger_delay: { type: 'number', minimum: 0, default: 100, description: 'Only relevant in animejs mode.' },
-    axis: { type: 'string', enum: ['row', 'column'], default: 'row', description: 'Not validated in code today — documented values only.' },
-    delay: { type: 'number', minimum: 0, default: 0, description: 'Row-level start delay — a legitimate use of the canonical start-offset meaning (unlike the stagger-* presets).' }
+    interactive: { type: 'boolean', default: false, description: "Only wired up (mouseenter/mouseleave pause/play) when mode==='animejs'. With stagger_from set, hovering any target pauses the whole cascade." },
+    stagger_from: {
+      type: 'string', enum: ['first', 'last', 'center', 'random'],
+      description: "Stagger the targets from this end instead of starting them together (forces mode 'animejs')."
+    },
+    stagger_delay: { type: 'number', minimum: 0, default: 100, description: 'Per-target stagger step in ms, with stagger_from.' },
+    axis: {
+      type: 'string', enum: ['row', 'column'], default: 'row',
+      description: "With stagger_from: 'row' follows target order; 'column' staggers by layout position, row by row downward (forces mode 'animejs')."
+    },
+    delay: { type: 'number', minimum: 0, default: 0, description: 'Row-level start delay: a legitimate use of the canonical start-offset meaning (unlike the stagger-* presets).' }
   },
   additionalProperties: 'warn'
 };
@@ -268,7 +299,7 @@ export const scaleParamsSchema = {
 
 export const scaleResetParamsSchema = {
   type: 'object',
-  description: 'Params for the "scale-reset" preset. `loop`/`alternate` are hardcoded false in code today and have no effect even if set — see Phase 13.6.',
+  description: 'Params for the "scale-reset" preset. `loop`/`alternate` are hardcoded false in code today and have no effect even if set; see Phase 13.6.',
   properties: {
     ..._CANONICAL_REDECLARED
   },
@@ -282,7 +313,7 @@ export const slideParamsSchema = {
     ..._CANONICAL_REDECLARED,
     from: {
       type: 'string', enum: ['right', 'left', 'top', 'bottom', 'up', 'down'], default: 'right',
-      description: "Falls back to `direction`. Actual code default is 'right' (doc previously said 'up' — corrected here, see Phase 13.6)."
+      description: "Falls back to `direction`. Actual code default is 'right' (doc previously said 'up'; corrected here, see Phase 13.6)."
     },
     direction: {
       type: 'string', enum: ['right', 'left', 'top', 'bottom', 'up', 'down'],
@@ -314,7 +345,7 @@ export const rotateParamsSchema = {
 
 export const shakeParamsSchema = {
   type: 'object',
-  description: 'Params for the "shake" preset. `alternate` has no effect — keyframes always return to 0 regardless.',
+  description: 'Params for the "shake" preset. `alternate` has no effect: keyframes always return to 0 regardless.',
   properties: {
     ..._CANONICAL_REDECLARED,
     intensity: { type: 'number', minimum: 0, default: 10, description: 'Max px displacement.' },
@@ -339,10 +370,11 @@ export const bounceParamsSchema = {
 
 export const colorShiftParamsSchema = {
   type: 'object',
-  description: 'Params for the "color-shift" preset. NOTE: the default `property` ("color") only visibly works on plain HTML/CSS-rendered targets — LCARdS\'s own cards (button/elbow/slider/MSD) draw their shapes as SVG paths, which don\'t respond to the CSS `color` property at all. Set `property` to `fill` or `stroke` when targeting an SVG shape.',
+  'x-required': ['color_from', 'color_to'],
+  description: 'Params for the "color-shift" preset. NOTE: the default `property` ("color") only visibly works on plain HTML/CSS-rendered targets; LCARdS\'s own cards (button/elbow/slider/MSD) draw their shapes as SVG paths, which don\'t respond to the CSS `color` property at all. Set `property` to `fill` or `stroke` when targeting an SVG shape.',
   properties: {
     ..._CANONICAL_REDECLARED,
-    color_from: { ...simpleColorSchema, description: 'Required — omitting either color_from or color_to makes the preset a no-op with a warning.' },
+    color_from: { ...simpleColorSchema, description: 'Required: omitting either color_from or color_to makes the preset a no-op with a warning.' },
     color_to: { ...simpleColorSchema, description: 'Required, see color_from.' },
     property: { type: 'string', default: 'color', description: "'fill'/'stroke' for SVG shapes (LCARdS's own cards), 'color'/'background-color' only for plain HTML/CSS-rendered targets." }
   },
@@ -351,7 +383,7 @@ export const colorShiftParamsSchema = {
 
 export const skewParamsSchema = {
   type: 'object',
-  description: 'Params for the "skew" preset. Presence of EITHER from_skewX or from_skewY switches skewX/skewY into "to" targets instead of direct targets from 0 — a genuine conditional shape (kept as hardcoded editor UI, not schema-driven form, per Phase 13.5).',
+  description: 'Params for the "skew" preset. Presence of EITHER from_skewX or from_skewY switches skewX/skewY into "to" targets instead of direct targets from 0: a genuine conditional shape (kept as hardcoded editor UI, not schema-driven form, per Phase 13.5).',
   properties: {
     ..._CANONICAL_REDECLARED,
     skewX: { type: 'number', default: 0, description: 'Degrees.' },
@@ -364,18 +396,19 @@ export const skewParamsSchema = {
 
 export const glitchParamsSchema = {
   type: 'object',
-  description: "Params for the \"glitch\" preset. `ease` is hardcoded to 'linear' — ignored. `alternate` has no effect.",
+  description: "Params for the \"glitch\" preset. `ease` is hardcoded to 'linear', ignored. `alternate` has no effect.",
   properties: {
     ..._CANONICAL_REDECLARED,
     intensity: { type: 'number', minimum: 0, default: 5, description: 'Max px displacement, symmetric around 0.' },
-    frequency: { type: 'number', minimum: 1, default: 10, description: 'Number of random keyframes generated.' }
+    frequency: { type: 'number', minimum: 1, default: 10, description: 'Number of random keyframes per loop (a new pattern on each loop).' },
+    seed: { type: 'number', description: 'Any number: the same random pattern on every load. Leave unset for a new pattern each time. Targets with the same seed share the pattern.' }
   },
   additionalProperties: 'warn'
 };
 
 export const setParamsSchema = {
   type: 'object',
-  description: 'Params for the "set" preset — direct property assignment (duration/ease/loop/alternate/delay are all ignored; duration is hardcoded 0).',
+  description: 'Params for the "set" preset: direct property assignment (duration/ease/loop/alternate/delay are all ignored; duration is hardcoded 0).',
   properties: {
     properties: {
       type: 'object', additionalProperties: true, default: {},
@@ -388,20 +421,21 @@ export const setParamsSchema = {
 
 export const motionpathParamsSchema = {
   type: 'object',
-  description: 'Params for the "motionpath" preset — animates an element (or, with `shape` set, a self-created tracer shape) along an SVG path.',
+  'x-required': ['path'],
+  description: 'Params for the "motionpath" preset: animates an element (or, with `shape` set, a self-created tracer shape) along an SVG path.',
   properties: {
     ..._CANONICAL_REDECLARED,
     path: { type: 'string', description: 'Required. CSS selector (#id or .class) for the motion-path SVG element.' },
-    rotate: { type: 'boolean', default: true, description: 'Auto-rotate along path (different meaning from the top-level "rotate" preset\'s numeric from/to). A sibling of `shape` below, not a field inside it — controls the motion itself, applies whether or not `shape` is set.' },
+    rotate: { type: 'boolean', default: true, description: 'Auto-rotate along path (different meaning from the top-level "rotate" preset\'s numeric from/to). A sibling of `shape` below, not a field inside it; controls the motion itself, applies whether or not `shape` is set.' },
     anchor: { type: 'string', default: '50% 50%', description: 'CSS transform-origin syntax, unvalidated. A sibling of `shape` below, not a field inside it.' },
     shape: {
       type: 'object',
-      description: 'Opt-in: motionpath creates and animates its own shape (a "tracer") instead of moving target/targets — e.g. a traveling dot suggesting energy flow along a line. Mutually exclusive with target/targets (shape wins, with a console warning, if both are set). Field names deliberately mirror line markers\' (marker_start/marker_end) styling options. Appearance only — `rotate`/`anchor` (motion behavior) are separate, sibling `params` fields, not part of this object.',
+      description: 'Opt-in: motionpath creates and animates its own shape (a "tracer") instead of moving target/targets, e.g. a traveling dot suggesting energy flow along a line. Mutually exclusive with target/targets (shape wins, with a console warning, if both are set). Field names deliberately mirror line markers\' (marker_start/marker_end) styling options. Appearance only; `rotate`/`anchor` (motion behavior) are separate, sibling `params` fields, not part of this object.',
       properties: {
         type: { type: 'string', enum: ['circle', 'rect', 'diamond'], default: 'circle' },
         size: { type: 'number', minimum: 1, default: 10, description: 'Diameter (circle/diamond) or width/height fallback (rect) in px.' },
-        width: { type: 'number', minimum: 1, description: 'rect only — overrides size for width.' },
-        height: { type: 'number', minimum: 1, description: 'rect only — overrides size for height.' },
+        width: { type: 'number', minimum: 1, description: 'rect only: overrides size for width.' },
+        height: { type: 'number', minimum: 1, description: 'rect only: overrides size for height.' },
         fill: { type: 'string', default: 'currentColor', 'x-ui-hints': { widget: 'lcards-color-picker' } },
         stroke: { type: 'string', default: 'none', 'x-ui-hints': { widget: 'lcards-color-picker' } },
         stroke_width: { type: 'number', minimum: 0, default: 0 }
@@ -415,19 +449,39 @@ export const motionpathParamsSchema = {
   additionalProperties: 'warn'
 };
 
+export const morphParamsSchema = {
+  type: 'object',
+  'x-required': ['to'],
+  description: 'Params for the "morph" preset: the target shape (a path, polygon or polyline, or the first one inside the target) takes the geometry of the `to` shape. Stopping puts the original back; loop with alternate flips between the two.',
+  properties: {
+    ..._CANONICAL_REDECLARED,
+    duration: { ..._CANONICAL_REDECLARED.duration, default: 800 },
+    to: { type: 'string', description: 'Required. CSS selector of the shape to morph into, found in the same card, e.g. #warn_shape or [data-overlay-id="warn_shape"]. It can be hidden (display: none or inside defs).' },
+    precision: { type: 'number', minimum: 0, default: 0.33, description: 'Points sampled per SVG unit of path length (anime.js morphTo). Higher is smoother and slower. 0 interpolates the raw geometry, which only works when both shapes use the same path commands.' },
+    morph_to_selector: { type: 'string', deprecated: true, 'x-replacement': 'params.to', description: 'Old name for to.' }
+  },
+  additionalProperties: 'warn'
+};
+
 export const sequenceParamsSchema = {
   type: 'object',
-  description: "Params for the \"sequence\" preset — timeline of steps. Each step may set its own duration/ease (falling back to this preset's own duration/ease as per-step defaults). Step positioning uses `offset`; the preset factory also accepts the older `at` name as a fallback (translated to `offset` internally) — `offset` wins if a step sets both.",
+  'x-required': ['steps'],
+  description: "Params for the \"sequence\" preset: timeline of steps. Each step may set its own duration/ease (falling back to this preset's own duration/ease as per-step defaults). Step positioning uses `offset`; the preset factory also accepts the older `at` name as a fallback (translated to `offset` internally); `offset` wins if a step sets both.",
   properties: {
-    duration: { type: 'number', minimum: 0, maximum: 10000, default: 2000, description: 'Fallback duration for steps missing their own duration.' },
+    duration: { type: 'number', minimum: 0, default: 2000, description: 'Fallback duration for steps missing their own duration.' },
     ease: { type: ['string', 'object'], description: "Fallback easing for steps missing their own ease. Default 'outQuad'." },
     loop: { ..._CANONICAL_REDECLARED.loop, default: false },
     steps: {
       type: 'array', minItems: 1,
       items: {
         type: 'object',
+        properties: {
+          target: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }], description: "CSS selector (or list of selectors) for this step, resolved inside the card: in an MSD card any overlay of that card, e.g. [data-overlay-id=\"line_1\"]. Without it the step animates the animation's own target(s)." },
+          targets: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }], description: 'Same as target.' },
+          offset: { oneOf: [{ type: 'number' }, { type: 'string' }], description: "Position in the timeline: an absolute ms number, '+=N' / '-=N' relative to the end of the previous step, '<' at the end of the previous step, '<<' together with the previous step." }
+        },
         additionalProperties: true,
-        description: 'Arbitrary anime.js tween properties at the top level, plus optional duration/ease/offset (or legacy at) overrides.'
+        description: 'Arbitrary anime.js tween properties at the top level, plus optional target, duration, ease and offset (or legacy at).'
       },
       description: 'Required, at least one step.',
       'x-ui-hints': { widget: 'json', label: 'Steps' }
@@ -436,9 +490,18 @@ export const sequenceParamsSchema = {
   additionalProperties: 'warn'
 };
 
+export const customParamsSchema = {
+  type: 'object',
+  description: 'Params for the "custom" preset: raw anime.js v4 animation properties passed through to animate(), for example opacity, scale, translateX, keyframes, loop, alternate, ease. The target comes from the animation\'s own target/targets.',
+  properties: {
+    ..._CANONICAL_REDECLARED
+  },
+  additionalProperties: true
+};
+
 export const chaosParamsSchema = {
   type: 'object',
-  description: 'Params for the "chaos" preset — randomized multi-property glitch motion. Does not use the top-level `duration` field at all.',
+  description: 'Params for the "chaos" preset: randomized multi-property glitch motion, new random values on each loop. Does not use the top-level `duration` field at all.',
   properties: {
     ..._CANONICAL_REDECLARED,
     loop: { ..._CANONICAL_REDECLARED.loop, default: true },
@@ -446,7 +509,7 @@ export const chaosParamsSchema = {
       type: 'array',
       items: { type: 'string' },
       default: ['x', 'y', 'rotate'],
-      description: "'x'/'y' tokens are remapped to translateX/translateY; other tokens (e.g. 'rotate','opacity') used verbatim as the anime property name. Not validated as an array in code today — a non-array truthy value will throw.",
+      description: "'x'/'y' tokens are remapped to translateX/translateY; other tokens (e.g. 'rotate','opacity') used verbatim as the anime property name. Not validated as an array in code today; a non-array truthy value will throw.",
       'x-ui-hints': { widget: 'json', label: 'Properties' }
     },
     range: {
@@ -458,14 +521,16 @@ export const chaosParamsSchema = {
     },
     duration_min: { type: 'number', minimum: 0, default: 200, description: 'Replaces the canonical `duration` entirely for this preset.' },
     duration_max: { type: 'number', minimum: 0, default: 800 },
-    composition: { type: 'string', enum: ['blend', 'replace'], default: 'blend', description: 'Not validated in code today — documented values only.' }
+    composition: { type: 'string', enum: ['blend', 'replace'], default: 'blend', description: 'Not validated in code today: documented values only.' },
+    seed: { type: 'number', description: 'Any number: the same random pattern on every load. Leave unset for a new pattern each time. Targets with the same seed share the pattern.' }
   },
   additionalProperties: 'warn'
 };
 
 export const physicsSpringParamsSchema = {
   type: 'object',
-  description: 'Params for the "physics-spring" preset. `ease`, `duration`, and `alternate` (canonical) are entirely bypassed — spring dynamics determine the effective duration internally. `loop`, however, genuinely is read and respected. Has its own parallel spring-config system separate from the generic `ease: {type:"spring", params:{...}}` path — see Phase 13.6.',
+  'x-required': ['from', 'to'],
+  description: 'Params for the "physics-spring" preset. `ease`, `duration`, and `alternate` (canonical) are entirely bypassed; spring dynamics determine the effective duration internally. `loop`, however, genuinely is read and respected. Has its own parallel spring-config system separate from the generic `ease: {type:"spring", params:{...}}` path: see Phase 13.6.',
   properties: {
     property: { type: 'string', default: 'scale', description: 'Passthrough anime property name.' },
     from: { type: ['number', 'string'], description: 'Required (typically a number; a color string is also valid for color-like properties).' },
@@ -485,7 +550,7 @@ export const physicsSpringParamsSchema = {
 
 export const staggerGridParamsSchema = {
   type: 'object',
-  description: 'Params for the "stagger-grid" preset — stagger across a [cols, rows] grid of targets.',
+  description: 'Params for the "stagger-grid" preset: stagger across a [cols, rows] grid of targets.',
   properties: {
     ..._CANONICAL_REDECLARED,
     ease: { ..._CANONICAL_REDECLARED.ease, description: "Default 'outQuad'." },
@@ -496,22 +561,33 @@ export const staggerGridParamsSchema = {
     },
     grid: {
       type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' }, default: [1, 1],
-      description: 'Validated in code — warns and no-ops if provided with the wrong shape.',
+      description: 'Validated in code: warns and no-ops if provided with the wrong shape.',
       'x-ui-hints': { widget: 'json', label: 'Grid [cols, rows]' }
     },
     from: {
       oneOf: [
-        { type: 'string', enum: ['start', 'end', 'center', 'edges'] },
-        { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } }
+        { type: 'string', enum: ['first', 'last', 'center', 'edges', 'random', 'start', 'end', 'pointer'] },
+        { type: 'array', minItems: 2, maxItems: 2, items: { type: 'integer', minimum: 0 } }
       ],
-      default: 'start',
-      description: 'Not validated in code today.',
+      default: 'first',
+      description: "Where the wave starts: 'first' (top-left), 'last', 'center' (outward), 'edges' (inward), 'random', or a [col, row] cell (0-indexed). 'start' and 'end' are aliases of 'first' and 'last'. 'pointer' starts where the card was tapped (on_tap, on_hold, on_double_tap; the centre for other triggers).",
       // A oneOf with an array branch hits a known, separately-tracked bug in
       // FormField's oneOf/choose handling (_prepareValueForSelector has no
       // Array.isArray branch, so an array value always resets to the first
       // choice) — bypass via the code editor rather than ship a broken toggle.
       'x-ui-hints': { widget: 'json', label: 'From' }
     },
+    axis: {
+      type: 'string', enum: ['x', 'y', 'row', 'column'],
+      description: "Stagger along one axis only: 'x' (or 'row') delays by column, 'y' (or 'column') by row."
+    },
+    reversed: { type: 'boolean', default: false, description: 'Run the stagger in the opposite order.' },
+    jitter: {
+      anyOf: [{ type: 'number', minimum: 0 }, { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 0 } }],
+      description: 'Random offset in ms added to each target\'s delay (plus or minus). A [start, end] pair ramps it along the stagger order.',
+      'x-ui-hints': { widget: 'json', label: 'Jitter (ms)' }
+    },
+    seed: { type: 'number', description: 'Any number: the same jitter and random order on every load.' },
     property: { type: 'string', default: 'scale' },
     from_value: { type: 'number', default: 0.8 },
     to_value: { type: 'number', default: 1 }
@@ -519,9 +595,39 @@ export const staggerGridParamsSchema = {
   additionalProperties: 'warn'
 };
 
+export const tapRippleParamsSchema = {
+  type: 'object',
+  description: 'Params for the "tap-ripple" preset: a pulse that spreads across the targets from where the card was tapped (positions read from the layout). Use with on_tap, on_hold or on_double_tap and several targets, e.g. target: .grid-cell in a data-grid.',
+  properties: {
+    duration: { ..._CANONICAL_REDECLARED.duration, default: 500, description: "One target's pulse, ms." },
+    ease: { ..._CANONICAL_REDECLARED.ease, description: "Default 'outQuad'." },
+    spread: { type: 'number', minimum: 0, default: 400, description: 'ms for the wave to travel from the tap point to the farthest target, whatever the layout.' },
+    scale: { type: 'number', minimum: 0, default: 1.08, description: 'Peak scale of each target.' },
+    opacity_min: { type: 'number', minimum: 0, maximum: 1, default: 0.4, description: 'Lowest opacity of each target during its pulse.' },
+    color: { ...simpleColorSchema, description: 'Optional flash colour at the peak of each pulse (theme token, CSS variable or colour).' },
+    property: { type: 'string', enum: ['color', 'fill', 'stroke'], default: 'color', description: "What color sets: 'color' for HTML text such as data-grid cells, 'fill' or 'stroke' for SVG shapes." },
+    from: {
+      type: 'string', enum: ['pointer', 'center', 'first', 'last', 'random'], default: 'pointer',
+      description: "Where the wave starts: 'pointer' is the tap point (the centre when another trigger fires it)."
+    },
+    reversed: { type: 'boolean', default: false, description: 'Run the wave inward, ending at the tap point.' },
+    jitter: {
+      anyOf: [{ type: 'number', minimum: 0 }, { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 0 } }],
+      description: 'Random extra delay per target (ms, or a [start, end] ramp) for a less even wave.',
+      'x-ui-hints': { widget: 'json', label: 'Jitter (ms)' }
+    },
+    seed: { type: 'number', description: 'Any number: the same jitter on every load.' },
+    grid: {
+      type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 1 },
+      description: '[columns, rows] of the targets, passed to the stagger as its grid.'
+    }
+  },
+  additionalProperties: 'warn'
+};
+
 export const staggerWaveParamsSchema = {
   type: 'object',
-  description: "Params for the \"stagger-wave\" preset — wave effect across a linear sequence of targets. Actual code default for `alternate` is false (doc previously said true — corrected here, see Phase 13.6).",
+  description: "Params for the \"stagger-wave\" preset: wave effect across a linear sequence of targets. Actual code default for `alternate` is false (doc previously said true; corrected here, see Phase 13.6).",
   properties: {
     ..._CANONICAL_REDECLARED,
     alternate: { ..._CANONICAL_REDECLARED.alternate, default: false },
@@ -531,8 +637,16 @@ export const staggerWaveParamsSchema = {
     },
     direction: {
       type: 'string', enum: ['normal', 'reverse'], default: 'normal',
-      description: "Any value other than 'reverse' collapses to 'normal' in code."
+      description: "'reverse' runs the wave from the last target (the same as reversed: true)."
     },
+    reversed: { type: 'boolean', default: false, description: 'Run the wave from the last target.' },
+    jitter: {
+      anyOf: [{ type: 'number', minimum: 0 }, { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 0 } }],
+      description: 'Random offset in ms added to each target\'s delay (plus or minus). A [start, end] pair ramps it along the stagger order.',
+      'x-ui-hints': { widget: 'json', label: 'Jitter (ms)' }
+    },
+    seed: { type: 'number', description: 'Any number: the same jitter and random order on every load.' },
+
     property: { type: 'string', default: 'translateY' },
     amplitude: { type: 'number', default: -20, description: 'Used in a 3-point path [0, amplitude, 0].' }
   },
@@ -541,7 +655,7 @@ export const staggerWaveParamsSchema = {
 
 export const staggerRadialParamsSchema = {
   type: 'object',
-  description: 'Params for the "stagger-radial" preset — stagger radiating from a point. `alternate` is not read at all by this preset.',
+  description: 'Params for the "stagger-radial" preset: stagger radiating from a point. `alternate` is not read at all by this preset.',
   properties: {
     ..._CANONICAL_REDECLARED,
     delay: {
@@ -550,24 +664,31 @@ export const staggerRadialParamsSchema = {
     },
     from: {
       oneOf: [
-        { type: 'string', enum: ['center'] },
-        { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } }
+        { type: 'string', enum: ['center', 'first', 'last', 'random', 'pointer'] },
+        { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 0, maximum: 1 } }
       ],
       default: 'center',
-      description: "'center' or an [x,y] pixel position. Unvalidated.",
+      description: "Where the ripple starts, measured on the targets' real positions: 'center', 'first', 'last', 'random', or an [x, y] point as fractions of the group (0 to 1, [0, 0] is top-left).",
       // See stagger-grid.from's comment — same known oneOf/array selector bug.
       'x-ui-hints': { widget: 'json', label: 'From' }
     },
     property: { type: 'string', default: 'scale' },
     from_value: { type: 'number', default: 0 },
-    to_value: { type: 'number', default: 1 }
+    to_value: { type: 'number', default: 1 },
+    reversed: { type: 'boolean', default: false, description: 'Run the stagger in the opposite order.' },
+    jitter: {
+      anyOf: [{ type: 'number', minimum: 0 }, { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 0 } }],
+      description: 'Random offset in ms added to each target\'s delay (plus or minus). A [start, end] pair ramps it along the stagger order.',
+      'x-ui-hints': { widget: 'json', label: 'Jitter (ms)' }
+    },
+    seed: { type: 'number', description: 'Any number: the same jitter and random order on every load.' }
   },
   additionalProperties: 'warn'
 };
 
 export const staggerFlashParamsSchema = {
   type: 'object',
-  description: 'Params for the "stagger-flash" preset — WAAPI-driven flash sweep, bypassing anime.js entirely for the real visual effect.',
+  description: 'Params for the "stagger-flash" preset: WAAPI-driven flash sweep, bypassing anime.js entirely for the real visual effect.',
   properties: {
     lead_color: { ...simpleColorSchema, default: 'var(--primary-color)' },
     trail_color: { ...simpleColorSchema, default: '#444444' },
@@ -583,10 +704,10 @@ export const staggerFlashParamsSchema = {
       'x-ui-hints': { widget: 'json', label: 'Grid [cols, rows]' }
     },
     from: { type: 'string', enum: ['first', 'last', 'center'], default: 'first' },
-    property: { type: 'string', default: 'stroke', description: 'Used as a Web Animations API keyframe property name — must be WAAPI-animatable.' },
+    property: { type: 'string', default: 'stroke', description: 'Used as a Web Animations API keyframe property name; must be WAAPI-animatable.' },
     with_opacity: { type: 'boolean', default: true },
     trail_opacity: { type: 'number', minimum: 0, maximum: 1, default: 0.25 },
-    loop: { type: 'boolean', default: true, description: 'Maps to WAAPI iterations: Infinity vs 1 — not the generic anime.js loop mechanism.' }
+    loop: { type: 'boolean', default: true, description: 'Maps to WAAPI iterations: Infinity vs 1, not the generic anime.js loop mechanism.' }
   },
   additionalProperties: 'warn'
 };
@@ -597,10 +718,10 @@ export const staggerFlashParamsSchema = {
 
 export const textRevealParamsSchema = {
   type: 'object',
-  description: 'Params for the "text-reveal" preset — character/word/line reveal.',
+  description: 'Params for the "text-reveal" preset: character/word/line reveal.',
   properties: {
     ..._CANONICAL_REDECLARED,
-    split: { type: 'string', enum: ['chars', 'words', 'lines'], default: 'chars', description: 'Not a strict whitelist in code — anything not exactly "lines"/"words" falls back to chars.' },
+    split: { type: 'string', enum: ['chars', 'words', 'lines'], default: 'chars', description: 'Not a strict whitelist in code: anything not exactly "lines"/"words" falls back to chars.' },
     direction: {
       type: 'string', default: 'first',
       description: 'Stagger origin (same family as anime\'s stagger() `from`: first/last/center/random/numeric index). Unvalidated.'
@@ -612,39 +733,123 @@ export const textRevealParamsSchema = {
   additionalProperties: 'warn'
 };
 
+/** Params text-decode and text-scramble share (anime.js scrambleText options). */
+const _DECODE_PARAMS = {
+  from: {
+    type: 'string', enum: ['left', 'right', 'center', 'random'], default: 'left',
+    description: 'Where the reveal starts.'
+  },
+  reversed: { type: 'boolean', default: false, description: "Reveal in the opposite order: from: center then reveals the edges first." },
+  cursor: {
+    type: ['boolean', 'string'], default: false,
+    description: "Characters shown at the reveal edge: true for '_', or a string. Best seen on slower decodes (a longer duration)."
+  },
+  perturbation: { type: 'number', minimum: 0, maximum: 1, description: 'Random timing per character (0 to 1) for a less even reveal.' },
+  reveal_rate: { type: 'number', exclusiveMinimum: 0, description: 'Characters per second entering the reveal (anime.js default 60).' },
+  seed: { type: 'number', description: 'Any number: the same scramble on every load. Each text line gets the next seed.' },
+  loop: { type: 'boolean', default: false, description: 'Decode again on every loop.' },
+  delay: { type: 'number', minimum: 0, default: 0, description: 'ms before the decode starts.' }
+};
+
+export const textDecodeParamsSchema = {
+  type: 'object',
+  description: 'Params for the "text-decode" preset: an LCARS readout decode (anime.js scrambleText). Each text line starts as glyph noise and resolves character by character; stopping restores the text. `ease`/`alternate` are not used.',
+  properties: {
+    duration: { type: 'number', minimum: 0, default: 1000, description: 'ms for the whole decode of a line.' },
+    chars: {
+      type: 'string', default: 'A-Z0-9',
+      description: 'Scramble glyphs: a named set (uppercase, lowercase, numbers, symbols, blocks, shades, braille) or characters and ranges such as A-Z0-9. Put a literal - first or last.'
+    },
+    ..._DECODE_PARAMS
+  },
+  additionalProperties: 'warn'
+};
+
 export const textScrambleParamsSchema = {
   type: 'object',
-  description: 'Params for the "text-scramble" preset — self-managed per-character scramble, bypassing the normal preset-level anime dispatch. `ease`/`alternate` (canonical) are accepted but ignored.',
+  description: 'Params for the "text-scramble" preset: the decode of text-decode under its original name, with its original timing params. A line takes duration + (characters - 1) x stagger ms. Any text-decode param works too.',
   properties: {
-    duration: { type: 'number', minimum: 0, default: 800, description: 'ms each character spends scrambling before settling.' },
+    duration: { type: 'number', minimum: 0, default: 800, description: 'ms each character spends scrambling.' },
     stagger: { type: 'number', minimum: 0, default: 40, description: 'ms between each character starting.' },
-    delay: { type: 'number', minimum: 0, default: 0, description: 'A legitimate use of the canonical meaning: ms before the first character begins.' },
-    loop: { type: 'boolean', default: false },
-    settle_at: { type: 'number', minimum: 0, maximum: 1, default: 0.85, description: 'Fraction of duration. Not clamped in code today — values outside 0-1 produce nonsensical results.' },
-    characters: { type: 'string', default: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*', description: 'Character pool. An empty string is an unguarded edge case in code today.' }
+    characters: {
+      type: 'string', default: 'A-Z0-9!@#$%^&*',
+      description: 'Scramble glyphs, as text-decode chars (named sets and ranges such as A-Z work; put a literal - first or last).'
+    },
+    chars: { type: 'string', description: 'Same as characters.' },
+    settle_at: {
+      type: 'number', minimum: 0, maximum: 1, deprecated: true,
+      description: 'No longer used: the decode settles each character itself.'
+    },
+    ..._DECODE_PARAMS
   },
   additionalProperties: 'warn'
 };
 
 export const textGlitchParamsSchema = {
   type: 'object',
-  description: "Params for the \"text-glitch\" preset. `ease` (canonical) is hardcoded to 'inOutQuad' — ignored.",
+  description: "Params for the \"text-glitch\" preset. `ease` (canonical) is hardcoded to 'inOutQuad', ignored.",
   properties: {
     intensity: { type: 'number', minimum: 0, default: 5, description: 'Max px/SVG-unit displacement.' },
     duration: { type: 'number', minimum: 0, default: 300, description: 'ms per glitch cycle.' },
     stagger: { type: 'number', minimum: 0, default: 50, description: 'ms offset between characters. Canonical `delay` is unused here.' },
-    color_shift: { type: 'boolean', default: false, description: 'HTML target path only — silently ignored for SVG elements.' },
-    loop: { type: 'boolean', default: false }
+    color_shift: { type: 'boolean', default: false, description: 'HTML target path only: silently ignored for SVG elements.' },
+    loop: { ..._CANONICAL_REDECLARED.loop, default: false },
+    seed: { type: 'number', description: 'Any number: the same glitch offsets on every run.' }
   },
   additionalProperties: 'warn'
 };
 
 export const textTypewriterParamsSchema = {
   type: 'object',
-  description: "Params for the \"text-typewriter\" preset. `duration` (canonical) is hardcoded to 1 — ignored. `ease` hardcoded 'linear'. `alternate`/`delay` (canonical) never read.",
+  description: "Params for the \"text-typewriter\" preset. `duration` (canonical) is hardcoded to 1, ignored. `ease` hardcoded 'linear'. `alternate`/`delay` (canonical) never read.",
   properties: {
     speed: { type: 'number', minimum: 0, default: 100, description: 'ms per character.' },
-    loop: { type: 'boolean', default: false }
+    loop: { ..._CANONICAL_REDECLARED.loop, default: false }
+  },
+  additionalProperties: 'warn'
+};
+
+// ============================================================================
+// EFFECT PRESETS (mirrors src/core/packs/animations/presets/effect-presets.js)
+// ============================================================================
+
+export const bootSequenceParamsSchema = {
+  type: 'object',
+  description: 'Params for the "boot-sequence" preset: the target powers up. Stroked shapes draw in, filled shapes come on, then the text decodes, all on one timeline. Parts the card does not have are skipped. Best on on_show or on_load.',
+  properties: {
+    duration: { ..._CANONICAL_REDECLARED.duration, default: 1200, description: 'ms for the whole sequence.' },
+    delay: { ..._CANONICAL_REDECLARED.delay, description: 'ms before the sequence starts.' },
+    fill: { type: 'string', enum: ['flicker', 'sweep', 'fade'], default: 'flicker', description: "How filled shapes come on: 'flicker' (a panel powering up), 'sweep' (wipes in from the from side) or 'fade'." },
+    from: { type: 'string', enum: ['left', 'right', 'top', 'bottom'], default: 'left', description: 'The side a sweep starts from.' },
+    draw: { type: 'boolean', default: true, description: 'Draw stroked shapes (borders, lines, rings) in.' },
+    decode: { type: 'boolean', default: true, description: 'Decode the text from glyph noise. Off: the text just appears.' },
+    chars: { type: 'string', default: 'A-Z0-9', description: 'Decode glyphs, as in text-decode: a named set (uppercase, numbers, blocks, ...) or ranges.' },
+    stagger: { type: 'number', minimum: 0, default: 60, description: 'ms between one shape coming on and the next.' },
+    seed: { type: 'number', description: 'Any number: the same decode on every load.' }
+  },
+  additionalProperties: 'warn'
+};
+
+export const sensorSweepParamsSchema = {
+  type: 'object',
+  description: 'Params for the "sensor-sweep" preset: a rotating scanner wedge with a ring that pings outward each turn. It draws its own shapes, centred on the target, and removes them when stopped.',
+  properties: {
+    duration: { ..._CANONICAL_REDECLARED.duration, default: 3000, description: 'ms per revolution (and per ping).' },
+    delay: { ..._CANONICAL_REDECLARED.delay, description: 'ms before it starts.' },
+    loop: { ..._CANONICAL_REDECLARED.loop, default: true },
+    radius: { type: 'number', exclusiveMinimum: 0, description: "SVG units. Default: half the shorter side of the target's box." },
+    center: {
+      type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' },
+      description: "[x, y] in the target's SVG units, e.g. an elbow corner or a spot on an MSD. Default: the centre of the target's box.",
+      'x-ui-hints': { widget: 'json', label: 'Center [x, y]' }
+    },
+    angle: { type: 'number', minimum: 1, maximum: 359, default: 40, description: 'Wedge width, degrees.' },
+    direction: { type: 'string', enum: ['cw', 'ccw'], default: 'cw', description: 'Clockwise or counter-clockwise.' },
+    color: { ...simpleColorSchema, default: 'theme:colors.ui.primary', description: 'Wedge colour.' },
+    ring_color: { ...simpleColorSchema, description: 'Ping ring colour. Default: color.' },
+    opacity: { type: 'number', minimum: 0, maximum: 1, default: 0.35, description: 'Wedge opacity. The ring starts at 2.5 times this (at most 1) and fades out.' },
+    ring: { type: 'boolean', default: true, description: 'Show the ping ring.' },
+    ring_width: { type: 'number', minimum: 0, default: 2, description: 'Ring stroke width, SVG units.' }
   },
   additionalProperties: 'warn'
 };
@@ -655,20 +860,21 @@ export const textTypewriterParamsSchema = {
 
 export const timelineCascadeParamsSchema = {
   type: 'object',
-  description: 'Params for the "timeline-cascade" preset — multi-step timeline. Timing/easing for each step lives in that step\'s own config; the top-level canonical `duration`/`ease` are genuinely inert (confirmed against anime.js\'s own source: Timeline recomputes its own duration from its children regardless, and `ease` isn\'t read by the underlying Timer class at all — only a separate `playbackEase` is). `loop`/`alternate`/`delay`, however, do still apply — they govern the whole timeline\'s repeat/reverse/start-delay behavior, since Timeline extends Timer and inherits those from the same top-level params.',
+  'x-required': ['steps'],
+  description: 'Params for the "timeline-cascade" preset: multi-step timeline. Timing/easing for each step lives in that step\'s own config; the top-level canonical `duration`/`ease` are genuinely inert (confirmed against anime.js\'s own source: Timeline recomputes its own duration from its children regardless, and `ease` isn\'t read by the underlying Timer class at all; only a separate `playbackEase` is). `loop`/`alternate`/`delay`, however, do still apply: they govern the whole timeline\'s repeat/reverse/start-delay behavior, since Timeline extends Timer and inherits those from the same top-level params.',
   properties: {
-    loop: { type: 'boolean', default: false },
+    loop: { ..._CANONICAL_REDECLARED.loop, default: false },
     steps: {
       type: 'array', minItems: 1,
       items: {
         type: 'object',
         properties: {
-          targets: { type: 'string', description: 'CSS selector. Falls back to the element being animated if absent.' },
+          targets: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }], description: "CSS selector (or list of selectors) for this step, resolved inside the card: in an MSD card any overlay of that card, e.g. [data-overlay-id=\"line_1\"]. Without it the step animates the animation's own target(s)." },
           params: { type: 'object', additionalProperties: true, description: 'Arbitrary anime.js props, e.g. scale/opacity.' },
           duration: { type: 'number', minimum: 0 },
           offset: {
             oneOf: [{ type: 'number' }, { type: 'string' }],
-            description: "'+=' relative, '<' overlap-with-previous, or an absolute ms number."
+            description: "Position in the timeline: an absolute ms number, '+=N' / '-=N' relative to the end of the previous step, '<' at the end of the previous step, '<<' together with the previous step."
           }
         },
         additionalProperties: true
@@ -681,9 +887,9 @@ export const timelineCascadeParamsSchema = {
 
 export const timelineAttentionParamsSchema = {
   type: 'object',
-  description: 'Params for the "timeline-attention" preset — 3-phase scale/shake/settle sequence. The top-level canonical `duration`/`ease` are genuinely inert (durations are hardcoded to the duration_* fields below, and each phase\'s easing is hardcoded in source with no override — confirmed via anime.js\'s own source that Timeline discards a top-level duration and never reads `ease` at all). Of the remaining canonical fields, only `loop` is actually forwarded by the preset factory (repeats the whole 3-phase sequence) — `alternate`/`delay` are never read by this preset\'s code despite being generically available on the Timeline class, so they were deliberately left out of this schema.',
+  description: 'Params for the "timeline-attention" preset: 3-phase scale/shake/settle sequence. The top-level canonical `duration`/`ease` are genuinely inert (durations are hardcoded to the duration_* fields below, and each phase\'s easing is hardcoded in source with no override; confirmed via anime.js\'s own source that Timeline discards a top-level duration and never reads `ease` at all). Of the remaining canonical fields, only `loop` is actually forwarded by the preset factory (repeats the whole 3-phase sequence); `alternate`/`delay` are never read by this preset\'s code despite being generically available on the Timeline class, so they were deliberately left out of this schema.',
   properties: {
-    loop: { type: 'boolean', default: false, description: 'Repeats the whole 3-phase sequence.' },
+    loop: { ..._CANONICAL_REDECLARED.loop, default: false, description: 'Repeats the whole 3-phase sequence.' },
     scale_max: { type: 'number', minimum: 1, default: 1.15 },
     shake_intensity: { type: 'number', minimum: 0, default: 5, description: 'Used to build a fixed 5-point translateX keyframe array.' },
     duration_scale: { type: 'number', minimum: 0, default: 200, description: 'Duration of phase 1 (scale up).' },
@@ -723,17 +929,23 @@ export const ANIMATION_PRESET_PARAMS_SCHEMAS = {
   glitch: glitchParamsSchema,
   set: setParamsSchema,
   motionpath: motionpathParamsSchema,
+  morph: morphParamsSchema,
   sequence: sequenceParamsSchema,
+  custom: customParamsSchema,
   chaos: chaosParamsSchema,
   'physics-spring': physicsSpringParamsSchema,
   'stagger-grid': staggerGridParamsSchema,
   'stagger-wave': staggerWaveParamsSchema,
   'stagger-radial': staggerRadialParamsSchema,
   'stagger-flash': staggerFlashParamsSchema,
+  'tap-ripple': tapRippleParamsSchema,
   'text-reveal': textRevealParamsSchema,
   'text-scramble': textScrambleParamsSchema,
+  'text-decode': textDecodeParamsSchema,
   'text-glitch': textGlitchParamsSchema,
   'text-typewriter': textTypewriterParamsSchema,
+  'boot-sequence': bootSequenceParamsSchema,
+  'sensor-sweep': sensorSweepParamsSchema,
   'timeline-cascade': timelineCascadeParamsSchema,
   'timeline-attention': timelineAttentionParamsSchema
 };
@@ -780,3 +992,33 @@ function _mapRangeAwareVariant(paramsSchema) {
 export const ANIMATION_PRESET_PARAMS_SCHEMAS_MAPRANGE_AWARE = Object.fromEntries(
   Object.entries(ANIMATION_PRESET_PARAMS_SCHEMAS).map(([name, schema]) => [name, _mapRangeAwareVariant(schema)])
 );
+
+/**
+ * The params a built-in preset needs to do anything, from `'x-required'` on its
+ * params schema (the preset factory skips the animation with a console warning
+ * without them; tests/docs/config-validator.test.js checks the lists against the
+ * factories). Not a JSON Schema `required` on `params`: a preset reads its params
+ * from the animation's top level and `params` alike (resolvePresetParams() in
+ * lcards-anim-helpers.js), so a required param may be in either place. A
+ * deprecated param whose `x-replacement` is `params.<name>` stands in for <name>
+ * (morph's morph_to_selector for to).
+ *
+ * @param {string} preset - The animation's `preset`
+ * @param {object} animation - The animation entry (top-level keys plus `params`)
+ * @returns {string[]} The required params it is missing ([] for an unknown preset)
+ */
+export function missingPresetParams(preset, animation) {
+  const schemas = /** @type {Record<string, any>} */ (ANIMATION_PRESET_PARAMS_SCHEMAS);
+  const schema = Object.prototype.hasOwnProperty.call(schemas, preset) ? schemas[preset] : null;
+  const required = schema?.['x-required'];
+  if (!Array.isArray(required) || !animation || typeof animation !== 'object') return [];
+  // params as a template: what it gives is only known at render time
+  if (typeof animation.params === 'string') return [];
+  const params = animation.params && typeof animation.params === 'object' ? animation.params : {};
+  const merged = { ...params, ...animation };
+  const given = (v) => v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0);
+  const aliases = (name) => Object.entries(schema.properties ?? {})
+    .filter(([, s]) => s?.deprecated && s['x-replacement'] === `params.${name}`)
+    .map(([alias]) => alias);
+  return required.filter((name) => !given(merged[name]) && !aliases(name).some((a) => given(merged[a])));
+}

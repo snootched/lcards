@@ -16,8 +16,8 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
-import '../shared/lcards-dialog.js';
 import '../shared/lcards-form-section.js';
+import '../shared/lcards-message.js';
 import './lcards-condition-group-editor.js';
 import './lcards-rule-apply-editor.js';
 
@@ -57,52 +57,50 @@ export class LCARdSRuleEditorDialog extends LitElement {
         return css`
             :host { display: block; }
 
-            lcards-dialog {
-                --ha-dialog-width-md: 900px;
+            ha-dialog {
+                --ha-dialog-width-md: min(900px, 95vw);
             }
 
             .form-content {
                 display: flex;
                 flex-direction: column;
-                gap: 16px;
-                padding: 8px 0;
+                gap: var(--ha-space-4);
+                padding: var(--ha-space-2) 0;
+                --lcards-section-spacing: 0;
             }
 
             ha-selector {
                 display: block;
-                margin-bottom: 12px;
+                margin-bottom: var(--ha-space-3);
             }
 
             .identity-grid {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 12px;
+                gap: var(--ha-space-3);
                 align-items: start;
             }
 
             .identity-right {
                 display: grid;
                 grid-template-columns: 1fr 1fr 1fr;
-                gap: 12px;
+                gap: var(--ha-space-3);
                 align-items: start;
             }
 
             .error-text {
-                color: var(--error-color, #f44336);
+                color: var(--error-color);
                 font-size: 12px;
-                margin-top: -8px;
-                margin-bottom: 4px;
+                margin-top: calc(-1 * var(--ha-space-2));
+                margin-bottom: var(--ha-space-1);
             }
 
-            ha-alert {
+            lcards-message {
                 display: block;
-                margin-bottom: 8px;
+                margin-bottom: var(--ha-space-2);
             }
 
             @media (max-width: 600px) {
-                lcards-dialog {
-                    --ha-dialog-width-md: 95vw;
-                }
                 .identity-grid {
                     grid-template-columns: 1fr;
                 }
@@ -148,7 +146,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
         } else if (!/^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(id)) {
             error = 'ID must start with a letter or _, then letters/digits/_ or -';
         } else if (this.mode === 'add') {
-            // @ts-ignore - TS2339: auto-suppressed
             const existing = this.editor?.config?.rules || [];
             if (existing.some(r => r.id === id)) {
                 error = `A rule with id "${id}" already exists`;
@@ -174,6 +171,8 @@ export class LCARdSRuleEditorDialog extends LitElement {
     // ─── Handlers ──────────────────────────────────────────────────────────────
 
     _handleSave() {
+        // Take the Apply YAML typed in the last moments (the editor waits for a typing pause)
+        this.renderRoot.querySelector('lcards-rule-apply-editor')?.flush?.();
         if (!this._validateId()) return;
 
         const ruleRaw = {
@@ -198,8 +197,7 @@ export class LCARdSRuleEditorDialog extends LitElement {
             Object.keys(rule.apply.overlays || {}).length > 0 ||
             (rule.apply.tags && rule.apply.tags.length > 0) ||
             (rule.apply.animations && rule.apply.animations.length > 0) ||
-            (rule.apply.profiles_add && rule.apply.profiles_add.length > 0) ||
-            (rule.apply.profiles_remove && rule.apply.profiles_remove.length > 0)
+            !!rule.apply.base_svg
         );
         if (!hasApplyContent && !this._applyWarning) {
             lcardsLog.warn('[RuleEditorDialog] Apply section is empty — showing warning before save:', rule.id);
@@ -223,6 +221,16 @@ export class LCARdSRuleEditorDialog extends LitElement {
         }));
     }
 
+    /**
+     * The dialog closed (X or Escape): same as Cancel. Pickers inside the form
+     * fire their own `closed` events; those are stopped here and ignored.
+     * @param {Event} e
+     */
+    _handleDialogClosed(e) {
+        e.stopPropagation();
+        if (e.target === e.currentTarget) this._handleCancel();
+    }
+
     _ignoreKeydown(e) {
         // Prevent bare single-character HA keyboard shortcuts (e.g. 'e', 'n') from
         // firing while the user is typing in dialog form fields.
@@ -239,34 +247,27 @@ export class LCARdSRuleEditorDialog extends LitElement {
         if (!this.open) return html``;
 
         return html`
-            <lcards-dialog
-                .open=${this.open}
-                scrimClickAction=""
-                escapeKeyAction="">
+            <ha-dialog
+                open
+                prevent-scrim-close
+                header-title=${this.mode === 'add' ? 'Add Rule' : `Edit Rule: ${this.rule?.id || ''}`}
+                @closed=${this._handleDialogClosed}>
 
-                <span slot="heading">
-                    ${this.mode === 'add' ? 'Add Rule' : `Edit Rule: ${this.rule?.id || ''}`}
-                </span>
-
-                <div style="padding: 0 24px 8px;" @keydown=${this._ignoreKeydown}>
+                <div @keydown=${this._ignoreKeydown}>
                     ${this._renderForm()}
                 </div>
 
-                <div slot="primaryAction">
-                    <ha-button
-                        appearance="plain"
-                        @click=${this._handleCancel}>
-                        Cancel
-                    </ha-button>
-                    <ha-button
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" appearance="plain" @click=${this._handleCancel}>Cancel</ha-button>
+                    <ha-button slot="primaryAction"
                         variant="brand"
-                        appearance="accent"
                         @click=${this._handleSave}
                         ?disabled=${!this._isValid()}>
-                        ${this.mode === 'add' ? 'Create Rule' : 'Save Rule'}
+                        <ha-icon icon="mdi:check" slot="start"></ha-icon>
+                        ${this.mode === 'add' ? 'Create rule' : 'Save rule'}
                     </ha-button>
-                </div>
-            </lcards-dialog>
+                </ha-dialog-footer>
+            </ha-dialog>
         `;
     }
 
@@ -285,9 +286,10 @@ export class LCARdSRuleEditorDialog extends LitElement {
                     <div class="identity-grid">
                         <div>
                             <ha-selector
-                                // @ts-ignore - TS2339: auto-suppressed
+                                ?autofocus=${this.mode !== 'edit'}
                                 .hass=${this.hass}
-                                .label=${'Rule ID *'}
+                                .label=${'Rule ID'}
+                                .required=${true}
                                 .helper=${'Unique identifier: letters, digits, _ or - (must start with letter or _)'}
                                 .selector=${{ text: {} }}
                                 .value=${this._ruleId}
@@ -301,9 +303,9 @@ export class LCARdSRuleEditorDialog extends LitElement {
                         </div>
                         <div>
                             <ha-selector
-                                // @ts-ignore - TS2339: auto-suppressed
                                 .hass=${this.hass}
                                 .label=${'Name (optional)'}
+                                .required=${false}
                                 .helper=${'Human-readable label for this rule'}
                                 .selector=${{ text: {} }}
                                 .value=${this._ruleName}
@@ -315,9 +317,9 @@ export class LCARdSRuleEditorDialog extends LitElement {
                     <!-- Priority + Enabled + Stop row -->
                     <div class="identity-right">
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Priority'}
+                            .required=${false}
                             .helper=${'Higher values execute first (0–1000)'}
                             .selector=${{ number: { min: 0, max: 1000, mode: 'box' } }}
                             .value=${this._priority}
@@ -325,7 +327,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
                         </ha-selector>
 
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Enabled'}
                             .helper=${'Disable to temporarily skip this rule'}
@@ -335,7 +336,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
                         </ha-selector>
 
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Stop Processing'}
                             .helper=${'When true, lower-priority rules will not be evaluated after this one matches'}
@@ -355,7 +355,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
                     ?outlined=${false}>
 
                     <lcards-condition-group-editor
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .value=${this._when}
                         @value-changed=${(e) => this._when = e.detail.value}>
@@ -365,22 +364,19 @@ export class LCARdSRuleEditorDialog extends LitElement {
                 <!-- Apply -->
                 <lcards-form-section
                     header="Apply"
-                    description="What to change when the rule fires"
+                    description="What to change while the rule matches: an overlay ID (or selector) and its changes, as YAML."
                     icon="mdi:magic-staff"
                     ?expanded=${true}
                     ?outlined=${false}>
 
                     ${this._applyWarning ? html`
-                        <ha-alert alert-type="warning">
-                            The Apply section is empty — this rule will fire but do nothing.
-                            Add at least one overlay target or tag target.
-                        </ha-alert>
+                        <lcards-message type="warning">
+                            Apply is empty: the rule will match but change nothing. Add at least one target.
+                        </lcards-message>
                     ` : ''}
 
                     <lcards-rule-apply-editor
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
-                        // @ts-ignore - TS2339: auto-suppressed
                         .editor=${this.editor}
                         .value=${this._apply}
                         @value-changed=${(e) => {

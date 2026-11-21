@@ -23,6 +23,7 @@
 
 import { BaseService } from '../BaseService.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { bundleUrl } from '../../utils/bundle-url.js';
 import {
   STORAGE_KEY_SOUND_OVERRIDES,
   STORAGE_KEY_SOUND_VOLUME,
@@ -40,7 +41,6 @@ const EVENT_CATEGORY = {
   card_hold:         'cards',
   card_double_tap:   'cards',
   card_hover:        'cards',
-  button_tap:        'cards',
   toggle_on:         'cards',
   toggle_off:        'cards',
   slider_drag_start: 'cards',
@@ -62,6 +62,8 @@ const EVENT_CATEGORY = {
   system_ready:      'alerts',
   error:             'alerts',
   notification:      'alerts',
+  borg_assimilate:   'alerts',
+  borg_deassimilate: 'alerts',
 };
 
 /**
@@ -73,7 +75,6 @@ export const SOUND_EVENT_LABELS = {
   card_hold:         'Card Hold',
   card_double_tap:   'Card Double-Tap',
   card_hover:        'Card Hover (Desktop)',
-  button_tap:        'Button Tap',
   toggle_on:         'Toggle → On',
   toggle_off:        'Toggle → Off',
   slider_drag_start: 'Slider Grab',
@@ -95,6 +96,8 @@ export const SOUND_EVENT_LABELS = {
   system_ready:      'System Ready',
   error:             'System Error',
   notification:      'Notification',
+  borg_assimilate:   'Borg assimilation',
+  borg_deassimilate: 'Borg deassimilation',
 };
 
 /**
@@ -272,7 +275,7 @@ export class SoundManager extends BaseService {
    */
   async initialize(core) {
     this._core = core;
-    lcardsLog.info('[SoundManager] Initialized');
+    lcardsLog.debug('[SoundManager] Initialized');
   }
 
   /**
@@ -333,7 +336,7 @@ export class SoundManager extends BaseService {
     ).then((unsubscribe) => {
       this._notificationPending     = false;
       this._notificationUnsubscribe = unsubscribe;
-      lcardsLog.info('[SoundManager] Subscribed to persistent notifications');
+      lcardsLog.debug('[SoundManager] Subscribed to persistent notifications');
     }).catch((err) => {
       this._notificationPending = false;
       lcardsLog.warn('[SoundManager] Could not subscribe to persistent notifications:', err);
@@ -443,7 +446,7 @@ export class SoundManager extends BaseService {
     };
     document.addEventListener('dialog-closed', this._dialogClosedHandler, { passive: true });
 
-    lcardsLog.info('[SoundManager] Global UI listeners mounted');
+    lcardsLog.debug('[SoundManager] Global UI listeners mounted');
   }
 
   /**
@@ -476,7 +479,7 @@ export class SoundManager extends BaseService {
       const event = EVENT_MAP[newMode];
       if (event) this.play(event);
     });
-    lcardsLog.info('[SoundManager] Alert mode subscription active');
+    lcardsLog.debug('[SoundManager] Alert mode subscription active');
   }
 
   /**
@@ -538,7 +541,7 @@ export class SoundManager extends BaseService {
       this._notificationUnsubscribe = null;
     }
     this._audioCache.clear();
-    lcardsLog.info('[SoundManager] Destroyed');
+    lcardsLog.debug('[SoundManager] Destroyed');
   }
 
   // ============================================================================
@@ -677,12 +680,12 @@ export class SoundManager extends BaseService {
   async _writeCustomSchemes(mutate) {
     const integration = this._core?.integrationService;
     if (!integration?.available) {
-      return { ok: false, error: 'Backend unavailable — cannot save.' };
+      return { ok: false, error: 'Backend unavailable: cannot save.' };
     }
     const existing = (await integration.readStorage(STORAGE_KEY_CUSTOM_SOUND_SCHEMES)) || {};
     const updated = mutate(existing);
     const wrote = await integration.writeStorage({ [STORAGE_KEY_CUSTOM_SOUND_SCHEMES]: updated });
-    if (!wrote) return { ok: false, error: 'Failed to save — backend write error.' };
+    if (!wrote) return { ok: false, error: 'Failed to save: backend write error.' };
     return { ok: true };
   }
 
@@ -843,6 +846,20 @@ export class SoundManager extends BaseService {
   }
 
   /**
+   * Play a one-off sound for an event: an asset key, a `media-source://…` id or a
+   * URL (`/local/sounds/borg.mp3`). Respects the master switch and the event's
+   * category switch, but not the scheme or overrides (the caller chose the sound).
+   * @param {string} source - Asset key, media-source id or URL
+   * @param {string} [eventType] - Event whose category switch applies
+   */
+  playSource(source, eventType) {
+    if (!source || !this._isEnabled()) return;
+    const category = eventType ? EVENT_CATEGORY[eventType] : undefined;
+    if (category && !this._isCategoryEnabled(category)) return;
+    this._playAsset(source);
+  }
+
+  /**
    * Preview the active (or specified) scheme by playing a representative event.
    * @param {string} [schemeName] - Scheme to preview (defaults to active)
    * @param {string} [eventType='card_tap'] - Event type to use for preview
@@ -914,28 +931,26 @@ export class SoundManager extends BaseService {
    * Set a per-event sound override.
    * @param {string} eventType - Event type key
    * @param {string|null} assetKey - Asset key to use, or null to clear override
-   * @param {'global'|'user'} [scope='user'] - Storage tier to write to
-   * @returns {Promise<void>}
+   * @param {'global'|'user'|'device'} [scope='user'] - Storage tier to write to
+   * @returns {Promise<boolean>} false when the backend refused or is unavailable
    */
   async setOverride(eventType, assetKey, scope = 'user') {
-    const current = scope === 'global'
-      ? { ...(this._globalOverridesCache ?? {}) }
-      : { ...(this._overridesCache ?? {}) };
+    const current = { ...this.getOverrides(scope) };
     if (assetKey === null) {
       delete current[eventType];
     } else {
       current[eventType] = assetKey;
     }
-    await this._saveOverrides(current, scope);
+    return this._saveOverrides(current, scope);
   }
 
   /**
    * Clear all per-event overrides for a given scope tier.
-   * @param {'global'|'user'} [scope='user']
-   * @returns {Promise<void>}
+   * @param {'global'|'user'|'device'} [scope='user']
+   * @returns {Promise<boolean>} false when the backend refused or is unavailable
    */
   async clearAllOverrides(scope = 'user') {
-    await this._saveOverrides({}, scope);
+    return this._saveOverrides({}, scope);
   }
 
   /**
@@ -944,10 +959,10 @@ export class SoundManager extends BaseService {
    * lcards-sound-config-tab.js) to commit a staged batch of per-event edits
    * at once, instead of one backend write per dropdown change.
    * @param {Object} overridesMap - event type → assetKey | media-source id | null
-   * @returns {Promise<void>}
+   * @returns {Promise<boolean>} false when the backend refused (non-admin) or is unavailable
    */
   async saveGlobalOverrides(overridesMap) {
-    await this._saveOverrides({ ...overridesMap }, 'global');
+    return this._saveOverrides({ ...overridesMap }, 'global');
   }
 
   /**
@@ -1217,19 +1232,26 @@ export class SoundManager extends BaseService {
   }
 
   /**
-   * Persist overrides — updates in-memory cache and backend storage.
+   * Persist overrides: updates the in-memory cache for that scope and backend storage.
    * Logs a warning if the integration is unavailable (overrides will not be persisted).
    * @param {Object} overrides
-   * @returns {Promise<void>}
+   * @param {'global'|'user'|'device'} [scope='user']
+   * @returns {Promise<boolean>} false when the write was refused (global needs an admin) or not possible
    * @private
    */
   async _saveOverrides(overrides, scope = 'user') {
-    // 1. Update in-memory cache immediately (synchronous callers benefit)
-    if (scope === 'global') {
-      this._globalOverridesCache = overrides;
-    } else {
-      this._overridesCache = overrides;
-    }
+    const cacheKey = scope === 'global' ? '_globalOverridesCache'
+      : scope === 'device' ? '_deviceOverridesCache'
+      : '_overridesCache';
+
+    // 1. Update the in-memory cache at once (synchronous callers benefit), and
+    //    put the previous map back if the save fails, so a refused save does not
+    //    change playback. A later save that already replaced the cache is kept.
+    const previous = this[cacheKey];
+    this[cacheKey] = overrides;
+    const rollback = () => {
+      if (this[cacheKey] === overrides) this[cacheKey] = previous;
+    };
 
     // 2. Backend storage
     const sss = this._core?.scopedSettingsService;
@@ -1239,17 +1261,27 @@ export class SoundManager extends BaseService {
       const ok = await sss.write(STORAGE_KEY_SOUND_OVERRIDES, overrides, scope);
       if (ok) {
         lcardsLog.debug(`[SoundManager] Saved sound overrides to ${scope}-scoped backend storage`);
+      } else {
+        lcardsLog.warn(`[SoundManager] Sound overrides not saved to ${scope} storage`);
+        rollback();
       }
-    } else if (integration?.available) {
-      // Legacy path (no scoped storage) — always flat global key
+      return ok;
+    }
+    if (integration?.available && scope === 'global') {
+      // Legacy path (no scoped storage): flat global key only
       const ok = await integration.writeStorage({ [STORAGE_KEY_SOUND_OVERRIDES]: overrides });
       if (ok) {
         lcardsLog.debug('[SoundManager] Saved sound overrides to global backend storage (legacy path)');
+      } else {
+        rollback();
       }
-    } else {
-      lcardsLog.warn('[SoundManager] Integration unavailable — sound overrides not persisted to backend');
+      return ok;
     }
+    lcardsLog.warn('[SoundManager] Integration unavailable: sound overrides not persisted to backend');
+    rollback();
+    return false;
   }
+
 
   /**
    * Resolve asset URL from AssetManager registry and play via cached Audio element.
@@ -1262,8 +1294,9 @@ export class SoundManager extends BaseService {
    * Sites that allow autoplay (browser site settings) will hear sounds on page load;
    * others will have play() silently rejected until the first user gesture.
    *
-   * @param {string} assetKey - Asset key registered in AssetManager, or a
-   *   `media-source://…` content ID picked via the HA media library.
+   * @param {string} assetKey - Asset key registered in AssetManager, a
+   *   `media-source://…` content ID picked via the HA media library, or a URL
+   *   (`/local/…`, `https://…`) to play as is.
    * @private
    */
   _playAsset(assetKey) {
@@ -1272,10 +1305,10 @@ export class SoundManager extends BaseService {
       return;
     }
 
-    // Read URL directly from registry metadata — no async required
-    const registry = this._core?.assetManager?.getRegistry('audio');
-    const entry = registry?.assets?.get(assetKey);
-    const url = entry?.url;
+    // A URL plays as is; anything else is a registry key (read from its metadata, no async)
+    const isUrl = typeof assetKey === 'string' && /^(\/|https?:\/\/)/.test(assetKey);
+    const registry = isUrl ? null : this._core?.assetManager?.getRegistry('audio');
+    const url = isUrl ? assetKey : registry?.assets?.get(assetKey)?.url;
 
     if (!url) {
       lcardsLog.warn(`[SoundManager] No audio URL for asset key: ${assetKey}`);
@@ -1283,10 +1316,12 @@ export class SoundManager extends BaseService {
     }
 
     try {
-      if (!this._audioCache.has(assetKey)) {
-        this._audioCache.set(assetKey, new Audio(url));
+      let audio = this._audioCache.get(assetKey);
+      if (!audio) {
+        // built-in /lcards/... URLs resolve against the bundle folder
+        audio = new Audio(bundleUrl(url));
+        this._audioCache.set(assetKey, audio);
       }
-      const audio = this._audioCache.get(assetKey);
       audio.volume = this._getVolume();
       audio.currentTime = 0;
       audio.play().catch(() => {}); // Suppress AbortError from rapid replays
@@ -1410,6 +1445,27 @@ export class SoundManager extends BaseService {
       return;
     }
 
+    // Nothing to sync, or nothing this user may change: settle without retries or
+    // warnings. A kiosk with no sounds set up logged 5 to 8 warnings and then an
+    // error on every load (HA-LCARS feedback, 2026-11-18). Only an admin may write
+    // the helper's options (Home Assistant refuses the config change otherwise);
+    // a missing helper once Home Assistant's states are in is simply not set up.
+    const hass = helperManager.hass;
+    const statesLoaded = !!hass?.states && Object.keys(hass.states).length > 0;
+    if (statesLoaded && (hass.user && hass.user.is_admin === false || !helperManager.helperExists('sound_scheme'))) {
+      lcardsLog.debug('[SoundManager] sound_scheme options sync skipped', {
+        admin: hass.user?.is_admin ?? null,
+        helper: helperManager.helperExists('sound_scheme')
+      });
+      this._syncInProgress = false;
+      this._syncPending = false;
+      this._schemeSyncRetryAttempts = 0;
+      const resolvers = this._syncSettledResolvers;
+      this._syncSettledResolvers = [];
+      resolvers.forEach(resolve => resolve());
+      return;
+    }
+
     const liveValue = helperManager.getHelperValue('sound_scheme');
     // Capture once per session (before any set_options call could have reset
     // it), or refresh if the live value is a different, already-registered
@@ -1451,7 +1507,7 @@ export class SoundManager extends BaseService {
         // is exactly what causes HA's own restore-on-restart logic to later
         // reject a since-selected value it can no longer find in that stale
         // options list. Retry instead of accepting this as settled.
-        lcardsLog.warn('[SoundManager] sound_scheme options sync did not run (helper not ready yet?) — will retry');
+        lcardsLog.debug('[SoundManager] sound_scheme options sync did not run (Home Assistant still starting?), will retry');
         needsRetry = true;
         this._schemeSyncRetryAttempts++;
       }

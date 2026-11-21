@@ -139,23 +139,23 @@ function _backdropFilterPreset(label, cssFn, paramKey, defaultVal, schemaLabel, 
 
 screenEffectPresetRegistry.register('blur',
     _backdropFilterPreset('Blur',       'blur',       'amount', '8px',   'Blur Amount',
-        'CSS blur value — e.g. 4px (subtle), 8px (standard), 20px (heavy)'));
+        'CSS blur value: e.g. 4px (subtle), 8px (standard), 20px (heavy)'));
 
 screenEffectPresetRegistry.register('saturate',
     _backdropFilterPreset('Saturate',   'saturate',   'amount', '200%',  'Amount',
-        'CSS saturate value — e.g. 150%, 200%, 300%'));
+        'CSS saturate value: e.g. 150%, 200%, 300%'));
 
 screenEffectPresetRegistry.register('grayscale',
     _backdropFilterPreset('Grayscale',  'grayscale',  'amount', '100%',  'Amount',
-        'CSS grayscale amount — 100% = full grayscale, 0% = no effect'));
+        'CSS grayscale amount: 100% = full grayscale, 0% = no effect'));
 
 screenEffectPresetRegistry.register('contrast',
     _backdropFilterPreset('Contrast',   'contrast',   'amount', '200%',  'Amount',
-        'CSS contrast value — e.g. 150%, 200%'));
+        'CSS contrast value: e.g. 150%, 200%'));
 
 screenEffectPresetRegistry.register('hue-rotate',
     _backdropFilterPreset('Hue Rotate', 'hue-rotate', 'angle',  '180deg', 'Angle',
-        'CSS hue-rotate angle — e.g. 90deg, 180deg, 270deg'));
+        'CSS hue-rotate angle: e.g. 90deg, 180deg, 270deg'));
 
 // ── Color tint overlay ────────────────────────────────────────────────────────
 
@@ -165,7 +165,7 @@ screenEffectPresetRegistry.register('color-tint', {
     defaults: { color: 'rgba(0,0,0,0.5)' },
     params_schema: [
         { key: 'color', type: 'color-text', label: 'Tint Color', placeholder: 'rgba(0,0,0,0.5)',
-          helper: 'CSS colour — use rgba() to control opacity via the alpha channel, e.g. rgba(180,0,0,0.4)' },
+          helper: 'CSS colour: use rgba() to control opacity via the alpha channel, e.g. rgba(180,0,0,0.4)' },
     ],
     enter(el, params) {
         el.style.background = params.color ?? 'rgba(0,0,0,0.5)';
@@ -198,7 +198,7 @@ screenEffectPresetRegistry.register('static', {
         { key: 'opacity', type: 'number', label: 'Opacity',    min: 0, max: 1,  step: 0.05,
           helper: 'Overall effect opacity (0–1)' },
         { key: 'scale',   type: 'number', label: 'Grain Scale', min: 1, max: 16, step: 1,
-          helper: 'Pixel grain size — larger = chunkier noise' },
+          helper: 'Pixel grain size: larger = chunkier noise' },
         { key: 'color',        type: 'color-text', label: 'Tint Color', placeholder: '#ffffff',
           helper: 'Base colour blended into the noise per pixel (see Tint Strength)' },
         { key: 'tintStrength', type: 'number', label: 'Tint Strength', min: 0, max: 1, step: 0.05,
@@ -257,7 +257,7 @@ screenEffectPresetRegistry.register('scanlines', {
         { key: 'opacity',    type: 'number', label: 'Opacity',     min: 0, max: 1,  step: 0.05,
           helper: 'Darkness of the scanline bands (0–1)' },
         { key: 'scroll',     type: 'number', label: 'Scroll Speed', min: 0, max: 10, step: 0.5,
-          helper: 'Scroll speed — 0 = static lines' },
+          helper: 'Scroll speed: 0 = static lines' },
     ],
     enter: ScanlineEffect,
 });
@@ -274,20 +274,44 @@ screenEffectPresetRegistry.register('borg-assimilation', {
         particleCount:   2,
         color:           '#00cc44',
         glowColor:       '#00ff66',
+        renderer:        'auto',
+        cube:            true,
+        cubeStyle:       'detailed',
+        corruption:      0.5,
+        overrun:         0.65,
     },
     params_schema: [
+        { key: 'renderer',        type: 'select',     label: 'Renderer',
+          options: [
+              { value: 'auto',   label: 'Auto (WebGL when available)' },
+              { value: 'webgl',  label: 'WebGL' },
+              { value: 'canvas', label: 'Classic (Canvas2D)' },
+          ],
+          helper: 'The WebGL intro adds the assimilation front, Borg circuitry, the Borg cube and signal corruption. Classic plays the original tendril animation. Without WebGL every value plays the classic one' },
         { key: 'siteCount',       type: 'number',     label: 'Injection Sites',      min: 1,   max: 20,   step: 1,
           helper: 'Number of Borg injection points on the screen' },
         { key: 'tendrilsPerSite', type: 'number',     label: 'Tendrils per Site',    min: 1,   max: 24,   step: 1,
           helper: 'Bézier tendrils grown from each injection site' },
         { key: 'tendrilLength',   type: 'number',     label: 'Tendril Length',       min: 100, max: 1200, step: 50,
-          helper: 'Maximum tendril reach in pixels — longer tendrils span more of the screen' },
+          helper: 'Maximum tendril reach in pixels: longer tendrils span more of the screen' },
         { key: 'particleCount',   type: 'number',     label: 'Particles per Tendril', min: 0,  max: 6,    step: 1,
           helper: 'Nano-probe particles travelling each tendril continuously (0 = disabled)' },
         { key: 'color',           type: 'color-text', label: 'Tendril Color',        placeholder: '#00cc44',
-          helper: 'Primary colour for tendrils, branches, and injection sites — supports hex, CSS variables, and computed expressions' },
+          helper: 'Primary colour for tendrils, branches, and injection sites; supports hex, CSS variables, and computed expressions' },
         { key: 'glowColor',       type: 'color-text', label: 'Glow Color',           placeholder: '#00ff66',
           helper: 'Inner glow colour at each injection site and nano-probe particle halos' },
+        { key: 'cube',            type: 'boolean',    label: 'Borg cube',
+          helper: 'WebGL only: a rotating Borg cube emerges at the centre of the screen' },
+        { key: 'cubeStyle',       type: 'select',     label: 'Cube style',
+          options: [
+              { value: 'detailed', label: 'Detailed' },
+              { value: 'classic',  label: 'Classic (wireframe)' },
+          ],
+          helper: 'WebGL only: Detailed draws a solid cube covered in machinery, with a lattice, glowing spots and a halo. Classic draws the lighter wireframe cube' },
+        { key: 'corruption',      type: 'number',     label: 'Signal corruption',    min: 0,   max: 1,    step: 0.05,
+          helper: 'WebGL only: strength of the block displacement, tearing and colour fringing bursts (0 = off)' },
+        { key: 'overrun',         type: 'number',     label: 'Overrun',              min: 0,   max: 1,    step: 0.05,
+          helper: 'WebGL only: how dark the screen gets behind the assimilation front (0 = circuitry only)' },
     ],
     // The effect runs until BorgAssimilationManager dismisses it (click or timeout).
     // Do not pass a duration here — use sem.apply() not sem.play() for this preset.

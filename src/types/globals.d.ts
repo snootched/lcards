@@ -18,13 +18,10 @@ declare global {
     // Lit TemplateResult — HTML template result (from html`` tagged literals)
     type TemplateResult = import('lit').TemplateResult<1>;
 
-    // Global perf utility stubs (used in mergePacks.js and others)
-    function perfTime(label: string, fn: () => any, meta?: object): any;
-    function perfTimeAsync(label: string, fn: () => Promise<any>, meta?: object): Promise<any>;
-    function perfCount(label: string, value?: any): void;
-
     interface Window {
         lcards: any;
+        /** Set by the loader stub (src/lcards.js): the integration's ?log= level. */
+        __LCARDS_BOOT__?: { log: string | null; base?: string };
         lcardsCore: any;
         customCards: any[];
         ApexCharts: any;
@@ -41,12 +38,17 @@ declare global {
         __templateParser: any;
         __unifiedTemplateEvaluator: any;
         // MSD debug / test globals
-        __msdStatus: any;
         __msdScenarios: any;
         __msdDebug: any;
         _msdCardInstance: any;
         // Home Assistant global
         hass: any;
+        /** HA frontend: loads the card helpers (createCardElement, ...); set once HA's frontend is up. */
+        loadCardHelpers?: () => Promise<any>;
+        /** Legacy HA global some code paths still probe for the Lovelace config object. */
+        lovelace?: any;
+        /** HA frontend: custom dashboard strategies registered for the picker. */
+        customStrategies?: Array<{ type: string; strategyType?: string; name?: string; description?: string; documentationURL?: string }>;
     }
 }
 

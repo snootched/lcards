@@ -1,0 +1,17 @@
+{
+  "description": "Run the LCARdS config checker on every YAML file Claude writes that holds LCARdS config.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/check-lcards-yaml.mjs\"",
+            "timeout": 45
+          }
+        ]
+      }
+    ]
+  }
+}

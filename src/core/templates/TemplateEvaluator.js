@@ -49,7 +49,7 @@ export class TemplateEvaluator {
    *
    * @abstract
    * @param {string} content - Template content to evaluate
-   * @returns {string} Evaluated content
+   * @returns {string | Promise<string>} Evaluated content (async evaluators return a Promise)
    * @throws {Error} If not implemented by subclass
    *
    * @example
@@ -80,6 +80,25 @@ export class TemplateEvaluator {
     // Default implementation returns empty array
     // Subclasses should override with actual dependency extraction
     return [];
+  }
+
+  /**
+   * The evaluation context object (read-only access for wrapping evaluators)
+   *
+   * @returns {Object}
+   */
+  getContext() {
+    return this.context;
+  }
+
+  /**
+   * Replace the evaluation context object (an owning evaluator shares its own
+   * context with the one it wraps, so both see the same hass and config)
+   *
+   * @param {Object} context - Context object to use as-is
+   */
+  setContext(context) {
+    this.context = context;
   }
 
   /**

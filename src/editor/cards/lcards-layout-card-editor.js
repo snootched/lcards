@@ -16,19 +16,28 @@ import { parseLayoutConfig, getAreaNames } from '../../views/layout-grid-utils.j
 
 // Side-effect import: registers <lcards-layout-studio-dialog>.
 import '../dialogs/lcards-layout-studio-dialog.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
+import { docsUrl, DOCS } from '../../utils/docs-url.js';
 
 export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
 
     constructor() {
         super();
         this.cardType = 'layout-card';
-        this._studioDialog = null;
+        /** @type {any} Open studio dialog, kept in sync with hass */
+        this._studio = null;
+    }
+
+    /** @param {Map<string, unknown>} changedProps */
+    updated(changedProps) {
+        super.updated(changedProps);
+        if (changedProps.has('hass') && this._studio) this._studio.hass = this.hass;
     }
 
     disconnectedCallback() {
         super.disconnectedCallback?.();
-        this._studioDialog?.remove();
-        this._studioDialog = null;
+        this._studio?.remove();
+        this._studio = null;
     }
 
     render() {
@@ -39,7 +48,7 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
         return html`
             <div class="info-card">
                 <div class="info-card-content">
-                    <h3>🔲 Layout Studio</h3>
+                    <h3>Layout Studio</h3>
                     <p>
                         <strong>Full-screen grid workspace</strong> with live preview
                         <br />
@@ -52,7 +61,11 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
                     </div>
                 </div>
                 <div class="info-card-actions">
-                    <ha-button raised @click=${this._openStudio}>
+                    <ha-button appearance="plain" @click=${() => window.open(docsUrl(DOCS.layoutCard), "_blank", "noopener")}>
+                        Docs
+                        <ha-icon icon="mdi:open-in-new" slot="end"></ha-icon>
+                    </ha-button>
+                    <ha-button @click=${this._openStudio}>
                         <ha-icon icon="mdi:view-grid-plus" slot="start"></ha-icon>
                         Open Layout Studio
                     </ha-button>
@@ -63,14 +76,11 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
 
     _openStudio() {
         const dialog = document.createElement('lcards-layout-studio-dialog');
-        // @ts-ignore - custom props
         dialog.hass = this.hass;
-        // @ts-ignore
         dialog.config = JSON.parse(JSON.stringify(this.config ?? {}));
-        this._studioDialog = dialog;
+        this._studio = dialog;
 
         dialog.addEventListener('config-changed', (e) => {
-            // @ts-ignore
             const cfg = e.detail?.config;
             if (!cfg) return;
             this.config = cfg;
@@ -78,12 +88,12 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
             fireEvent(this, 'config-changed', { config: this.config });
             this.requestUpdate();
         });
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
-            if (this._studioDialog === dialog) this._studioDialog = null;
+            if (this._studio === dialog) this._studio = null;
         });
 
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog, this);
         lcardsLog.debug('[LayoutCardEditor] Opened Layout Studio');
     }
 

@@ -1,0 +1,31 @@
+# Astrometrics labels on the text system (visual baseline, E3a): labels.default
+# and a user style, several fields round one point, a background box, letter
+# spacing, weights and a fixed colour per field. No sky, no entities: a still frame.
+type: custom:lcards-astrometrics-card
+height: 320
+camera:
+  view: top
+  views:
+    top: { target: [0, 0, 0], tilt: 90, distance: 200, projection: orthographic }
+labels:
+  default: { text_transform: uppercase, letter_spacing: 1 }
+  styles:
+    hostile: { font_size: 16, font_weight: bold, color: "rgb(255, 60, 60)", priority: 90 }
+points:
+  - { id: base, xyz: [-50, 0, -20], marker: square, style: major, label: Starbase 12 }
+  - id: warbird
+    xyz: [30, 0, -25]
+    marker: triangle
+    style: hostile
+    text:
+      label: { content: Warbird }
+      class: { content: "D'deridex class", position: bottom-right, font_size: 10, font_weight: normal, color: "rgb(200, 200, 255)" }
+      bearing: { content: "BRG 040", position: top-left, font_size: 10, font_weight: normal }
+  - id: buoy
+    xyz: [10, 0, 35]
+    marker: dot
+    text:
+      label: { content: Buoy 7, color: black, background: { default: "rgb(255, 153, 0)" }, background_radius: 8 }
+  - { id: note, xyz: [-40, 0, 40], label: center label, text: { label: { font_size: 12, letter_spacing: 3 } } }
+objects:
+  - { type: grid, shape: plane, size: [220, 140], line_spacing: 20 }

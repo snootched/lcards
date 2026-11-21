@@ -19,18 +19,16 @@
  * 1. Constructor: Initialize caches and RouterCore reference (only needed for polyline)
  * 2. initialize(mountEl): base lifecycle setup
  * 3. render(): Create shape SVG markup, dispatched by `kind`
- * 4. update(): Full re-render on config change (shapes don't do incremental DOM patching)
- * 5. destroy(): Cleanup cached definitions
+ * 4. destroy(): Cleanup cached definitions
  */
 
 import { OverlayBase } from './OverlayBase.js';
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { ColorUtils } from '../../core/themes/ColorUtils.js';
+import { resolveColor } from '../../core/themes/resolve-color.js';
 
 const VALID_KINDS = ['polyline', 'rect', 'circle'];
 
-// @ts-ignore - ShapeOverlay extends OverlayBase (type inference issues with duplicate base methods)
 export class ShapeOverlay extends OverlayBase {
   constructor(overlay, systemsManager, routerCore = null) {
     super(overlay, systemsManager);
@@ -111,7 +109,7 @@ export class ShapeOverlay extends OverlayBase {
       }
 
       const svgParts = [
-        this._buildDefinitions(shapeStyle, overlay.id),
+        this._buildDefinitions(shapeStyle, overlay.id, cardInstance),
         geometry.markup
       ].filter(Boolean);
 
@@ -147,17 +145,6 @@ export class ShapeOverlay extends OverlayBase {
       lcardsLog.error(`[ShapeOverlay] Rendering failed for shape ${overlay.id}:`, error);
       return this._errorResult(overlay.id, error.message, true);
     }
-  }
-
-  /**
-   * Update shape overlay
-   * Shapes re-render fully on config change, matching LineOverlay's convention.
-   *
-   * @returns {boolean} Success status
-   */
-  update(overlayElement, overlay, sourceData) {
-    lcardsLog.trace(`[ShapeOverlay] Update called for ${overlay.id} (shapes re-render fully on config changes)`);
-    return true;
   }
 
   /**
@@ -425,7 +412,7 @@ export class ShapeOverlay extends OverlayBase {
         scalingContext,
         'defaultFillColor'
       ), 'none', cardInstance),
-      fillOpacity: Number(style.fill_opacity || 1),
+      fillOpacity: Number(style.fill_opacity ?? 1),  // 0 is transparent (it became 1)
 
       gradient: this._parseGradientConfig(style.gradient),
       pattern: this._parsePatternConfig(style.pattern),
@@ -440,7 +427,7 @@ export class ShapeOverlay extends OverlayBase {
 
   /**
    * Resolve a style property using token system with fallback
-   * @private
+   * @protected
    */
   _resolveStyleProperty(styleValue, tokenPath, resolveToken, fallback, context = {}) {
     if (styleValue !== undefined && styleValue !== null) {
@@ -512,44 +499,19 @@ export class ShapeOverlay extends OverlayBase {
   }
 
   /**
-   * Final materialization pass after _resolveShapeColor, covering two gaps in
-   * the pipeline it delegates to (cardInstance._resolveColorValue):
-   *
-   * 1. A computed expression (alpha()/darken()/etc) that, for whatever reason,
-   *    reached here still unevaluated — e.g. state-color-resolver.js's and
-   *    _resolveColorValue's own computed-token passes both gate on
-   *    `window.lcards.core.themeManager.resolver` being set, and this is the
-   *    last point before the value is baked into a markup *string* (this runs
-   *    before the element exists in the DOM). Retried here with an explicit
-   *    element context.
-   * 2. A resolved value like `color-mix(in srgb, var(--x) 50%, transparent)`
-   *    still containing a *nested* var() — _resolveColorValue's own
-   *    materialization step only unwraps a value that IS (starts with) a bare
-   *    var(...), not one containing one elsewhere in the string.
-   *
-   * Without this, e.g. `alpha(var(--lcars-black-cherry), 0.5)` reaches the SVG
-   * fill attribute still wrapped in the unevaluated `alpha(...)` call — invalid
-   * paint syntax the browser can't parse, silently rendering opaque black
-   * instead of the intended translucent fill.
+   * Concrete colour for an SVG attribute baked into markup: `theme:` tokens,
+   * computed expressions and every var() (including ones nested in
+   * color-mix()) resolved against the card's element. `none` passes through.
    * @private
    */
   _materializeColor(value, fallback, cardInstance) {
-    if (typeof value !== 'string') return value;
-
-    const resolver = window.lcards?.core?.themeManager?.resolver;
-    if (resolver && typeof resolver.resolve === 'function') {
-      value = resolver.resolve(value, value, { element: cardInstance });
-    } else if (/^(darken|lighten|alpha|saturate|desaturate|mix|base)\(/.test(value)) {
-      lcardsLog.warn('[ShapeOverlay] Computed color expression left unresolved — themeManager.resolver unavailable at render time:', value);
-    }
-
-    if (typeof value !== 'string' || !value.includes('var(')) return value;
-    return ColorUtils.resolveCssVariable(value, fallback, cardInstance) || fallback;
+    if (typeof value !== 'string' || value === 'none') return value;
+    return resolveColor(value, { concrete: true, element: cardInstance ?? null, fallback });
   }
 
   /**
    * Get scaling context for responsive token resolution
-   * @private
+   * @protected
    */
   _getScalingContext(viewBox) {
     return { viewBox };
@@ -571,23 +533,24 @@ export class ShapeOverlay extends OverlayBase {
    * LineOverlay._buildDefinitions.
    * @private
    */
-  _buildDefinitions(shapeStyle, overlayId) {
+  _buildDefinitions(shapeStyle, overlayId, cardInstance = null) {
     const defs = [];
 
     if (shapeStyle.gradient) {
       const gradientId = `gradient-${overlayId}`;
-      if (!this.gradientCache.has(gradientId)) {
-        this.gradientCache.set(gradientId, this._createGradientDefinition(shapeStyle.gradient, gradientId));
-      }
-      defs.push(this.gradientCache.get(gradientId));
+      // stop colours resolved for the SVG attribute (theme:, var()), cached by what they resolve to
+      const gradient = { ...shapeStyle.gradient, stops: (shapeStyle.gradient.stops ?? []).map((/** @type {any} */ st) => ({ ...st, color: this._materializeColor(st.color, '#000000', cardInstance) })) };
+      const key = `${gradientId}|${JSON.stringify(gradient)}`;
+      if (!this.gradientCache.has(key)) this.gradientCache.set(key, this._createGradientDefinition(gradient, gradientId));
+      defs.push(this.gradientCache.get(key));
     }
 
     if (shapeStyle.pattern) {
       const patternId = `pattern-${overlayId}`;
-      if (!this.patternCache.has(patternId)) {
-        this.patternCache.set(patternId, this._createPatternDefinition(shapeStyle.pattern, patternId));
-      }
-      defs.push(this.patternCache.get(patternId));
+      const pattern = { ...shapeStyle.pattern, color: this._materializeColor(shapeStyle.pattern.color, '#000000', cardInstance) };
+      const key = `${patternId}|${JSON.stringify(pattern)}`;
+      if (!this.patternCache.has(key)) this.patternCache.set(key, this._createPatternDefinition(pattern, patternId));
+      defs.push(this.patternCache.get(key));
     }
 
     // Markers only render on <path> (polyline kind) — harmless to compute for
@@ -720,7 +683,7 @@ export class ShapeOverlay extends OverlayBase {
 
   /**
    * Get renderer provenance information
-   * @private
+   * @protected
    */
   _getRendererProvenance(overlayId, metadata = {}) {
     return {
@@ -780,7 +743,9 @@ export class ShapeOverlay extends OverlayBase {
 
   _parseMarkerConfig(markerConfig) {
     if (!markerConfig) return null;
-    return markerConfig; // Simplified, matches LineOverlay's own simplification
+    // the string form the schema allows (marker_end: arrow) is the type alone
+    if (typeof markerConfig === 'string') return { type: markerConfig };
+    return markerConfig;
   }
 
   _createGradientDefinition(gradient, gradientId) {

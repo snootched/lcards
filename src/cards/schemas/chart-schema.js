@@ -13,7 +13,7 @@
  * @see doc/user/configuration/cards/chart.md
  */
 
-import { simpleColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema } from './common-schemas.js';
+import { simpleColorSchema, stateColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, cardLevelProperties, triggersUpdateSchema } from './common-schemas.js';
 
 /**
  * Get complete chart card schema with nested structure
@@ -65,6 +65,148 @@ export function getChartSchema(options = {}) {
         'boxPlot'
     ];
 
+    const SPAN_UNITS = ['minute', 'hour', 'day', 'week', 'month', 'year'];
+    const DURATION_PATTERN = '^\\d+(\\.\\d+)?\\s*(s|sec|m|min|h|hour|d|day|w|week|mo|month|y|year)s?$';
+
+    // Display options shared by entity and DataSource series
+    const seriesDisplayProperties = {
+        name: { type: 'string', description: 'Legend name (default: entity friendly name or source id)' },
+        unit: { type: 'string', description: 'Unit shown in tooltips and axis labels (default: entity unit_of_measurement)' },
+        float_precision: { type: 'number', minimum: 0, maximum: 6, description: 'Decimal places in tooltips' },
+        type: {
+            type: 'string',
+            enum: ['line', 'area', 'bar', 'column', 'scatter'],
+            description: 'Per-series chart type for mixed charts'
+        },
+        curve: {
+            type: 'string',
+            enum: ['smooth', 'straight', 'stepline', 'monotoneCubic'],
+            description: 'Line interpolation for this series'
+        },
+        stroke_width: { type: 'number', minimum: 0, maximum: 20, description: 'Line width for this series' },
+        stroke_dash: { type: 'number', minimum: 0, maximum: 20, description: 'Dash length for this series (0 = solid)' },
+        color: { ...simpleColorSchema, description: 'Series colour (overrides style.colors.series)' },
+        opacity: { type: 'number', minimum: 0, maximum: 1, description: 'Fill opacity for area/bar series' },
+        yaxis_id: { type: 'string', description: 'Id of the yaxis[] entry this series uses' },
+        group_by: {
+            type: 'object',
+            description: 'Bucket points into fixed time intervals. minmax, box and ohlc produce the data rangeArea, boxPlot and candlestick charts need.',
+            properties: {
+                func: {
+                    type: 'string',
+                    enum: ['avg', 'min', 'max', 'first', 'last', 'sum', 'median', 'delta', 'diff', 'minmax', 'box', 'ohlc'],
+                    default: 'avg',
+                    description: 'How each bucket is reduced'
+                },
+                duration: {
+                    type: 'string',
+                    pattern: DURATION_PATTERN,
+                    description: 'Bucket length, e.g. 10min, 1h, 1d',
+                    examples: ['10min', '1h']
+                },
+                fill: {
+                    type: 'string',
+                    enum: ['null', 'last', 'zero'],
+                    default: 'last',
+                    description: 'Value for empty buckets: leave a gap, repeat the last value, or zero'
+                }
+            },
+            required: ['duration'],
+            additionalProperties: false
+        }
+    };
+
+    // One chart series. anyOf (not oneOf): a canonical DataSource item also fits
+    // the legacy branch; the first (current) branch that matches wins.
+    const seriesSchema = {
+        anyOf: [
+            {
+                type: 'object',
+                title: 'Entity series',
+                properties: {
+                    entity: {
+                        type: 'string',
+                        format: 'entity',
+                        pattern: '^[a-z_]+\\.[a-z0-9_]+$',
+                        description: 'Entity to plot (history is fetched from Home Assistant)'
+                    },
+                    attribute: { type: 'string', description: 'Plot this attribute instead of the state' },
+                    statistics: {
+                        type: 'object',
+                        description: 'Use long-term statistics instead of state history (sensors with a state_class)',
+                        properties: {
+                            type: {
+                                type: 'string',
+                                enum: ['mean', 'min', 'max', 'sum', 'state', 'change'],
+                                default: 'mean',
+                                description: 'Which statistic to plot'
+                            },
+                            period: {
+                                type: 'string',
+                                enum: ['5minute', 'hour', 'day', 'week', 'month'],
+                                default: 'hour',
+                                description: 'Statistics period'
+                            }
+                        },
+                        additionalProperties: false
+                    },
+                    ...seriesDisplayProperties,
+                    color: {
+                        ...stateColorSchema,
+                        description: 'Series colour (overrides style.colors.series). On a rangeBar timeline it colours the bars: one colour, or a colour per state (an exact state such as heat, then active, inactive, unavailable, then default). States it leaves out take the theme\'s state colours, as Home Assistant\'s history does.'
+                    },
+                    states: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'rangeBar: the states to draw, leaving gaps for the rest. Exact states (heat, playing) and the words active, inactive and unavailable (unknown too), as Home Assistant splits an entity\'s states. Default: every state.',
+                        examples: [['heat', 'cool'], ['active']]
+                    },
+                    min_duration: {
+                        type: 'string',
+                        pattern: DURATION_PATTERN,
+                        description: 'rangeBar: a state that lasts less than this joins the run before it (hides a thermostat flickering for seconds), e.g. 30s, 5min.',
+                        examples: ['30s', '5min']
+                    }
+                },
+                required: ['entity'],
+                additionalProperties: false
+            },
+            {
+                type: 'object',
+                title: 'DataSource series',
+                properties: {
+                    datasource: { type: 'string', description: 'Name of a DataSource (in data_sources or defined by another card)' },
+                    buffer: { type: 'string', description: 'Processor key to plot instead of the raw values' },
+                    ...seriesDisplayProperties
+                },
+                required: ['datasource'],
+                additionalProperties: false
+            },
+            {
+                type: 'string',
+                deprecated: true,
+                'x-replacement': '{ entity: ... } or { datasource: ... }',
+                description: 'Legacy: entity id or DataSource name'
+            },
+            {
+                type: 'object',
+                title: 'Legacy DataSource reference',
+                deprecated: true,
+                'x-replacement': '{ datasource, buffer, name, type }',
+                properties: {
+                    datasource: { type: 'string' },
+                    id: { type: 'string' },
+                    name: { type: 'string' },
+                    buffer: { type: 'string' },
+                    key: { type: 'string' },
+                    type: { type: 'string' },
+                    yaxis: { type: 'number' }
+                },
+                additionalProperties: false
+            }
+        ]
+    };
+
     // ============================================================================
     // MAIN SCHEMA
     // ============================================================================
@@ -89,6 +231,9 @@ export function getChartSchema(options = {}) {
                     hidden: true
                 }
             },
+            // rules, sounds, variables, zones, debug_zones: card-level, as on every card (LCARdSCard base)
+            ...cardLevelProperties,
+            triggers_update: triggersUpdateSchema,
 
             // ====================================================================
             // CORE PROPERTIES
@@ -124,113 +269,157 @@ export function getChartSchema(options = {}) {
             },
 
             // ====================================================================
-            // DATA SOURCE CONFIGURATION (3 LEVELS)
+            // SERIES AND TIME WINDOW
             // ====================================================================
 
-            // Level 1: Simple entity reference
-            source: {
-                type: 'string',
-                description: 'Single entity ID (auto-creates DataSource with defaults)',
-                'x-ui-hints': {
-                    label: 'Data Source',
-                    helper: 'Simple entity reference - automatically creates a DataSource',
-                    selector: {
-                        entity: {}
-                    }
-                }
-            },
-
-            attribute: {
-                type: 'string',
-                description: 'Entity attribute to track (optional - works with source)',
-                'x-ui-hints': {
-                    label: 'Attribute',
-                    helper: 'Track specific entity attribute instead of state',
-                    selector: {
-                        text: {
-                            placeholder: 'temperature'
-                        }
-                    },
-                    examples: ['temperature', 'humidity', 'brightness']
-                }
-            },
-
-            // Level 2: Multiple sources
             sources: {
-                anyOf: [
-                    {
-                        type: 'array',
-                        items: { type: 'string' },
-                        title: 'Simple String Array',
-                        description: 'Array of entity IDs or DataSource names (simple format)'
-                    },
-                    {
-                        type: 'array',
-                        items: {
-                            oneOf: [
-                                { type: 'string' },
-                                {
-                                    type: 'object',
-                                    properties: {
-                                        datasource: {
-                                            type: 'string',
-                                            description: 'DataSource name or entity ID'
-                                        },
-                                        buffer: {
-                                            type: 'string',
-                                            description: 'Buffer selector (e.g., "main", "processor_name")'
-                                        },
-                                        name: {
-                                            type: 'string',
-                                            description: 'Series name for legend'
-                                        },
-                                        type: {
-                                            type: 'string',
-                                            enum: ['line', 'area', 'bar', 'scatter'],
-                                            description: 'Series-specific chart type override'
-                                        },
-                                        yaxis: {
-                                            type: 'number',
-                                            minimum: 0,
-                                            description: 'Y-axis index (0-based) for multi-axis charts'
-                                        }
-                                    },
-                                    required: ['datasource']
-                                }
-                            ]
-                        },
-                        title: 'Mixed Array (Strings and Objects)',
-                        description: 'Array with mix of simple strings and advanced source objects'
-                    }
-                ],
+                type: 'array',
+                description: 'Chart series. Each item plots an entity (history or long-term statistics) or a named DataSource buffer.',
+                items: seriesSchema,
                 'x-ui-hints': {
-                    label: 'Multiple Sources',
-                    helper: 'Multiple entities or DataSource references for multi-series charts',
-                    defaultOneOfBranch: 0,
+                    label: 'Series',
+                    helper: 'Edit series in Chart Studio',
                     examples: [
-                        ['sensor.indoor_temp', 'sensor.outdoor_temp'],
-                        ['temp_source_1', 'temp_source_2'],
-                        [
-                            { datasource: 'temp_source', buffer: 'main', name: 'Raw' },
-                            { datasource: 'temp_source', buffer: 'transformation.smoothed', name: 'Smoothed' }
-                        ]
+                        [{ entity: 'sensor.indoor_temp', name: 'Indoor' }, { entity: 'sensor.outdoor_temp', name: 'Outdoor' }],
+                        [{ entity: 'sensor.power', statistics: { type: 'max', period: 'day' } }],
+                        [{ datasource: 'temp', buffer: 'smoothed', name: 'Smoothed' }]
                     ]
                 }
             },
 
-            series_names: {
+            sync_group: {
+                type: 'string',
+                description: 'A name shared by chart cards that move together: hovering one shows the same time on all of them (a cursor line, and the tooltips of charts with the same time window), and their plots line up (y-axis labels at least 60 px wide). Dragging across one to zoom zooms the others, each with a reset that resets them all. Timelines (rangeBar) show the cursor line only. A rolling window ends on the next whole minute so the members match.',
+                examples: ['climate']
+            },
+            state_bands: {
                 type: 'array',
-                items: { type: 'string' },
-                description: 'Custom legend names for series (matches sources order)',
+                description: 'An entity\'s states shaded behind the series, a band for each stretch of time it held one (a thermostat heating behind its temperature). Time charts only (line, area, column, scatter, rangeArea, rangeBar, candlestick, boxPlot).',
+                items: {
+                    type: 'object',
+                    properties: {
+                        entity: {
+                            type: 'string',
+                            format: 'entity',
+                            pattern: '^[a-z_]+\\.[a-z0-9_]+$',
+                            description: 'The entity whose states are shaded (its history is fetched from Home Assistant)'
+                        },
+                        attribute: { type: 'string', description: 'Shade this attribute\'s values instead of the state (hvac_action: heating, cooling)' },
+                        states: {
+                            type: 'array',
+                            items: { type: 'string' },
+                            default: ['active'],
+                            description: 'The states to shade: exact states (heat, playing) and the words active, inactive and unavailable (unknown too), as Home Assistant splits an entity\'s states. Default: active, so an off thermostat leaves no band.',
+                            examples: [['heat', 'cool'], ['active', 'unavailable']]
+                        },
+                        min_duration: {
+                            type: 'string',
+                            pattern: DURATION_PATTERN,
+                            description: 'A state that lasts less than this joins the run before it (hides a few seconds of flicker), e.g. 30s, 5min.',
+                            examples: ['30s', '5min']
+                        },
+                        color: {
+                            ...stateColorSchema,
+                            description: 'Band colour: one colour, or a colour per state (an exact state such as heat, then active, inactive, unavailable, then default). States it leaves out take the theme\'s state colours, as Home Assistant\'s history does.'
+                        },
+                        opacity: { type: 'number', minimum: 0, maximum: 1, default: 0.2, description: 'How strongly the bands are shaded (0 to 1)' },
+                        label: { type: 'boolean', default: false, description: 'true writes the state at the top of each band' }
+                    },
+                    required: ['entity'],
+                    additionalProperties: false
+                },
+                examples: [[{ entity: 'climate.hall', states: ['heat', 'cool'], label: true }]]
+            },
+            graph_span: {
+                type: 'string',
+                pattern: '^\\d+(\\.\\d+)?\\s*(s|sec|m|min|h|hour|d|day|w|week|mo|month|y|year)s?$',
+                default: '24h',
+                description: 'How much time the chart shows, e.g. 6h, 2d, 1w, 1mo (default 24h)',
+                examples: ['24h', '7d', '1mo'],
                 'x-ui-hints': {
-                    label: 'Series Names',
-                    helper: 'Custom names for chart legend (must match sources order)',
-                    examples: [['Indoor', 'Outdoor'], ['CPU', 'GPU', 'Disk']]
+                    label: 'Time span',
+                    selector: { text: { placeholder: '24h' } }
                 }
             },
 
-            // Level 3: Advanced DataSource configuration
+            span: {
+                type: 'object',
+                description: 'Align the time window to calendar boundaries and/or shift it',
+                properties: {
+                    start: {
+                        type: 'string',
+                        enum: SPAN_UNITS,
+                        description: 'Start the window at the beginning of the current minute/hour/day/week/month/year (it then lasts graph_span)'
+                    },
+                    end: {
+                        type: 'string',
+                        enum: SPAN_UNITS,
+                        description: 'End the window at the end of the current minute/hour/day/week/month/year (it then starts graph_span earlier)'
+                    },
+                    offset: {
+                        type: 'string',
+                        pattern: '^[+-]\\d+(\\.\\d+)?\\s*(s|sec|m|min|h|hour|d|day|w|week|mo|month|y|year)s?$',
+                        description: 'Shift the window, e.g. -1d for the same window yesterday',
+                        examples: ['-1d', '+2h']
+                    }
+                },
+                additionalProperties: false
+            },
+
+            yaxis: {
+                type: 'array',
+                description: 'Y axes for multi-axis charts. Series pick one with yaxis_id; series without one use the first axis.',
+                items: {
+                    type: 'object',
+                    properties: {
+                        id: { type: 'string', description: 'Axis id referenced by series yaxis_id' },
+                        show: { type: 'boolean', default: true, description: 'Show this axis' },
+                        opposite: { type: 'boolean', default: false, description: 'Draw the axis on the right' },
+                        min: { type: 'number', description: 'Fixed minimum (omit for automatic)' },
+                        max: { type: 'number', description: 'Fixed maximum (omit for automatic)' },
+                        decimals: { type: 'number', minimum: 0, maximum: 6, description: 'Decimal places for axis labels' }
+                    },
+                    required: ['id'],
+                    additionalProperties: false
+                },
+                examples: [[{ id: 'temp' }, { id: 'humidity', opposite: true, min: 0, max: 100 }]]
+            },
+
             data_sources: dataSourcesSchema,
+
+            // Legacy series keys: still accepted (the card and editor migrate
+            // them to sources[]) but never written by the editor.
+            source: {
+                type: 'string',
+                deprecated: true,
+                'x-replacement': 'sources: [{ entity: ... }]',
+                description: 'Legacy single entity or DataSource reference'
+            },
+            data_source: {
+                anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+                deprecated: true,
+                'x-replacement': 'sources',
+                description: 'Legacy alias of source/sources'
+            },
+            attribute: {
+                type: 'string',
+                deprecated: true,
+                'x-replacement': 'sources[].attribute',
+                description: 'Legacy attribute for source'
+            },
+            series_names: {
+                type: 'array',
+                items: { type: 'string' },
+                deprecated: true,
+                'x-replacement': 'sources[].name',
+                description: 'Legacy legend names in sources order'
+            },
+            history_hours: {
+                type: 'number',
+                deprecated: true,
+                'x-replacement': 'graph_span',
+                description: 'Legacy history window in hours'
+            },
 
             // ====================================================================
             // CHART CONFIGURATION
@@ -292,22 +481,15 @@ export function getChartSchema(options = {}) {
 
             show_legend: {
                 type: 'boolean',
-                default: false,
-                description: 'Show/hide chart legend (deprecated - use style.legend.show)',
-                'x-ui-hints': {
-                    label: 'Show Legend (deprecated)',
-                    helper: 'Use style.legend.show instead',
-                    selector: {
-                        boolean: {}
-                    }
-                }
+                deprecated: true,
+                'x-replacement': 'style.legend.show',
+                description: 'Legacy legend toggle'
             },
 
             xaxis_type: {
                 type: 'string',
                 enum: ['datetime', 'category', 'numeric'],
-                default: 'datetime',
-                description: 'X-axis type',
+                description: 'X-axis type. Default: category for horizontal bar charts (one time label per bar), datetime for the other time charts',
                 'x-ui-hints': {
                     label: 'X-Axis Type',
                     helper: 'Type of data on the x-axis',
@@ -325,21 +507,9 @@ export function getChartSchema(options = {}) {
 
             max_points: {
                 type: 'number',
-                minimum: 0,
-                maximum: 10000,
-                default: 0,
-                description: 'Maximum data points to display (0 = unlimited)',
-                'x-ui-hints': {
-                    label: 'Max Points',
-                    helper: 'Limit number of data points (0 = unlimited, auto-decimates if exceeded)',
-                    selector: {
-                        number: {
-                            min: 0,
-                            max: 10000,
-                            step: 10
-                        }
-                    }
-                }
+                deprecated: true,
+                'x-replacement': 'sources[].group_by',
+                description: 'Legacy point limit (never had an effect)'
             },
 
             // ====================================================================
@@ -669,8 +839,8 @@ export function getChartSchema(options = {}) {
                                 type: 'number',
                                 minimum: 0,
                                 maximum: 20,
-                                default: 4,
-                                description: 'Marker size in pixels',
+                                default: 0,
+                                description: 'Marker size in pixels (0 hides the markers). Default: 0, or 6 for scatter charts',
                                 'x-ui-hints': {
                                     label: 'Size',
                                     selector: {
@@ -685,7 +855,7 @@ export function getChartSchema(options = {}) {
                             },
                             shape: {
                                 type: 'string',
-                                enum: ['circle', 'square', 'rect', 'rhombus'],
+                                enum: ['circle', 'square', 'rect', 'diamond', 'triangle', 'star', 'cross', 'plus', 'line', 'rhombus'],
                                 default: 'circle',
                                 description: 'Marker shape',
                                 'x-ui-hints': {
@@ -696,7 +866,11 @@ export function getChartSchema(options = {}) {
                                                 { value: 'circle', label: 'Circle' },
                                                 { value: 'square', label: 'Square' },
                                                 { value: 'rect', label: 'Rectangle' },
-                                                { value: 'rhombus', label: 'Rhombus' }
+                                                { value: 'diamond', label: 'Diamond' },
+                                                { value: 'triangle', label: 'Triangle' },
+                                                { value: 'star', label: 'Star' },
+                                                { value: 'cross', label: 'Cross' },
+                                                { value: 'plus', label: 'Plus' }
                                             ]
                                         }
                                     }
@@ -755,21 +929,9 @@ export function getChartSchema(options = {}) {
                             },
                             opacity: {
                                 type: 'number',
-                                minimum: 0,
-                                maximum: 1,
-                                default: 0.3,
-                                description: 'Grid line opacity',
-                                'x-ui-hints': {
-                                    label: 'Opacity',
-                                    selector: {
-                                        number: {
-                                            mode: 'slider',
-                                            min: 0,
-                                            max: 1,
-                                            step: 0.1
-                                        }
-                                    }
-                                }
+                                deprecated: true,
+                                'x-replacement': 'an rgba/alpha() colour in style.colors.grid',
+                                description: 'Not an ApexCharts option; it never had an effect'
                             },
                             stroke_dash_array: {
                                 type: 'number',
@@ -810,8 +972,7 @@ export function getChartSchema(options = {}) {
                         properties: {
                             show: {
                                 type: 'boolean',
-                                default: false,
-                                description: 'Show/hide legend',
+                                description: 'Show/hide legend. Default: on for pie, donut, polarArea and radialBar (it names the slices and gauges), off for other chart types',
                                 'x-ui-hints': {
                                     label: 'Show Legend',
                                     selector: {
@@ -860,8 +1021,7 @@ export function getChartSchema(options = {}) {
                                 type: 'number',
                                 minimum: 8,
                                 maximum: 24,
-                                default: 14,
-                                description: 'Legend font size',
+                                description: 'Legend font size in pixels. Default: the base font size (style.typography.font_size) plus 2; 12 for scatter and polarArea',
                                 'x-ui-hints': {
                                     label: 'Font Size',
                                     selector: {
@@ -1127,8 +1287,7 @@ export function getChartSchema(options = {}) {
                         properties: {
                             font_family: {
                                 type: 'string',
-                                default: 'Antonio, Helvetica Neue, sans-serif',
-                                description: 'Font family',
+                                description: 'Font family. Default: the theme\'s chart font (the components.chart.fontFamily token, the LCARS font)',
                                 'x-ui-hints': {
                                     label: 'Font Family',
                                     selector: {
@@ -1282,15 +1441,12 @@ export function getChartSchema(options = {}) {
                                     }
                                 }
                             },
+                            // Never took effect (the theme's series colours always won); ignored since 2026.11.
                             palette: {
                                 type: 'string',
-                                description: 'Theme palette name',
-                                'x-ui-hints': {
-                                    label: 'Palette',
-                                    selector: {
-                                        text: {}
-                                    }
-                                }
+                                deprecated: true,
+                                'x-replacement': 'style.colors.series',
+                                description: 'No longer used: set series colours with style.colors.series.'
                             },
                             monochrome: {
                                 type: 'object',
@@ -1409,6 +1565,74 @@ export function getChartSchema(options = {}) {
                                 }
                             }
                         }
+                    },
+
+                    // ================================================================
+                    // GROUP 12b: REFERENCE LINES and chart-type options
+                    // ================================================================
+
+                    zero_line: {
+                        type: 'boolean',
+                        default: false,
+                        description: 'Draw a horizontal reference line at 0'
+                    },
+                    zero_line_color: {
+                        ...simpleColorSchema,
+                        description: 'Colour of the zero line'
+                    },
+                    thresholds: {
+                        type: 'array',
+                        description: 'Horizontal reference lines at fixed values',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                value: { type: 'number', description: 'Y value of the line' },
+                                label: { type: 'string', description: 'Text shown on the line' },
+                                color: { ...simpleColorSchema, description: 'Line and label colour' },
+                                width: { type: 'number', minimum: 0, description: 'Line width (default 2)' },
+                                dash: { type: 'boolean', description: 'Dashed line' },
+                                opacity: { type: 'number', minimum: 0, maximum: 1, description: 'Line opacity (default 0.7)' }
+                            },
+                            required: ['value'],
+                            additionalProperties: false
+                        },
+                        examples: [[{ value: 25, label: 'High', color: 'var(--lcars-red)' }]]
+                    },
+                    color: {
+                        ...simpleColorSchema,
+                        description: 'boxPlot: colour of the boxes (upper and lower quartile). Default: the theme accent colour'
+                    },
+                    value_format: {
+                        type: 'string',
+                        enum: ['percent'],
+                        description: 'radialBar: show values as percentages'
+                    },
+                    gauge_start_angle: {
+                        type: 'number',
+                        minimum: -360,
+                        maximum: 360,
+                        description: 'radialBar: arc start angle in degrees (default -90)'
+                    },
+                    gauge_total: {
+                        type: 'boolean',
+                        default: false,
+                        description: 'radialBar: show the sum of all gauges in the centre'
+                    },
+                    gauge_end_angle: {
+                        type: 'number',
+                        minimum: -360,
+                        maximum: 360,
+                        description: 'radialBar: arc end angle in degrees (default 90)'
+                    },
+                    group_rows: {
+                        type: 'boolean',
+                        default: true,
+                        description: 'rangeBar: put bars with the same label on one row'
+                    },
+                    show_labels: {
+                        type: 'boolean',
+                        default: true,
+                        description: 'rangeBar: show labels on the bars'
                     },
 
                     // ================================================================

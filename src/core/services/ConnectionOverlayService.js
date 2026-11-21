@@ -35,8 +35,9 @@
  *
  * The overlay is managed via `PortalOverlayManager` under the named slot
  * `'connection-overlay'`.  POM injects content into the ScreenEffectManager's
- * shared `position:fixed` portal div (`z-index:9100`, appended to
- * `document.body`).  This makes it visible on any page the module is loaded —
+ * shared `position:fixed` portal div (`z-index:9100`, mounted inside
+ * `<home-assistant>` like Home Assistant's own dialogs, so cards in it get Lit
+ * contexts).  This makes it visible on any page the module is loaded, with
  * no card placement required.
  *
  * ## Alert overlay co-existence
@@ -109,7 +110,7 @@ const DEFAULT_CONFIG = {
     message: {
         text:      'Connection Lost',
         color:     'var(--error-color)',
-        mode:      'text',      // 'text' | 'card'
+        mode:      'text',      // 'text' | 'card' | 'borg'
         font:      'Antonio',   // font key from the lcards font registry
         size:      42,
         weight:    '400',
@@ -154,6 +155,22 @@ const DEFAULT_CONFIG = {
 // ---------------------------------------------------------------------------
 // ConnectionOverlayService
 // ---------------------------------------------------------------------------
+
+/**
+ * Turn the overlay's `message.borgLayers` setting into assimilate() options.
+ * Shared by a real disconnect and the connectivity tab's Test button, so both
+ * honour the same settings (fontSwap was dropped on a real disconnect).
+ * @param {Record<string, any>|null|undefined} borgLayers
+ * @returns {Record<string, any>}
+ */
+export function borgOptsFromLayers(borgLayers) {
+    const { paletteHue = null, fontSwap = true, ...introLayers } = borgLayers ?? {};
+    return {
+        ...(Object.keys(introLayers).length ? { intro: introLayers } : {}),
+        ...(paletteHue != null ? { paletteHue } : {}),
+        fontSwap,
+    };
+}
 
 export class ConnectionOverlayService extends BaseService {
 
@@ -249,11 +266,11 @@ export class ConnectionOverlayService extends BaseService {
         // after a real disconnect, which would cause a spurious _onReconnected().
         if (!this._subscribedConnection) {
             if (!nowConnected && wasConnected) {
-                lcardsLog.info('[ConnectionOverlayService] hass.connected → false (pre-subscription) — triggering overlay');
+                lcardsLog.debug('[ConnectionOverlayService] hass.connected → false (pre-subscription) — triggering overlay');
                 this._isConnected = false;
                 this._onDisconnected();
             } else if (nowConnected && !wasConnected) {
-                lcardsLog.info('[ConnectionOverlayService] hass.connected → true (pre-subscription) — clearing overlay');
+                lcardsLog.debug('[ConnectionOverlayService] hass.connected → true (pre-subscription) — clearing overlay');
                 this._isConnected = true;
                 this._onReconnected();
             } else {
@@ -307,7 +324,7 @@ export class ConnectionOverlayService extends BaseService {
             return this._config;
         }
 
-        // Read each flat key through the device → user → global waterfall independently.
+        // Each flat key goes through the device → user → global waterfall independently.
         // This means a device-scoped colour does NOT clobber a global-scoped text value.
         const D = DEFAULT_CONFIG;
         const SCOPES = ['device', 'user', 'global'];
@@ -318,33 +335,38 @@ export class ConnectionOverlayService extends BaseService {
             reconWeight, reconTransform, reconContent,
             borgSem,
             disconnectDelay,
-        ] = await Promise.all([
-            sss.read(CONN_OVERLAY_ENABLED,            SCOPES, null),
-            sss.read(CONN_OVERLAY_DISMISS,             SCOPES, null),
-            sss.read(CONN_OVERLAY_POSITION,            SCOPES, null),
-            sss.read(CONN_OVERLAY_WIDTH,               SCOPES, null),
-            sss.read(CONN_OVERLAY_HEIGHT,              SCOPES, null),
-            sss.read(CONN_OVERLAY_CONTENT,             SCOPES, null),
-            sss.read(CONN_OVERLAY_SEM,                 SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_MODE,            SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_TEXT,            SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_COLOR,           SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_FONT,            SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_SIZE,            SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_WEIGHT,          SCOPES, null),
-            sss.read(CONN_OVERLAY_MSG_TRANSFORM,       SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_ENABLED,       SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_TEXT,          SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_COLOR,         SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_DISMISS_SECS,  SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_FONT,          SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_SIZE,          SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_WEIGHT,        SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_TRANSFORM,     SCOPES, null),
-            sss.read(CONN_OVERLAY_RECON_CONTENT,       SCOPES, null),
-            sss.read(CONN_OVERLAY_BORG_SEM,             SCOPES, null),
-            sss.read(CONN_OVERLAY_DISCONNECT_DELAY,    SCOPES, null),
-        ]);
+        ] = await (async () => {
+            // One read per scope for all 25 settings (it was one call per key and scope)
+            const keys = [
+                CONN_OVERLAY_ENABLED,
+                CONN_OVERLAY_DISMISS,
+                CONN_OVERLAY_POSITION,
+                CONN_OVERLAY_WIDTH,
+                CONN_OVERLAY_HEIGHT,
+                CONN_OVERLAY_CONTENT,
+                CONN_OVERLAY_SEM,
+                CONN_OVERLAY_MSG_MODE,
+                CONN_OVERLAY_MSG_TEXT,
+                CONN_OVERLAY_MSG_COLOR,
+                CONN_OVERLAY_MSG_FONT,
+                CONN_OVERLAY_MSG_SIZE,
+                CONN_OVERLAY_MSG_WEIGHT,
+                CONN_OVERLAY_MSG_TRANSFORM,
+                CONN_OVERLAY_RECON_ENABLED,
+                CONN_OVERLAY_RECON_TEXT,
+                CONN_OVERLAY_RECON_COLOR,
+                CONN_OVERLAY_RECON_DISMISS_SECS,
+                CONN_OVERLAY_RECON_FONT,
+                CONN_OVERLAY_RECON_SIZE,
+                CONN_OVERLAY_RECON_WEIGHT,
+                CONN_OVERLAY_RECON_TRANSFORM,
+                CONN_OVERLAY_RECON_CONTENT,
+                CONN_OVERLAY_BORG_SEM,
+                CONN_OVERLAY_DISCONNECT_DELAY,
+            ];
+            const values = await sss.readMany(keys, SCOPES);
+            return keys.map((k) => values[k] ?? null);
+        })();
 
         // Priority: storage value → existing in-memory value → built-in default.
         // All sss.read() calls use null as the globalFallback so that a WS failure
@@ -394,8 +416,16 @@ export class ConnectionOverlayService extends BaseService {
 
         // Re-render immediately if the overlay is currently visible so remote-broadcast
         // config updates (font, colour, etc.) take effect without a page reload.
-        if (this._isActive && window.lcards?.core?.portalOverlayManager?.has('connection-overlay')) {
-            this._showDisconnectOverlay();
+        // Borg mode shows the assimilation instead (and removes a standard overlay
+        // left from a text or card mode setup).
+        if (this._isActive) {
+            const pom = window.lcards?.core?.portalOverlayManager;
+            if (this._config.message?.mode === 'borg') {
+                if (pom?.has('connection-overlay')) pom.hide('connection-overlay');
+                if (!this._isDismissed) this._activateDisconnectView();
+            } else if (pom?.has('connection-overlay')) {
+                this._showDisconnectOverlay();
+            }
         }
 
         return this._config;
@@ -405,17 +435,17 @@ export class ConnectionOverlayService extends BaseService {
      * Save config to the specified scope.
      *
      * @param {Object} config   - Partial or full config object.
-     * @param {'device'|'user'|'global'} [scope='global']
-     * @returns {Promise<void>}
+     * @param {'device'|'user'|'global'} [scope='global'] - global needs a Home Assistant admin
+     * @returns {Promise<boolean>} false when any write failed or was refused
      */
     async saveConfig(config, scope = 'global', opts = {}) {
         const sss = window.lcards?.core?.scopedSettingsService;
         if (!sss) {
             lcardsLog.warn('[ConnectionOverlayService] ScopedSettingsService unavailable — config not saved');
-            return;
+            return false;
         }
 
-        lcardsLog.info('[ConnectionOverlayService] saveConfig start', { scope, opts, enabled: config.enabled });
+        lcardsLog.debug('[ConnectionOverlayService] saveConfig start', { scope, opts, enabled: config.enabled });
 
         // Map the nested config shape to individual flat keys and write each one.
         // Only keys present in the config object are written — callers may pass a
@@ -452,7 +482,12 @@ export class ConnectionOverlayService extends BaseService {
         if ('transform'            in rec) writes.push(sss.write(CONN_OVERLAY_RECON_TRANSFORM,     rec.transform,            scope, opts));
         if ('content'              in rec) writes.push(sss.write(CONN_OVERLAY_RECON_CONTENT,       rec.content,              scope, opts));
 
-        await Promise.all(writes);
+        const results = await Promise.all(writes);
+        if (!results.every(Boolean)) {
+            lcardsLog.warn(`[ConnectionOverlayService] Config not (fully) saved to scope "${scope}"`);
+            await this.loadConfig();
+            return false;
+        }
 
         // Optimistically patch this._config with the just-saved values so that
         // _onDisconnected() sees the correct flags (e.g. enabled=true) even if the
@@ -512,22 +547,25 @@ export class ConnectionOverlayService extends BaseService {
         this._previewConfig = null;
 
         lcardsLog.info(`[ConnectionOverlayService] Config saved to scope "${scope}"`);
+        return true;
     }
 
     /**
      * Delete config from the specified scope (falls back to next tier on next read).
      *
-     * @param {'device'|'user'|'global'} [scope='global']
-     * @returns {Promise<void>}
+     * @param {'device'|'user'|'global'} [scope='global'] - global needs a Home Assistant admin
+     * @returns {Promise<boolean>} false when any clear failed or was refused
      */
     async clearConfig(scope = 'global', opts = {}) {
         const sss = window.lcards?.core?.scopedSettingsService;
-        if (!sss) return;
+        if (!sss) return false;
 
         // Clear all flat keys from the given scope in parallel.
-        await Promise.all(CONN_OVERLAY_ALL_KEYS.map(k => sss.clear(k, scope, opts)));
+        const results = await Promise.all(CONN_OVERLAY_ALL_KEYS.map(k => sss.clear(k, scope, opts)));
         await this.loadConfig();
-        lcardsLog.info(`[ConnectionOverlayService] Config cleared from scope "${scope}"`);
+        const ok = results.every(Boolean);
+        lcardsLog.info(`[ConnectionOverlayService] Config ${ok ? 'cleared' : 'not (fully) cleared'} from scope "${scope}"`);
+        return ok;
     }
 
     /**
@@ -550,7 +588,8 @@ export class ConnectionOverlayService extends BaseService {
         this._isDismissed         = false;
         this._isDisconnected      = true;   // treat as disconnected for state consistency
         this._isActive            = true;
-        this._showDisconnectOverlay();
+        // Immediate, unlike a real disconnect (no tolerance); Borg mode assimilates.
+        this._activateDisconnectView();
     }
 
     /**
@@ -582,6 +621,8 @@ export class ConnectionOverlayService extends BaseService {
         this._isActive            = false;
         this._isDismissed         = false;
         window.lcards?.core?.portalOverlayManager?.hide('connection-overlay');
+        // Borg mode: a forced show assimilated, so undo it (read before the restore below).
+        if (this._config.message?.mode === 'borg') this._deassimilate();
         // Restore config that was active before any showWith() preview.
         if (this._previewConfig) {
             this._config       = this._previewConfig;
@@ -617,6 +658,10 @@ export class ConnectionOverlayService extends BaseService {
         const pom = window.lcards?.core?.portalOverlayManager;
         const cfg = this._config;
 
+        // Borg mode: deassimilation replaces the reconnect banner, as on a real reconnect.
+        const borgMode = cfg.message?.mode === 'borg';
+        if (borgMode) this._deassimilate();
+
         const cleanup = () => {
             if (this._previewConfig) {
                 this._config       = this._previewConfig;
@@ -626,7 +671,9 @@ export class ConnectionOverlayService extends BaseService {
             document.dispatchEvent(new CustomEvent('lcards-connection-overlay-dismissed', { bubbles: false }));
         };
 
-        if (cfg.reconnected?.enabled) {
+        if (borgMode) {
+            cleanup();
+        } else if (cfg.reconnected?.enabled) {
             this._isReconnectedActive = true;
             const recon        = cfg.reconnected;
             const reconContent = (cfg.message?.mode === 'card' && recon?.content) ? recon.content : null;
@@ -692,7 +739,7 @@ export class ConnectionOverlayService extends BaseService {
         }
 
         if (!this._config.enabled) {
-            lcardsLog.info('[ConnectionOverlayService] _onDisconnected: overlay disabled — skipping (enabled=false)');
+            lcardsLog.debug('[ConnectionOverlayService] _onDisconnected: overlay disabled — skipping (enabled=false)');
             return;
         }
 
@@ -706,35 +753,25 @@ export class ConnectionOverlayService extends BaseService {
         this._isDisconnected = true;
         this._isDismissed    = false;
 
-        // Borg mode: assimilation replaces the standard overlay — no tolerance delay.
-        if (this._config.message?.mode === 'borg') {
-            lcardsLog.info('[ConnectionOverlayService] Connection lost — activating Borg assimilation');
+        // What a disconnect shows: the Borg assimilation or the standard overlay.
+        // Both wait out the disconnect tolerance, so a short blip shows neither.
+        const activate = () => {
             this._isActive = true;
-            const borgLayers = this._config.message?.borgLayers ?? null;
-            const { paletteHue = null, ...introLayers } = borgLayers ?? {};
-            const borgOpts = {
-                ...(Object.keys(introLayers).length ? { intro: introLayers } : {}),
-                ...(paletteHue != null ? { paletteHue } : {}),
-            };
-            window.lcards?.core?.borgAssimilationManager?.assimilate(borgOpts);
-            return;
-        }
+            lcardsLog.info('[ConnectionOverlayService] Connection lost: activating the disconnect view');
+            this._activateDisconnectView();
+        };
 
         const delayMs = this._config.disconnect_delay_ms ?? 0;
         if (delayMs > 0) {
-            lcardsLog.info(`[ConnectionOverlayService] Connection lost — ${delayMs}ms tolerance before overlay`);
+            lcardsLog.debug(`[ConnectionOverlayService] Connection lost — ${delayMs}ms tolerance first`);
             this._disconnectDelayTimer = setTimeout(() => {
                 this._disconnectDelayTimer = null;
                 // If the connection was restored during the delay, do nothing.
                 if (!this._isDisconnected) return;
-                lcardsLog.info('[ConnectionOverlayService] Disconnect tolerance expired — activating overlay');
-                this._isActive = true;
-                this._showDisconnectOverlay();
+                activate();
             }, delayMs);
         } else {
-            lcardsLog.info('[ConnectionOverlayService] Connection lost — activating overlay');
-            this._isActive = true;
-            this._showDisconnectOverlay();
+            activate();
         }
     }
 
@@ -758,7 +795,7 @@ export class ConnectionOverlayService extends BaseService {
         // Cancel any pending disconnect-delay show — if we reconnected before the
         // tolerance window expired, the overlay should never appear.
         if (this._disconnectDelayTimer !== null) {
-            lcardsLog.info('[ConnectionOverlayService] _doReconnected: transient reconnect — cancelling tolerance timer (overlay suppressed)');
+            lcardsLog.debug('[ConnectionOverlayService] _doReconnected: transient reconnect — cancelling tolerance timer (overlay suppressed)');
         }
         this._clearDisconnectDelayTimer();
 
@@ -771,11 +808,9 @@ export class ConnectionOverlayService extends BaseService {
 
         // Borg mode: deassimilation replaces the standard reconnect overlay.
         if (this._config.message?.mode === 'borg') {
-            const borgMgr = window.lcards?.core?.borgAssimilationManager;
-            if (borgMgr?.isAssimilated) {
-                lcardsLog.info('[ConnectionOverlayService] Connection restored — deassimilating');
-                borgMgr.deassimilate();
-            }
+            this._deassimilate();
+            // Refresh the config here too (see below): Borg mode skipped it.
+            this._loadConfigWithRetry();
             return;
         }
 
@@ -884,8 +919,38 @@ export class ConnectionOverlayService extends BaseService {
     // -------------------------------------------------------------------------
 
     /**
-     * Show the disconnect overlay via PortalOverlayManager using the current
-     * effective config.  Called from show(), showWith(), and _onDisconnected().
+     * What a disconnect shows, by `message.mode`: the Borg assimilation (once; an
+     * assimilation already running is kept) or the standard overlay. Used by a real
+     * disconnect (after its tolerance), show() / showWith() and loadConfig() while active.
+     * @private
+     */
+    _activateDisconnectView() {
+        if (this._config.message?.mode === 'borg') {
+            const borgMgr = window.lcards?.core?.borgAssimilationManager;
+            if (borgMgr && !borgMgr.isAssimilated) {
+                lcardsLog.info('[ConnectionOverlayService] Activating Borg assimilation');
+                borgMgr.assimilate(borgOptsFromLayers(this._config.message?.borgLayers));
+            }
+            return;
+        }
+        this._showDisconnectOverlay();
+    }
+
+    /**
+     * End a Borg assimilation the overlay started (no-op when none is running).
+     * @private
+     */
+    _deassimilate() {
+        const borgMgr = window.lcards?.core?.borgAssimilationManager;
+        if (borgMgr?.isAssimilated) {
+            lcardsLog.info('[ConnectionOverlayService] Deassimilating');
+            borgMgr.deassimilate();
+        }
+    }
+
+    /**
+     * Show the standard disconnect overlay via PortalOverlayManager using the current
+     * effective config (text or card mode). Called through _activateDisconnectView().
      * @private
      */
     _showDisconnectOverlay() {
@@ -895,13 +960,16 @@ export class ConnectionOverlayService extends BaseService {
             return;
         }
         const cfg = this._config;
+        // The saved card shows only in card mode (as on reconnect); text mode keeps
+        // the text even when a card from an earlier card-mode setup is still saved.
+        const content = (cfg.message?.mode === 'card' && cfg.content) ? cfg.content : null;
         pom.show('connection-overlay', {
             position:  cfg.position ?? 'center',
             width:     cfg.width    ?? 'auto',
             height:    cfg.height   ?? 'auto',
             dismiss:   cfg.dismiss  ?? true,
             onDismiss: () => this._handleDismiss(),
-            content:   cfg.content,
+            content,
             text:      cfg.message,
             layers:    cfg.layers,
         });
@@ -927,13 +995,13 @@ export class ConnectionOverlayService extends BaseService {
         this._unsubscribeConnectionEvents();
 
         this._handleConnDisconnected = () => {
-            lcardsLog.info('[ConnectionOverlayService] WS "disconnected" event — triggering overlay');
+            lcardsLog.debug('[ConnectionOverlayService] WS "disconnected" event — triggering overlay');
             this._isConnected = false;
             this._onDisconnected();
         };
 
         this._handleConnReconnected = () => {
-            lcardsLog.info('[ConnectionOverlayService] WS "ready" event — scheduling overlay clear');
+            lcardsLog.debug('[ConnectionOverlayService] WS "ready" event — scheduling overlay clear');
             this._isConnected = true;
             this._onReconnected();
         };

@@ -1,0 +1,22 @@
+# Ring value markers: a templated line marker with a label, a dot, an inside triangle
+type: custom:lcards-slider
+entity: input_number.demo_level
+preset: ring
+style:
+  ring:
+    scale:
+      tick_marks:
+        major:
+          interval: 25
+      labels: {}
+  ranges:
+    - value: "{entity.state}"
+      label:
+        text: TARGET
+    - value: 55
+      indicator:
+        type: round
+    - value: 80
+      indicator:
+        type: triangle
+        align: start

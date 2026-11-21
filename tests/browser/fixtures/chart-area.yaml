@@ -1,0 +1,11 @@
+# doc/cards/chart/index.md: two-series area chart with legend
+type: custom:lcards-chart
+chart_type: area
+sources:
+  - entity: sensor.demo_temperature
+    name: Inside
+  - entity: sensor.demo_outdoor_temperature
+    name: Outside
+style:
+  legend:
+    show: true

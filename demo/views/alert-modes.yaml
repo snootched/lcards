@@ -1,0 +1,75 @@
+# Alert modes (D1c): the six alert levels, each a button on its lcards.* action. Every
+# card follows the theme's colours, so the whole page recolours with each level.
+title: Alert modes
+path: alert-modes
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: RED ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.red_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: YELLOW ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: BLUE ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.blue_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: GRAY ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.gray_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: BLACK ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.black_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      # A small panel in the theme's roles: it recolours with the alert level
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-left
+          segment: { bar_width: 140, bar_height: 24, color: theme:colors.ui.primary }
+        text: { label: { content: OPERATIONS, show: true, position: center, color: theme:colors.ui.tertiary } }
+        grid_options: { columns: 24, rows: 2 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-right
+          segment: { bar_width: 140, bar_height: 24, color: theme:colors.ui.secondary }
+        grid_options: { columns: 24, rows: 2 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: picard-gauge-vertical
+        component: picard
+        text: { name: { content: POWER, show: true } }
+        grid_options: { columns: 8, rows: 4 }
+      - { type: custom:lcards-button, preset: panel-light, text: { label: { content: 47-201 } }, grid_options: { columns: 10, rows: 2 } }
+      - { type: custom:lcards-button, preset: panel-dark, text: { label: { content: 12-889 } }, grid_options: { columns: 10, rows: 2 } }
+      - { type: custom:lcards-button, preset: panel-flagged, text: { label: { content: 30-415 } }, grid_options: { columns: 10, rows: 2 } }
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_lights
+        tap_action: { action: toggle }
+        text: { name: { content: LIGHTS, show: true } }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: gauge-left-border
+        text: { name: { content: POWER, show: true } }
+        grid_options: { columns: 40, rows: 2 }

@@ -11,7 +11,7 @@
  * interactivity (control.locked). The component chosen determines
  * the SVG shell; the style preset determines appearance.
  *
- * Pack system guide: doc/architecture/pack-system.md
+ * Pack system guide: doc/architecture/subsystems/pack-system.md
  */
 
 import { SLIDER_PRESETS } from './style-presets/sliders/index.js';
@@ -27,7 +27,7 @@ export const LCARDS_SLIDERS_PACK = {
   id:          'lcards_sliders',
   name:        'LCARdS Sliders',
   version:     __LCARDS_VERSION__,
-  description: 'Slider style presets — pills (segmented), gauge (ruler), and shaped (clip-path fill) visual styles',
+  description: 'Slider style presets: pills (segmented), gauge (ruler), and shaped (clip-path fill) visual styles',
 
   style_presets: {
     slider: SLIDER_PRESETS

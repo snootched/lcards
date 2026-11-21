@@ -5,6 +5,7 @@
  */
 
 import { css } from 'lit';
+import { infoGuideStyles } from '../components/shared/info-guide-styles.js';
 
 export const editorStyles = css`
     :host {
@@ -34,25 +35,6 @@ export const editorStyles = css`
         display: block;
         margin-bottom: 0;
         padding: var(--ha-space-3) 0;
-    }
-
-    ha-tab-panel {
-        padding: 0px;
-        min-height: 400px;
-    }
-
-    /* Expansion panel styling */
-    ha-expansion-panel {
-        margin-bottom: var(--lcards-section-spacing, 16px);
-        border-radius: var(--ha-card-border-radius, 12px);
-    }
-
-    ha-expansion-panel[outlined] {
-        border: var(--ha-border-width-md) solid var(--divider-color);
-    }
-
-    ha-expansion-panel[expanded] {
-        background-color: var(--secondary-background-color);
     }
 
     /* Form field spacing */
@@ -130,7 +112,7 @@ export const editorStyles = css`
 
     .error-message {
         color: var(--error-color, #f44336);
-        background: var(--error-background-color, rgba(244, 67, 54, 0.1));
+        background: color-mix(in srgb, var(--error-color, #db4437) 10%, transparent);
         padding: var(--ha-space-2) var(--ha-space-3);
         border-radius: var(--ha-border-radius-sm);
         margin: var(--ha-space-2) 0;
@@ -148,7 +130,7 @@ export const editorStyles = css`
 
     .warning-message {
         color: var(--warning-color, #ff9800);
-        background: var(--warning-background-color, rgba(255, 152, 0, 0.1));
+        background: color-mix(in srgb, var(--warning-color, #ffa600) 10%, transparent);
         padding: var(--ha-space-2) var(--ha-space-3);
         border-radius: var(--ha-border-radius-sm);
         margin: var(--ha-space-2) 0;
@@ -157,7 +139,7 @@ export const editorStyles = css`
 
     .info-message {
         color: var(--info-color, #2196f3);
-        background: var(--info-background-color, rgba(33, 150, 243, 0.1));
+        background: color-mix(in srgb, var(--info-color, #039be5) 10%, transparent);
         padding: var(--ha-space-2) var(--ha-space-3);
         border-radius: var(--ha-border-radius-sm);
         margin: var(--ha-space-2) 0;
@@ -317,4 +299,7 @@ export const editorStyles = css`
             grid-template-columns: 1fr;
         }
     }
+
+
+    ${infoGuideStyles}
 `;

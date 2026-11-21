@@ -1,0 +1,16 @@
+# An entity-bound grid speed glides over transition (background-animation.spec.js)
+type: custom:lcards-button
+entity: input_number.demo_level
+preset: lozenge
+text:
+  name:
+    content: Bound
+    show: true
+background_animation:
+  - preset: grid
+    transition: 1500
+    config:
+      scroll_speed_x:
+        map_range:
+          input: [0, 100]
+          output: [0, 200]

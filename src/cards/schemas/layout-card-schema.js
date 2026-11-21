@@ -7,11 +7,20 @@
  * required per card). Editing is handled by the Layout Studio, not schema-driven
  * forms, so there are no x-ui-hints here.
  *
+ * `layoutViewSchema` (below) is the matching schema for the
+ * `custom:lcards-layout-view` view type: same `layout` block and `cards[]`.
+ *
  * @see src/cards/lcards-layout-card.js
- * @see src/views/lcards-layout-view.js (same layout/view_layout schema)
+ * @see src/views/lcards-layout-view.js
  */
 
 const trackString = { type: 'string' };
+// Written straight into CSS (layout-render.js): a CSS length string, or 0 (the one
+// bare number CSS accepts; the shell strategy generates `padding: 0`).
+const spacing = (what) => ({
+    description: `${what}: a CSS length (e.g. 8px, 1rem 0) or 0`,
+    oneOf: [{ type: 'string' }, { type: 'number', enum: [0] }],
+});
 
 const areaSettingsSchema = {
     type: 'object',
@@ -38,8 +47,8 @@ const viewLayoutSchema = {
     additionalProperties: true,
     properties: {
         'grid-area':    { type: 'string' },
-        'grid-column':  { type: 'string' },
-        'grid-row':     { type: 'string' },
+        'grid-column':  { type: ['string', 'number'], description: 'CSS grid-column: a line number (2), a span ("span 2") or a range ("1 / 3").' },
+        'grid-row':     { type: ['string', 'number'], description: 'CSS grid-row: a line number (3), a span ("span 2") or a range ("2 / 4").' },
         'place-self':   { type: 'string' },
         'align-self':   { type: 'string' },
         'justify-self': { type: 'string' },
@@ -59,9 +68,9 @@ const layoutSchema = {
         'grid-gap':              trackString,
         'gap':                   trackString,
         'height':                trackString,
-        'margin':                trackString,
-        'padding':               trackString,
-        'card_margin':           trackString,
+        'margin':                spacing('Margin around the grid'),
+        'padding':               spacing('Padding inside the grid'),
+        'card_margin':           spacing('Margin around each card in the grid'),
         'card_overflow':         trackString,
         'place-items':           trackString,
         'place-content':         trackString,
@@ -72,6 +81,20 @@ const layoutSchema = {
         'areas': {
             type: 'object',
             additionalProperties: areaSettingsSchema,
+        },
+    },
+};
+
+const childCardsSchema = {
+    type: 'array',
+    description: 'Cards placed in the grid. Each is any Home Assistant card config; `view_layout` places it in a grid area.',
+    items: {
+        type: 'object',
+        required: ['type'],
+        additionalProperties: true,
+        properties: {
+            type: { type: 'string' },
+            view_layout: viewLayoutSchema,
         },
     },
 };
@@ -89,17 +112,27 @@ export const layoutCardSchema = {
         layout: layoutSchema,
         // The card itself may carry view_layout when placed inside a layout view.
         view_layout: viewLayoutSchema,
-        cards: {
-            type: 'array',
-            items: {
-                type: 'object',
-                required: ['type'],
-                additionalProperties: true,
-                properties: {
-                    type: { type: 'string' },
-                    view_layout: viewLayoutSchema,
-                },
-            },
+        cards: childCardsSchema,
+    },
+};
+
+/**
+ * `custom:lcards-layout-view`: one entry under a dashboard's `views:`. Standard
+ * HA view keys (title, path, icon, theme, background, visible, subview, ...)
+ * pass through, so the schema stays open.
+ */
+export const layoutViewSchema = {
+    type: 'object',
+    title: 'LCARdS Layout View',
+    description: 'Dashboard view type whose whole view is a CSS grid. Uses the lovelace-layout-card grid-layout schema: a `layout` block plus `cards` placed by `view_layout.grid-area`.',
+    required: ['type'],
+    additionalProperties: true,
+    properties: {
+        type: {
+            type: 'string',
+            const: 'custom:lcards-layout-view',
         },
+        layout: layoutSchema,
+        cards: childCardsSchema,
     },
 };

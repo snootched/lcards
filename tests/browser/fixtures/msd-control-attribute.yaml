@@ -1,0 +1,20 @@
+# An MSD control whose card shows a light's brightness (Tier 3 item 15, 2026-11-17):
+# a change of the attribute alone (state stays on) reaches the card inside.
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: none
+  view_box: [0, 0, 400, 120]
+  overlays:
+    - id: lamp_ctl
+      type: control
+      position: [40, 20]
+      size: [320, 80]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        entity: light.demo
+        text:
+          name:
+            content: "BRIGHTNESS {entity.attributes.brightness}"
+            show: true

@@ -7,7 +7,6 @@
 import { RendererUtils } from './RendererUtils.js';
 import { OverlayUtils } from './OverlayUtils.js';
 import { AttachmentPointManager } from './AttachmentPointManager.js';
-import { ColorUtils } from '../../core/themes/ColorUtils.js';
 
 import { MsdControlsRenderer } from '../controls/MsdControlsRenderer.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -16,8 +15,67 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { OverlayBase } from '../overlays/OverlayBase.js';
 import { LineOverlay } from '../overlays/LineOverlay.js';
 import { ShapeOverlay } from '../overlays/ShapeOverlay.js';
+import { resolveColor } from '../../core/themes/resolve-color.js';
+
+/**
+ * A line with no anchor_side / attach_side on an overlay end leaves from the side
+ * nearest the other end (2026-11-08; it used to run to the overlay's centre: the
+ * nearest side was worked out and never used). The side is written onto the line
+ * as it is rendered, so LineOverlay finds its `<id>.<side>` point and the router
+ * its direction hint. Never onto the config itself.
+ * @param {any} line - the line overlay being rendered
+ * @param {'anchor_side' | 'attach_side'} key
+ * @param {string | null} side
+ */
+function setAutoSide(line, key, side) {
+  if (!side || side === 'center') return;
+  line[key] = side;
+  if (line._raw) line._raw = { ...line._raw, [key]: side };
+  else if (line.raw) line.raw = { ...line.raw, [key]: side };
+}
+
+/**
+ * One end's gaps in the shape _applyAttachGap reads.
+ * @param {any} raw - the line's config
+ */
+const anchorGaps = (raw) => ({
+  attach_gap: raw.anchor_gap ?? raw.anchorGap,
+  attach_gap_x: raw.anchor_gap_x ?? raw.anchorGapX,
+  attach_gap_y: raw.anchor_gap_y ?? raw.anchorGapY,
+  corner_inset: cornerInset(raw, raw.route_hint)
+});
+/** @param {any} raw - the line's config */
+const attachGaps = (raw) => ({
+  attach_gap: raw.attach_gap ?? raw.attachGap,
+  attach_gap_x: raw.attach_gap_x ?? raw.attachGapX,
+  attach_gap_y: raw.attach_gap_y ?? raw.attachGapY,
+  corner_inset: cornerInset(raw, raw.route_hint_last)
+});
+/**
+ * A line that leaves (or reaches) a corner of an overlay along one of its edges
+ * runs inside the edge, not centred on it: the line's outer edge is flush with the
+ * box and it starts half a width inside the corner, so a label's border bar and its
+ * leader line make one clean L with no seam (2026-11-12).
+ * Only with a route hint at that end (route_hint, route_hint_last), which says the
+ * line runs along an edge from the corner; no hint, no inset.
+ * @param {any} raw - the line's config
+ * @param {string | undefined} hint
+ * @returns {{ half: number } | null}
+ */
+function cornerInset(raw, hint) {
+  const h = String(hint || '').toLowerCase();
+  if (h !== 'xy' && h !== 'yx') return null;
+  const width = Number(raw.style?.width ?? raw.style?.stroke_width ?? 2);
+  if (!(width > 0)) return null;
+  return { half: width / 2 };
+}
 
 export class AdvancedRenderer {
+  /**
+   * @param {Element} mountEl
+   * @param {object} routerCore
+   * @param {object|null} [coordinator] - the MsdCardCoordinator (acts as systems manager)
+   */
   constructor(mountEl, routerCore, coordinator = null) {
     this.mountEl = mountEl;
     this.routerCore = routerCore;
@@ -87,6 +145,7 @@ export class AdvancedRenderer {
     };
 
     // Pass 1: render overlays that others may depend on (currently empty)
+    /** @type {Set<string>} */
     const earlyTypes = new Set([]);
     let svgMarkupAccum = '';
     let processedCount = 0;
@@ -390,9 +449,6 @@ export class AdvancedRenderer {
       .sort((a, b) => OverlayUtils.compareByZIndex(a.o, b.o, declOrder))
       .forEach(({ el }) => overlayGroup.appendChild(el));
 
-    // NEW: schedule deferred line refresh to fix first-load orientation/position
-    this._scheduleDeferredLineRefresh(overlays, this._staticAnchors, viewBox);
-
     this.lastRenderArgs = { resolvedModel, overlays, svg };
 
     lcardsLog.debug('[AdvancedRenderer] Render complete', {
@@ -432,7 +488,7 @@ export class AdvancedRenderer {
     this.overlayRenderers.clear();
     this.overlayElementCache.clear();
     this.overlayElements.clear();
-    this.attachmentManager = null;
+    this.attachmentManager = /** @type {any} */ (null); // released on destroy
     this.lastRenderArgs = null;
     lcardsLog.debug('[AdvancedRenderer] Destroyed — all overlay renderers cleaned up');
   }
@@ -442,7 +498,7 @@ export class AdvancedRenderer {
    * @param {Object} overlay - Overlay configuration
    * @param {Object} anchors - Available anchors
    * @param {Element} container - Container element for measurements
-   * @param {Array} viewBox - ViewBox dimensions for proper scaling
+   * @param {Array|null} viewBox - ViewBox dimensions for proper scaling
    * @returns {Object|null} Attachment points object or null if not computable
    */
   computeAttachmentPointsForType(overlay, anchors, container, viewBox = null) {
@@ -508,7 +564,30 @@ export class AdvancedRenderer {
     overlays.filter(o => o.type === 'line').forEach(line => {
       const raw = line._raw || line.raw || {};
       const dest = raw.attach_to || raw.attachTo;
-      if (!dest) return;
+      // No overlay at the far end: the start still gets its side and gap (anchor_gap was
+      // applied only when attach_to was an overlay)
+      const destPoints = dest ? this.attachmentManager.getAttachmentPoints(dest) : null;
+      if (!destPoints?.points) {
+        const startPoints = this.attachmentManager.getAttachmentPoints(raw.anchor);
+        const startSide = (raw.anchor_side || raw.anchorSide || '').toLowerCase();
+        // the far end: [x, y] or a named anchor (no overlay there)
+        const target = Array.isArray(dest) ? dest
+          : dest ? (this.attachmentManager.getAnchor(dest) || this._staticAnchors?.[dest] || null) : null;
+        if (startPoints?.points && startSide !== 'center' && (startSide || target)) {
+          const { point, side } = this._resolveOverlayAttachmentPoint(startPoints.points, startSide, target);
+          if (!startSide) setAutoSide(line, 'anchor_side', side);
+          if (point && side) {
+            const id = `${raw.anchor}.${side}`;
+            const gapPt = this._applyAttachGap(point, side, anchorGaps(raw), startPoints.bbox);
+            this.attachmentManager.setAnchor(id, gapPt);
+            if (this.routerCore?.anchors) {
+              this.routerCore.anchors[id] = gapPt;
+              this.routerCore.invalidate(line.id);
+            }
+          }
+        }
+        if (!dest) return;
+      }
 
       // Read from attachment manager
       const attachmentPointData = this.attachmentManager.getAttachmentPoints(dest);
@@ -544,12 +623,13 @@ export class AdvancedRenderer {
         lcardsLog.debug(`  resolved sourceEffectiveSide: "${sourceEffectiveSide}"`);
 
         lineAnchor = sourcePt;
+        if (!anchorSide) setAutoSide(line, 'anchor_side', sourceEffectiveSide);
 
         // Store the source virtual anchor if it's not center
         if (sourcePt && sourceEffectiveSide && sourceEffectiveSide !== 'center') {
           const sourceVirtualAnchorId = `${raw.anchor}.${sourceEffectiveSide}`;
           const sourceGapPt = this._applyAttachGap(sourcePt, sourceEffectiveSide,
-            { anchor_gap: raw.anchor_gap || raw.anchorGap }, sourceAttachmentPoints.bbox);
+            anchorGaps(raw), sourceAttachmentPoints.bbox);
           this.attachmentManager.setAnchor(sourceVirtualAnchorId, sourceGapPt);
           if (this.routerCore?.anchors) {
             this.routerCore.anchors[sourceVirtualAnchorId] = sourceGapPt;
@@ -590,7 +670,8 @@ export class AdvancedRenderer {
         lcardsLog.warn(`[AdvancedRenderer] ⚠️ No base point resolved for ${line.id}`);
         return;
       }
-      const gapPt = this._applyAttachGap(basePt, effectiveSide, raw, attachmentPointData.bbox);
+      if (!configSide) setAutoSide(line, 'attach_side', effectiveSide);
+      const gapPt = this._applyAttachGap(basePt, effectiveSide, attachGaps(raw), attachmentPointData.bbox);
 
       // Construct the proper virtual anchor ID based on effective side (which may be auto-determined)
       const virtualAnchorId = effectiveSide && effectiveSide !== 'center' ? `${dest}.${effectiveSide}` : dest;
@@ -663,7 +744,7 @@ export class AdvancedRenderer {
           lineAnchor
         );
         if (!basePt) return;
-        const gapPt = this._applyAttachGap(basePt, effectiveSide, raw, tap.bbox);
+        const gapPt = this._applyAttachGap(basePt, effectiveSide, attachGaps(raw), tap.bbox);
 
         // Construct the proper virtual anchor ID based on effective side (which may be auto-determined)
         const virtualAnchorId = effectiveSide && effectiveSide !== 'center' ? `${id}.${effectiveSide}` : id;
@@ -695,9 +776,11 @@ export class AdvancedRenderer {
 
   // NEW: apply attach_gap offsets
   _applyAttachGap(point, side, raw, bbox) {
-    const gap = Number(raw.attach_gap || raw.attachGap || raw.anchor_gap || raw.anchorGap || 0);
-    const gapX = Number(raw.attach_gap_x || raw.attachGapX || raw.anchor_gap_x || raw.anchorGapX || gap || 0);
-    const gapY = Number(raw.attach_gap_y || raw.attachGapY || raw.anchor_gap_y || raw.anchorGapY || gap || 0);
+    // raw: the gaps of one end as attach_gap / attach_gap_x / attach_gap_y (anchorGaps()
+    // or attachGaps()); the far end used to fall back to the start's anchor_gap
+    const gap = Number(raw.attach_gap || 0);
+    const gapX = Number(raw.attach_gap_x ?? gap) || 0;
+    const gapY = Number(raw.attach_gap_y ?? gap) || 0;
 
     lcardsLog.trace(`[AdvancedRenderer] 🔧 _applyAttachGap:`, {
       point,
@@ -711,7 +794,8 @@ export class AdvancedRenderer {
       }
     });
 
-    if (!(gapX || gapY)) {
+    const inset = raw.corner_inset && typeof side === 'string' && side.includes('-') ? raw.corner_inset : null;
+    if (!(gapX || gapY || inset)) {
       lcardsLog.debug(`[AdvancedRenderer] ⏭️ No gap to apply, returning original point`);
       return point;
     }
@@ -729,6 +813,16 @@ export class AdvancedRenderer {
       case 'bottom-right': dx = gapX; dy = gapY; break;
       default: break;
     }
+    // Along the top or bottom edge from a corner: move in by half the line's width
+    // (cornerInset), and start half a width back inside the corner too, so the line
+    // overlaps a border bar there instead of meeting it on a shared, half-covered
+    // pixel (a faint seam in the browser). The corner gap above still applies.
+    if (inset) {
+      const inX = side.endsWith('left') ? inset.half : -inset.half;
+      const inY = side.startsWith('top') ? inset.half : -inset.half;
+      dx += inX;
+      dy += inY;
+    }
 
     const result = [x + dx, y + dy];
     lcardsLog.trace(`[AdvancedRenderer] ✅ Applied gap: [${point}] + [${dx}, ${dy}] = [${result}]`);
@@ -738,6 +832,7 @@ export class AdvancedRenderer {
   // NEW: resolve which attachment point to use based on side keyword
   // If side is not specified (empty), auto-determine best side based on line anchor position
   // Returns: { point: [x, y], side: 'left'|'right'|'top'|'bottom'|etc }
+  /** @param {any} points @param {string} side @param {number[]|null} [lineAnchor] */
   _resolveOverlayAttachmentPoint(points, side, lineAnchor = null) {
     if (!points) return { point: null, side: null };
 
@@ -800,15 +895,6 @@ export class AdvancedRenderer {
     }
 
     return { point, side: effectiveSide };
-  }
-
-  /**
-   * Schedule deferred line refresh
-   * No-op maintained for backwards compatibility with render pipeline
-   * @private
-   */
-  _scheduleDeferredLineRefresh(overlays, anchorsRef, viewBox) {
-    // No-op: Lines are now refreshed immediately during render
   }
 
   /**
@@ -877,7 +963,6 @@ export class AdvancedRenderer {
       lastVersion = this.routerCore._registryVersion;
       for (const ov of lineOverlays) {
         try {
-          // @ts-ignore - TS2339: resolveRoute is LineOverlay-specific, not on OverlayBase; compatible at runtime since lineOverlays is already filtered to type==='line'
           const resolved = (/** @type {any} */ (this._getRendererForOverlay(ov)))?.resolveRoute?.(ov, completeAnchors);
           if (!resolved) {
             // A line the discovery loop can't route is a line whose
@@ -924,7 +1009,6 @@ export class AdvancedRenderer {
     // Line overlays use LineOverlay class (SVG-native, MSD-specific)
     if (overlay.type === 'line') {
       const lineOverlay = new LineOverlay(overlay, this.coordinator, this.routerCore);
-      // @ts-ignore - TS2322: LineOverlay extends OverlayBase; compatible at runtime
       this.overlayRenderers.set((/** @type {any} */ (overlay)).id, lineOverlay);
       return /** @type {any} */ (lineOverlay);
     }
@@ -936,7 +1020,6 @@ export class AdvancedRenderer {
     // registration wired up.
     if (overlay.type === 'shape') {
       const shapeOverlay = new ShapeOverlay(overlay, this.coordinator, this.routerCore);
-      // @ts-ignore - TS2322: ShapeOverlay extends OverlayBase; compatible at runtime
       this.overlayRenderers.set((/** @type {any} */ (overlay)).id, shapeOverlay);
       return /** @type {any} */ (shapeOverlay);
     }
@@ -1196,7 +1279,7 @@ export class AdvancedRenderer {
   injectSvgContent(svgContent) {
     const svg = this.mountEl.querySelector('svg');
     if (!svg) {
-      lcardsLog.info('[AdvancedRenderer] No SVG element found for overlay injection');
+      lcardsLog.debug('[AdvancedRenderer] No SVG element found for overlay injection');
       return;
     }
 
@@ -1232,105 +1315,9 @@ export class AdvancedRenderer {
       });
 
     } catch (error) {
-      lcardsLog.info('[AdvancedRenderer] Failed to inject SVG content:', error);
+      lcardsLog.warn('[AdvancedRenderer] Failed to inject SVG content:', error);
     }
   }
-
-
-
-  // === DATA UPDATE METHODS ===
-
-  /**
-   * Update overlay with new DataSource data
-   * @param {string} overlayId - Overlay ID
-   * @param {Object} sourceData - DataSource data
-   */
-  updateOverlayData(overlayId, sourceData) {
-    try {
-      lcardsLog.debug(`[AdvancedRenderer] 📊 Updating overlay ${overlayId} with DataSource data`, {
-        hasData: !!sourceData,
-        value: sourceData?.v,
-        isPeriodicUpdate: sourceData?.isPeriodicUpdate,
-        hasAggregations: !!sourceData?.aggregations
-      });
-
-      // Get the overlay element from cache, with fallback to DOM query
-      let overlayElement = this.overlayElementCache?.get(overlayId);
-
-      // CRITICAL FIX: Cache can be stale after font stabilization re-renders
-      // If cached element is disconnected, query DOM directly
-      if (!overlayElement || !overlayElement.isConnected) {
-        const overlayGroup = this.mountEl.querySelector('#msd-overlay-container');
-        if (overlayGroup) {
-          overlayElement = overlayGroup.querySelector(`[data-overlay-id="${overlayId}"]`);
-
-          // Update cache with fresh element
-          if (overlayElement && overlayElement.isConnected) {
-            this.overlayElementCache.set(overlayId, overlayElement);
-            lcardsLog.debug(`[AdvancedRenderer] 🔄 Refreshed stale cache entry for ${overlayId}`);
-          }
-        }
-      }
-
-      if (!overlayElement) {
-        lcardsLog.warn(`[AdvancedRenderer] Overlay element not found for: ${overlayId}`);
-        return;
-      }
-
-      // Get the overlay configuration
-      const overlay = this._findOverlayById(overlayId);
-      if (!overlay) {
-        lcardsLog.warn(`[AdvancedRenderer] Overlay configuration not found: ${overlayId}`);
-        return;
-      }
-
-      // Phase 3: Use instance-based update method if available
-      const renderer = this.overlayRenderers.get(overlayId);
-      if (renderer && renderer.update) {
-        // Instance-based overlay - use its update method
-        renderer.update(overlayElement, overlay, sourceData);
-        return;
-      }
-
-      // Fallback for any overlays without instance renderers (shouldn't happen with Phase 3 complete)
-      lcardsLog.warn(`[AdvancedRenderer] No instance renderer found for overlay ${overlayId}, using legacy update`);
-
-      // If we reach here, log that no update handler exists
-      lcardsLog.debug(`[AdvancedRenderer] No update handler for overlay type: ${overlay.type}`);
-
-    } catch (error) {
-      lcardsLog.error(`[AdvancedRenderer] Error updating overlay ${overlayId}:`, error);
-    }
-  }
-
-  /**
-   * Find overlay by ID in current model
-   * @private
-   * @param {string} overlayId - Overlay ID
-   * @returns {Object|null} Overlay configuration
-   */
-  _findOverlayById(overlayId) {
-    // Try to get from last render args first
-    if (this.lastRenderArgs?.overlays) {
-      const overlay = this.lastRenderArgs.overlays.find(o => o.id === overlayId);
-      if (overlay) return overlay;
-    }
-
-    // Try to get from current render model
-    if ((/** @type {any} */ (this))._currentRenderModel?.resolvedModel?.overlays) {
-      return (/** @type {any} */ (this))._currentRenderModel.resolvedModel.overlays.find(o => o.id === overlayId);
-    }
-
-    // Try systems manager
-    const resolvedModel = this.coordinator?.getResolvedModel?.();
-    if (resolvedModel?.overlays) {
-      return resolvedModel.overlays.find(o => o.id === overlayId);
-    }
-
-    return null;
-  }
-
-
 
 
 
@@ -1572,9 +1559,14 @@ export class AdvancedRenderer {
    * — deliberately avoided here so running animations on unrelated overlays are
    * never disturbed by a color-only update).
    *
+   * With `all`, every line and shape is re-resolved (alert-mode palette
+   * change: plain colours were resolved to concrete values at paint time).
+   *
    * @param {Object} hass - Current Home Assistant state object
+   * @param {Object} [options]
+   * @param {boolean} [options.all=false] - Include overlays with no entity or template
    */
-  updateLineEntityColors(hass) {
+  updateLineEntityColors(hass, { all = false } = {}) {
     const overlays = this.lastRenderArgs?.overlays;
     if (!hass || !overlays) return;
 
@@ -1587,7 +1579,7 @@ export class AdvancedRenderer {
       const styleValue = overlay.finalStyle?.color ?? overlay.style?.color;
       const isTemplateLiteral = typeof styleValue === 'string' &&
         (styleValue.includes('{{') || styleValue.includes('{%') || styleValue.includes('[[['));
-      if (!overlay.entity && !isTemplateLiteral) continue;
+      if (!all && !overlay.entity && !isTemplateLiteral) continue;
 
       const el = this.overlayElementCache.get(overlay.id);
       if (!el) continue;
@@ -1605,12 +1597,9 @@ export class AdvancedRenderer {
         cardInstance,
         'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))'
       );
-      // Full pipeline required: setAttribute() cannot handle var() —
-      // _resolveLineColor()/_resolveShapeColor() only performs token/state
-      // resolution for literal string colors, so materialize any remaining
-      // var(...) here before writing it to the DOM. `el` scopes the lookup so
-      // inherited/section-scoped CSS vars resolve correctly.
-      const newColor = ColorUtils.resolveCssVariable(rawColor, '#ff7700', el);
+      // setAttribute() cannot handle var(): materialise to a concrete colour.
+      // `el` scopes the lookup so inherited/section-scoped CSS vars resolve.
+      const newColor = resolveColor(rawColor, { concrete: true, element: el, fallback: '#ff7700' });
 
       // Class-name selector (not tag-based) so this matches shape's <rect>/
       // <ellipse> main elements (kind: rect/circle) as well as <path> (line, and
@@ -1640,7 +1629,7 @@ export class AdvancedRenderer {
           undefined,
           'defaultFillColor'
         );
-        const newFill = ColorUtils.resolveCssVariable(rawFill, 'none', el);
+        const newFill = rawFill === 'none' ? 'none' : resolveColor(rawFill, { concrete: true, element: el, fallback: 'none' });
         el.querySelectorAll('.line-path, .shape-path').forEach(p => p.setAttribute('fill', newFill));
       }
 

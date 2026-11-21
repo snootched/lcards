@@ -1,0 +1,82 @@
+# MSD basics (D1c): a master systems display: a ship blueprint (base_svg), cards
+# placed on it (control overlays) and lines routed from each card to a point on the
+# ship (the blueprint's own anchors br, wc and sb).
+title: MSD basics
+path: msd-basics
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:ncc-1701-a-blue
+          view_box: [180, 270, 1600, 720]
+          overlays:
+            # A button that toggles the lights, joined to the bridge
+            - id: bridge-ctl
+              type: control
+              attachment: top-left
+              position: [190, 278]
+              size: [340, 96]
+              card:
+                type: custom:lcards-button
+                preset: lozenge
+                entity: input_boolean.lcards_test_lights
+                tap_action: { action: toggle }
+                text: { name: { content: BRIDGE, show: true, font_size: 30 } }
+            # A button on the toggle helper, joined to the warp core
+            - id: core-ctl
+              type: control
+              attachment: top-left
+              position: [190, 886]
+              size: [340, 96]
+              card:
+                type: custom:lcards-button
+                preset: lozenge
+                entity: input_boolean.lcards_test_toggle
+                tap_action: { action: toggle }
+                text: { name: { content: WARP CORE, show: true, font_size: 30 } }
+            # A readout of the doors, joined to the shuttle bay
+            - id: shuttle-ctl
+              type: control
+              attachment: top-left
+              position: [1430, 886]
+              size: [340, 96]
+              card:
+                type: custom:lcards-button
+                preset: filled
+                entity: input_boolean.lcards_test_doors
+                tap_action: { action: toggle }
+                text: { name: { content: SHUTTLE BAY, show: true, font_size: 30 } }
+            - { id: bridge-line, type: line, anchor: bridge-ctl, attach_to: br, route: auto, corner_style: round, style: { color: var(--lcards-gray-medium-light), width: 3 } }
+            - { id: core-line, type: line, anchor: core-ctl, attach_to: wc, route: auto, corner_style: round, style: { color: var(--lcards-gray-medium-light), width: 3 } }
+            - { id: shuttle-line, type: line, anchor: shuttle-ctl, attach_to: sb, route: auto, corner_style: round, style: { color: var(--lcards-gray-medium-light), width: 3 } }
+        grid_options: { columns: full, rows: 8 }
+      # The same ship faded and dimmed (base_svg filters), its lines dashed and orange
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:ncc-1701-a-blue
+            filters:
+              - { mode: css, type: opacity, value: 0.5 }
+              - { mode: css, type: brightness, value: 0.8 }
+          view_box: [180, 270, 1600, 720]
+          overlays:
+            - id: bridge-tag
+              type: control
+              attachment: top-left
+              position: [190, 278]
+              size: [300, 80]
+              card: { type: custom:lcards-button, preset: panel-dark, interactive: false, text: { label: { content: BRIDGE, font_size: 30 } } }
+            - id: sickbay-tag
+              type: control
+              attachment: top-left
+              position: [1430, 900]
+              size: [300, 80]
+              card: { type: custom:lcards-button, preset: panel-light, interactive: false, text: { label: { content: SHUTTLE BAY, font_size: 30 } } }
+            - { id: tag-line-1, type: line, anchor: bridge-tag, attach_to: br, route: auto, style: { color: var(--lcards-orange), width: 3, dash_array: "12,8" } }
+            - { id: tag-line-2, type: line, anchor: sickbay-tag, attach_to: sb, route: auto, style: { color: var(--lcards-orange), width: 3, dash_array: "12,8" } }
+        grid_options: { columns: full, rows: 8 }

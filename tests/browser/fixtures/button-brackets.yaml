@@ -1,0 +1,8 @@
+# button component: brackets (doc/cards/button/index.md)
+type: custom:lcards-button
+component: brackets
+text:
+  label:
+    content: "88"
+    show: true
+    position: center

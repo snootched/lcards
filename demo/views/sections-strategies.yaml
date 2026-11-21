@@ -1,0 +1,125 @@
+# LCARS section strategies (S5, 2026-11-15): three automatic sections that fill
+# themselves from a target, each in the classic or Picard look, with or without a
+# frame. Rows: classic, classic framed, Picard, Picard framed, then readings in the
+# other mode (classic table, Picard numbers) and controls with gap, padding and
+# header_gap set. The framed classic levels and the spaced controls show codes. The
+# last row: three sections with item_height 40, their rows lined up. Here the targets are
+# lcards_test_* helpers; in edit mode, Create section → Automatic section lists them
+# under Community sections.
+title: Section strategies
+path: sections-strategies
+type: sections
+max_columns: 3
+sections:
+- strategy:
+    type: custom:lcars-readings
+    title: READINGS
+    target: &id001
+      entity_id:
+      - sensor.lcards_test_bridge_temperature
+      - sensor.lcards_test_bridge_humidity
+      - sensor.desk_sensor_temperature
+- strategy:
+    type: custom:lcars-gauges
+    title: LEVELS
+    target: &id002
+      entity_id:
+      - input_number.lcards_test_power
+      - input_number.lcards_test_shields
+      - input_number.lcards_test_humidity
+      - input_number.lcards_test_temperature
+- strategy:
+    type: custom:lcars-controls
+    title: CONTROLS
+    target: &id003
+      entity_id:
+      - input_boolean.lcards_test_lights
+      - input_boolean.lcards_test_doors
+      - input_boolean.lcards_test_warp
+      - input_boolean.lcards_test_warp_travel
+- strategy:
+    type: custom:lcars-readings
+    title: READINGS
+    target: *id001
+    frame: true
+- strategy:
+    type: custom:lcars-gauges
+    title: LEVELS
+    target: *id002
+    frame: true
+    codes: true
+- strategy:
+    type: custom:lcars-controls
+    title: CONTROLS
+    target: *id003
+    frame: true
+- strategy:
+    type: custom:lcars-readings
+    title: READINGS
+    target: *id001
+    look: picard
+- strategy:
+    type: custom:lcars-gauges
+    title: LEVELS
+    target: *id002
+    look: picard
+- strategy:
+    type: custom:lcars-controls
+    title: CONTROLS
+    target: *id003
+    look: picard
+- strategy:
+    type: custom:lcars-readings
+    title: READINGS
+    target: *id001
+    look: picard
+    frame: true
+- strategy:
+    type: custom:lcars-gauges
+    title: LEVELS
+    target: *id002
+    look: picard
+    frame: true
+- strategy:
+    type: custom:lcars-controls
+    title: CONTROLS
+    target: *id003
+    look: picard
+    frame: true
+- strategy:
+    type: custom:lcars-readings
+    title: TABLE
+    target: *id001
+    mode: table
+    frame: true
+- strategy:
+    type: custom:lcars-readings
+    title: NUMBERS
+    target: *id001
+    look: picard
+    mode: numbers
+- strategy:
+    type: custom:lcars-controls
+    title: SPACED
+    target: *id003
+    frame: true
+    codes: true
+    gap: 12
+    padding: 24
+    header_gap: 30
+- strategy:
+    type: custom:lcars-readings
+    title: LINED UP
+    target: *id001
+    item_height: 40
+- strategy:
+    type: custom:lcars-gauges
+    title: LINED UP
+    target: *id002
+    item_height: 40
+- strategy:
+    type: custom:lcars-controls
+    title: LINED UP
+    target: *id003
+    columns: 1
+    item_height: 40

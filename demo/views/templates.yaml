@@ -1,0 +1,81 @@
+# Templates (D1c): the four kinds of template in a card's text and colours, all
+# reading POWER (and LIGHTS): tokens, JavaScript, Jinja2 and data source values.
+title: Templates
+path: templates
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: POWER } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        tap_action: { action: toggle }
+        text: { name: { content: LIGHTS, show: true } }
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      # Token: the entity's state, put into the text as it is
+      - type: custom:lcards-button
+        entity: input_number.lcards_test_power
+        preset: panel-dark
+        interactive: false
+        text:
+          name: { content: TOKEN, show: true, position: top-left }
+          label: { content: "{entity.state}", font_size: 40, position: bottom-right }
+        grid_options: { columns: 12, rows: 2 }
+      # JavaScript: any logic, here a word for the level and a colour to match
+      - type: custom:lcards-button
+        entity: input_number.lcards_test_power
+        preset: panel-dark
+        interactive: false
+        text:
+          name: { content: JAVASCRIPT, show: true, position: top-left }
+          label:
+            content: "[[[ const v = Number(entity.state); return v > 80 ? 'CRITICAL' : v > 40 ? 'NOMINAL' : 'LOW'; ]]]"
+            font_size: 40
+            position: bottom-right
+            color: "[[[ return Number(entity.state) > 80 ? 'var(--lcars-alert-red)' : 'var(--lcards-moonlight)'; ]]]"
+        grid_options: { columns: 12, rows: 2 }
+      # Jinja2: Home Assistant's own templates, rendered by Home Assistant
+      - type: custom:lcards-button
+        entity: input_number.lcards_test_power
+        preset: panel-dark
+        interactive: false
+        text:
+          name: { content: JINJA2, show: true, position: top-left }
+          label: { content: "{{ (states('input_number.lcards_test_power') | float(0) * 12.5) | round(0) | int }} MW", font_size: 40, position: bottom-right }
+        grid_options: { columns: 12, rows: 2 }
+      # Data source: a smoothed copy of POWER (see the data sources view)
+      - type: custom:lcards-button
+        preset: panel-dark
+        interactive: false
+        data_sources:
+          demo_templates_power:
+            entity: input_number.lcards_test_power
+            processing:
+              smooth: { type: smooth, method: exponential, alpha: 0.2 }
+        text:
+          name: { content: DATA SOURCE, show: true, position: top-left }
+          label: { content: "{datasource:demo_templates_power.smooth:.1f}", font_size: 40, position: bottom-right }
+        grid_options: { columns: 12, rows: 2 }
+      # A card that reads another entity: its text follows LIGHTS too (triggers_update)
+      - type: custom:lcards-button
+        entity: input_number.lcards_test_power
+        preset: filled
+        interactive: false
+        triggers_update: [input_boolean.lcards_test_lights]
+        text:
+          name:
+            content: "[[[ return (hass.states['input_boolean.lcards_test_lights']?.state === 'on' ? 'LIGHTS ON' : 'LIGHTS OFF') + ' · POWER ' + entity.state; ]]]"
+            show: true
+        grid_options: { columns: 24, rows: 1 }

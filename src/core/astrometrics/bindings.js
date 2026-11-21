@@ -1,0 +1,485 @@
+/**
+ * Settings from entities (R4b): any numeric key on a point or object, and
+ * the card's `time_scale`, `warp_factor`, `clock.rate` and `clock.date`, can follow an
+ * entity instead of holding a number:
+ *
+ *   opacity: { entity: input_number.shields, output: [0, 0.6] }        the mapping form
+ *   radius: { entity: sensor.x, attribute: level, input: [0, 10], output: [5, 40], smooth: 1000 }
+ *   spin: "[[[ return states['input_number.power'].state / 10 ]]]"  a template
+ *
+ * The mapping speaks the `map_range` vocabulary used across LCARdS
+ * (animations, background animations, the rules' `map_range_cond`): `input`
+ * [low, high] of the entity, `output` [low, high] of the setting. `input`
+ * defaults to the entity's `min` / `max` attributes, else 0 to 100; without
+ * `output` the value is the entity's number as it is. Values outside `input`
+ * hold at the ends of `output` unless `clamp: false`. Any other key is a state
+ * with its value (`playing: 1`, `active: 40`, `above:80: 60`), matched first, in
+ * the state colours' order; read by its state alone, an active entity (on,
+ * playing, home) gives the high end of `input` and an inactive one the low end. A missing or
+ * non-numeric value (a light that is off has no brightness) gives `default`,
+ * the setting's value then, else leaves the key at its own default.
+ *
+ * Colours on an object (`color` at any depth, each item of `colors`, and
+ * fill.effect's colour keys) can follow an entity or a template too:
+ *
+ *   color: { entity: input_select.alert, default: var(--lcars-blue), red: var(--lcars-red) }   a state map
+ *   color: { entity: light.desk, attribute: rgb_color }      the entity's own colour
+ *   color: "[[[ return states['sensor.x'].state > 50 ? 'red' : 'blue' ]]]"
+ *
+ * The state map speaks the state colour words of the other cards
+ * (state-color-resolver.js: a state, active, inactive, unavailable, zero,
+ * non_zero, above:N, below:N, between:A:B, default), plus `entity` (an object
+ * has none of its own) and `attribute` (matched instead of the state). No key
+ * matching, the value itself when it is a colour ([r, g, b] too). Colours
+ * step (the object rebuilds); points keep their own state colours (labels).
+ *
+ * `camera.view` can follow an entity too (a guided tour): a number picks
+ * `views[n]` (from 0), a text state names a view; a stop may also set the
+ * clock (`{ view, date, rate }`).
+ *
+ * Positions (`xyz`, `polar`, `latlon`, `altaz` with `entity`) are the older
+ * position bindings (point-data.js), not these.
+ *
+ * Pure (no three.js, no Lit): the card collects and resolves, the scene
+ * applies (live keys ease in place, others rebuild their object).
+ *
+ * @module core/astrometrics/bindings
+ */
+import { TemplateDetector } from '../templates/TemplateDetector.js';
+import { templateRefs } from '../templates/template-refs.js';
+import { BINDABLE_FORMS } from './placements.js';
+import { WHOLE_NUMBER_KEYS, LIVE_TYPE_KEYS, SETTING_WORDS, objectIds } from './names.js';
+import { stateKeyFor } from '../../utils/state-color-resolver.js';
+import { isColorValue } from '../themes/color-syntax.js';
+
+/** How long a live key eases to a new value, ms (`smooth` on the binding) */
+export const DEFAULT_SMOOTH_MS = 600;
+
+/**
+ * Object keys the scene changes in place (no rebuild), easing: `opacity`
+ * scales the whole object, `radius` / `size` scale its node, `spin` turns it.
+ * A type can take more itself (names.js LIVE_TYPE_KEYS).
+ */
+export const LIVE_OBJECT_KEYS = /** @type {const} */ (['opacity', 'radius', 'size', 'spin']);
+
+/** Keys never walked for bindings: text, actions, references and what is not a setting */
+export const SKIP = new Set([
+  'id', 'type', 'tags', 'label', 'text', 'tap_action', 'hold_action', 'card', 'entity', 'src', 'image', 'at', 'object',
+  'part', 'cell', 'sky', 'body', 'center', 'orbit', 'points', 'from', 'to', 'point', 'color', 'colors',
+  // fill.effect's colour keys (the background presets' names)
+  'fill_color', 'color_a', 'color_b', 'light', 'marker', 'style', 'shape', 'pattern', 'preset', 'axis_labels', 'material',
+  // a seed picks a random pattern: a new one would rebuild the object with a jump (the user, 2026-11-08)
+  'seed'
+]);
+
+/** An object's colour keys (fill.effect's take the background presets' names); `colors` holds a list of them */
+const COLOR_KEYS = new Set(['color', 'colors', 'fill_color', 'color_a', 'color_b']);
+
+/**
+ * @typedef {Object} SettingBinding
+ * @property {'point' | 'object' | 'card'} scope
+ * @property {string} id - the point or object id ('' for the card)
+ * @property {(string | number)[]} path - from the point or object (or the card) down to the key
+ * @property {Record<string, any> | null} spec - the mapping form, or null for a template
+ * @property {string | null} template - the template text
+ * @property {string[]} entities - what it reads (the mapping's entity; a template's references)
+ * @property {boolean} live - the scene changes it in place and eases (else the object rebuilds)
+ * @property {number} [most] - a live key the object builds for the most it can reach (LIVE_TYPE_KEYS `most`)
+ * @property {number} smooth - ease time, ms (0: step)
+ * @property {'number' | 'whole' | 'date' | 'color'} kind - clock.date resolves to a date, a whole-number key (WHOLE_NUMBER_KEYS) to a
+ *   whole number, an object's colour to a colour (entityColor, templateColor), everything else to a number
+ */
+
+/** @param {any} v */
+export const isBinding = (v) => !!v && typeof v === 'object' && !Array.isArray(v) && typeof v.entity === 'string' && v.entity !== '';
+
+/** @param {any} v */
+export const isTemplateValue = (v) => typeof v === 'string' && TemplateDetector.hasTemplates(v);
+
+/**
+ * @param {SettingBinding['scope']} scope
+ * @param {string} id
+ * @param {(string | number)[]} path
+ * @param {any} v
+ * @param {SettingBinding['kind']} [kind]
+ * @returns {SettingBinding | null}
+ */
+function makeBinding(scope, id, path, v, kind = 'number', type = '') {
+  const key = path[path.length - 1];
+  const joined = path.join('.');
+  if (kind === 'number' && scope !== 'card' && WHOLE_NUMBER_KEYS.includes(/** @type {any} */ (key))) kind = 'whole';
+  const own = scope === 'object' ? LIVE_TYPE_KEYS[type] : undefined;
+  const live = kind !== 'color' && ((scope === 'object' && path.length === 1 && LIVE_OBJECT_KEYS.includes(/** @type {any} */ (key)))
+    || !!own?.keys.includes(joined)
+    || (scope === 'card' && (joined === 'time_scale' || joined === 'clock.rate')));
+  const cap = live ? own?.most?.[joined] : undefined;
+  if (isBinding(v)) {
+    const smooth = Number(v.smooth);
+    const top = pairOf(v.output);
+    const most = cap === undefined ? {} : { most: top ? Math.min(cap, Math.max(0, Math.ceil(Math.max(top[0], top[1])))) : cap };
+    return { scope, id, path, spec: v, template: null, entities: [v.entity], live, smooth: Number.isFinite(smooth) && smooth >= 0 ? smooth : DEFAULT_SMOOTH_MS, kind, ...most };
+  }
+  if (isTemplateValue(v)) {
+    return { scope, id, path, spec: null, template: v, entities: [...templateRefs(v).entities], live, smooth: DEFAULT_SMOOTH_MS, kind, ...(cap === undefined ? {} : { most: cap }) };
+  }
+  return null;
+}
+
+/**
+ * Bindings inside a point or object config, at any depth (deform steps,
+ * fill.effect, pulse), skipping text, actions and references. An object's
+ * colours are found as colours; a point's colour is its label's state colour.
+ * @param {any} node
+ * @param {(string | number)[]} path
+ * @param {(path: (string | number)[], v: any, kind?: SettingBinding['kind']) => void} found
+ * @param {boolean} isPoint
+ */
+function walk(node, path, found, isPoint) {
+  if (Array.isArray(node)) {
+    node.forEach((v, i) => {
+      if (isBinding(v) || isTemplateValue(v)) found([...path, i], v);
+      else if (v && typeof v === 'object') walk(v, [...path, i], found, isPoint);
+    });
+    return;
+  }
+  for (const [k, v] of Object.entries(node ?? {})) {
+    if (!isPoint && COLOR_KEYS.has(k)) {
+      for (const [at, c] of Array.isArray(v) ? v.map((c, i) => /** @type {const} */ ([[...path, k, i], c])) : [[[...path, k], v]]) {
+        if (isBinding(c) || isTemplateValue(c)) found(/** @type {any} */ (at), c, 'color');
+      }
+      continue;
+    }
+    if (SKIP.has(k)) continue;
+    // a point's position from an entity is the older position binding
+    if (isPoint && path.length === 0 && BINDABLE_FORMS.includes(/** @type {any} */ (k))) continue;
+    if (isBinding(v) || isTemplateValue(v)) found([...path, k], v);
+    else if (v && typeof v === 'object') walk(v, [...path, k], found, isPoint);
+  }
+}
+
+/** Each object's id as the scene builder names it (names.js) */
+export { objectIds };
+
+/**
+ * Every setting binding in a (flattened) card config.
+ * @param {any} config
+ * @returns {SettingBinding[]}
+ */
+export function collectBindings(config) {
+  /** @type {SettingBinding[]} */
+  const out = [];
+  const add = (/** @type {SettingBinding | null} */ b) => { if (b) out.push(b); };
+  for (const p of Array.isArray(config?.points) ? config.points : []) {
+    if (!p || typeof p !== 'object' || p.id === undefined) continue;
+    walk(p, [], (path, v) => add(makeBinding('point', String(p.id), path, v)), true);
+  }
+  const objects = Array.isArray(config?.objects) ? config.objects : [];
+  const ids = objectIds(objects);
+  objects.forEach((o, i) => {
+    if (!o || typeof o !== 'object' || o.type === 'system') return;
+    walk(o, [], (path, v, kind) => add(makeBinding('object', /** @type {string} */ (ids[i]), path, v, kind ?? 'number', String(o.type ?? ''))), false);
+  });
+  add(makeBinding('card', '', ['time_scale'], config?.time_scale));
+  add(makeBinding('card', '', ['warp_factor'], config?.warp_factor));
+  add(makeBinding('card', '', ['clock', 'rate'], config?.clock?.rate));
+  add(makeBinding('card', '', ['clock', 'date'], config?.clock?.date, 'date'));
+  return out;
+}
+
+/**
+ * A bound value as its key takes it: a whole-number key's rounded (so an
+ * entity moving within one step does not rebuild the object), else as it is.
+ * @param {SettingBinding} b
+ * @param {any} value
+ */
+export function roundedSetting(b, value) {
+  return b.kind === 'whole' && typeof value === 'number' ? Math.round(value) : value;
+}
+
+/** A binding's key, unique in a card: `object:ring1:deform.0.amplitude` @param {SettingBinding} b */
+export const bindingKey = (b) => `${b.scope}:${b.id}:${b.path.join('.')}`;
+
+/**
+ * The state keys of a binding (`playing: 1`, `active: 40`, `above:80: 60`): every key
+ * that is not one of SETTING_WORDS, with a number.
+ * @param {Record<string, any>} spec
+ * @returns {Record<string, number>}
+ */
+export function stateValues(spec) {
+  /** @type {Record<string, number>} */
+  const out = {};
+  for (const [k, v] of Object.entries(spec ?? {})) {
+    if (!(/** @type {readonly string[]} */ (SETTING_WORDS)).includes(k) && typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * The number a setting that follows an entity gives now, in the order the state
+ * colours use (state-color-resolver.js stateKeyFor): a state key that matches (the
+ * state or `attribute`'s value, `zero`, a range, `non_zero`, then the classified
+ * `active` / `inactive` / `unavailable`); else the state (or `attribute`) as a number
+ * mapped from `input` to `output`; else, with no state keys and read by the state, `active`
+ * as the high end of `input` and `inactive` as the low end (a light, a switch, a player
+ * that is playing); else `default`, else null.
+ * @param {Record<string, any>} spec
+ * @param {any} entity - a Home Assistant state object
+ * @param {string | null} [classified] - the card's active / inactive / unavailable for it
+ *   (LCARdSCard._classifyEntityState); left out, on is active and off inactive
+ * @returns {number | null}
+ */
+export function mapEntity(spec, entity, classified) {
+  if (!entity) return missing(spec);
+  const named = typeof spec.attribute === 'string' && spec.attribute;
+  const raw = named ? attributeOf(entity, spec.attribute) : entity.state;
+  const kind = classified ?? (entity.state === 'on' ? 'active' : entity.state === 'off' ? 'inactive' : null);
+  const states = stateValues(spec);
+  if (Object.keys(states).length) {
+    const key = stateKeyFor({
+      actualState: entity.state ?? null,
+      classifiedState: kind,
+      colorConfig: states,
+      ...(named ? { attributeState: raw === null || raw === undefined ? undefined : String(raw), numericState: parseFloat(raw) } : {})
+    });
+    if (key !== null) return states[key];
+  }
+  const n = mapNumber({ ...spec, default: undefined }, raw, entity.attributes);
+  if (n !== null) return n;
+  // a range alone (no state keys: those that do not match give default)
+  if (!named && !Object.keys(states).length && (kind === 'active' || kind === 'inactive')) return mapNumber(spec, inputOf(spec, entity.attributes)[kind === 'active' ? 1 : 0], entity.attributes);
+  return missing(spec);
+}
+
+/**
+ * A raw value through a mapping (a template's result too).
+ * @param {Record<string, any> | null} spec
+ * @param {any} raw
+ * @param {Record<string, any>} [attributes] - for the input default (min / max)
+ * @returns {number | null}
+ */
+export function mapNumber(spec, raw, attributes = {}) {
+  if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') return missing(spec);
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return missing(spec);
+  const output = pairOf(spec?.output);
+  if (!output) return n;
+  const input = inputOf(spec, attributes);
+  const span = input[1] - input[0];
+  const t0 = span === 0 ? 0 : (n - input[0]) / span;
+  const t = spec?.clamp === false ? t0 : Math.min(1, Math.max(0, t0));
+  return output[0] + t * (output[1] - output[0]);
+}
+
+/**
+ * An entity's attribute, with the virtual `brightness_pct` the other cards read (a light's
+ * brightness as 0 to 100 %, 0 while it is off: LCARdSCard._getNumericStateForRanges)
+ * @param {any} entity
+ * @param {string} name
+ * @returns {any}
+ */
+export function attributeOf(entity, name) {
+  if (name === 'brightness_pct') {
+    const b = entity?.attributes?.brightness;
+    return b === undefined ? undefined : Math.round(Number(b ?? 0) / 2.55);
+  }
+  return entity?.attributes?.[name];
+}
+
+/**
+ * A mapping's input range: its own, else the entity's `min` and `max` (an input_number), else 0 to 100
+ * @param {Record<string, any> | null} spec
+ * @param {Record<string, any>} [attributes]
+ * @returns {[number, number]}
+ */
+function inputOf(spec, attributes = {}) {
+  return pairOf(spec?.input) ?? (Number.isFinite(Number(attributes?.min)) && Number.isFinite(Number(attributes?.max)) && Number(attributes.max) !== Number(attributes.min)
+    ? [Number(attributes.min), Number(attributes.max)] : [0, 100]);
+}
+
+/**
+ * A mapping's value while the entity has no number: its `default` (the setting's value), else null
+ * @param {Record<string, any> | null} spec
+ * @returns {number | null}
+ */
+function missing(spec) {
+  const d = spec?.default;
+  return typeof d === 'number' && Number.isFinite(d) ? d : null;
+}
+
+/** @param {any} v @returns {[number, number] | null} */
+function pairOf(v) {
+  if (!Array.isArray(v) || v.length < 2) return null;
+  const a = Number(v[0]), b = Number(v[1]);
+  return Number.isFinite(a) && Number.isFinite(b) ? [a, b] : null;
+}
+
+/**
+ * The colour a state map gives for an entity now (an object's colour that
+ * follows an entity): the matching state key's colour, as configured (the
+ * object resolves it); no key matching, the value itself when it is a
+ * colour. null: the key's default.
+ * @param {Record<string, any>} spec - `{ entity, attribute?, <state>: colour, ... }`
+ * @param {any} entity - a Home Assistant state object
+ * @param {string} classified - the entity's state class (active, inactive, unavailable, ...)
+ * @returns {string | null}
+ */
+export function entityColor(spec, entity, classified) {
+  const { entity: _id, attribute, ...map } = spec;
+  const attr = typeof attribute === 'string' && attribute ? attribute : null;
+  const raw = attr ? attributeOf(entity, attr) : entity?.state;
+  const n = attr ? parseFloat(raw) : undefined;
+  const key = stateKeyFor({
+    actualState: entity?.state ?? null,
+    classifiedState: classified,
+    colorConfig: map,
+    ...(attr ? { attributeState: raw === null || raw === undefined ? undefined : String(raw), numericState: n } : {})
+  });
+  if (key !== null) return String(map[key]);
+  return Array.isArray(raw) || isColorValue(raw) ? templateColor(raw) : null;
+}
+
+/**
+ * A template's result (or an entity's value) as a colour: text as it is,
+ * [r, g, b] as rgb(); null for nothing or anything else.
+ * @param {any} v
+ * @returns {string | null}
+ */
+export function templateColor(v) {
+  if (Array.isArray(v) && v.length >= 3 && v.slice(0, 3).every((x) => Number.isFinite(Number(x)))) return `rgb(${v.slice(0, 3).map(Number).join(', ')})`;
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t === '' || t === 'unknown' || t === 'unavailable' ? null : t;
+}
+
+/**
+ * The date a binding gives (clock.date): an entity's state or attribute
+ * (an `input_datetime`, a sensor with a timestamp), or a template's text,
+ * as given; the clock parses it. null when there is none.
+ * @param {Record<string, any> | null} spec
+ * @param {any} raw - a template's result, or the entity's state object
+ */
+export function dateValue(spec, raw) {
+  if (spec) {
+    if (!raw) return null;
+    const v = typeof spec.attribute === 'string' && spec.attribute ? raw.attributes?.[spec.attribute] : raw.state;
+    return v === undefined || v === null || v === '' || v === 'unknown' || v === 'unavailable' ? null : String(v);
+  }
+  return raw === undefined || raw === null || raw === '' ? null : String(raw);
+}
+
+/**
+ * A config with values set at paths (a copy along each path; the rest
+ * shared). null removes the key, so the key's default applies.
+ * @param {any} obj
+ * @param {Iterable<[(string | number)[], any]>} entries
+ */
+export function withValues(obj, entries) {
+  let out = obj;
+  for (const [path, value] of entries) out = setAt(out, path, value);
+  return out;
+}
+
+/**
+ * @param {any} node
+ * @param {(string | number)[]} path
+ * @param {any} value
+ * @returns {any}
+ */
+function setAt(node, path, value) {
+  if (!path.length) return value;
+  const [k, ...rest] = path;
+  const copy = Array.isArray(node) ? [...node] : { ...(node ?? {}) };
+  if (rest.length) copy[/** @type {any} */ (k)] = setAt(copy[/** @type {any} */ (k)], rest, value);
+  else if (value === null || value === undefined) {
+    if (Array.isArray(copy)) copy[/** @type {number} */ (k)] = undefined;
+    else delete copy[/** @type {string} */ (k)];
+  } else copy[/** @type {any} */ (k)] = value;
+  return copy;
+}
+
+/**
+ * `camera.view` bound to an entity (a guided tour): `{ entity, attribute?, views? }`.
+ * @param {any} view
+ */
+export const isTourView = (view) => isBinding(view);
+
+/**
+ * Where a tour goes for an entity's value: a number picks `views[n]` (from
+ * 0, rounded, clamped); text names a view (or matches a stop's `view`). A
+ * stop is a view name or `{ view, date?, rate? }`.
+ * @param {Record<string, any>} tour - the camera.view binding
+ * @param {any} entity
+ * @returns {{ view: string, date?: any, rate?: any } | null}
+ */
+export function tourStop(tour, entity) {
+  if (!entity) return null;
+  const raw = typeof tour.attribute === 'string' && tour.attribute ? entity.attributes?.[tour.attribute] : entity.state;
+  if (raw === undefined || raw === null || raw === '' || raw === 'unknown' || raw === 'unavailable') return null;
+  const stops = Array.isArray(tour.views) ? tour.views : [];
+  const asStop = (/** @type {any} */ s) => (typeof s === 'string' ? { view: s } : s && typeof s === 'object' && typeof s.view === 'string' ? s : null);
+  const n = Number(raw);
+  if (stops.length && Number.isFinite(n)) return asStop(stops[Math.min(stops.length - 1, Math.max(0, Math.round(n)))]);
+  const name = String(raw);
+  return stops.map(asStop).find((s) => s?.view === name) ?? { view: name };
+}
+
+/**
+ * One ease step: where a live value is at `now` between `from` and `to`
+ * (smoothstep over `ms`).
+ * @param {number} from
+ * @param {number} to
+ * @param {number} start - when it began, ms
+ * @param {number} ms
+ * @param {number} now
+ * @returns {{ value: number, done: boolean }}
+ */
+export function easeStep(from, to, start, ms, now) {
+  if (!(ms > 0) || now >= start + ms) return { value: to, done: true };
+  const t = Math.max(0, (now - start) / ms);
+  const s = t * t * (3 - 2 * t);
+  return { value: from + (to - from) * s, done: false };
+}
+
+/**
+ * A config with every setting binding replaced by its value now (the card's
+ * values, by bindingKey; none yet: the key's default). A live opacity builds
+ * at 1 (the scene multiplies the value in); a key with `most` also sets
+ * `_most.<key>`, the size to build for; the card's time_scale and clock
+ * keys are left out (the scene gets them through setLive and setClock).
+ * @param {Record<string, any>} config
+ * @param {SettingBinding[]} settings
+ * @param {Map<string, any>} values
+ */
+export function settingConfig(config, settings, values) {
+  if (!settings.length) return config;
+  /** @type {Map<string, [(string | number)[], any][]>} */
+  const byItem = new Map();
+  /** @type {[(string | number)[], any][]} */
+  const card = [];
+  for (const b of settings) {
+    if (b.scope === 'card') {
+      card.push([b.path, null]);
+      continue;
+    }
+    const v = b.live && b.path[0] === 'opacity' && b.path.length === 1 ? 1 : (values.get(bindingKey(b)) ?? null);
+    const k = `${b.scope}:${b.id}`;
+    if (!byItem.has(k)) byItem.set(k, []);
+    const entries = /** @type {any[]} */ (byItem.get(k));
+    entries.push([b.path, v]);
+    // built for the most it can reach (`_most.count`), drawing the value now
+    if (b.most !== undefined) entries.push([['_most', ...b.path], b.most]);
+  }
+  const map = (/** @type {any[] | undefined} */ list, /** @type {string} */ scope) => {
+    const ids = scope === 'object' && list ? objectIds(list) : null;
+    return list?.map((item, i) => {
+      const id = ids ? ids[i] : item && item.id !== undefined ? String(item.id) : null;
+      const entries = id !== null ? byItem.get(`${scope}:${id}`) : undefined;
+      return entries ? withValues(item, entries) : item;
+    });
+  };
+  return withValues({
+    ...config,
+    ...(Array.isArray(config.points) ? { points: map(config.points, 'point') } : {}),
+    ...(Array.isArray(config.objects) ? { objects: map(config.objects, 'object') } : {})
+  }, card);
+}

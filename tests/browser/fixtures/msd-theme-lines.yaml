@@ -1,0 +1,32 @@
+# MSD lines and a shape coloured by theme tokens, inside a themed view (msd-theme-lines.spec.js)
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: none
+  view_box: [0, 0, 600, 300]
+  anchors:
+    a_start: [50, 100]
+    a_end: [550, 100]
+    b_start: [50, 200]
+    b_end: [550, 200]
+  overlays:
+    - id: line_a
+      type: line
+      anchor: a_start
+      attach_to: a_end
+      style:
+        color: theme:colors.ui.quaternary
+    - id: line_b
+      type: line
+      anchor: b_start
+      attach_to: b_end
+      style:
+        color: var(--lcars-ui-tertiary)
+    - id: shape_a
+      type: shape
+      kind: rect
+      position: [250, 120]
+      size: [100, 60]
+      style:
+        color: theme:colors.ui.tertiary
+        fill: theme:colors.ui.quaternary

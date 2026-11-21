@@ -44,7 +44,7 @@ export class LCARdSSoundSourceSelector extends LitElement {
     this.value = '__scheme__';
     this.audioAssets = [];
     this.disabled = false;
-    this.schemeLabel = '— Use scheme default —';
+    this.schemeLabel = '(Use scheme default)';
     // True while the user has switched the dropdown to "Browse HA Media" but
     // hasn't picked an item yet — value hasn't changed, so this can't be
     // derived from `value` alone.
@@ -99,8 +99,8 @@ export class LCARdSSoundSourceSelector extends LitElement {
             custom_value: (3 + this.audioAssets.length) >= 10,
             options: [
               { value: '__scheme__', label: this.schemeLabel },
-              { value: '__mute__',   label: '🔇 Mute this event' },
-              { value: MEDIA_MODE,   label: '🌐 Browse HA Media…' },
+              { value: '__mute__',   label: 'Mute this event' },
+              { value: MEDIA_MODE,   label: 'Browse Home Assistant Media…' },
               ...this.audioAssets.map(a => ({ value: a.key, label: `${a.key} (${a.pack})` }))
             ]
           }}}

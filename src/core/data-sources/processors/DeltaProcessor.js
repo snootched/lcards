@@ -15,7 +15,7 @@ import { Processor } from './BaseProcessor.js';
  * ```yaml
  * processor_name:
  *   type: delta
- *   from: source_processor  # Optional
+ *   input_source: source_processor  # Optional
  *   absolute: false         # true = |change|, false = signed change
  * ```
  */

@@ -823,11 +823,15 @@ export const BUTTON_PRESETS = {
 
   'panel-light': {
     extends: 'button.barrel',
-    description: 'non-interactive square-cornered panel with LCARS random label',
+    description: 'square-cornered panel with a code label; with an entity, the theme accent when on and the dark structure tone when off',
     text: {
       label: {
         show: true,
-        position: 'bottom-right'
+        position: 'bottom-right',
+        color: {
+          // text partner of the inactive background (card-top-color): readable in every theme
+          inactive: 'var(--lcars-card-top-text, var(--lcards-gray-lightest))'
+        }
       },
     },
     interactive: false,
@@ -835,19 +839,95 @@ export const BUTTON_PRESETS = {
       card: {
         color: {
           background: {
-            default: 'var(--lcars-ui-primary)'
-           }
-         }
-       }
+            default: 'theme:colors.ui.primary',
+            active: 'theme:colors.card.buttonOn',
+            inactive: 'theme:colors.card.topColor',
+            unavailable: 'theme:colors.card.buttonUnavailable'
+          }
+        }
+      }
     }
   },
+
+  // =====================================
+  // TOGGLE TAB - dark tab whose state shows as a line along its top edge
+  // =====================================
+  'toggle-tab': {
+    extends: 'button.base',
+    description: 'dark square tab with a centred name; a coloured line along the top shows the state',
+    text: {
+      default: {
+        // the tab is card-top-color in every state, so its text partner reads on it
+        color: {
+          default: 'var(--lcars-card-top-text, var(--lcards-gray-lightest))',
+          active: 'var(--lcars-card-top-text, var(--lcards-gray-lightest))',
+          inactive: 'var(--lcars-card-top-text, var(--lcards-gray-lightest))'
+        }
+      },
+      name: {
+        show: true,
+        position: 'center'
+      }
+    },
+    border: {
+      width: {
+        top: 4,
+        right: 0,
+        bottom: 0,
+        left: 0
+      },
+      color: {
+        default: 'theme:colors.ui.secondary',
+        active: 'theme:colors.card.buttonOn',
+        inactive: 'theme:colors.card.buttonOff',
+        unavailable: 'theme:colors.card.buttonUnavailable'
+      }
+    },
+    style: {
+      card: {
+        color: {
+          background: {
+            default: 'theme:colors.card.topColor',
+            active: 'theme:colors.card.topColor',
+            inactive: 'theme:colors.card.topColor',
+            unavailable: 'theme:colors.card.topColor'
+          }
+        }
+      }
+    }
+  },
+
+  // =====================================
+  // PANEL FLAGGED - dark panel with a thin accent tick on its left edge (L029 number columns)
+  // =====================================
+  'panel-flagged': {
+    extends: 'button.panel-dark',
+    description: 'dark code panel with a thin accent flag on its left edge',
+    border: {
+      width: { top: 0, right: 0, bottom: 0, left: 6 },
+      color: {
+        default: 'theme:colors.ui.tertiary',
+        active: 'theme:colors.ui.tertiary',
+        inactive: 'theme:colors.card.buttonOff',
+        unavailable: 'theme:colors.card.buttonUnavailable'
+      }
+    },
+    text: {
+      label: { position: 'center-right' }
+    }
+  },
+
   'panel-dark': {
     extends: 'button.barrel',
-    description: 'non-interactive square-cornered panel with LCARS random label',
+    description: 'square-cornered panel with a code label; with an entity, the theme accent when on and the dark structure tone when off',
     text: {
       label: {
         show: true,
-        position: 'bottom-right'
+        position: 'bottom-right',
+        color: {
+          // text partner of the inactive background (card-top-color): readable in every theme
+          inactive: 'var(--lcars-card-top-text, var(--lcards-gray-lightest))'
+        }
       },
     },
     interactive: false,
@@ -855,11 +935,15 @@ export const BUTTON_PRESETS = {
       card: {
         color: {
           background: {
-            default: 'var(--lcars-ui-quaternary)'
-           }
-         }
-       }
+            default: 'theme:colors.ui.quaternary',
+            active: 'theme:colors.card.buttonOn',
+            inactive: 'theme:colors.card.topColor',
+            unavailable: 'theme:colors.card.buttonUnavailable'
+          }
+        }
+      }
     }
   },
+
 
 };

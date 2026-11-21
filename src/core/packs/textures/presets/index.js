@@ -21,6 +21,7 @@ import { FlowTextureEffect }     from '../effects/FlowTextureEffect.js';
 import { ScanlineTextureEffect } from '../effects/ScanlineTextureEffect.js';
 import { LevelTextureEffect }    from '../effects/LevelTextureEffect.js';
 import { ImageTextureEffect }    from '../effects/ImageTextureEffect.js';
+import { PulseTextureEffect }    from '../effects/PulseTextureEffect.js';
 
 /**
  * Built-in canvas texture presets
@@ -91,14 +92,14 @@ export const CANVAS_TEXTURE_PRESETS = {
         defaults: {
             color:           'rgba(255,255,255,0.55)',
             highlight_width: 0.35,
-            speed:           2.5,
+            speed:           6,
             angle:           30,
         },
     },
 
     'fluid': {
         name:        'Fluid',
-        description: 'Swirling noise field — organic, continuously morphing colour wash',
+        description: 'Swirling noise field: organic, continuously morphing colour wash',
         effectClass: FluidTextureEffect,
         defaults: {
             color:          'rgba(100,180,255,0.8)',
@@ -111,7 +112,7 @@ export const CANVAS_TEXTURE_PRESETS = {
 
     'plasma': {
         name:        'Plasma',
-        description: 'Two-colour plasma bands — vivid alternating colour field',
+        description: 'Two-colour plasma bands: vivid alternating colour field',
         effectClass: PlasmaTextureEffect,
         defaults: {
             color_a:        'rgba(80,0,255,0.9)',
@@ -135,6 +136,18 @@ export const CANVAS_TEXTURE_PRESETS = {
         },
     },
 
+    'pulse': {
+        name:        'Pulse',
+        description: 'Breathing radial glow: attention / alert indicator',
+        effectClass: PulseTextureEffect,
+        defaults: {
+            color:    'rgba(255,80,0,0.8)',
+            speed:    1.2,
+            radius:   0.7,
+            min_size: 0.15,
+        },
+    },
+
     'scanlines': {
         name:        'Scanlines',
         description: 'CRT-style scanline overlay',
@@ -154,8 +167,9 @@ export const CANVAS_TEXTURE_PRESETS = {
         description: 'Animated fluid fill-bar with gradient, secondary wave, and sloshing physics',
         effectClass: LevelTextureEffect,
         defaults: {
+            // No color_a default: it would beat the user's `color` (color_a wins in the
+            // effect); `color` is the fill, an explicit `color_a` overrides it.
             color:             'rgba(0,200,100,0.7)',
-            color_a:           'rgba(0,200,100,0.7)',
             color_b:           null,
             gradient_crossover: 80,
             fill_pct:          50,
@@ -176,7 +190,7 @@ export const CANVAS_TEXTURE_PRESETS = {
 
     'image': {
         name:        'Image',
-        description: 'User-supplied image clipped to the card shape — supports /local/ paths and external HTTPS URLs',
+        description: 'User-supplied image clipped to the card shape; supports /local/ paths and external HTTPS URLs',
         effectClass: ImageTextureEffect,
         defaults: {
             source:   '',
@@ -187,9 +201,3 @@ export const CANVAS_TEXTURE_PRESETS = {
     },
 
 };
-
-/**
- * Backward-compat alias — existing imports of SHAPE_TEXTURE_PRESETS continue to work.
- * @type {typeof CANVAS_TEXTURE_PRESETS}
- */
-export const SHAPE_TEXTURE_PRESETS = CANVAS_TEXTURE_PRESETS;

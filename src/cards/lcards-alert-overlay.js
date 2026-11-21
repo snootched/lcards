@@ -8,7 +8,10 @@
  *
  * Dismisses and hides itself when the mode returns to `green_alert` or
  * `default`.  Uses the same `helperManager.subscribeToHelper('alert_mode', …)`
- * hook as SoundManager and ThemeManager — no new plumbing required.
+ * hook as SoundManager and ThemeManager, plus the `lcards-alert-mode-local`
+ * window event that `window.lcards.setAlertMode()` fires when the helper is not
+ * written (a targeted `lcards.*_alert` action, or no helper), so an alert raised
+ * on this device only shows here too.
  *
  * Only one instance may be active per dashboard; duplicate instances
  * suppress themselves and log a warning.
@@ -16,38 +19,33 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
-import { HATemplateEvaluator } from '../core/templates/HATemplateEvaluator.js';
 import { getAlertOverlaySchema } from './schemas/lcards-alert-overlay-schema.js';
+import { resolveBandConfig } from './alert-band-layout.js';
+import {
+    displayFor, overlayContentSize, overlayPosition, buildContentConfig, resolveLayers, bandLayers, resolveJinjaText, ALERT_CONDITION_KEYS,
+} from './alert-overlay-config.js';
 
-// Import editor component so getConfigElement() works (bundled together)
-import '../editor/cards/lcards-alert-overlay-editor.js';
+export { overlayContentSize, DEFAULT_CONTENT_WIDTH, DEFAULT_SYMBOL_HEIGHT } from './alert-overlay-config.js';
+import './lcards-alert-band.js';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Module-level singleton guard
 //
-// HA can reconnect elements without a guaranteed disconnect→connect ordering
-// (e.g. when exiting dashboard edit mode).  A module-level variable provides
-// a synchronous, race-free claim that the DOM-based approach cannot guarantee.
+// HA can connect a new instance before disconnecting the old one (e.g. when
+// exiting dashboard edit mode), so the claim is deferred one microtask.
 //
 // Rules:
-//   - The first instance to call connectedCallback claims ownership.
-//   - If _activeOverlay is set to a DIFFERENT instance, the newcomer is suppressed.
-//   - If _activeOverlay is set to THIS instance (reconnect), ownership is re-confirmed.
-//   - disconnectedCallback releases ownership only when this instance owns it.
+//   - A connected instance outside the card editor / picker claims ownership.
+//   - If _activeOverlay is a DIFFERENT instance, the newcomer is suppressed and
+//     retries when the owner releases (`lcards-alert-overlay-released`).
+//   - If _activeOverlay is THIS instance (reconnect), ownership is re-confirmed.
+//   - Only the owner's disconnect hides the portal and releases ownership; an
+//     instance that left before its deferred claim ran never claims.
+//   - The card editor's preview and the card picker never claim: they render a
+//     placeholder, not the duplicate warning.
 // ─────────────────────────────────────────────────────────────────────────────
 let _activeOverlay = null;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Per-condition built-in defaults
-// These provide the floor values; alert_button overrides are applied on top.
-// ─────────────────────────────────────────────────────────────────────────────
-const CONDITION_DEFAULTS = {
-    red_alert:    { preset: 'condition_red',    alertText: 'ALERT', subText: 'CONDITION: RED' },
-    yellow_alert: { preset: 'condition_yellow', alertText: 'ALERT', subText: 'CONDITION: YELLOW' },
-    blue_alert:   { preset: 'condition_blue',   alertText: 'ALERT', subText: 'CONDITION: BLUE' },
-    black_alert:  { preset: 'condition_black',  alertText: 'ALERT', subText: 'CONDITION: BLACK' },
-    gray_alert:   { preset: 'condition_gray',   alertText: 'ALERT', subText: 'CONDITION: GRAY' },
-};
 
 export class LCARdSAlertOverlay extends LitElement {
 
@@ -63,6 +61,10 @@ export class LCARdSAlertOverlay extends LitElement {
             _activeCondition: { type: String,  state: true },
             _isDismissed:     { type: Boolean, state: true },
             _editMode:        { type: Boolean, state: true },
+            // Set by Home Assistant's hui-card on every card element: true while
+            // the dashboard is in edit mode and in the card editor's preview.
+            preview:          { type: Boolean },
+            editMode:         { type: Boolean },
         };
     }
 
@@ -74,13 +76,26 @@ export class LCARdSAlertOverlay extends LitElement {
         super();
         this._hass             = null;
         this._alertUnsubscribe = null;
+        /** @type {(() => void) | null} */
+        this._themeAlertUnsubscribe = null;
+        /** @type {string | null | undefined} The last alert mode handled (helper or theme) */
+        this._lastHandledMode = undefined;
+        /** @type {((e: Event) => void)|null} */
+        this._localModeHandler = null;
         this._isActive         = false;
         this._activeCondition  = null;
         this._isDismissed      = false;
         this._isSuppressed     = false;
         this._editMode         = false;
-        this._editModePoller   = null;
+        this.preview           = false;
+        this.editMode          = false;
+        /** In the card editor's preview or the card picker: never owns the overlay. */
+        this._inEditor         = false;
+        /** @type {(() => void)|null} */
+        this._releaseListener  = null;
         this._autoDismissTimer = null;
+        /** @type {(() => void)|null} */
+        this._bandDismissHandler = null;
     }
 
     // -------------------------------------------------------------------------
@@ -89,11 +104,12 @@ export class LCARdSAlertOverlay extends LitElement {
 
     set hass(value) {
         this._hass = value;
-        // Detect edit mode changes reactively via the hass setter — HA calls
-        // this on every state update so it catches enter/exit of edit mode.
-        const inEdit = this._isInEditMode();
-        if (inEdit !== this._editMode) {
-            this._editMode = inEdit;
+        // The content card lives in the portal, not under this element, so
+        // nothing else hands it this snapshot until the core's global feed
+        // polls <home-assistant> (up to GLOBAL_HASS_POLL_MS later). Push it
+        // straight to the portal while this overlay owns a showing alert.
+        if (!this._isSuppressed && this._isActive && !this._isDismissed) {
+            window.lcards?.core?.portalOverlayManager?.updateHass(value);
         }
     }
 
@@ -107,7 +123,7 @@ export class LCARdSAlertOverlay extends LitElement {
 
     setConfig(config) {
         if (!config || typeof config !== 'object') {
-            throw new Error('[LCARdSAlertOverlay] Invalid config — must be an object');
+            throw new Error('[LCARdSAlertOverlay] Invalid config - must be an object');
         }
         this.config = config;
 
@@ -124,29 +140,20 @@ export class LCARdSAlertOverlay extends LitElement {
 
     connectedCallback() {
         super.connectedCallback();
-
-        // ── Edit mode polling ─────────────────────────────────────────────────
-        // HA adds ?edit=1 to the URL when entering edit mode via history.pushState,
-        // which does not fire popstate/location-changed. Poll the URL so the
-        // placeholder appears/disappears immediately without waiting for a
-        // hass state update.
-        this._editModePoller = setInterval(() => {
-            const inEdit = this._isInEditMode();
-            if (inEdit !== this._editMode) this._editMode = inEdit;
-        }, 400);
+        this._inEditor = this._checkForAncestor(['hui-dialog-edit-card', 'hui-card-picker']);
+        this._editMode = this._isInEditMode();
 
         // ── Singleton guard (deferred) ────────────────────────────────────────
         // HA can call connectedCallback on a new instance BEFORE calling
         // disconnectedCallback on the old one (e.g. when exiting edit mode).
         // Defer the ownership check one microtask so that any in-flight
         // disconnectedCallback has a chance to clear _activeOverlay first.
-        // We save a reference to `this` so the closure always targets the right
-        // instance even if multiple elements queue microtasks simultaneously.
-        const self = this;
-        Promise.resolve().then(() => self._claimOwnership());
+        if (!this._inEditor) Promise.resolve().then(() => this._claimOwnership());
     }
 
     _claimOwnership() {
+        // Disconnected before the deferred claim ran: never own the overlay.
+        if (!this.isConnected) return;
         if (_activeOverlay !== null && _activeOverlay !== this) {
             // Another live instance already owns the overlay.
             lcardsLog.warn(
@@ -156,16 +163,14 @@ export class LCARdSAlertOverlay extends LitElement {
             );
             this._isSuppressed = true;
 
-            // Listen for the owner to release so we can retry.
-            // One-shot listener — either we claim next time or suppress again.
-            const onRelease = () => {
-                window.removeEventListener('lcards-alert-overlay-released', onRelease);
-                // Only retry if we are still connected to the DOM.
-                if (this.isConnected) {
-                    this._claimOwnership();
-                }
+            // Listen for the owner to release so we can retry (one-shot: either
+            // we claim next time or suppress again and listen again).
+            this._removeReleaseListener();
+            this._releaseListener = () => {
+                this._releaseListener = null;
+                this._claimOwnership();
             };
-            window.addEventListener('lcards-alert-overlay-released', onRelease, { once: true });
+            window.addEventListener('lcards-alert-overlay-released', this._releaseListener, { once: true });
             return;
         }
 
@@ -176,9 +181,8 @@ export class LCARdSAlertOverlay extends LitElement {
         this._subscribeToAlertMode();
 
         // Replay current mode in case alert was already active when we connected
-        const currentMode =
-            window.lcards?.core?.helperManager?.getHelperValue('alert_mode') ??
-            this._hass?.states?.['input_select.lcards_alert_mode']?.state;
+        // (the helper manager reads the entity's state until its cache fills).
+        const currentMode = this._currentAlertMode();
 
         if (currentMode) {
             this._handleAlertModeChange(currentMode);
@@ -188,28 +192,32 @@ export class LCARdSAlertOverlay extends LitElement {
     disconnectedCallback() {
         super.disconnectedCallback();
 
-        clearInterval(this._editModePoller);
-        this._editModePoller = null;
-
-        if (this._isSuppressed) {
-            this._isSuppressed = false;
-            return;
+        if (this._bandDismissHandler) {
+            window.removeEventListener('lcards-alert-band-dismiss', this._bandDismissHandler);
+            this._bandDismissHandler = null;
         }
+        this._removeReleaseListener();
+        this._isSuppressed = false;
 
-        this._alertUnsubscribe?.();
-        this._alertUnsubscribe = null;
+        // Only the owner tears down the shared portal: an instance that never
+        // claimed (suppressed, in the editor, or gone before its deferred claim
+        // ran) must not hide the live alert.
+        if (_activeOverlay !== this) return;
+
+        this._unsubscribeFromAlertMode();
+        this._clearAutoDismissTimer();
         window.lcards?.core?.portalOverlayManager?.hide('alert-overlay');
 
-        // Release module-level ownership only if we hold it.
-        // After releasing, fire a synthetic event so any suppressed sibling
-        // instance that was created while we were still alive (race window)
-        // can retry claiming ownership.
-        this._clearAutoDismissTimer();
+        // Release, then tell any suppressed sibling (created while we were still
+        // alive) to retry its claim.
+        _activeOverlay = null;
+        window.dispatchEvent(new CustomEvent('lcards-alert-overlay-released'));
+    }
 
-        if (_activeOverlay === this) {
-            _activeOverlay = null;
-            window.dispatchEvent(new CustomEvent('lcards-alert-overlay-released'));
-        }
+    _removeReleaseListener() {
+        if (!this._releaseListener) return;
+        window.removeEventListener('lcards-alert-overlay-released', this._releaseListener);
+        this._releaseListener = null;
     }
 
     // -------------------------------------------------------------------------
@@ -217,14 +225,28 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     _subscribeToAlertMode() {
-        this._alertUnsubscribe?.();
-        this._alertUnsubscribe = null;
+        this._unsubscribeFromAlertMode();
+
+        // A mode set on this device only (targeted action, or no helper): the helper
+        // does not change, so its subscription below never fires for it.
+        this._localModeHandler = (/** @type {any} */ e) => this._handleAlertModeChange(e.detail?.mode);
+        window.addEventListener('lcards-alert-mode-local', this._localModeHandler);
+
+        // The theme's alert mode too: an alert raised before the helper manager had
+        // started (an overlay alone on a view, just after a page load) changed the
+        // theme but never reached the helper subscription below (#410 check,
+        // 2026-11-18). A mode already handled is skipped, so the helper's change and
+        // the theme's for one alert show it once.
+        this._themeAlertUnsubscribe = window.lcards?.core?.themeManager?.subscribeToAlertMode?.(
+            (/** @type {string} */ mode) => { if (mode !== this._lastHandledMode) this._handleAlertModeChange(mode); },
+        ) ?? null;
 
         const helperManager = window.lcards?.core?.helperManager;
         if (helperManager) {
+            // the same guard: the helper manager's own auto-switch sets the theme first
             this._alertUnsubscribe = helperManager.subscribeToHelper(
                 'alert_mode',
-                this._handleAlertModeChange.bind(this),
+                (/** @type {string} */ mode) => { if (mode !== this._lastHandledMode) this._handleAlertModeChange(mode); },
             );
             lcardsLog.debug('[LCARdSAlertOverlay] Subscribed to alert_mode helper');
         } else {
@@ -232,16 +254,48 @@ export class LCARdSAlertOverlay extends LitElement {
         }
     }
 
+    _unsubscribeFromAlertMode() {
+        this._alertUnsubscribe?.();
+        this._alertUnsubscribe = null;
+        this._themeAlertUnsubscribe?.();
+        this._themeAlertUnsubscribe = null;
+        if (this._localModeHandler) window.removeEventListener('lcards-alert-mode-local', this._localModeHandler);
+        this._localModeHandler = null;
+    }
+
+    /**
+     * The alert mode to replay on connect: the helper's, unless it is inactive
+     * while this device shows an alert of its own (a targeted action, or no helper).
+     * @returns {string|null|undefined}
+     */
+    _currentAlertMode() {
+        const helperMode = window.lcards?.core?.helperManager?.getHelperValue('alert_mode');
+        const localMode  = window.lcards?.core?.themeManager?.getAlertMode?.();
+        const inactive = (/** @type {any} */ m) => !m || m === 'green_alert' || m === 'default';
+        return inactive(helperMode) && ALERT_CONDITION_KEYS.includes(localMode) ? localMode : helperMode;
+    }
+
     // -------------------------------------------------------------------------
     // Edit mode detection
     // -------------------------------------------------------------------------
 
+    /** Home Assistant sets `preview` (and the older `editMode`) on the card element. */
     _isInEditMode() {
-        const dashboardEl = this.closest?.('hui-root, ha-panel-lovelace') ??
-            document.querySelector('hui-root, ha-panel-lovelace');
-        if (/** @type {any} */ (dashboardEl)?.editMode) return true;
-        if (this.closest?.('hui-card-picker, hui-card-preview')) return true;
-        if (window.location.href.includes('edit=1')) return true;
+        return this._inEditor || this.preview === true || this.editMode === true;
+    }
+
+    /**
+     * Whether an ancestor (across shadow roots) has one of these tag names.
+     * @param {string[]} tags - Lower-case tag names
+     * @returns {boolean}
+     */
+    _checkForAncestor(tags) {
+        /** @type {any} */
+        let node = this;
+        for (let i = 0; i < 30 && node; i++) {
+            if (tags.includes(node.tagName?.toLowerCase())) return true;
+            node = node.parentElement || node.parentNode?.host || node.getRootNode?.()?.host;
+        }
         return false;
     }
 
@@ -251,11 +305,7 @@ export class LCARdSAlertOverlay extends LitElement {
 
     _handleAlertModeChange(newMode) {
         if (this._isSuppressed) return;
-
-        if (this._isInEditMode()) {
-            lcardsLog.debug('[LCARdSAlertOverlay] Edit mode active — overlay suppressed');
-            return;
-        }
+        this._lastHandledMode = newMode;
 
         const isInactive = !newMode || newMode === 'green_alert' || newMode === 'default';
 
@@ -269,6 +319,12 @@ export class LCARdSAlertOverlay extends LitElement {
             this._activeCondition = newMode;
             this._isDismissed     = false;
             this._isActive        = true;
+            // In edit mode the alert is noted, not shown: it shows (and its
+            // auto-dismiss countdown starts) when edit mode ends.
+            if (this._isInEditMode()) {
+                lcardsLog.debug('[LCARdSAlertOverlay] Edit mode active: alert shows when it ends');
+                return;
+            }
             this._mountContentCard(newMode);
             this._startAutoDismissTimer(newMode);
         }
@@ -279,7 +335,8 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     async _mountContentCard(condition) {
-        const cardConfig = this._buildCardConfig(condition);
+        // What shows (alert-overlay-config.js, shared with the Alert Studio preview)
+        const cardConfig = buildContentConfig(this.config, condition);
 
         if (!cardConfig) {
             lcardsLog.warn(`[LCARdSAlertOverlay] No content config for condition: ${condition}`);
@@ -290,7 +347,7 @@ export class LCARdSAlertOverlay extends LitElement {
         // HASS connection before handing the config to POM.
         // JS ([[[...]]]) and token ({entity.state}) templates are synchronous and
         // are handled by lcards-button's own pipeline after mount.
-        const resolvedConfig = await this._resolveTextTemplates(cardConfig);
+        const resolvedConfig = await resolveJinjaText(cardConfig, this._hass);
 
         // Guard: condition or active state may have changed during async resolution.
         if (!this._isActive || this._isSuppressed || this._activeCondition !== condition) {
@@ -304,10 +361,14 @@ export class LCARdSAlertOverlay extends LitElement {
             return;
         }
 
-        const size     = this._getEffectiveSize();
-        const layers   = this._resolveBackdropLayers();
-        const position = this.config?.conditions?.[this._activeCondition]?.position
-                         ?? this.config?.position ?? 'center';
+        if (displayFor(this.config, condition) === 'band') {
+            this._showBand(pom, condition, resolvedConfig);
+            return;
+        }
+
+        const size     = overlayContentSize(this.config, condition);
+        const layers   = resolveLayers(this.config, condition);
+        const position = overlayPosition(this.config, condition);
 
         pom.show('alert-overlay', {
             position,
@@ -323,206 +384,40 @@ export class LCARdSAlertOverlay extends LitElement {
     }
 
     /**
-     * Walk all text fields in a card config, evaluate any Jinja2 content
-     * strings ({{ ... }} / {% ... %}) using this overlay's settled HASS
-     * websocket, and return an updated config copy.
-     *
-     * JS ([[[...]]]) and token ({entity.state}) templates are intentionally
-     * NOT resolved here — they are synchronous and handled by lcards-button's
-     * own template pipeline after the card is mounted.
-     *
-     * @param {Object} cardConfig
-     * @returns {Promise<Object>}
+     * Show the alert band: full screen, clicks pass through except on the
+     * emblem, which dismisses. Backdrop layers only when the config sets them.
+     * @param {any} pom - PortalOverlayManager
+     * @param {string} condition
+     * @param {Object} emblem - Emblem card config (the alert button or `content`)
      */
-    async _resolveTextTemplates(cardConfig) {
-        if (!this._hass || !cardConfig?.text) return cardConfig;
-
-        const evaluator = new HATemplateEvaluator({ hass: this._hass });
-        const resolvedText = {};
-
-        for (const [fieldId, fieldCfg] of Object.entries(cardConfig.text)) {
-            const content = fieldCfg?.content;
-            if (typeof content === 'string' &&
-                (content.includes('{{') || content.includes('{%'))) {
-                try {
-                    resolvedText[fieldId] = { ...fieldCfg, content: await evaluator.evaluate(content) };
-                    lcardsLog.debug(`[LCARdSAlertOverlay] Resolved Jinja2 in '${fieldId}'`);
-                } catch (e) {
-                    lcardsLog.warn(`[LCARdSAlertOverlay] Jinja2 eval failed for '${fieldId}':`, e);
-                    resolvedText[fieldId] = fieldCfg;
-                }
-            } else {
-                resolvedText[fieldId] = fieldCfg;
-            }
-        }
-
-        return { ...cardConfig, text: resolvedText };
+    _showBand(pom, condition, emblem) {
+        this._listenForBandDismiss();
+        pom.show('alert-overlay', {
+            position:    'top-left',
+            width:       '100%',
+            height:      '100%',
+            dismiss:     false,
+            passThrough: true,
+            content: {
+                type: 'custom:lcards-alert-band',
+                condition,
+                band: resolveBandConfig(this.config, condition),
+                emblem,
+            },
+            layers: bandLayers(this.config, condition),
+        });
+        this.requestUpdate();
     }
 
-    _unmountContentCard() {
-        // No-op: card unmounting is now handled by PortalOverlayManager.hide().
-        // Kept for any external callers; will be removed in a future cleanup pass.
-    }
-
-    // -------------------------------------------------------------------------
-    // Card config builder
-    //
-    // Three-tier resolution for each condition:
-    //   1. conditions.<key>.content   — full custom HA card (user supplies everything)
-    //   2. conditions.<key>.alert_button — patch specific fields on the default button
-    //   3. Built-in default           — preset + hardcoded text
-    //
-    // The alert_button tier builds the config EXPLICITLY here rather than relying
-    // on lcards-button's internal component-preset text injection, which runs
-    // asynchronously and can race with / overwrite user-supplied text values.
-    // -------------------------------------------------------------------------
-
-    _buildCardConfig(condition) {
-        const condCfg = this.config?.conditions?.[condition] ?? {};
-
-        // Tier 1: full custom card
-        if (condCfg.content) {
-            return condCfg.content;
-        }
-
-        const def = CONDITION_DEFAULTS[condition];
-        if (!def) return null;
-
-        const ab = condCfg.alert_button ?? {};
-
-        // Tier 2 / 3: build explicit button config.
-        // Text values are resolved HERE so the button receives final strings
-        // directly in its text config — bypassing any post-setConfig injection
-        // from the component preset system that could overwrite them.
-        //
-        // Build text dynamically: start with built-in defaults for the two
-        // standard fields, then overlay ALL keys from alert_button.text so
-        // any additional text field supported by the button component is
-        // forwarded rather than silently dropped.
-        const defaultText = {
-            alert_text: { content: def.alertText },
-            sub_text:   { content: def.subText   },
+    /** The band's emblem fires `lcards-alert-band-dismiss` (composed) when clicked. */
+    _listenForBandDismiss() {
+        if (this._bandDismissHandler) return;
+        this._bandDismissHandler = () => {
+            if (!this._isActive || this._isSuppressed) return;
+            this._handleDismiss();
+            window.lcards?.core?.portalOverlayManager?.hide('alert-overlay');
         };
-        const overrideText = ab.text ?? {};
-        // Merge: for the two standard keys use the override's .content value if
-        // present; for any other keys pass the override field object through as-is.
-        const mergedText = { ...defaultText };
-        for (const [fieldId, fieldCfg] of Object.entries(overrideText)) {
-            if (fieldId in mergedText && fieldCfg?.content !== undefined) {
-                mergedText[fieldId] = { ...mergedText[fieldId], content: fieldCfg.content };
-            } else {
-                mergedText[fieldId] = fieldCfg;
-            }
-        }
-        const card = {
-            type:      'custom:lcards-button',
-            component: 'alert',
-            preset:    def.preset,
-            text:      mergedText,
-        };
-
-        // Forward component-level color overrides if present (e.g. alert.color.shape)
-        if (ab.alert) {
-            card.alert = ab.alert;
-        }
-
-        return card;
-    }
-
-    // -------------------------------------------------------------------------
-    // Style / layout helpers
-    // -------------------------------------------------------------------------
-
-    /**
-     * Resolve the final per-slot layer configuration by merging global `layers`
-     * with per-condition overrides.  Each slot in the returned object is either
-     * `{ preset, ...params }` or `null` (slot explicitly disabled).
-     *
-     * Priority: per-condition layer slot > global layer slot > legacy migration > default.
-     *
-     * @returns {{ backdrop: Object|null, color: Object|null, canvas: Object|null }}
-     */
-    _resolveBackdropLayers() {
-        const globalLayers  = this._getConfiguredLayers(this.config ?? {});
-        const condLayersRaw = this.config?.conditions?.[this._activeCondition]?.layers ?? null;
-        if (!condLayersRaw) return globalLayers;
-
-        // Per-condition: only override slots explicitly present (key exists).
-        return {
-            backdrop: 'backdrop' in condLayersRaw ? condLayersRaw.backdrop : globalLayers.backdrop,
-            color:    'color'    in condLayersRaw ? condLayersRaw.color    : globalLayers.color,
-            canvas:   'canvas'   in condLayersRaw ? condLayersRaw.canvas   : globalLayers.canvas,
-        };
-    }
-
-    /**
-     * Extract { backdrop, color, canvas } slot configs from a config object,
-     * migrating legacy schemas automatically.
-     * @private
-     */
-    _getConfiguredLayers(cfg) {
-        // Current schema: layers key.
-        if (cfg.layers) {
-            return {
-                backdrop: cfg.layers.backdrop ?? null,
-                color:    cfg.layers.color    ?? null,
-                canvas:   cfg.layers.canvas   ?? null,
-            };
-        }
-
-        // Legacy schema: backdrop.blur / opacity / color.
-        if (cfg.backdrop) {
-            return this._promoteLegacyBackdrop(cfg.backdrop);
-        }
-
-        // Default: blur-only, no color or canvas overlay.
-        return { backdrop: { preset: 'blur', amount: '8px' }, color: null, canvas: null };
-    }
-
-    /**
-     * Promote the legacy `backdrop.{blur, opacity, color}` object to per-slot layers.
-     * Opacity is folded into the color alpha to preserve the visual result.
-     * @private
-     */
-    _promoteLegacyBackdrop(backdrop) {
-        const result = { backdrop: null, color: null, canvas: null };
-        if (backdrop.blur) {
-            result.backdrop = { preset: 'blur', amount: backdrop.blur };
-        }
-        if (backdrop.color || backdrop.opacity !== undefined) {
-            const opacity = typeof backdrop.opacity === 'number' ? backdrop.opacity : 0.6;
-            const color   = backdrop.color ?? 'rgba(0,0,0,0.5)';
-            result.color  = { preset: 'color-tint', color: this._promoteColorWithOpacity(color, opacity) };
-        }
-        return result;
-    }
-
-    /**
-     * Fold a separate opacity multiplier into the alpha channel of a CSS rgba() colour.
-     * Used when promoting old `backdrop.color` + `backdrop.opacity` values.
-     *
-     * @param {string} color   - CSS colour string, ideally rgba().
-     * @param {number} opacity - Multiplier (0–1).
-     * @returns {string}
-     * @private
-     */
-    _promoteColorWithOpacity(color, opacity) {
-        const m = color.match(
-            /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/
-        );
-        if (m) {
-            const a = parseFloat(m[4] ?? '1') * opacity;
-            return `rgba(${m[1]},${m[2]},${m[3]},${Math.min(1, a).toFixed(2)})`;
-        }
-        return color;
-    }
-
-    _getEffectiveSize() {
-        const perCond = this.config?.conditions?.[this._activeCondition];
-        return {
-            width:  perCond?.width  ?? this.config?.width  ?? 'auto',
-            height: perCond?.height ?? this.config?.height ?? 'auto',
-        };
+        window.addEventListener('lcards-alert-band-dismiss', this._bandDismissHandler);
     }
 
     // -------------------------------------------------------------------------
@@ -538,10 +433,15 @@ export class LCARdSAlertOverlay extends LitElement {
         // calls pom.hide() explicitly after this method.
 
         if (this.config?.dismiss_mode === 'reset' || this.config?.dismiss_mode === 'auto-reset') {
-            this._hass?.callService('input_select', 'select_option', {
-                entity_id: 'input_select.lcards_alert_mode',
-                option:    'green_alert',
-            });
+            const helperManager = window.lcards?.core?.helperManager;
+            if (helperManager?.getHelperValue('alert_mode') === this._activeCondition) {
+                helperManager.setHelperValue('alert_mode', 'green_alert')
+                    .catch((/** @type {any} */ e) => lcardsLog.warn('[LCARdSAlertOverlay] Reset to green alert failed:', e));
+            } else {
+                // An alert on this device only (targeted, or no helper): reset it here.
+                window.lcards?.setAlertMode?.('green_alert', { skipHelperSync: true })
+                    ?.catch?.((/** @type {any} */ e) => lcardsLog.warn('[LCARdSAlertOverlay] Reset to green alert failed:', e));
+            }
         }
     }
 
@@ -603,6 +503,12 @@ export class LCARdSAlertOverlay extends LitElement {
     // Lifecycle — sync portal after every reactive-state change
     // -------------------------------------------------------------------------
 
+    willUpdate(changedProps) {
+        if (changedProps.has('preview') || changedProps.has('editMode')) {
+            this._editMode = this._isInEditMode();
+        }
+    }
+
     updated(changedProps) {
         super.updated?.(changedProps);
         // Toggle host attribute so CSS can switch display: contents → block
@@ -617,6 +523,8 @@ export class LCARdSAlertOverlay extends LitElement {
                 window.lcards?.core?.portalOverlayManager?.hide('alert-overlay');
             } else if (this._isActive && !this._isDismissed && this._activeCondition) {
                 this._mountContentCard(this._activeCondition);
+                // An alert raised during edit mode starts its countdown now.
+                if (this._autoDismissTimer === null) this._startAutoDismissTimer(this._activeCondition);
             }
         }
     }
@@ -626,26 +534,28 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     render() {
-        // Outside edit mode this element is invisible — the visible overlay
+        // Outside edit mode this element is invisible: the visible overlay
         // lives in a portal on document.body.
         if (!this._editMode) return html``;
 
-        const conditions = this.config?.conditions ?? {};
-        const conditionKeys = Object.keys(conditions);
+        const conditionKeys = Object.keys(this.config?.conditions ?? {});
         const isDuplicate = this._isSuppressed;
+        const badge = this._inEditor ? ''
+            : isDuplicate ? html`<span class="ep-badge ep-badge--duplicate">Duplicate · inactive</span>`
+            : html`<span class="ep-badge">Active</span>`;
 
         return html`
             <div class="edit-placeholder ${isDuplicate ? 'is-duplicate' : ''}">
                 <div class="ep-header">
-                    <span class="ep-icon">&#9888;</span>
-                    <span class="ep-title">Alert Overlay</span>
-                    ${isDuplicate ? html`<span class="ep-badge">DUPLICATE — INACTIVE</span>` : html`<span class="ep-badge ep-badge--active">ACTIVE</span>`}
+                    <ha-icon class="ep-icon" icon="mdi:alert-outline"></ha-icon>
+                    <span class="ep-title">Alert overlay</span>
+                    ${badge}
                 </div>
                 <div class="ep-body">
                     ${isDuplicate
                         ? html`<p class="ep-warn">This card is suppressed. Only one alert overlay can be active per dashboard. Remove this card.</p>`
                         : html`
-                            <p class="ep-info">Overlay is active. It will appear over the full dashboard when an alert mode is triggered.</p>
+                            <p class="ep-info">Shows over the whole dashboard while an alert mode is raised.</p>
                             ${conditionKeys.length > 0 ? html`
                                 <div class="ep-conditions">
                                     ${conditionKeys.map(k => html`<span class="ep-cond">${k}</span>`)}
@@ -665,40 +575,39 @@ export class LCARdSAlertOverlay extends LitElement {
                 display: block;
             }
             .edit-placeholder {
+                --ep-accent: var(--lcards-orange);
                 box-sizing: border-box;
                 width: 100%;
                 min-height: 64px;
-                border: 2px dashed var(--lcards-orange, #ff7700);
-                border-radius: 8px;
+                border: var(--ha-border-width-md) dashed var(--ep-accent);
+                border-radius: var(--ha-border-radius-md);
                 padding: 10px 14px;
-                background: rgba(0,0,0,0.45);
-                font-family: Antonio, sans-serif;
-                color: var(--lcards-moonlight, #dfe1e8);
+                background-color: color-mix(
+                    in srgb,
+                    var(--secondary-background-color) 50%,
+                    color-mix(in srgb, var(--primary-background-color) 25%, transparent)
+                );
+                font-family: var(--lcars-font, 'Antonio'), sans-serif;
+                color: var(--primary-text-color);
             }
             .is-duplicate {
-                border-color: var(--lcars-alert-red);
-                background: rgba(80,0,0,0.45);
+                --ep-accent: var(--lcars-alert-red, var(--lcards-orange-dark));
             }
             .ep-header {
                 display: flex;
                 align-items: center;
-                gap: 8px;
+                gap: var(--ha-space-2);
                 margin-bottom: 6px;
             }
             .ep-icon {
-                font-size: 1.1em;
-                color: var(--lcards-orange, #ff7700);
-                line-height: 1;
-            }
-            .is-duplicate .ep-icon {
-                color: var(--lcars-alert-red);
+                --mdc-icon-size: 1.2em;
+                color: var(--ep-accent);
             }
             .ep-title {
                 font-size: 0.85em;
                 font-weight: 600;
                 letter-spacing: 0.08em;
                 text-transform: uppercase;
-                opacity: 0.9;
             }
             .ep-badge {
                 margin-left: auto;
@@ -706,40 +615,34 @@ export class LCARdSAlertOverlay extends LitElement {
                 letter-spacing: 0.1em;
                 text-transform: uppercase;
                 padding: 2px 7px;
-                border-radius: 4px;
-                background: rgba(255,68,68,0.25);
-                color: var(--lcars-alert-red);
-                border: 1px solid var(--lcars-alert-red);
-            }
-            .ep-badge--active {
-                background: rgba(255,119,0,0.2);
-                color: var(--lcards-orange, #ff7700);
-                border-color: var(--lcards-orange, #ff7700);
+                border-radius: var(--ha-border-radius-sm);
+                color: var(--ep-accent);
+                border: var(--ha-border-width-sm) solid var(--ep-accent);
+                background: color-mix(in srgb, var(--ep-accent) 20%, transparent);
             }
             .ep-body {
                 font-size: 0.75em;
-                opacity: 0.75;
                 line-height: 1.4;
+                color: var(--secondary-text-color);
             }
             .ep-info, .ep-warn {
                 margin: 0 0 6px;
             }
             .ep-warn {
-                color: var(--lcars-alert-red);
-                opacity: 1;
+                color: var(--ep-accent);
             }
             .ep-conditions {
                 display: flex;
                 flex-wrap: wrap;
-                gap: 4px;
-                margin-top: 4px;
+                gap: var(--ha-space-1);
+                margin-top: var(--ha-space-1);
             }
             .ep-cond {
                 font-size: 0.9em;
                 padding: 1px 6px;
-                border-radius: 3px;
-                background: rgba(255,119,0,0.15);
-                border: 1px solid rgba(255,119,0,0.4);
+                border-radius: var(--ha-border-radius-sm);
+                border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--ep-accent) 40%, transparent);
+                background: color-mix(in srgb, var(--ep-accent) 15%, transparent);
                 letter-spacing: 0.05em;
             }
         `;
@@ -749,7 +652,10 @@ export class LCARdSAlertOverlay extends LitElement {
     // HA card API
     // -------------------------------------------------------------------------
 
-    static getConfigElement() {
+    static async getConfigElement() {
+        // Editors load on demand (HA awaits getConfigElement), keeping them out of
+        // the bundle every dashboard loads.
+        await import('../editor/cards/lcards-alert-overlay-editor.js');
         return document.createElement('lcards-alert-overlay-editor');
     }
 
@@ -774,4 +680,4 @@ export class LCARdSAlertOverlay extends LitElement {
     }
 }
 
-// NOTE: Card registration handled in src/lcards.js initializeCustomCard().then()
+// NOTE: Card registration handled in src/lcards-main.js initializeCustomCard().then()

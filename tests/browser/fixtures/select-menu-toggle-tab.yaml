@@ -1,0 +1,7 @@
+# select menu with the toggle-tab preset (lcars-design selector strip): styled on first render
+type: custom:lcards-select-menu
+entity: input_select.demo_mode
+preset: toggle-tab
+grid:
+  columns: 4
+  gap: 6px

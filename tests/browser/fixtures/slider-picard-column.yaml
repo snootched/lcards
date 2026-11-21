@@ -1,0 +1,5 @@
+# The picard-gauge-column preset: number caps at both ends, the value in the top cap
+# and the entity's name in the bottom one
+type: custom:lcards-slider
+entity: input_number.demo_level
+preset: picard-gauge-column

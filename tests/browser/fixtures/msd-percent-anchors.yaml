@@ -1,0 +1,15 @@
+# Anchors as percentages of the view box (msd-audit.spec.js): the user anchor layer
+# overrode the resolved anchors with the raw strings, so a control got x="80%-100".
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 800, 300]
+  anchors:
+    starboard: ["80%", "40%"]
+  overlays:
+    - id: ctl
+      type: control
+      position: starboard
+      size: [200, 70]
+      card:
+        type: custom:lcards-button
+        preset: lozenge

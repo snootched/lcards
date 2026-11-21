@@ -54,12 +54,47 @@ export function findHomeAssistantRoot(startEl) {
 /**
  * Appends a dialog element into the same composed subtree as `<home-assistant>`
  * (its shadow root) so Lit context-consuming HA components work inside it.
+ * HA 2026.10+ pickers (e.g. ha-entity-picker) read states/registries from contexts
+ * provided by `<home-assistant>`, so a dialog under `document.body` gets none.
  * Falls back to `document.body` if `<home-assistant>` can't be found.
  * @param {Element} dialogEl - The dialog element to mount.
- * @param {Element} startEl - Element to start the `<home-assistant>` search from.
+ * @param {Element} [startEl] - Element to start the `<home-assistant>` search from
+ *   (defaults to the page's `<home-assistant>`).
  */
 export function mountDialogNearHomeAssistant(dialogEl, startEl) {
-  const haRoot = findHomeAssistantRoot(startEl);
+  const haRoot = (startEl && findHomeAssistantRoot(startEl)) ?? document.querySelector('home-assistant');
   const mountRoot = haRoot?.shadowRoot ?? document.body;
   mountRoot.appendChild(dialogEl);
+}
+
+/**
+ * Runs `handler` when `dialog` itself closes. `closed` bubbles: an `ha-select`
+ * menu, a nested dialog or a card picker inside the dialog fires its own
+ * `closed`, which would otherwise tear the outer dialog down. Use this for
+ * every imperative `closed` listener (a guard test bans the bare form);
+ * templates write `@closed=${(e) => { if (e.target === e.currentTarget) ... }}`.
+ * @param {EventTarget} dialog
+ * @param {(event: Event) => void} handler
+ */
+export function onDialogClosed(dialog, handler) {
+  dialog.addEventListener('closed', (event) => {
+    if (event.target !== event.currentTarget) return;
+    handler(event);
+  });
+}
+
+/**
+ * Builds HA's standard dialog footer for an imperatively created `ha-dialog`:
+ * `<ha-dialog-footer slot="footer">` with the secondary buttons (cancel, close:
+ * `appearance="plain"`) placed before the primary ones. Templates write the same
+ * markup directly.
+ * @param {{ secondary?: Element[], primary?: Element[] }} buttons
+ * @returns {HTMLElement} The footer, ready to append to the dialog.
+ */
+export function createDialogFooter({ secondary = [], primary = [] }) {
+  const footer = document.createElement('ha-dialog-footer');
+  footer.slot = 'footer';
+  for (const el of secondary) { el.slot = 'secondaryAction'; footer.appendChild(el); }
+  for (const el of primary) { el.slot = 'primaryAction'; footer.appendChild(el); }
+  return footer;
 }

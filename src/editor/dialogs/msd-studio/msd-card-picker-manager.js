@@ -55,8 +55,8 @@ export class MSDCardPickerManager {
 
         // Card picker didn't load - editor can function without it
         if (!this._isLoaded) {
-            lcardsLog.info('[MSDCardPickerManager] ℹ️ Card picker not available');
-            lcardsLog.info('[MSDCardPickerManager] 💡 To enable: Close this dialog, click dashboard "Add Card" button, then cancel and reopen MSD Studio');
+            lcardsLog.debug('[MSDCardPickerManager] ℹ️ Card picker not available');
+            lcardsLog.debug('[MSDCardPickerManager] 💡 To enable: Close this dialog, click dashboard "Add Card" button, then cancel and reopen MSD Studio');
         }
 
         return false;
@@ -74,13 +74,13 @@ export class MSDCardPickerManager {
 
         try {
             // Traverse shadow DOM to find lovelace elements (adapted from legacy button-card)
+            /** @type {any} walks HA's shadow roots, so Element and ShadowRoot alternate */
             let root = document.querySelector('home-assistant');
             if (!root) {
                 lcardsLog.trace('[MSDCardPickerManager] home-assistant element not found');
                 return;
             }
 
-            // @ts-ignore - TS2740: auto-suppressed
             root = root.shadowRoot;
             if (!root) {
                 lcardsLog.trace('[MSDCardPickerManager] home-assistant shadowRoot not found');
@@ -88,10 +88,8 @@ export class MSDCardPickerManager {
             }
 
             root = root.querySelector('home-assistant-main');
-            // @ts-ignore - TS2740: auto-suppressed
             root = root && root.shadowRoot;
             root = root && root.querySelector('app-drawer-layout partial-panel-resolver, ha-drawer partial-panel-resolver');
-            // @ts-ignore - TS2322: auto-suppressed
             root = (root && root.shadowRoot) || root;
             root = root && root.querySelector('ha-panel-lovelace');
 
@@ -100,7 +98,6 @@ export class MSDCardPickerManager {
                 return;
             }
 
-            // @ts-ignore - TS2740: auto-suppressed
             root = root.shadowRoot;
             root = root && root.querySelector('hui-root');
 
@@ -109,69 +106,25 @@ export class MSDCardPickerManager {
                 return;
             }
 
-            // hui-root might have its own shadowRoot
-            const huiRootShadow = root.shadowRoot;
-            const searchRoot = huiRootShadow || root;
-
-            // Now find the actual view elements within hui-root (or its shadowRoot)
-            const viewElements = [
-                searchRoot.querySelector('hui-view'),
-                searchRoot.querySelector('hui-sections-view'),
-                searchRoot.querySelector('hui-grid-section'),
-                searchRoot.querySelector('hui-section')
-            ].filter(Boolean);
-
-            lcardsLog.trace('[MSDCardPickerManager] hui-root shadowRoot:', !!huiRootShadow);
-            lcardsLog.trace('[MSDCardPickerManager] Found view elements:', viewElements.map(e => e.tagName).join(', '));
-
-            if (viewElements.length === 0) {
-                lcardsLog.trace('[MSDCardPickerManager] No view elements found - trying to fire on hui-root directly');
-
-                // Fire on hui-root itself if we can't find view elements
-                const event = new CustomEvent('ll-create-card', {
-                    bubbles: true,
-                    composed: true,
-                    cancelable: true,
-                    detail: {
-                        suggested: ["lcards-button","lcards-slider","lcards-elbow","lcards-chart","lcards-data-grid"]
-                    }
-                });
-
-                root.dispatchEvent(event);
-                event.stopPropagation();
-                event.preventDefault();
-
-                // Wait for picker to load
-                await new Promise(resolve => setTimeout(resolve, 150));
-
-                if (customElements.get("hui-card-picker")) {
-                    lcardsLog.debug('[MSDCardPickerManager] ✅ hui-card-picker loaded via ll-create-card on hui-root');
-                }
+            // hui-view opens HA's create-card dialog (which loads hui-card-picker) on an
+            // ll-create-card event with the cards path ['views', index, 'cards'].
+            const huiView = /** @type {any} */ ((root.shadowRoot || root).querySelector('hui-view'));
+            if (!huiView) {
+                lcardsLog.trace('[MSDCardPickerManager] hui-view not found');
                 return;
             }
 
-            // Fire ll-create-card event on each view element. Note: calling
-            // stopPropagation()/preventDefault() on `event` here has no effect on
-            // whether HA's own listener opens hui-dialog-create-card — dispatchEvent()
-            // is synchronous, so by the time it returns, any listener along the path
-            // (e.g. hui-view's own ll-create-card handler, which calls showDialog())
-            // has already fully run. There is no way to suppress the dialog from
-            // opening; the cleanup below (finding and closing it) is the only
-            // mechanism that actually keeps it from staying visible.
-            for (const element of viewElements) {
-                lcardsLog.trace(`[MSDCardPickerManager] Firing ll-create-card on ${element.tagName}...`);
-
-                const event = new CustomEvent('ll-create-card', {
-                    bubbles: true,
-                    composed: true,
-                    cancelable: true,
-                    detail: {
-                        suggested: ["lcards-button","lcards-slider","lcards-elbow","lcards-chart","lcards-data-grid"]
-                    }
-                });
-
-                element.dispatchEvent(event);
-            }
+            // dispatchEvent() is synchronous, so hui-view's handler has already called
+            // showDialog() when it returns; there is no way to suppress the dialog.
+            // The cleanup below (finding and closing it) is what keeps it from staying visible.
+            huiView.dispatchEvent(new CustomEvent('ll-create-card', {
+                bubbles: true,
+                composed: true,
+                detail: {
+                    path: ['views', huiView.index, 'cards'],
+                    suggested: ["lcards-button","lcards-slider","lcards-elbow","lcards-chart","lcards-data-grid"]
+                }
+            }));
 
             // Poll for hui-dialog-create-card and close it as soon as it appears,
             // instead of a single fixed-delay check. HA's showDialog() (make-dialog-
@@ -185,23 +138,18 @@ export class MSDCardPickerManager {
             for (let attempt = 0; attempt < maxCloseAttempts && !closed; attempt++) {
                 await new Promise(resolve => setTimeout(resolve, 50));
 
-                const createCardDialog = homeAssistant?.shadowRoot?.querySelector('hui-dialog-create-card');
+                // HA's dialog element: whichever close API this HA version has is probed below
+                const createCardDialog = /** @type {any} */ (homeAssistant?.shadowRoot?.querySelector('hui-dialog-create-card'));
                 if (!createCardDialog) continue;
 
                 lcardsLog.trace(`[MSDCardPickerManager] Found hui-dialog-create-card (attempt ${attempt + 1}), closing it...`);
 
                 // Try multiple methods to close the dialog
-                // @ts-ignore - TS2339: auto-suppressed
                 if (typeof createCardDialog.closeDialog === 'function') {
-                    // @ts-ignore - TS2339: auto-suppressed
                     createCardDialog.closeDialog();
-                // @ts-ignore - TS2551: auto-suppressed
                 } else if (createCardDialog.close) {
-                    // @ts-ignore - TS2551: auto-suppressed
                     createCardDialog.close();
-                // @ts-ignore - TS2339: auto-suppressed
                 } else if (createCardDialog.opened !== undefined) {
-                    // @ts-ignore - TS2339: auto-suppressed
                     createCardDialog.opened = false;
                 }
 

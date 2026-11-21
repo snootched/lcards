@@ -1,0 +1,11 @@
+# Astrometrics lightning (NB2c; astrometrics.spec.js): a lightning object striking often
+# inside a cloud nebula, each strike lighting the gas round it.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: v
+  views:
+    v: { target: [0, 0, 0], yaw: 30, tilt: 6, distance: 420 }
+objects:
+  - { type: nebula, id: storm, render: volume, size: [400, 220, 400], count: 10, colors: ["var(--lcars-orange, #ff9900)", "var(--lcars-red, #cc4444)"], seed: 5, density: 1.2, max_radius: 160 }
+  - { type: lightning, id: bolts, size: [260, 170, 260], rate: 4, flash: 300, color: "var(--lcards-moonlight, #ffffff)", glow: { color: "var(--lcars-lavender, #ccaaff)" }, branches: 4, seed: 4 }

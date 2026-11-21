@@ -89,7 +89,7 @@ export class DataSourceDebugAPI {
           return null;
         }
 
-        const graph = { nodes: [], edges: [] };
+        const graph = { nodes: /** @type {any[]} */ ([]), edges: /** @type {any[]} */ ([]) };
         const processors = ds.processorManager.processors;
 
         processors.forEach((processor, key) => {
@@ -173,8 +173,8 @@ export class DataSourceDebugAPI {
 
         const validation = {
           valid: true,
-          errors: [],
-          warnings: [],
+          errors: /** @type {any[]} */ ([]),
+          warnings: /** @type {any[]} */ ([]),
           info: {
             entity: ds.cfg.entity,
             hasProcessors: !!ds.processorManager,

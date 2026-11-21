@@ -1,0 +1,11 @@
+# on_show entrance animation: plays each time the card is attached (on-show.spec.js)
+type: custom:lcards-button
+entity: switch.demo_switch
+preset: filled
+text:
+  name:
+    content: On Show
+animations:
+  - trigger: on_show
+    preset: fade
+    params: {from: 0, to: 1, duration: 300}

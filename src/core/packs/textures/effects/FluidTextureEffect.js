@@ -17,8 +17,9 @@
  */
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
+import { configProp } from '../../backgrounds/effects/animatable-props.js';
 import { _fbm, parseColorToRgba } from './noise-helpers.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
 
 // ---------------------------------------------------------------------------
 
@@ -30,6 +31,12 @@ const CELL = 4; // px — grid tile size (performance vs quality trade-off)
  * @extends BaseTextureEffect
  */
 export class FluidTextureEffect extends BaseTextureEffect {
+    static animatableProps = {
+        ...BaseTextureEffect.animatableProps,
+        scroll_speed_x: configProp('scroll_speed_x', '_speedX'),
+        scroll_speed_y: configProp('scroll_speed_y', '_speedY'),
+    };
+
     /**
      * Padding (raw px) around the visible canvas in the cached bake buffer —
      * see ContourFieldEffect.BAKE_PAD_CELLS for the full rationale (steady-
@@ -50,8 +57,13 @@ export class FluidTextureEffect extends BaseTextureEffect {
      */
     constructor(config = {}) {
         super(/** @type {any} */ (config));
-        const _r = window.lcards?.core?.themeManager?.resolver;
-        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        /** @type {HTMLCanvasElement} offscreen buffer, created by _ensureBuffer() before any use */
+        this._offCanvas = /** @type {any} */ (null);
+        /** @type {CanvasRenderingContext2D} its 2D context */
+        this._offCtx = /** @type {any} */ (null);
+        /** @type {ImageData} its pixel buffer */
+        this._imgData = /** @type {any} */ (null);
+        const _resolve = (c) => resolveColor(c, { concrete: true });
         this._color    = parseColorToRgba(_resolve(config.color ?? 'rgba(100,180,255,0.8)'), 'rgba(100,180,255,0.8)');
         this._freq     = config.base_frequency   ?? 0.010;
         this._octaves  = Math.max(1, Math.min(8, config.num_octaves ?? 4));
@@ -91,7 +103,7 @@ export class FluidTextureEffect extends BaseTextureEffect {
         this._offCanvas        = document.createElement('canvas');
         this._offCanvas.width  = w;
         this._offCanvas.height = h;
-        this._offCtx   = this._offCanvas.getContext('2d');
+        this._offCtx   = /** @type {CanvasRenderingContext2D} */ (this._offCanvas.getContext('2d'));
         this._imgData  = this._offCtx.createImageData(w, h);
     }
 
@@ -261,8 +273,7 @@ export class FluidTextureEffect extends BaseTextureEffect {
 
     updateConfig(cfg) {
         super.updateConfig(cfg);
-        const _r = window.lcards?.core?.themeManager?.resolver;
-        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        const _resolve = (c) => resolveColor(c, { concrete: true });
 
         // Fields that change the BAKED appearance require a re-bake to take
         // effect immediately rather than waiting for the next scroll-drift

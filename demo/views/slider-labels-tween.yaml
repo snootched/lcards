@@ -1,0 +1,88 @@
+# Slider marker labels and value tween (D1c): the buttons set POWER at once, so the
+# sliders ease to it (value_tween); a marker follows SHIELDS with its label.
+title: Slider labels and tween
+path: slider-labels-tween
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: POWER 10, show: true } }
+        tap_action: { action: perform-action, perform_action: input_number.set_value, data: { value: 10 }, target: { entity_id: input_number.lcards_test_power } }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: POWER 50, show: true } }
+        tap_action: { action: perform-action, perform_action: input_number.set_value, data: { value: 50 }, target: { entity_id: input_number.lcards_test_power } }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: POWER 90, show: true } }
+        tap_action: { action: perform-action, perform_action: input_number.set_value, data: { value: 90 }, target: { entity_id: input_number.lcards_test_power } }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: pills-left-border
+        text: { name: { content: SHIELDS, show: true } }
+        grid_options: { columns: 24, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      # The default tween (500 ms, outQuad)
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: gauge-left-border
+        text: { name: { content: DEFAULT TWEEN, show: true } }
+        grid_options: { columns: 24, rows: 2 }
+      # A slow tween with a bounce
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: gauge-left-border
+        text: { name: { content: SLOW BOUNCE, show: true } }
+        value_tween: { duration: 1800, ease: outBounce }
+        grid_options: { columns: 24, rows: 2 }
+      # Pills sweep to the new value
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: pills-left-border
+        text: { name: { content: PILLS, show: true } }
+        value_tween: { duration: 1200, ease: inOutSine }
+        grid_options: { columns: 24, rows: 2 }
+      # No tween: snaps
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: gauge-left-border
+        text: { name: { content: NO TWEEN, show: true } }
+        value_tween: { enabled: false }
+        grid_options: { columns: 24, rows: 2 }
+  - type: grid
+    column_span: 4
+    cards:
+      # Value markers with labels: SHIELDS and a fixed limit
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: gauge-left-border
+        text: { name: { content: MARKERS, show: true } }
+        value_tween: { duration: 1000 }
+        style:
+          ranges:
+            - value: "{states.input_number.lcards_test_shields.state}"
+              color: var(--lcards-blue)
+              label: { text: "SHIELDS {states.input_number.lcards_test_shields.state}" }
+            - value: 80
+              color: var(--lcars-alert-red)
+              label: { text: LIMIT }
+        grid_options: { columns: 48, rows: 2 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: pills-left-border
+        text: { name: { content: PILL MARKER, show: true } }
+        style:
+          ranges:
+            - value: "{states.input_number.lcards_test_shields.state}"
+              color: var(--lcards-blue)
+              label: { text: SHIELDS }
+        grid_options: { columns: 48, rows: 2 }

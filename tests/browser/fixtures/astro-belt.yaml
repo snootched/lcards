@@ -1,0 +1,14 @@
+# Astrometrics asteroid belt (E8, astrometrics.spec.js): instanced rocks round
+# a star, moving (period, tumble); reduced motion holds them.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: v
+  views:
+    v: { target: [0, 0, 0], yaw: 20, tilt: 22, distance: 150 }
+    close: { target: [50, 0, 0], yaw: 250, tilt: 10, distance: 16 }
+points:
+  - { id: sun, xyz: [0, 0, 0] }
+objects:
+  - { type: glow, at: sun, size: 40, color: "var(--lcars-yellow, yellow)" }
+  - { type: belt, id: belt, at: sun, radius: [44, 56], thickness: 4, count: 1500, size: [0.2, 1.6], period: 40, seed: 2 }

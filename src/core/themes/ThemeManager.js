@@ -17,7 +17,9 @@
 import { ThemeTokenResolver, initializeTokenResolver, getTokenResolver } from './ThemeTokenResolver.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BaseService } from '../../core/BaseService.js';
-import { setAlertMode as injectAlertMode, ALERT_MODE_TRANSFORMS, captureOriginalColors } from './paletteInjector.js';
+import { setAlertMode as injectAlertMode, captureOriginalColors } from './paletteInjector.js';
+import { applyAlertToScopes } from './alertThemeScopes.js';
+import { isKnownAlertMode } from './alertModeTransform.js';
 import { loadAlertTransformsFromHelpers } from './alertModeTransform.js';
 import { STORAGE_KEY_THEME_OVERRIDES } from '../services/ScopedSettingsConstants.js';
 
@@ -55,6 +57,15 @@ export class ThemeManager extends BaseService {
      * @type {Set<Function>}
      */
     this._alertModeSubscribers = new Set();
+
+    /** @type {any} last hass.themes seen (updateHass), to notice Home Assistant re-applying themes */
+    this._lastHassThemes = undefined;
+    /** @type {(() => void)|null} navigation listener that re-shifts themed scopes during an alert */
+    this._locationListener = null;
+    /** @type {ReturnType<typeof setTimeout>|undefined} */
+    this._alertScopeTimer = undefined;
+    /** @type {ReturnType<typeof setTimeout>|undefined} */
+    this._alertScopeLateTimer = undefined;
 
     /**
      * Subscribers notified after theme token overrides change.
@@ -110,7 +121,7 @@ export class ThemeManager extends BaseService {
    *
    * @param {Array<Object>} packs - Loaded pack objects
    * @param {string} [requestedThemeId='lcards-default'] - Theme ID to activate
-   * @param {Element} [rootElement=null] - Root element for CSS variables
+   * @param {Element|null} [rootElement=null] - Root element for CSS variables
    * @returns {Promise<void>}
    */
   async initialize(packs, requestedThemeId = 'lcards-default', rootElement = null) {
@@ -144,7 +155,7 @@ export class ThemeManager extends BaseService {
 
     this.initialized = true;
 
-    lcardsLog.info('[ThemeManager] ✅ Theme system initialized:', {
+    lcardsLog.debug('[ThemeManager] ✅ Theme system initialized:', {
       themeCount: this.themes.size,
       activeTheme: this.activeThemeId,
       availableThemes: Array.from(this.themes.keys())
@@ -155,7 +166,7 @@ export class ThemeManager extends BaseService {
    * Activate a specific theme
    *
    * @param {string} themeId - Theme ID to activate
-   * @param {Element} [rootElement=null] - Root element for CSS variables
+   * @param {Element|null} [rootElement=null] - Root element for CSS variables
    * @returns {Promise<void>}
    * @throws {Error} If theme not found or has no tokens
    */
@@ -219,7 +230,7 @@ export class ThemeManager extends BaseService {
       lcardsLog.debug('[ThemeManager] Alert mode baseline colors re-captured (deferred pass)');
     }, 150);
 
-    lcardsLog.info('[ThemeManager] ✅ Theme activated:', {
+    lcardsLog.debug('[ThemeManager] ✅ Theme activated:', {
       id: themeId,
       name: theme.name,
       description: theme.description,
@@ -279,20 +290,21 @@ export class ThemeManager extends BaseService {
 
     return (property, fallback = null, context = {}) => {
       const tokenPath = `components.${componentType}.${property}`;
-      return this.resolver.resolve(tokenPath, fallback, context);
+      // Read live (a theme reload replaces the resolver); ?. only matters after destroy.
+      return this.resolver?.resolve(tokenPath, fallback, context);
     };
   }
 
   /**
    * Get a theme token by path (for StylePresetManager integration)
    *
-   * @param {string} tokenPath - Token path (e.g., 'colors.accent.primary')
+   * @param {string} tokenPath - Token path (e.g., 'colors.ui.primary')
    * @param {*} fallback - Fallback value if token not found
    * @param {Object} context - Additional context for resolution
    * @returns {*} Resolved token value or fallback
    *
    * @example
-   * const primaryColor = themeManager.getToken('colors.accent.primary');
+   * const primaryColor = themeManager.getToken('colors.ui.primary');
    * const textSize = themeManager.getToken('typography.fontSize.base', '16px');
    */
   getToken(tokenPath, fallback = undefined, context = {}) {
@@ -312,7 +324,7 @@ export class ThemeManager extends BaseService {
    *
    * @example
    * const resolver = themeManager.getResolver();
-   * const color = resolver.resolve('colors.accent.primary');
+   * const color = resolver.resolve('colors.ui.primary');
    */
   getResolver() {
     if (!this.resolver) {
@@ -354,7 +366,7 @@ export class ThemeManager extends BaseService {
    *
    * @example
    * const themes = themeManager.listThemes();
-   * // Returns: ['lcards-default', 'lcars-ds9', 'lcars-voyager']
+   * // Returns: ['lcards-default'] (the one built-in theme, plus any a pack registers)
    */
   listThemes() {
     return Array.from(this.themes.keys());
@@ -490,8 +502,8 @@ export class ThemeManager extends BaseService {
    * Records token resolution chains for debugging and troubleshooting.
    * Called by cards when they resolve theme tokens through getToken() or getDefault().
    *
-   * @param {string} tokenPath - Token path (e.g., 'colors.accent.primary')
-   * @param {string} originalRef - Original reference (e.g., 'theme:colors.accent.primary')
+   * @param {string} tokenPath - Token path (e.g., 'colors.ui.primary')
+   * @param {string} originalRef - Original reference (e.g., 'theme:colors.ui.primary')
    * @param {any} resolvedValue - Final resolved value
    * @param {Array<Object>} resolutionChain - Resolution steps
    * @param {Object} cardTracker - Card's ProvenanceTracker instance
@@ -499,8 +511,8 @@ export class ThemeManager extends BaseService {
    *
    * @example
    * themeManager.trackTokenResolution(
-   *   'colors.accent.primary',
-   *   'theme:colors.accent.primary',
+   *   'colors.ui.primary',
+   *   'theme:colors.ui.primary',
    *   '#ff9966',
    *   [{ step: 'token_lookup', value: '#ff9966', source: 'theme.tokens' }],
    *   card._provenanceTracker,
@@ -561,14 +573,13 @@ export class ThemeManager extends BaseService {
    * @private
    */
   async _applyAlertMode(mode, opts = {}) {
-    if (!ALERT_MODE_TRANSFORMS[mode]) {
+    if (!isKnownAlertMode(mode)) {
       lcardsLog.warn(`[ThemeManager] Unknown alert mode: ${mode}`);
       return;
     }
 
     // Get HASS instance
-    // @ts-ignore — _hass may be injected at runtime by ingestHass()
-    const hass = this._hass || window.lcards?.core?._currentHass;
+    const hass = window.lcards?.core?._currentHass;
     if (!hass) {
       lcardsLog.error('[ThemeManager] Cannot set alert mode - HASS not available');
       return;
@@ -581,44 +592,98 @@ export class ThemeManager extends BaseService {
       loadAlertTransformsFromHelpers(window.lcards?.core?.helperManager);
     }
 
-    // Apply alert mode — opts.transitionStyle selects the visual transition effect
-    await injectAlertMode(mode, hass, undefined, opts);
+    // Everything that depends on the new palette happens as soon as it is
+    // written (mid-transition), not after the transition finishes: otherwise
+    // the reveal shows cards still painted in the old palette.
+    let applied = false;
+    const onApplied = () => {
+      applied = true;
+      this.currentAlertMode = mode;
 
-    // Update state
-    this.currentAlertMode = mode;
+      // Clear token cache (colors have changed)
+      if (this.resolver) {
+        this.resolver.clearCache();
+      }
 
-    // Clear token cache (colors have changed)
-    if (this.resolver) {
-      this.resolver.clearCache();
-    }
+      // Invalidate LCARdSColorPicker CSS variable cache so freshly-opened
+      // picker instances show the transformed swatch colours.
+      try {
+        const LCARdSColorPicker = /** @type {any} */ (customElements.get('lcards-color-picker'));
+        if (LCARdSColorPicker?.invalidateCache) LCARdSColorPicker.invalidateCache();
+      } catch (_) { /* safe to ignore */ }
 
-    // Invalidate LCARdSColorPicker CSS variable cache so freshly-opened
-    // picker instances show the transformed swatch colours.
-    try {
-      const LCARdSColorPicker = /** @type {any} */ (customElements.get('lcards-color-picker'));
-      if (LCARdSColorPicker?.invalidateCache) LCARdSColorPicker.invalidateCache();
-    } catch (_) { /* safe to ignore */ }
-
-    // Notify subscribers — everything is ready: CSS vars written, cache cleared,
-    // currentAlertMode updated.  Safe for components to re-render immediately.
-    if (this._alertModeSubscribers.size > 0) {
+      // Notify subscribers — CSS vars written, cache cleared, currentAlertMode
+      // updated. Safe for components to re-render immediately.
       this._alertModeSubscribers.forEach(cb => {
         try { cb(mode); } catch (e) {
           lcardsLog.warn('[ThemeManager] Alert mode subscriber threw:', e);
         }
       });
-    }
+    };
+
+    // Apply alert mode — opts.transitionStyle selects the visual transition effect
+    await injectAlertMode(mode, hass, undefined, { ...opts, onApplied });
+    if (!applied) onApplied();
 
     lcardsLog.info(`[ThemeManager] ✅ Alert mode: ${mode}`);
   }
 
   /**
+   * Home Assistant re-applies view, section and card themes on navigation and
+   * when its themes change; during an alert those scopes must be shifted again
+   * (alertThemeScopes.js). Called with each new hass.
+   * @param {any} hass
+   */
+  updateHass(hass) {
+    const themes = hass?.themes;
+    if (themes && themes !== this._lastHassThemes) {
+      const first = this._lastHassThemes === undefined;
+      this._lastHassThemes = themes;
+      if (!first) this._scheduleAlertScopeRefresh();
+    }
+    if (!this._locationListener && typeof window !== 'undefined') {
+      this._locationListener = () => this._scheduleAlertScopeRefresh();
+      window.addEventListener('location-changed', this._locationListener);
+      window.addEventListener('popstate', this._locationListener);
+    }
+  }
+
+  /**
+   * Shift themed scopes again soon (Home Assistant renders a new view and
+   * applies its theme asynchronously), if an alert is up.
+   * @private
+   */
+  _scheduleAlertScopeRefresh() {
+    if (!this.currentAlertMode || this.currentAlertMode === 'green_alert') return;
+    clearTimeout(this._alertScopeTimer);
+    clearTimeout(this._alertScopeLateTimer);
+    this._alertScopeTimer = setTimeout(() => this.refreshAlertScopes(), 100);
+    this._alertScopeLateTimer = setTimeout(() => this.refreshAlertScopes(), 700);
+  }
+
+  /**
+   * Shift any themed view, section or card that appeared or was re-themed
+   * since the alert was raised; cards repaint when a new scope was shifted.
+   * @returns {number} scopes newly shifted
+   */
+  refreshAlertScopes() {
+    const mode = this.currentAlertMode;
+    if (!mode || mode === 'green_alert' || typeof document === 'undefined') return 0;
+    const { fresh } = applyAlertToScopes(mode);
+    if (fresh) {
+      this.resolver?.clearCache?.();
+      window.dispatchEvent(new CustomEvent('lcards:theme-overrides-changed'));
+    }
+    return fresh;
+  }
+
+  /**
    * Subscribe to alert mode changes.
    *
-   * The callback is fired AFTER CSS variables have been written, the token
-   * resolver cache has been cleared, and currentAlertMode has been updated.
-   * This makes it safe to call requestUpdate() directly from the callback
-   * without any additional deferral.
+   * The callback is fired as soon as the CSS variables have been written
+   * (mid-transition, while the swap is still hidden), after the token
+   * resolver cache has been cleared and currentAlertMode updated. Safe to
+   * call requestUpdate() directly from the callback.
    *
    * @param {Function} callback - Called with (newMode: string)
    * @returns {Function} Unsubscribe function
@@ -704,21 +769,35 @@ export class ThemeManager extends BaseService {
     const sss = window.lcards?.core?.scopedSettingsService;
     if (!sss || !this.resolver) return;
 
+    // Canonical form of an overrides set, so "nothing changed" can be detected.
+    const signature = (entries) => JSON.stringify([...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+    const before = signature(this.resolver._overrides ?? []);
+
+    let merged = {};
+    /** @type {Object<string,string>} */
+    const scopes = {};
     try {
       const allScopes = await sss.readAllScopes(STORAGE_KEY_THEME_OVERRIDES);
       // Merge: global first, user next, device last (device wins)
-      const merged = {
+      merged = {
         ...(allScopes.global  ?? {}),
         ...(allScopes.user    ?? {}),
         ...(allScopes.device  ?? {}),
       };
-      this.resolver.setOverrides(Object.keys(merged).length ? merged : null);
-      lcardsLog.info('[ThemeManager] Token overrides loaded', { count: Object.keys(merged).length });
+      // Which scope set each path (the last one wins, as in the merge): for provenance
+      for (const scope of ['global', 'user', 'device']) {
+        for (const key of Object.keys(allScopes[scope] ?? {})) scopes[key] = scope;
+      }
+      lcardsLog.debug('[ThemeManager] Token overrides loaded', { count: Object.keys(merged).length });
     } catch (e) {
       lcardsLog.warn('[ThemeManager] Failed to load token overrides:', e);
-      this.resolver.clearOverrides();
     }
 
+    // Only apply and notify on a real change: every card re-processes its config on
+    // lcards:theme-overrides-changed, so the startup load with no (or unchanged)
+    // overrides must not trigger that (it doubled config processing and logging).
+    if (signature(Object.entries(merged)) === before) return;
+    this.resolver.setOverrides(Object.keys(merged).length ? merged : null, scopes);
     this._notifyOverridesChanged();
   }
 
@@ -727,49 +806,58 @@ export class ThemeManager extends BaseService {
    *
    * @param {string} tokenPath - Dot-notation token path, e.g. 'colors.card.button'
    * @param {string|number} value - New value (CSS var, hex, or number)
-   * @param {'global'|'user'|'device'} scope
-   * @returns {Promise<void>}
+   * @param {'global'|'user'|'device'} scope - global needs a Home Assistant admin
+   * @returns {Promise<boolean>} false when the write failed or was refused
    */
   async setOverride(tokenPath, value, scope) {
     const sss = window.lcards?.core?.scopedSettingsService;
-    if (!sss) return;
+    if (!sss) return false;
 
     // Read the current overrides for this scope only so we deep-merge correctly
     const current = await sss.read(STORAGE_KEY_THEME_OVERRIDES, [scope]) ?? {};
     const updated = { ...current, [tokenPath]: value };
-    await sss.write(STORAGE_KEY_THEME_OVERRIDES, updated, scope);
+    const ok = await sss.write(STORAGE_KEY_THEME_OVERRIDES, updated, scope);
+    if (!ok) {
+      lcardsLog.warn(`[ThemeManager] Override not saved: ${tokenPath} (${scope})`);
+      return false;
+    }
     lcardsLog.info(`[ThemeManager] Override set: ${tokenPath}=${value} (${scope})`);
     await this.loadOverrides();
+    return true;
   }
 
   /**
    * Remove a single token override from a scope.
    *
    * @param {string} tokenPath
-   * @param {'global'|'user'|'device'} scope
-   * @returns {Promise<void>}
+   * @param {'global'|'user'|'device'} scope - global needs a Home Assistant admin
+   * @returns {Promise<boolean>} false when the write failed or was refused
    */
   async clearOverride(tokenPath, scope) {
     const sss = window.lcards?.core?.scopedSettingsService;
-    if (!sss) return;
+    if (!sss) return false;
 
     const current = await sss.read(STORAGE_KEY_THEME_OVERRIDES, [scope]) ?? {};
     const updated = { ...current };
     delete updated[tokenPath];
 
-    if (Object.keys(updated).length === 0) {
-      await sss.clear(STORAGE_KEY_THEME_OVERRIDES, scope);
-    } else {
-      await sss.write(STORAGE_KEY_THEME_OVERRIDES, updated, scope);
+    const ok = Object.keys(updated).length === 0
+      ? await sss.clear(STORAGE_KEY_THEME_OVERRIDES, scope)
+      : await sss.write(STORAGE_KEY_THEME_OVERRIDES, updated, scope);
+    if (!ok) {
+      lcardsLog.warn(`[ThemeManager] Override not cleared: ${tokenPath} (${scope})`);
+      return false;
     }
 
     lcardsLog.info(`[ThemeManager] Override cleared: ${tokenPath} (${scope})`);
     await this.loadOverrides();
+    return true;
   }
 
   /**
    * Returns the raw (un-overridden) resolved value for a token path.
-   * Useful for showing "theme default" in the override editor UI.
+   * Useful for showing "theme default" in the override editor UI. It resolves
+   * with private caches, so it never changes what getToken() returns.
    *
    * @param {string} tokenPath
    * @param {*} [fallback=null]
@@ -777,12 +865,8 @@ export class ThemeManager extends BaseService {
    */
   getThemeDefault(tokenPath, fallback = null) {
     if (!this.resolver) return fallback;
-    // Temporarily bypass by checking the token tree directly
-    const savedOverrides = this.resolver._overrides;
-    this.resolver._overrides = null;
-    const value = this.resolver.resolve(tokenPath, fallback);
-    this.resolver._overrides = savedOverrides;
-    return value;
+    // Own caches: the live ones must only ever hold overridden values.
+    return this.resolver.resolveDefault(tokenPath, fallback);
   }
 
   /**

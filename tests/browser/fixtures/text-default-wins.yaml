@@ -1,0 +1,12 @@
+# text.default wins over the preset's own field settings (the user, 2026-11-08), and
+# carries anchor, baseline and rotation: the bar-label preset puts its label on the
+# left, text.default moves it right
+type: custom:lcards-button
+preset: bar-label-left
+text:
+  default:
+    position: center-right
+    rotation: 0
+    anchor: end
+  label:
+    content: DECK 7

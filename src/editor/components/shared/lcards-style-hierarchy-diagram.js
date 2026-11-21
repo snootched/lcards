@@ -4,16 +4,13 @@
  * Visual SVG diagram showing style precedence for Data Grid cards
  *
  * @element lcards-style-hierarchy-diagram
- * @property {String} mode - Display mode: 'all', 'data-table', or 'manual'
  */
 
 import { LitElement, html, css, svg } from 'lit';
 
 export class LCARdSStyleHierarchyDiagram extends LitElement {
     static get properties() {
-        return {
-            mode: { type: String } // 'all' | 'data-table' | 'manual'
-        };
+        return {};
     }
 
     static get styles() {
@@ -200,12 +197,12 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
                         <span>1. Grid-Wide (lowest)</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-box legend-row"></div>
-                        <span>2. Row Styles</span>
+                        <div class="legend-box legend-col"></div>
+                        <span>2. Column Styles (and header rows)</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-box legend-col"></div>
-                        <span>3. Column Styles</span>
+                        <div class="legend-box legend-row"></div>
+                        <span>3. Row Styles</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-box legend-cell"></div>
@@ -214,30 +211,14 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
                 </div>
 
                 <div class="help-text">
-                    <strong>Style Precedence:</strong> Styles cascade and merge from grid-wide → row → column → cell.
-                    When a cell is in both a styled row AND column, both apply. Cell-level styles override all others.
+                    <strong>Style Precedence:</strong> Styles merge in order: grid-wide, header (header rows only),
+                    column, row, cell. When a cell is in both a styled row and column, the row wins where they overlap.
+                    Cell styles override all others.
                 </div>
             </div>
         `;
     }
 
-    _getLevels() {
-        // Deprecated - keeping for backward compatibility
-        const base = [
-            { name: 'Grid-wide', desc: 'Applies to all cells' }
-        ];
-
-        // @ts-ignore - TS2339: auto-suppressed
-        if (this.mode === 'data-table' || this.mode === 'all') {
-            base.push({ name: 'Header', desc: 'Spreadsheet headers' });
-            base.push({ name: 'Column', desc: 'Column-specific' });
-        }
-
-        base.push({ name: 'Row', desc: 'Row-specific' });
-        base.push({ name: 'Cell', desc: 'Individual cells' });
-
-        return base;
-    }
 }
 
 if (!customElements.get('lcards-style-hierarchy-diagram')) customElements.define('lcards-style-hierarchy-diagram', LCARdSStyleHierarchyDiagram);

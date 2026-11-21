@@ -13,14 +13,13 @@
  * 1. Constructor: Initialize caches and RouterCore reference
  * 2. initialize(mountEl): Pre-resolve styles
  * 3. render(): Create line SVG markup with routing
- * 4. update(): Recompute path if anchor positions change
- * 5. destroy(): Cleanup cached definitions
+ * 4. destroy(): Cleanup cached definitions
  */
 
 import { OverlayBase } from './OverlayBase.js';
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { ColorUtils } from '../../core/themes/ColorUtils.js';
+import { resolveColor } from '../../core/themes/resolve-color.js';
 
 /**
  * LineOverlay - Instance-based line overlay
@@ -34,7 +33,6 @@ import { ColorUtils } from '../../core/themes/ColorUtils.js';
  * - Segment colors
  * - Dash patterns
  */
-// @ts-ignore - LineOverlay extends OverlayBase (type inference issues with duplicate base methods)
 export class LineOverlay extends OverlayBase {
   constructor(overlay, systemsManager, routerCore = null) {
     super(overlay, systemsManager);
@@ -100,7 +98,7 @@ export class LineOverlay extends OverlayBase {
    * @param {Object} anchors
    * @param {number[]|null} [anchor]
    * @param {number[]|null} [anchor2]
-   * @returns {{anchor: number[], anchor2: number[], pathResult: object}|null}
+   * @returns {{anchor: number[]|null, anchor2: number[]|null, pathResult: object}|null}
    */
   resolveRoute(overlay, anchors, anchor = this._resolveAnchor(overlay, anchors), anchor2 = this._resolveAttachTo(overlay, anchors)) {
     if (!this.routerCore) return null;
@@ -248,7 +246,7 @@ export class LineOverlay extends OverlayBase {
 
       // Build SVG group with all features
       const svgParts = [
-        this._buildDefinitions(lineStyle, overlay.id),
+        this._buildDefinitions(lineStyle, overlay.id, cardInstance, pathResult.pts),
         this._buildMainPath(pathResult.d, lineStyle, overlay.id, animationAttributes, isSelected),
         this._buildMarkers(pathResult, lineStyle, overlay.id)
       ].filter(Boolean);
@@ -294,22 +292,6 @@ export class LineOverlay extends OverlayBase {
         })
       };
     }
-  }
-
-  /**
-   * Update line overlay
-   * Recomputes path if anchor positions changed
-   *
-   * @param {Element} overlayElement - The overlay's DOM element
-   * @param {Object} overlay - Updated overlay configuration
-   * @param {*} sourceData - New data from data source (not used for lines)
-   * @returns {boolean} Success status
-   */
-  update(overlayElement, overlay, sourceData) {
-    // Lines typically don't update based on data changes
-    // They update when anchor positions change, which triggers a full re-render
-    lcardsLog.trace(`[LineOverlay] Update called for ${overlay.id} (lines typically re-render on anchor changes)`);
-    return true;
   }
 
   /**
@@ -423,7 +405,7 @@ export class LineOverlay extends OverlayBase {
         scalingContext,
         'defaultFillColor'
       ), 'none', cardInstance),
-      fillOpacity: Number(style.fill_opacity || 1),
+      fillOpacity: Number(style.fill_opacity ?? 1),  // 0 is transparent (it became 1)
 
       // Gradient and pattern support
       gradient: this._parseGradientConfig(style.gradient),
@@ -453,7 +435,7 @@ export class LineOverlay extends OverlayBase {
   /**
    * Resolve a style property using token system with fallback
    *
-   * @private
+   * @protected
    */
   _resolveStyleProperty(styleValue, tokenPath, resolveToken, fallback, context = {}) {
     if (styleValue !== undefined && styleValue !== null) {
@@ -533,45 +515,20 @@ export class LineOverlay extends OverlayBase {
   }
 
   /**
-   * Final materialization pass after _resolveLineColor, covering two gaps in
-   * the pipeline it delegates to (cardInstance._resolveColorValue):
-   *
-   * 1. A computed expression (alpha()/darken()/etc) that, for whatever reason,
-   *    reached here still unevaluated — e.g. state-color-resolver.js's and
-   *    _resolveColorValue's own computed-token passes both gate on
-   *    `window.lcards.core.themeManager.resolver` being set, and this is the
-   *    last point before the value is baked into a markup *string* (this runs
-   *    before the element exists in the DOM). Retried here with an explicit
-   *    element context.
-   * 2. A resolved value like `color-mix(in srgb, var(--x) 50%, transparent)`
-   *    still containing a *nested* var() — _resolveColorValue's own
-   *    materialization step only unwraps a value that IS (starts with) a bare
-   *    var(...), not one containing one elsewhere in the string.
-   *
-   * Without this, e.g. `alpha(var(--lcars-black-cherry), 0.5)` reaches the SVG
-   * fill attribute still wrapped in the unevaluated `alpha(...)` call — invalid
-   * paint syntax the browser can't parse, silently rendering opaque black
-   * instead of the intended translucent fill.
+   * Concrete colour for an SVG attribute baked into markup: `theme:` tokens,
+   * computed expressions and every var() (including ones nested in
+   * color-mix()) resolved against the card's element. `none` passes through.
    * @private
    */
   _materializeColor(value, fallback, cardInstance) {
-    if (typeof value !== 'string') return value;
-
-    const resolver = window.lcards?.core?.themeManager?.resolver;
-    if (resolver && typeof resolver.resolve === 'function') {
-      value = resolver.resolve(value, value, { element: cardInstance });
-    } else if (/^(darken|lighten|alpha|saturate|desaturate|mix|base)\(/.test(value)) {
-      lcardsLog.warn('[LineOverlay] Computed color expression left unresolved — themeManager.resolver unavailable at render time:', value);
-    }
-
-    if (typeof value !== 'string' || !value.includes('var(')) return value;
-    return ColorUtils.resolveCssVariable(value, fallback, cardInstance) || fallback;
+    if (typeof value !== 'string' || value === 'none') return value;
+    return resolveColor(value, { concrete: true, element: cardInstance ?? null, fallback });
   }
 
   /**
    * Get scaling context for responsive token resolution
    *
-   * @private
+   * @protected
    */
   _getScalingContext(viewBox) {
     return { viewBox };
@@ -714,29 +671,38 @@ export class LineOverlay extends OverlayBase {
   /**
    * Build SVG definitions (gradients, patterns, markers)
    *
+   * @param {any} lineStyle
+   * @param {string} overlayId
+   * @param {any} [cardInstance]
+   * @param {Array<[number, number]>|null} [pts] - the routed points (the gradient runs from the first to the last)
    * @private
    */
-  _buildDefinitions(lineStyle, overlayId) {
+  _buildDefinitions(lineStyle, overlayId, cardInstance = null, pts = null) {
     const defs = [];
 
     // Gradient definitions
     if (lineStyle.gradient) {
       const gradientId = `gradient-${overlayId}`;
-      if (!this.gradientCache.has(gradientId)) {
-        const gradientDef = this._createGradientDefinition(lineStyle.gradient, gradientId);
-        this.gradientCache.set(gradientId, gradientDef);
-      }
-      defs.push(this.gradientCache.get(gradientId));
+      // stop colours resolved for the SVG attribute (theme:, var()); cached by what they resolve to,
+      // so a theme or alert colour change makes a new definition
+      // runs from the line's start to its end in user space: a bounding-box gradient
+      // draws nothing on a straight horizontal or vertical line (its box has no height or width)
+      const first = Array.isArray(pts) ? pts[0] : null;
+      const last = Array.isArray(pts) ? pts[pts.length - 1] : null;
+      const span = first && last && (first[0] !== last[0] || first[1] !== last[1]) ? [first[0], first[1], last[0], last[1]] : null;
+      const gradient = { ...lineStyle.gradient, span, stops: (lineStyle.gradient.stops ?? []).map((/** @type {any} */ st) => ({ ...st, color: this._materializeColor(st.color, '#000000', cardInstance) })) };
+      const key = `${gradientId}|${JSON.stringify(gradient)}`;
+      if (!this.gradientCache.has(key)) this.gradientCache.set(key, this._createGradientDefinition(gradient, gradientId));
+      defs.push(this.gradientCache.get(key));
     }
 
     // Pattern definitions
     if (lineStyle.pattern) {
       const patternId = `pattern-${overlayId}`;
-      if (!this.patternCache.has(patternId)) {
-        const patternDef = this._createPatternDefinition(lineStyle.pattern, patternId);
-        this.patternCache.set(patternId, patternDef);
-      }
-      defs.push(this.patternCache.get(patternId));
+      const pattern = { ...lineStyle.pattern, color: this._materializeColor(lineStyle.pattern.color, '#000000', cardInstance) };
+      const key = `${patternId}|${JSON.stringify(pattern)}`;
+      if (!this.patternCache.has(key)) this.patternCache.set(key, this._createPatternDefinition(pattern, patternId));
+      defs.push(this.patternCache.get(key));
     }
 
     // Marker definitions. A marker with no explicit fill/color falls back to
@@ -881,7 +847,7 @@ export class LineOverlay extends OverlayBase {
   /**
    * Get renderer provenance information
    *
-   * @private
+   * @protected
    */
   _getRendererProvenance(overlayId, metadata = {}) {
     return {
@@ -940,16 +906,21 @@ export class LineOverlay extends OverlayBase {
 
   _parseMarkerConfig(markerConfig) {
     if (!markerConfig) return null;
-    return markerConfig; // Simplified
+    // the string form the schema allows (marker_end: arrow) is the type alone
+    if (typeof markerConfig === 'string') return { type: markerConfig };
+    return markerConfig;
   }
 
   _createGradientDefinition(gradient, gradientId) {
-    // Simplified gradient definition
     const stops = gradient.stops.map(stop =>
       `<stop offset="${stop.offset}" stop-color="${stop.color}" />`
     ).join('');
 
-    return `<linearGradient id="${gradientId}">${stops}</linearGradient>`;
+    const span = gradient.span;
+    const units = span
+      ? ` gradientUnits="userSpaceOnUse" x1="${span[0]}" y1="${span[1]}" x2="${span[2]}" y2="${span[3]}"`
+      : '';
+    return `<linearGradient id="${gradientId}"${units}>${stops}</linearGradient>`;
   }
 
   _createPatternDefinition(pattern, patternId) {

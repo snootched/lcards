@@ -16,6 +16,20 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 // genuinely 'anchor_side'/'attach_side' (not an explicit route_hint override
 // or the geometry fallback, neither of which carry a real direction).
 const CARDINAL_DIR = { left: [-1,0], right: [1,0], top: [0,-1], bottom: [0,1] };
+/**
+ * route: angled from a corner side (a bracket label's bar): the stub runs along the
+ * edge the route hint names, away from the box. Start: route_hint xy runs
+ * horizontally, yx vertically. End: route_hint_last xy arrives vertically, yx
+ * horizontally. Only a hint set on the line counts; no corner or no hint: no stub.
+ * @param {string} side @param {string} hint @param {'start'|'end'} end
+ * @returns {number[] | null}
+ */
+function cornerStubDir(side, hint, end) {
+  if (typeof side !== 'string' || !side.includes('-') || (hint !== 'xy' && hint !== 'yx')) return null;
+  const [v, h] = side.split('-');
+  const horizontal = end === 'start' ? hint === 'xy' : hint === 'yx';
+  return horizontal ? [h === 'left' ? -1 : 1, 0] : [0, v === 'top' ? -1 : 1];
+}
 // Last-resort fallback only — every real request carries its own resolved
 // `req.minStubLength` (see buildRouteRequest: `_resolvedGridResolution() *
 // _minStubLengthFactor`), which is what stubLengthFor/cardinalStubLengthFor
@@ -75,6 +89,16 @@ function stubLengthFor(req) {
   const usesRadius = req.cornerStyle === 'round' || req.cornerStyle === 'bevel';
   return usesRadius ? Math.max(floor, (req.cornerRadius || 0) * 2) : floor;
 }
+
+/**
+ * One rounded corner of a route: cornerRadii[k] belongs to pts[k + 1].
+ * @typedef {object} CornerRadius
+ * @property {number} index - point index of the corner
+ * @property {number} radius - corner radius actually used
+ * @property {number} lenIn - available length on the incoming leg
+ * @property {number} lenOut - available length on the outgoing leg
+ * @property {object} [reverseCurve] - set on a bundle-entry corner pair (see _applyReverseCurves)
+ */
 
 /**
  * Pure "reverse curve" (S-curve lane-change) geometry — two tangent
@@ -433,6 +457,8 @@ export class RouterCore {
     this._crossingAvoidBias = Number(this.config.crossing_avoid_bias ?? 4);
     this._crossingMinLength = Number(this.config.crossing_min_length ?? 12);
     this._crossings = [];
+    /** Every line's resolved corners ({ p, vInUnit, vOutUnit, radius, width }), by line: _arcClearanceToOthers */
+    this._cornerArcs = new Map();
   }
 
   invalidate(id='*') {
@@ -484,15 +510,24 @@ export class RouterCore {
       if (!isObstacle) continue;
       // Determine bounds. Prefer size+position (raw.position / raw.size) else anchor if available.
       let x = 0, y = 0, w = 0, h = 0;
-      if (Array.isArray(raw.position) && Array.isArray(raw.size)) {
-        const [px, py] = raw.position;
-        [w,h] = raw.size;
+      // position: [x, y] or an anchor name (`anchor` is its older name); a control with no
+      // size is drawn 100 x 100 (MsdControlsRenderer.resolveSize). Before, only an [x, y]
+      // position with a size made an obstacle: a control placed by anchor name never did.
+      const posRef = raw.position ?? (raw.type === 'control' ? raw.anchor : undefined);
+      const pos = Array.isArray(posRef) ? posRef : (typeof posRef === 'string' ? this.anchors[posRef] : null);
+      const size = Array.isArray(raw.size) ? raw.size : (raw.type === 'control' ? [100, 100] : null);
+      if (Array.isArray(pos) && Array.isArray(size)) {
+        const [px, py] = pos;
+        [w,h] = size;
         // raw.position is the point named by attachment, not necessarily the
         // box's top-left corner (see ATTACHMENT_OFFSET_FRAC) — applying the
         // wrong corner here registers the obstacle up to half the control's
         // width/height away from where it's actually drawn, which can steer
         // the pathfinder around empty space (or through the real control).
-        const offset = ATTACHMENT_OFFSET_FRAC[raw.attachment] || ATTACHMENT_OFFSET_FRAC['top-left'];
+        // A control with no attachment is centred on its position (MsdControlsRenderer's
+        // default); a shape's position is always its top-left corner.
+        const attachment = raw.attachment ?? (raw.type === 'shape' ? 'top-left' : 'center');
+        const offset = ATTACHMENT_OFFSET_FRAC[attachment] || ATTACHMENT_OFFSET_FRAC['top-left'];
         x = px + offset[0] * w;
         y = py + offset[1] * h;
       } else if (raw.anchor && this.anchors[raw.anchor]) {
@@ -523,6 +558,7 @@ export class RouterCore {
     // state. Channel rows are re-seeded (authored config, not history).
     this._trunks = this._seedTrunksFromChannels();
     this._crossings = [];
+    this._cornerArcs = new Map();
     this._crossingCostCache.clear();
     this._registryVersion++;
     this.invalidate('*');
@@ -883,7 +919,8 @@ export class RouterCore {
       fs.smoothing_iterations ||
       this.config.smoothing_iterations ||
       (this.config.smoothing && this.config.smoothing.iterations) ||
-      0
+      // a smoothing mode with no iterations set smooths once (the schema's default): 0 made it do nothing
+      (smoothingMode !== 'none' ? 1 : 0)
     );
     const smoothingMaxPoints = Number(
       raw.smoothing_max_points ||
@@ -928,7 +965,8 @@ export class RouterCore {
       _hintSourceLast: hintSourceLast,
       avoidIds: Array.isArray(raw.avoid) ? raw.avoid.slice() : [],
       channels: this._getChannelArray(raw),
-      cornerRadius: Number(raw.corner_radius || raw.cornerRadius || fs.corner_radius || 34),
+      // ?? not ||: corner_radius 0 means square corners (it became 34)
+      cornerRadius: Number(raw.corner_radius ?? raw.cornerRadius ?? fs.corner_radius ?? 34),
       cornerStyle: (raw.corner_style || raw.cornerStyle || fs.corner_style || 'round').toLowerCase(),
       cornerRadiusMode: (raw.corner_radius_mode || raw.cornerRadiusMode || fs.corner_radius_mode || 'auto').toLowerCase(),
       // Explicit override for the mandatory cardinal stub length (vb
@@ -1015,8 +1053,10 @@ export class RouterCore {
    * @returns {{ stubReq: object, prefix: number[][], suffix: number[][] }}
    */
   _applyCardinalStubs(req) {
-    const anchorDir = req._hintSourceFirst === 'anchor_side' ? CARDINAL_DIR[req.anchorSide] : null;
-    const attachDir = req._hintSourceLast === 'attach_side' ? CARDINAL_DIR[req.attachSide] : null;
+    const anchorDir = req._hintSourceFirst === 'anchor_side' ? CARDINAL_DIR[req.anchorSide]
+      : (req.modeFull === 'angled' && req._hintSourceFirst === 'explicit' ? cornerStubDir(req.anchorSide, req.modeHint, 'start') : null);
+    const attachDir = req._hintSourceLast === 'attach_side' ? CARDINAL_DIR[req.attachSide]
+      : (req.modeFull === 'angled' && req._hintSourceLast === 'explicit' ? cornerStubDir(req.attachSide, req.modeHintLast, 'end') : null);
     if (!anchorDir && !attachDir) {
       return { stubReq: req, prefix: [], suffix: [] };
     }
@@ -1173,6 +1213,10 @@ export class RouterCore {
           result = this._computeManual(req);
         } else if (mode === 'direct') {
           result = this._computeDirect(req);
+        } else if (mode === 'angled') {
+          // The side stubs come from _applyCardinalStubs (prefix/suffix,
+          // spliced back on below); between them, one straight run.
+          result = this._computeDirect(stubReq, 'angled');
         } else if (usesCorridorRouting) {
           if (hasForceChannels) {
             // Force channels are mandatory — always use the full merged
@@ -1396,7 +1440,7 @@ export class RouterCore {
     // against a coordinate-identical neighbor below — an index-based
     // mapping to req.waypoints would silently misalign the moment either
     // happens.
-    const entries = [{ pt: [x1, y1], radius: null }];
+    const entries = [{ pt: [x1, y1], radius: /** @type {any} */ (null) }];
 
     // Add all waypoints (support both coordinate arrays and named anchors)
     for (const wp of waypoints) {
@@ -2902,8 +2946,8 @@ export class RouterCore {
    * principled meaning as a distance at THIS corridor.
    * @param {object[]} chainChannels
    * @param {string} lineId
-   * @param {number[]} rawA
-   * @param {number[]} rawB
+   * @param {number[]|null} rawA - null skips the assignment (returns null)
+   * @param {number[]|null} rawB
    * @returns {Map<string, {side:number, lean:number, offsetRel:number, k:number, grounded:boolean}>|null}
    * @private
    */
@@ -3217,6 +3261,11 @@ export class RouterCore {
     return lineA < lineB ? -1 : lineA > lineB ? 1 : 0;
   }
 
+  /**
+   * @param {object} corridor
+   * @param {string} lineId
+   * @param {Map<string, {side:number, lean:number, offsetRel:number, k:number, grounded:boolean}>|null} [chainSideHint]
+   */
   _trunkLaneAssignment(corridor, lineId, chainSideHint = null) {
     // Always read the LIVE registry row — corridor may be a stale spread
     // copy (see _discoverTrunkCandidates) or a bare config-channel object
@@ -3561,10 +3610,10 @@ export class RouterCore {
    * whenever the member set shifts.
    * @param {string} lineId
    * @param {number[][]} pts
-   * @param {number[]} [rawA] - the line's true, un-stubbed start anchor
+   * @param {number[]|null} [rawA] - the line's true, un-stubbed start anchor
    *   (req.a) — used only to derive each trunk contribution's natural
    *   side (see _mergeOrRegisterTrunk), never for span/geometry.
-   * @param {number[]} [rawB] - the line's true, un-stubbed end/attach
+   * @param {number[]|null} [rawB] - the line's true, un-stubbed end/attach
    *   point (req.b), same purpose as rawA.
    * @param {Array<{index:number,radius:number}>|null} [cornerRadii] - this
    *   line's own resolved corner radii, straight from
@@ -3637,6 +3686,9 @@ export class RouterCore {
         }
       }
     }
+    // every resolved corner, for any other line's exact corner clearance
+    // (_arcClearanceToOthers), not only trunk members'
+    this._cornerArcs.set(lineId, [...cornerGeomAt.values()]);
     // Compact collinear runs first — a straight route commonly has interior
     // points that aren't real corners at all (e.g. both ends of a stub
     // splice happening to continue in the same direction the inner path
@@ -3667,6 +3719,7 @@ export class RouterCore {
     // registration has no such ordering concern (every qualifying run gets
     // its own independent entry, never competes with a sibling run for the
     // same slot) and stays exactly as before.
+    /** @type {Array<{idx: number, a: number[], b: number[], horizontal: boolean, length: number, cornerInfo: object|null}> | null} */
     const trunkCandidates = touchedTrunks ? [] : null;
     for (let i = 1; i < compacted.length; i++) {
       const a = compacted[i - 1], b = compacted[i];
@@ -3689,7 +3742,8 @@ export class RouterCore {
           : null;
         trunkCandidates.push({ idx, a, b, horizontal, length, cornerInfo });
       }
-      if (this._crossingAvoidEnabled && length >= this._crossingMinLength) {
+      // touchedCrossingIds is non-null exactly when _crossingAvoidEnabled (set above).
+      if (touchedCrossingIds && length >= this._crossingMinLength) {
         touchedCrossingIds.add(`cross:${lineId}:${idx}`);
         // trimLo/trimHi are keyed to the NORMALIZED x1/y1 (low) and x2/y2
         // (high) ends _registerCrossingSegment stores — not run-traversal
@@ -3868,6 +3922,9 @@ export class RouterCore {
    * @param {number[]} b
    * @param {boolean} horizontal
    * @param {Set<object>|null} touchedTrunks - rows already claimed by this scan; the matched/created row is added
+   * @param {{joined: boolean}|null} [foreignJoinFlag] - set to joined:true when this line joins another line's trunk
+   * @param {number[]|null} [rawA] - the line's true start anchor
+   * @param {number[]|null} [rawB] - the line's true end anchor
    * @param {{lo: object|null, hi: object|null}|null} [cornerInfo] - this run's own
    *   resolved corner geometry at each end (from _registerLineSegments'
    *   cornerGeomAt), stored on the member tuple for _matchedTrunkCorner/
@@ -4649,6 +4706,8 @@ export class RouterCore {
    * @param {number} lineSpacing - that channel's line_spacing
    * @param {object} firstHint - the true hint governing departure from `from`
    * @param {object} lastHint - the true hint governing arrival at `to`
+   * @param {object} chan - the corridor being entered
+   * @param {object[]|null} [bundleEntryHints] - collects reverse-curve hints for the bundle entry
    * @private
    */
   _pushBundledApproachLegs(legs, stubReq, from, to, horizontal, laneIndex, laneCount, lineSpacing, firstHint, lastHint, chan, bundleEntryHints = null) {
@@ -4816,6 +4875,37 @@ export class RouterCore {
         const next = candidate + sign * lineSpacing;
         if (Math.abs(next) > available) break;
         candidate = next;
+      }
+      // No room further on (the corridor starts right there, so every member of a
+      // bundle entry bends at the same spot): bend EARLIER instead, in lineSpacing
+      // steps back toward `from`. A sibling with a longer climb into the bundle then
+      // keeps the shared spot and this one turns inside it, the two corners nested
+      // rather than one line's corner sweeping through the other's climb (2026-11-19,
+      // the Live Demo routing view: B and C both bent at x 198, B's arc touching C).
+      // Checked against UNTRIMMED geometry: an earlier bend that would cross a
+      // sibling's straight row is refused even where that row ends in a rounded
+      // corner, so only the line whose earlier bend is genuinely clear moves.
+      // Only for that comb collision (another line climbing alongside, closer than a
+      // lane): any other conflict keeps its old answer, or a line trying a trunk it
+      // then leaves could swing between joining and not on every pass (the line
+      // overlay docs' two-card example did, with a smaller corner as the trace).
+      if (safeCandidate === null && bundleEntryHints) {
+        const nudge = horizontal ? [from[0] + corridorOffset, from[1]] : [from[0], from[1] + corridorOffset];
+        const mid = horizontal ? [nudge[0], to[1]] : [to[0], nudge[1]];
+        // Only for a line already in this corridor (an earlier pass placed it there):
+        // offering a clear way in to a line only trying the corridor made the two-card
+        // example in the line overlay docs swing between joining and not on every pass.
+        const member = !!chan?.members?.has?.(stubReq.id);
+        if (member && this._siblingClimbsAlongside(nudge, mid, stubReq.id, lineSpacing)) {
+          for (let back = corridorOffset - sign * lineSpacing; sign * back >= lineSpacing; back -= sign * lineSpacing) {
+            const candNudge = horizontal ? [from[0] + back, from[1]] : [from[0], from[1] + back];
+            const candMid = horizontal ? [candNudge[0], to[1]] : [to[0], candNudge[1]];
+            if (!this._pureCrossAxisLegTooCloseToOtherLine(candNudge, candMid, stubReq.id, stubReq.width, true)) {
+              safeCandidate = back;
+              break;
+            }
+          }
+        }
       }
       if (safeCandidate !== null) corridorOffset = safeCandidate;
     }
@@ -5167,13 +5257,44 @@ export class RouterCore {
    * @returns {boolean}
    * @private
    */
-  _pureCrossAxisLegTooCloseToOtherLine(a, b, askingLineId, askingWidth) {
+  _pureCrossAxisLegTooCloseToOtherLine(a, b, askingLineId, askingWidth, untrimmed = false) {
     const SAFE_MARGIN = 1; // matches this file's own arcMin convention
     const N = 5;
     for (let i = 0; i <= N; i++) {
       const t = i / N;
       const p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-      if (this._distanceToNearestOtherLineSegment(p, askingLineId, askingWidth) < SAFE_MARGIN) return true;
+      if (this._distanceToNearestOtherLineSegment(p, askingLineId, askingWidth, null, untrimmed) < SAFE_MARGIN) return true;
+    }
+    return false;
+  }
+
+  /**
+   * True when another line's registered segment runs alongside the cross-axis leg
+   * from `a` to `b` (same direction, closer than `lineSpacing` across, overlapping
+   * along it): two members of a bundle entry climbing to their lanes at one spot.
+   * Untrimmed extents: the climb of a short reverse curve is nearly all corner.
+   * @param {number[]} a
+   * @param {number[]} b
+   * @param {string} askingLineId
+   * @param {number} lineSpacing
+   * @returns {boolean}
+   * @private
+   */
+  _siblingClimbsAlongside(a, b, askingLineId, lineSpacing) {
+    const vertical = a[0] === b[0];
+    if (!vertical && a[1] !== b[1]) return false;
+    const across = vertical ? 0 : 1;
+    const along = vertical ? 1 : 0;
+    const lo = Math.min(a[along], b[along]);
+    const hi = Math.max(a[along], b[along]);
+    for (const seg of this._crossings) {
+      if (seg.lineId === askingLineId) continue;
+      if (seg.direction !== (vertical ? 'vertical' : 'horizontal')) continue;
+      const segAcross = vertical ? seg.x1 : seg.y1;
+      if (Math.abs(segAcross - a[across]) >= lineSpacing) continue;
+      const segLo = vertical ? Math.min(seg.y1, seg.y2) : Math.min(seg.x1, seg.x2);
+      const segHi = vertical ? Math.max(seg.y1, seg.y2) : Math.max(seg.x1, seg.x2);
+      if (segHi > lo && segLo < hi) return true;
     }
     return false;
   }
@@ -5208,6 +5329,38 @@ export class RouterCore {
    * @returns {object} `legResult`, or a straightened replacement
    * @private
    */
+  /**
+   * The run along a corridor's lane (entry to exit, one axis) is a straight
+   * line by definition. Grid search can't always follow it: a lane offset off
+   * the grid can sit in a cell that touches an obstacle's clearance band even
+   * though the lane itself is clear, and A* then detours round the cell and
+   * lands on another line's centre line (two lines drawn on one lane, the
+   * bundle-through-a-gap docs example, 2026-11-08). Only when the search
+   * result bent, the straight lane crosses no obstacle (exact geometry, not
+   * cells) and the detour runs along another line's track where the lane
+   * doesn't; any other ride is untouched, so cost comparisons that worked
+   * before don't move (see
+   * _maybeStraightenPureCrossAxisLeg on why a general channel_axis version
+   * was reverted).
+   * @param {object} legReq
+   * @param {object} legResult
+   * @returns {object} `legResult`, or the straight lane
+   * @private
+   */
+  _straightenLaneRide(legReq, legResult) {
+    if (!legReq._laneRide || !legResult || legResult.pts.length <= 2) return legResult;
+    const a = legReq.a, b = legReq.b;
+    if (a[0] !== b[0] && a[1] !== b[1]) return legResult;
+    if (a[0] === b[0] && a[1] === b[1]) return legResult;
+    if (this._segmentCrossesObstacle(a, b)) return legResult;
+    // only to undo a detour that ran along another line's track (a crossing
+    // detour is left alone: straightening it changed which candidate wins,
+    // trunk-mate-overlap.test.js)
+    const overlapOnly = { overlapOnly: true };
+    if (this._segmentCrossingPenalty([a, b], legReq.id, overlapOnly) >= this._segmentCrossingPenalty(legResult.pts, legReq.id, overlapOnly)) return legResult;
+    return { ...legResult, pts: [a, b] };
+  }
+
   _maybeStraightenPureCrossAxisLeg(legReq, legResult) {
     if (!legResult) return legResult;
     // Deliberately scoped to fully-soft hints only ('geometry'/
@@ -5482,9 +5635,12 @@ export class RouterCore {
             ? (prevChannelDir !== 0 ? { source: 'continuation', continuationDir: prevChannelDir, horizontal: prevChannelHorizontal } : { source: 'geometry' })
             : { source: 'channel_axis', horizontal: chainChannels[k - 1].direction === 'horizontal', continuationDir: prevChannelDir }),
         entryHint, chan, bundleEntryHints);
-      legs.push(this._buildLegRequest(legBase, entry, exit,
+      const rideLeg = this._buildLegRequest(legBase, entry, exit,
         { source: 'channel_axis', horizontal },
-        { source: 'channel_axis', horizontal }));
+        { source: 'channel_axis', horizontal });
+      // the run along the lane itself: see _straightenLaneRide
+      rideLeg._laneRide = true;
+      legs.push(rideLeg);
       const approachFrom = cursor;
       cursor = exit;
       prevExitAlreadyInside = exitAlreadyInside;
@@ -5550,6 +5706,7 @@ export class RouterCore {
       legResult = this._computeGrid(legReq);
       if (smart && legResult) legResult = this._refineSmart(legReq, legResult);
       legResult = this._maybeStraightenPureCrossAxisLeg(legReq, legResult);
+      legResult = this._straightenLaneRide(legReq, legResult);
       // A null result for a leg carrying 'anchor_stub'/'attach_stub' means
       // the hard reversal-block correctly rejected the ONLY direction A*
       // was willing to consider first/last — but this leg's start/end is
@@ -5692,19 +5849,20 @@ export class RouterCore {
   }
 
   /**
-   * route: 'direct' — a literal 2-point straight line, no elbow, no
+   * route: 'direct' (and the middle run of 'angled', between its side
+   * stubs) — a literal 2-point straight line, no elbow, no
    * obstacle avoidance, matching its own documentation (LineOverlay docs /
    * Studio UI both describe it this way — before this method existed,
    * 'direct' fell through to _computeManhattan and got the same elbow shape
    * as every other unrecognized mode).
    * @param {object} req - Route request
    */
-  _computeDirect(req) {
+  _computeDirect(req, strategy = 'direct') {
     const pts = [req.a, req.b];
     return {
       d: this._polylineToPath(pts),
       pts,
-      meta: { strategy: 'direct', cost: this._costSimple(pts), segments: 1, bends: 0 }
+      meta: { strategy, cost: this._costSimple(pts), segments: 1, bends: 0 }
     };
   }
 
@@ -5987,10 +6145,11 @@ export class RouterCore {
    * independent of grid_resolution.
    * @param {number[][]} pts
    * @param {string} askingLineId - never penalize a line for crossing its own registered segments
+   * @param {{ overlapOnly?: boolean }} [opts] - overlapOnly: count only runs along another line's track, not crossings
    * @returns {number} pre-weighted penalty, added directly to a cost total (not multiplied further)
    * @private
    */
-  _segmentCrossingPenalty(pts, askingLineId) {
+  _segmentCrossingPenalty(pts, askingLineId, { overlapOnly = false } = {}) {
     if (!this._crossingAvoidEnabled || !this._crossings.length) return 0;
     const weight = Number(this.config?.cost_defaults?.crossing ?? 50);
     // Two different lines' segments running along the exact same coordinate
@@ -6032,6 +6191,7 @@ export class RouterCore {
         if (seg.lineId === askingLineId) continue;
         const segVertical = seg.direction === 'vertical';
         if (segVertical !== vertical) {
+          if (overlapOnly) continue;
           // Perpendicular — the pre-existing crossing check.
           const segLo = segVertical ? seg.y1 : seg.x1;
           const segHi = segVertical ? seg.y2 : seg.x2;
@@ -6082,7 +6242,7 @@ export class RouterCore {
    * same-axis reversal, off-viewBox — all hard rejects, never "just cost
    * more").
    * @param {number[][]} pts
-   * @param {(i: number, j: number) => boolean} [isExempt] - when provided,
+   * @param {((i: number, j: number) => boolean)|null} [isExempt] - when provided,
    *   a would-be crossing between segment `i` (pts[i-1]->pts[i]) and
    *   segment `j` (pts[j-1]->pts[j]) is tolerated (not reported) if this
    *   returns true — used by _computeCorridorRouted to scope its force-
@@ -6267,6 +6427,8 @@ export class RouterCore {
         direction: config.direction,  // 'horizontal', 'vertical', or 'auto'
         weight: config.weight,
         w: config.w,
+        // gap between the lines bundled in it (was dropped here: always 8)
+        line_spacing: config.line_spacing,
         discoverable: config.discoverable
       }));
     }
@@ -6384,7 +6546,7 @@ export class RouterCore {
    * visible to the cost-comparison decision in computePath.
    * @param {Array} pts - Route points
    * @param {Array} chans - Normalized channel/trunk objects to measure against
-   * @param {string} [routeId] - for debug logging only
+   * @param {string|null} [routeId] - for debug logging only
    * @returns {object} Channel delta with coverage stats
    * @private
    */
@@ -6884,6 +7046,58 @@ export class RouterCore {
   }
 
   /**
+   * Exact clearance of a candidate corner's arc (radius `r` at `p`) from every
+   * OTHER line: their straight segments (trimmed, as drawn) and their resolved
+   * corner arcs (_cornerArcs), sampled like _siblingArcClearance. Used only to
+   * widen a corner the centre-distance proxy would clamp (2026-11-19, the routing
+   * lab's corner turn: a 34 turn cleared the inner line's arc, the proxy allowed 21
+   * because that line's row lay inside the corner's circle, not near its arc).
+   * @param {number[]} p
+   * @param {number[]} vInUnit
+   * @param {number[]} vOutUnit
+   * @param {number} r
+   * @param {string} routeId
+   * @param {number} ownWidth
+   * @returns {number}
+   * @private
+   */
+  _arcClearanceToOthers(p, vInUnit, vOutUnit, r, routeId, ownWidth) {
+    const K = 12;
+    const selfPts = [];
+    for (let s = 0; s <= K; s++) {
+      const theta = (Math.PI / 2) * (s / K);
+      const cos = Math.cos(theta), sin = Math.sin(theta);
+      selfPts.push([
+        p[0] + r * (vOutUnit[0] - vInUnit[0]) - r * cos * vOutUnit[0] + r * sin * vInUnit[0],
+        p[1] + r * (vOutUnit[1] - vInUnit[1]) - r * cos * vOutUnit[1] + r * sin * vInUnit[1]
+      ]);
+    }
+    let best = Infinity;
+    for (const seg of this._crossings) {
+      if (seg.lineId === routeId) continue;
+      const margin = (ownWidth + (seg.width || 0)) / 2;
+      const horizontal = seg.direction === 'horizontal';
+      const lo = horizontal ? Math.min(seg.x1 + (seg.trimLo || 0), seg.x2) : Math.min(seg.y1 + (seg.trimLo || 0), seg.y2);
+      const hi = horizontal ? Math.max(seg.x2 - (seg.trimHi || 0), lo) : Math.max(seg.y2 - (seg.trimHi || 0), lo);
+      for (const a of selfPts) {
+        const along = horizontal ? a[0] : a[1];
+        const d1 = along < lo ? lo - along : along > hi ? along - hi : 0;
+        const d2 = horizontal ? Math.abs(a[1] - seg.y1) : Math.abs(a[0] - seg.x1);
+        const d = Math.hypot(d1, d2) - margin;
+        if (d < best) best = d;
+      }
+    }
+    for (const [lineId, arcs] of this._cornerArcs) {
+      if (lineId === routeId) continue;
+      for (const arc of arcs) {
+        const d = this._siblingArcClearance(p, vInUnit, vOutUnit, r, arc, ownWidth);
+        if (d < best) best = d;
+      }
+    }
+    return best;
+  }
+
+  /**
    * Finds the trunk/channel row (if any) whose already-registered member
    * entry for `routeId` has a flow span exactly matching the segment
    * ending at `p` (pPrev -> p) — i.e. `p` is this line's own trunk-exit
@@ -6910,8 +7124,14 @@ export class RouterCore {
     for (const row of this._trunks) {
       if (row.direction !== direction) continue;
       const member = row.members?.get(routeId);
-      if (!member || member[0] !== flowLo || member[1] !== flowHi) continue;
-      return { row, atLo: p[flow] === flowLo };
+      if (!member) continue;
+      // `p` must sit exactly at one end of the registered span, and the run into it
+      // must lie inside the span: a collinear point before it (a line's own anchor
+      // stub, [105,50] [130,50] [560,50]) splits the run without changing the span,
+      // and an exact match missed the outer line of a fanning trunk exit (2026-11-19,
+      // the Live Demo routing view: A's turn down clamped to 13 against B's drop)
+      if (p[flow] === member[1] && member[0] <= flowLo && p[flow] === flowHi) return { row, atLo: false };
+      if (p[flow] === member[0] && member[1] >= flowHi && p[flow] === flowLo) return { row, atLo: true };
     }
     return null;
   }
@@ -6932,10 +7152,13 @@ export class RouterCore {
    * @param {number[]} vInUnit
    * @param {number[]} vOutUnit
    * @param {string} askingLineId
+   * @param {number[]|null} [p] - the asking corner: a sibling turning onto the SAME line out
+   *   (its exit drawn on top of this one's) is left out; their arcs have no clearance to
+   *   measure, and loosening each against the other cycled between passes (2026-11-19)
    * @returns {{lineId:string, p:number[], vInUnit:number[], vOutUnit:number[], radius:number, width:number}[]}
    * @private
    */
-  _matchedSiblingArcs(row, atLo, vInUnit, vOutUnit, askingLineId) {
+  _matchedSiblingArcs(row, atLo, vInUnit, vOutUnit, askingLineId, p = null) {
     const out = [];
     if (!row.members) return out;
     for (const [memberId, tuple] of row.members) {
@@ -6945,12 +7168,19 @@ export class RouterCore {
       if (!end) continue;
       if (end.vInUnit[0] !== vInUnit[0] || end.vInUnit[1] !== vInUnit[1]) continue;
       if (end.vOutUnit[0] !== vOutUnit[0] || end.vOutUnit[1] !== vOutUnit[1]) continue;
+      if (p && end.p && (vOutUnit[0] === 0 ? end.p[0] === p[0] : end.p[1] === p[1])) continue;
       out.push({ ...end, lineId: memberId });
     }
     return out;
   }
 
-  _distanceToNearestOtherLineSegment(p, askingLineId, askingWidth = 0, excludeLineIds = null) {
+  /**
+   * @param {number[]} p
+   * @param {string|null} askingLineId
+   * @param {number} [askingWidth]
+   * @param {Set<string>|null} [excludeLineIds]
+   */
+  _distanceToNearestOtherLineSegment(p, askingLineId, askingWidth = 0, excludeLineIds = null, untrimmed = false) {
     let best = Infinity;
     for (const seg of this._crossings) {
       if (seg.lineId === askingLineId) continue;
@@ -6967,13 +7197,13 @@ export class RouterCore {
       // primary safeguard).
       let dx, dy;
       if (seg.direction === 'horizontal') {
-        const effX1 = Math.min(seg.x1 + (seg.trimLo || 0), seg.x2);
-        const effX2 = Math.max(seg.x2 - (seg.trimHi || 0), effX1);
+        const effX1 = untrimmed ? seg.x1 : Math.min(seg.x1 + (seg.trimLo || 0), seg.x2);
+        const effX2 = untrimmed ? seg.x2 : Math.max(seg.x2 - (seg.trimHi || 0), effX1);
         dx = p[0] < effX1 ? effX1 - p[0] : p[0] > effX2 ? p[0] - effX2 : 0;
         dy = Math.abs(p[1] - seg.y1);
       } else {
-        const effY1 = Math.min(seg.y1 + (seg.trimLo || 0), seg.y2);
-        const effY2 = Math.max(seg.y2 - (seg.trimHi || 0), effY1);
+        const effY1 = untrimmed ? seg.y1 : Math.min(seg.y1 + (seg.trimLo || 0), seg.y2);
+        const effY2 = untrimmed ? seg.y2 : Math.max(seg.y2 - (seg.trimHi || 0), effY1);
         dy = p[1] < effY1 ? effY1 - p[1] : p[1] > effY2 ? p[1] - effY2 : 0;
         dx = Math.abs(p[0] - seg.x1);
       }
@@ -7005,7 +7235,7 @@ export class RouterCore {
    * precisely the cases corner-room refinement exists to fix.
    * @param {number[][]} pts
    * @param {number} radiusGlobal - target corner radius (viewBox units)
-   * @param {string} routeId - this line's own id (excluded from neighbor
+   * @param {string|null} routeId - this line's own id (excluded from neighbor
    *   clearance checks); when falsy, neighbor clearance is skipped
    *   regardless of `skipNeighborClearance` (mirrors the original inline
    *   `routeId` truthiness check)
@@ -7015,11 +7245,12 @@ export class RouterCore {
    *   TARGET for the corner at `pts[i]` — everything below (room clamp,
    *   neighbor-clearance shrink, consecutive-corner scaling) still applies
    *   on top of it as a ceiling, exactly as it does for `radiusGlobal`.
-   * @returns {{ index: number, radius: number, lenIn: number, lenOut: number }[]}
+   * @returns {CornerRadius[]}
    * @private
    */
   _estimateCornerRadii(pts, radiusGlobal, routeId = null, ownWidth = 0, { skipNeighborClearance = false, perCornerRadius = null } = {}) {
     const arcMin = 1;
+    /** @type {CornerRadius[]} */
     const cornerRadii = [];
     for (let i = 1; i < pts.length - 1; i++) {
       const pPrev = pts[i - 1];
@@ -7045,7 +7276,7 @@ export class RouterCore {
       const cross = vIn[0] * vOut[1] - vIn[1] * vOut[0];
       const dot = vIn[0] * vOut[0] + vIn[1] * vOut[1];
       const isStraightThrough = cross === 0 && dot > 0;
-      const target = (perCornerRadius && perCornerRadius[i - 1] != null) ? perCornerRadius[i - 1] : radiusGlobal;
+      const target = (perCornerRadius && perCornerRadius[i - 1] != null) ? /** @type {number} */ (perCornerRadius[i - 1]) : radiusGlobal;
       let r = isStraightThrough ? 0 : Math.min(target, lenIn / 2, lenOut / 2);
       // Clamp against bulging into another line's own registered path.
       // Corner rounding is otherwise entirely blind to other lines'
@@ -7110,7 +7341,7 @@ export class RouterCore {
           // matching corner yet (always true on this line's own very
           // first pass) — the mechanism naturally no-ops in both cases.
           const match = this._matchedTrunkCorner(pPrev, p, routeId);
-          const siblings = match ? this._matchedSiblingArcs(match.row, match.atLo, vInUnit, vOutUnit, routeId) : [];
+          const siblings = match ? this._matchedSiblingArcs(match.row, match.atLo, vInUnit, vOutUnit, routeId, p) : [];
           const siblingIds = siblings.length ? new Set(siblings.map(s => s.lineId)) : null;
           let lo = 0, hi = r;
           for (let iter = 0; iter < 20; iter++) {
@@ -7141,6 +7372,12 @@ export class RouterCore {
                 if (sibClearance < combined) combined = sibClearance;
               }
               if (combined > clearance) clearance = combined;
+            }
+            // the proxy would clamp: the arc's real clearance from every other line may
+            // still allow it (only ever widens, never narrows: Math.max)
+            if (clearance < arcMin) {
+              const exact = this._arcClearanceToOthers(p, vInUnit, vOutUnit, mid, routeId, ownWidth);
+              if (exact > clearance) clearance = exact;
             }
             if (clearance >= arcMin) lo = mid; else hi = mid;
           }
@@ -7242,7 +7479,7 @@ export class RouterCore {
    * geometry doesn't match the assumed flow/cross-axis-aligned shape —
    * that corner just renders exactly as it would without this feature.
    * @param {number[][]} pts
-   * @param {{index:number, radius:number, lenIn:number, lenOut:number}[]} cornerRadii
+   * @param {CornerRadius[]} cornerRadii
    * @param {{nudge:number[], mid:number[], channelId:string}[]} hints
    * @param {number} radiusGlobal - the configured corner_radius (target R)
    * @private

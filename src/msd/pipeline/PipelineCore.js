@@ -29,10 +29,19 @@ import { lcardsCore } from '../../core/lcards-core.js';
  *   Studio editor dialog (#387) — forwarded to MsdControlsRenderer so its
  *   hui-card-wrapped controls keep Studio's live preview "always show"
  *   behavior instead of honoring `visibility:` at design time.
+ * @param {any} [cardInstance=null] - The MSD card. The first render resolves line and
+ *   shape colours against it (a view or section theme sets its CSS variables), so it
+ *   must be known before that render, not only after (setCardInstance()).
  * @returns {Promise<Object>} Pipeline API
  */
-export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass = null, cardGuid = null, isEditMode = false) {
-  lcardsLog.info('[PipelineCore] 🚀 Starting MSD pipeline initialization with SVG extraction', {
+export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass = null, cardGuid = null, isEditMode = false, cardInstance = null) {
+  // AnimationManager is one shared singleton: its scopes for this card's base SVG and
+  // overlay group need ids of their own, or a second MSD card on the view tears the
+  // first card's animations down (it re-registers the same id)
+  const scopeSuffix = cardGuid || `msd-${Math.random().toString(36).slice(2, 10)}`;
+  const baseSvgScopeId = `__msd_base_svg:${scopeSuffix}`;
+  const overlayGroupScopeId = `__msd_animations:${scopeSuffix}`;
+  lcardsLog.debug('[PipelineCore] 🚀 Starting MSD pipeline initialization with SVG extraction', {
     hasCardGuid: !!cardGuid,
     cardGuid
   });
@@ -60,6 +69,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   // Initialize MsdCardCoordinator with theme loading BEFORE any overlay processing
   lcardsLog.trace('[PipelineCore] 🔧 Initializing MsdCardCoordinator and loading pack defaults');
   const coordinator = /** @type {any} */ (new MsdCardCoordinator());
+  if (cardInstance) coordinator.cardInstance = cardInstance;
 
   // CRITICAL: Initialize systems with pack defaults loading before overlay processing
   try {
@@ -74,12 +84,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       validationService = lcardsCore.validationService;
 
       if (validationService) {
-        // Configure for MSD-specific needs
-        validationService.config.strict = mergedConfig?.debug?.strictValidation || false;
-        validationService.config.stopOnError = false;
-        validationService.config.debug = mergedConfig?.debug?.validation || false;
-
-        lcardsLog.trace('[PipelineCore] Core ValidationService configured');
+        // The service is shared by every card: never write its config here.
 
         // Connect ValidationService to ThemeManager and DataSourceManager
         if (coordinator.themeManager) {
@@ -166,11 +171,9 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       coordinator.animationManager.mountEl = mountEl;
 
       await coordinator.animationManager.initialize(mergedConfig.overlays, {
-        customPresets: mergedConfig.animation_presets || {},
-        timelines: mergedConfig.timelines || {},
         suppressMountWarning: true // mountEl already set by core singleton init
       });
-      lcardsLog.info('[PipelineCore] ✅ AnimationManager initialized:', {
+      lcardsLog.debug('[PipelineCore] ✅ AnimationManager initialized:', {
         overlaysWithAnimations: coordinator.animationManager.registeredAnimations.size,
         overlayIds: Array.from(coordinator.animationManager.registeredAnimations.keys()),
         mountEl: !!coordinator.animationManager.mountEl
@@ -210,7 +213,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
    * @returns {Promise<Object|undefined>} Renderer result object
    */
   async function reRender() {
-    lcardsLog.info('[PipelineCore] 🔄 reRender() ENTRY - FULL RE-RENDER TRIGGERED', {
+    lcardsLog.debug('[PipelineCore] 🔄 reRender() ENTRY - FULL RE-RENDER TRIGGERED', {
       timestamp: new Date().toISOString(),
       renderInProgress: coordinator._renderInProgress,
       rulePatches: coordinator.rulesEngine?.getLastEvaluationResult?.()?.overlayPatches?.length || 'N/A'
@@ -245,6 +248,9 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       try {
         renderResult = await coordinator.renderer.render(resolvedModel);
         lcardsLog.trace('[PipelineCore] AdvancedRenderer.render() completed successfully:', renderResult);
+        // the overlays are drawn: the card puts its rule style patches back on them (a patch
+        // that came while they were not drawn yet found nothing)
+        coordinator.cardInstance?._onMsdRendered?.();
       } catch (renderError) {
         lcardsLog.error('[PipelineCore] ❌ AdvancedRenderer.render() FAILED:', renderError);
         lcardsLog.error('[PipelineCore] ❌ Render error stack:', renderError.stack);
@@ -295,7 +301,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
         if (overlayContainer) {
           try {
             await coordinator.animationManager.onOverlayRendered(
-              '__msd_animations',
+              overlayGroupScopeId,
               overlayContainer,
               { animations: cardModel.animations },
               coordinator
@@ -420,7 +426,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
         animationCount: cardModel.baseSvg.animations.length
       });
       await coordinator.animationManager.onOverlayRendered(
-        '__msd_base_svg',
+        baseSvgScopeId,
         baseContentGroup,
         { animations: cardModel.baseSvg.animations },
         coordinator
@@ -467,6 +473,7 @@ function createDisabledPipeline(mergedConfig, issues, provenance, fullUserConfig
 
   const disabledPipeline = {
     enabled: false,
+    issues: { errors: issues.errors, warnings: issues.warnings },
     errors: issues.errors,
     warnings: issues.warnings,
     html: errorHtml,
@@ -478,8 +485,6 @@ function createDisabledPipeline(mergedConfig, issues, provenance, fullUserConfig
     getResolvedModel: () => null,
     ingestHass: () => {},
     updateEntities: () => {},
-    listEntities: () => [],
-    getEntity: () => null,
     getActiveProfiles: () => [],
     getAnchors: () => (mergedConfig.anchors || {}),
     repairAnchorsFromMerged: () => false
@@ -706,7 +711,6 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
     // Core systems
     coordinator,
     dataSourceManager: coordinator.dataSourceManager,
-    rulesEngine: coordinator.rulesEngine,
     renderer: coordinator.renderer,
     router: coordinator.router,
     validationService: coordinator.validationService,
@@ -777,8 +781,6 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
     },
 
     updateEntities: (map) => coordinator.updateEntities(map),
-    listEntities: () => coordinator.entityRuntime.listIds(),
-    getEntity: (id) => coordinator.entityRuntime.getEntity(id),
     getActiveProfiles: () => [],
     getAnchors: () => ({ ...cardModel.anchors }),
 

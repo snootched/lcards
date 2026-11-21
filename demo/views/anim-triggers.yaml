@@ -1,0 +1,88 @@
+# Animation triggers (D1c): what starts an animation. Each card names its trigger:
+# hover, hold, double tap, an entity change (once, or looping while a condition
+# holds), and on_show (each time the card appears, e.g. when this view opens).
+title: Animation triggers
+path: anim-triggers
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: POWER } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        tap_action: { action: toggle }
+        text: { name: { content: LIGHTS, show: true } }
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      # Pointer triggers: hover glows (and stops on leave), hold shakes, double tap bounces
+      - type: custom:lcards-button
+        preset: filled
+        tap_action: { action: none }
+        text: { name: { content: HOVER, show: true } }
+        animations:
+          - { trigger: on_hover, preset: glow, loop: true }
+          - { trigger: on_leave, preset: fade, params: { from: 0.7, to: 1 } }
+        grid_options: { columns: 12, rows: 2 }
+      - type: custom:lcards-button
+        preset: filled
+        tap_action: { action: none }
+        hold_action: { action: none }
+        text: { name: { content: HOLD, show: true } }
+        animations:
+          - { trigger: on_hold, preset: shake }
+        grid_options: { columns: 12, rows: 2 }
+      - type: custom:lcards-button
+        preset: filled
+        tap_action: { action: none }
+        double_tap_action: { action: none }
+        text: { name: { content: DOUBLE TAP, show: true } }
+        animations:
+          - { trigger: on_double_tap, preset: bounce }
+        grid_options: { columns: 12, rows: 2 }
+      # on_show: plays each time the card appears (open this view again to replay it)
+      - type: custom:lcards-button
+        preset: filled
+        interactive: false
+        text: { name: { content: ON SHOW, show: true } }
+        animations:
+          - { trigger: on_show, preset: slide, params: { from: left, distance: 120, duration: 700 } }
+          - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 700 } }
+        grid_options: { columns: 12, rows: 2 }
+  - type: grid
+    column_span: 4
+    cards:
+      # Entity changes: a bounce each time LIGHTS turns on (to_state)
+      - type: custom:lcards-button
+        preset: panel-light
+        interactive: false
+        text: { label: { content: LIGHTS ON }, name: { content: BOUNCE WHEN LIGHTS TURN ON, show: true, position: top-left } }
+        animations:
+          - { trigger: on_entity_change, entity: input_boolean.lcards_test_lights, to_state: "on", preset: bounce }
+        grid_options: { columns: 16, rows: 2 }
+      # A loop that runs only while its condition holds: pulse while LIGHTS is on
+      - type: custom:lcards-button
+        preset: panel-light
+        interactive: false
+        text: { label: { content: WHILE LIGHTS }, name: { content: PULSE WHILE LIGHTS ON, show: true, position: top-left } }
+        animations:
+          - { trigger: on_entity_change, entity: input_boolean.lcards_test_lights, preset: pulse, loop: true, while: { state: "on" }, check_on_load: true }
+        grid_options: { columns: 16, rows: 2 }
+      # And on a number: strobe while POWER is above 80
+      - type: custom:lcards-button
+        preset: panel-light
+        interactive: false
+        text: { label: { content: WHILE POWER }, name: { content: STROBE ABOVE 80, show: true, position: top-left } }
+        animations:
+          - { trigger: on_entity_change, entity: input_number.lcards_test_power, preset: strobe, loop: true, while: { above: 80 }, check_on_load: true }
+        grid_options: { columns: 16, rows: 2 }

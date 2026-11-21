@@ -1,0 +1,16 @@
+# The shell strategy's light slider: pills whose gradient follows the light's colour
+# (match-light). tests/browser/light-colour.spec.js
+type: custom:lcards-slider
+entity: light.demo
+preset: pills-left-border
+text:
+  name:
+    show: true
+style:
+  track:
+    segments:
+      gradient:
+        start:
+          active: darken(match-light,0.6)
+        end:
+          active: match-light

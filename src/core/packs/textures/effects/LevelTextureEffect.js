@@ -9,8 +9,9 @@
  */
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
+import { configProp } from '../../backgrounds/effects/animatable-props.js';
 import { parseColorToRgba } from './noise-helpers.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
 
 function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
@@ -51,13 +52,22 @@ function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
  *    slosh_period {number}  Seconds per slosh cycle (default 3)
  */
 export class LevelTextureEffect extends BaseTextureEffect {
+    static animatableProps = {
+        ...BaseTextureEffect.animatableProps,
+        fill_pct: configProp('fill_pct', '_fillPct'),
+        wave_height: configProp('wave_height', '_waveHeight'),
+        wave_speed: configProp('wave_speed', '_waveSpeed'),
+        wave2_height: configProp('wave2_height', '_wave2Height'),
+        wave2_speed: configProp('wave2_speed', '_wave2Speed'),
+        slosh_amount: configProp('slosh_amount', '_sloshAmount'),
+    };
+
 
     constructor(config = {}) {
         super(config);
 
         // ── Color ──────────────────────────────────────────────────────────────
-        const _r = window.lcards?.core?.themeManager?.resolver;
-        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        const _resolve = (c) => resolveColor(c, { concrete: true });
         this._colorA    = _resolve(config.color_a ?? config.color ?? 'rgba(0,200,100,0.7)');
         this._colorB    = config.color_b ? _resolve(config.color_b) : null;
         this._crossover = clamp(config.gradient_crossover ?? 80, 0, 100);
@@ -375,8 +385,7 @@ export class LevelTextureEffect extends BaseTextureEffect {
 
     updateConfig(cfg) {
         super.updateConfig(cfg);
-        const _r = window.lcards?.core?.themeManager?.resolver;
-        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        const _resolve = (c) => resolveColor(c, { concrete: true });
 
         // Color
         if (cfg.color              !== undefined) this._colorA    = _resolve(cfg.color);

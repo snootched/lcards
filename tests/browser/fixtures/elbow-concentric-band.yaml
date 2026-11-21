@@ -1,0 +1,16 @@
+# A segmented header with a thin inner band, both curves unset: the band must stay one
+# width round the bend (outer and inner arcs on one centre, radii a bar apart)
+type: custom:lcards-elbow
+elbow:
+  type: header-left
+  style: segmented
+  segments:
+    gap: 6
+    outer_segment:
+      bar_width: 140
+      bar_height: 24
+      color: var(--lcards-gray)
+    inner_segment:
+      bar_width: 6
+      bar_height: 6
+      color: var(--lcards-orange)

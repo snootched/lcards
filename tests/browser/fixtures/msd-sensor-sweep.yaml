@@ -1,0 +1,20 @@
+# sensor-sweep on an MSD shape overlay (new-presets.spec.js)
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: none
+  view_box: [0, 0, 400, 200]
+  overlays:
+    - id: scanner
+      type: shape
+      kind: circle
+      position: [200, 100]
+      size: [140, 140]
+      style:
+        color: var(--lcars-blue)
+        width: 2
+      animations:
+        - trigger: on_load
+          preset: sensor-sweep
+          params:
+            duration: 2000

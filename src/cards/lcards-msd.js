@@ -14,14 +14,14 @@ import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { mergeOverlayPatches } from '../core/rules/merge-patches.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { initMsdPipeline } from '../msd/index.js';
 import { getMsdSchema } from './schemas/msd-schema.js';
 import { resolveEffectiveViewBox } from '../utils/lcards-anchor-helpers.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
+import { resolveColor } from '../core/themes/resolve-color.js';
 
-// Import editor component for getConfigElement()
-import '../editor/cards/lcards-msd-editor.js';
 
 /**
  * LCARdS MSD Card
@@ -34,6 +34,18 @@ import '../editor/cards/lcards-msd-editor.js';
  * - Provenance tracking via inherited _provenanceTracker
  * - Theme token resolution via inherited helpers
  */
+/**
+ * The text of a pipeline issue: a string, or an object with `message` (or the
+ * older `msg`).
+ * @param {any} issue
+ * @returns {string}
+ */
+export function msdIssueText(issue) {
+    if (issue == null) return '';
+    if (typeof issue === 'string') return issue;
+    return issue.message || issue.msg || issue.code || String(issue);
+}
+
 export class LCARdSMSDCard extends LCARdSCard {
 
     /** Card type identifier for CoreConfigManager */
@@ -42,10 +54,12 @@ export class LCARdSMSDCard extends LCARdSCard {
     /**
      * Get config element (editor) for Home Assistant GUI
      * @static
-     * @returns {HTMLElement} Editor element
+     * @returns {Promise<HTMLElement>} Editor element
      */
-    static getConfigElement() {
-        // Static import - editor bundled with card (webpack config doesn't support splitting)
+    static async getConfigElement() {
+        // Editors load on demand (HA awaits getConfigElement), keeping them out of
+        // the bundle every dashboard loads.
+        await import('../editor/cards/lcards-msd-editor.js');
         return document.createElement('lcards-msd-editor');
     }
 
@@ -154,7 +168,7 @@ export class LCARdSMSDCard extends LCARdSCard {
                     justify-content: center;
                     background: black;
                     color: var(--lcars-yellow, var(--lcards-yellow-medium, #ffcc99));
-                    font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', 'Segoe UI Variable Static Text', 'Segoe UI', sans-serif;
+                    font-family: var(--lcars-font, var(--lcars-fallback-font, 'Antonio')), 'Antonio', 'Segoe UI Variable Static Text', 'Segoe UI', sans-serif;
                     font-weight: 100;
                     text-transform: uppercase;
                     letter-spacing: 0.05em;
@@ -192,6 +206,12 @@ export class LCARdSMSDCard extends LCARdSCard {
         // comment). Without this, both calls run the full SVG-fetch/pipeline-
         // init/background-animation sequence concurrently and redundantly.
         this._msdLoadInFlight = null;
+        // Bumped by _cleanupMsdPipeline(). A load started under an older generation
+        // is stale: a disconnect tore its card down while it ran (Home Assistant
+        // detaches and re-attaches cards during a view build, #409). It stops at its
+        // next await and is never reused, so the reconnect builds a fresh pipeline
+        // instead of waiting on one that can no longer reveal the card.
+        this._msdGeneration = 0;
         // Set by _onRulePatchesChanged() when it triggers a re-render (fire-and-
         // forget for its other, post-reveal callers) — _initializeMsdPipeline()
         // awaits this once, right after the initial rules registration, so the
@@ -231,17 +251,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             lcardsLog.trace(`[LCARdSMSDCard] Applied config ID to element: ${this.id}`);
         }
 
-        // Re-detect preview mode now that we're in the DOM
-        // setConfig() is called before element is mounted, so parentElement was null
-        const newPreviewMode = this._detectPreviewMode();
-        if (newPreviewMode !== this._isPreviewMode) {
-            lcardsLog.debug('[LCARdSMSDCard] Preview mode re-detected after mount:', {
-                before: this._isPreviewMode,
-                after: newPreviewMode
-            });
-            this._isPreviewMode = /** @type {any} */ (newPreviewMode);
-            this.requestUpdate(); // Trigger re-render with correct mode
-        }
+        // Preview mode is detected again by LCARdSNativeCard.connectedCallback()
+        // (it calls this card's _detectPreviewMode())
     }
 
     /**
@@ -264,6 +275,13 @@ export class LCARdSMSDCard extends LCARdSCard {
         // Config is ALREADY processed by parent's _processConfigAsync() with provenance
         // After CoreConfigManager processing, config structure is: { type, msd: {...}, __provenance }
         if (this.config?.msd) {
+            // A view_box without a base_svg source is a blank canvas: treat it as
+            // `base_svg: { source: none }` (it used to hang on "Initializing MSD...").
+            // this.config is the processed copy, so replacing msd here is safe.
+            const msd = this.config.msd;
+            if (!msd.base_svg?.source && Array.isArray(msd.view_box)) {
+                this.config.msd = { ...msd, base_svg: { ...(msd.base_svg ?? {}), source: 'none' } };
+            }
             this._msdConfig = this.config.msd;  // ✅ Now has processed config with tokens resolved
             this._fullConfig = this.config;     // ✅ Now has __provenance attached
 
@@ -384,20 +402,27 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @private
      */
     async _loadAndInitializeMsd() {
-        if (this._msdLoadInFlight) {
-            lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsd already in flight - awaiting existing call');
-            return this._msdLoadInFlight;
+        // Reuse a load of this generation; let a stale one (its card was torn down
+        // while it ran) finish first, then start a fresh one.
+        while (this._msdLoadInFlight) {
+            const inFlight = this._msdLoadInFlight;
+            if (inFlight.generation === this._msdGeneration) {
+                lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsd already in flight - awaiting existing call');
+                return inFlight.promise;
+            }
+            lcardsLog.debug('[LCARdSMSDCard] Waiting for a stale MSD load to finish before loading again');
+            await inFlight.promise.catch(() => {});
+            if (this._msdLoadInFlight === inFlight) this._msdLoadInFlight = null;
         }
 
-        const loadPromise = this._loadAndInitializeMsdCore();
-        this._msdLoadInFlight = loadPromise;
+        const generation = this._msdGeneration;
+        const entry = { generation, promise: this._loadAndInitializeMsdCore(generation) };
+        this._msdLoadInFlight = entry;
         try {
-            await loadPromise;
+            await entry.promise;
         } finally {
-            // Compare-and-clear: guards against a stale/orphaned call's finally
-            // block clobbering a newer cycle's in-flight reference (e.g. a fast
-            // disconnect/reconnect happening while an old call is still winding down).
-            if (this._msdLoadInFlight === loadPromise) {
+            // Compare-and-clear: a newer cycle may own the slot by now.
+            if (this._msdLoadInFlight === entry) {
                 this._msdLoadInFlight = null;
             }
         }
@@ -405,8 +430,9 @@ export class LCARdSMSDCard extends LCARdSCard {
 
     /**
      * @private
+     * @param {number} generation - the _msdGeneration this load belongs to
      */
-    async _loadAndInitializeMsdCore() {
+    async _loadAndInitializeMsdCore(generation) {
         lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsdCore called');
 
         // Tier 2/3 (editor stats display, card-picker placeholder) never show the
@@ -497,7 +523,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             guid: this._msdInstanceGuid
         });
 
-        await this._initializeMsdPipeline();
+        await this._initializeMsdPipeline(generation);
+        if (generation !== this._msdGeneration) return;
 
         // Must come after pipeline init: _msdInitialized only flips to true (and the
         // SVG container, i.e. #msd-v1-comprehensive-wrapper, only actually mounts)
@@ -542,7 +569,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         this.hass = null;
 
         // Register MSD card itself with core rulesManager (uses _registerOverlayForRules for callback)
-        this._registerOverlayForRules(this._cardGuid, ['msd-card']);
+        this._registerOverlayForRules(this._cardGuid, 'msd-card');
 
         // Register each overlay as a first-class citizen for rule targeting
         // NOTE: _registerOverlayForRules() can only be called ONCE per card (sets this._overlayRegistered = true)
@@ -560,9 +587,12 @@ export class LCARdSMSDCard extends LCARdSCard {
                         // Register non-card overlays (lines, labels, etc.) or non-LCARdS controls
                         // LCARdS cards will register themselves when created
                         // Register directly with SystemsManager (can't use _registerOverlayForRules - already used!)
-                        this._singletons.systemsManager.registerOverlay(overlay.id, {
+                        // the overlay's own tags and its type, so rule selectors tag:<name> and
+                        // type:<line|shape|control> reach it (they matched nothing before)
+                        this._singletons?.systemsManager?.registerOverlay(overlay.id, {
                             id: overlay.id,
-                            tags: ['msd-overlay', overlay.type],
+                            type: overlay.type,
+                            tags: ['msd-overlay', overlay.type, ...(Array.isArray(overlay.tags) ? overlay.tags : [])],
                             sourceCardId: this._cardGuid
                         });
                         lcardsLog.trace(`[LCARdSMSDCard] ✅ Registered overlay: ${overlay.id} (${overlay.type})`);
@@ -580,34 +610,75 @@ export class LCARdSMSDCard extends LCARdSCard {
 
         lcardsLog.trace('[LCARdSMSDCard] ✅ MSD card and overlays registered with core rulesManager');
 
-        // NOW trigger rule evaluation with all overlays registered
-        if (this.hass && this._singletons?.rulesEngine) {
-            lcardsLog.trace('[LCARdSMSDCard] Triggering initial rule evaluation with all overlays registered');
-            this._singletons.rulesEngine.markAllDirty();
+        // NOW trigger rule evaluation with all overlays registered. Selectors (tag:, type:, ids)
+        // resolve when a rule is evaluated, and a matched rule keeps its patches until it is
+        // evaluated again: mark every rule dirty so the next evaluation sees these overlays.
+        // With hass here, run this card's callback now; without, the first hass update runs the
+        // callbacks of a rules engine with dirty rules (RulesEngine.ingestHass). Before, it was
+        // gated on hass and looked the callback up by an index that is never set: a rule that
+        // matched as the card loaded kept the empty patch list it got before the overlays existed.
+        this._singletons?.rulesEngine?.markAllDirty();
+        if (this.hass) this._rulesCallback?.();
+    }
 
-            // Trigger the callback for this card (which evaluates rules for all registered overlays)
-            if (this._rulesCallbackIndex >= 0) {
-                const callbacks = this._singletons.rulesEngine._reEvaluationCallbacks || [];
-                if (callbacks[this._rulesCallbackIndex]) {
-                    callbacks[this._rulesCallbackIndex]();
-                }
-            }
+    /**
+     * After every render of the overlays (PipelineCore): style-only rule patches go onto the
+     * freshly drawn elements. A rule that matches as the card loads is evaluated before the
+     * overlays are drawn, so its patch found nothing, and later evaluations of the same patch
+     * are skipped as unchanged: the line kept its own colour until the entity changed.
+     * @protected
+     */
+    _onMsdRendered() {
+        if (this._lastRulePatches && this._isStyleOnlyPatch(this._lastRulePatches)) {
+            this._applyStylePatchesToDOM(this._lastRulePatches);
         }
     }
 
     /**
-     * Override base _applyRulePatches to handle MSD overlay patches
-     * Base class filters for this._overlayId, but we need patches for ALL MSD overlays
+     * A rule's `apply.base_svg` (filters on the blueprint): the highest-priority
+     * matched rule of this card wins; when none matches any more, the blueprint
+     * goes back to its configured filters. (Unwired since the move to the core
+     * rules engine; found by the D2 docs audit, 2026-11-08.)
+     * @param {any} ruleResults
+     * @protected
+     */
+    _applyRuleResults(ruleResults) {
+        const updates = ruleResults?.baseSvgUpdates ?? {};
+        const own = updates[this.config?.id || this._cardGuid] ?? updates['*'] ?? null;
+        const key = own ? JSON.stringify(own) : null;
+        if (key === (this._baseSvgRuleKey ?? null)) return;
+        // before the pipeline is up nothing is drawn yet: the next evaluation applies it
+        const coordinator = /** @type {any} */ (this._msdPipeline?.coordinator);
+        if (!coordinator?._applyBaseSvgUpdate) return;
+        const previous = this._baseSvgRule;
+        this._baseSvgRuleKey = key;
+        this._baseSvgRule = own;
+        if (own) coordinator._applyBaseSvgUpdate(own);
+        else if (previous) {
+            coordinator._applyBaseSvgUpdate({ filters: this._msdConfig?.base_svg?.filters ?? [], transition: previous.transition });
+        }
+    }
+
+    /**
+     * Override base _applyRulePatches to handle MSD overlay patches: the patches
+     * for this card's own overlays, keyed by overlay id.
+     *
+     * RulesEngine hands every card the patches of every matching rule on the page;
+     * only the ones naming this MSD's overlays are kept. Before (2026-11-17), a rule
+     * for any other card changed the patch map too, and each change redrew the whole
+     * MSD (re-routing every line, restarting its animations).
      * @param {Array} overlayPatches - Array of patches from RulesEngine
      * @protected
      */
     _applyRulePatches(overlayPatches) {
+        const ownIds = new Set((this._msdConfig?.overlays ?? []).map((/** @type {any} */ o) => o.id));
+        const mine = (overlayPatches ?? []).filter((/** @type {any} */ p) => ownIds.has(p?.id));
         lcardsLog.debug('[LCARdSMSDCard] _applyRulePatches called', {
             patchesProvided: Array.isArray(overlayPatches) ? overlayPatches.length : 0,
-            patchIds: overlayPatches?.map(p => p.id) || []
+            ownPatchIds: mine.map((/** @type {any} */ p) => p.id)
         });
 
-        if (!overlayPatches || overlayPatches.length === 0) {
+        if (mine.length === 0) {
             // No patches - clear if we had any
             if (this._lastRulePatches) {
                 this._lastRulePatches = null;
@@ -616,153 +687,122 @@ export class LCARdSMSDCard extends LCARdSCard {
             return;
         }
 
-        // Convert array of patches to map: { overlayId: patch }
-        const patchMap = {};
-        for (const patch of overlayPatches) {
-            if (patch.id) {
-                patchMap[patch.id] = patch;
-            }
-        }
+        // { overlayId: patch }: the highest-priority rule wins, rules patching
+        // different keys combine (as on other cards; the lowest-priority patch
+        // used to replace the rest)
+        const patchMap = mergeOverlayPatches(mine);
 
-        // Check if patches changed
-        const patchesChanged = JSON.stringify(this._lastRulePatches) !== JSON.stringify(patchMap);
-        if (!patchesChanged) {
+        if (JSON.stringify(this._lastRulePatches) === JSON.stringify(patchMap)) {
             lcardsLog.trace('[LCARdSMSDCard] Rule patches unchanged');
             return;
         }
 
-        // Store patches
         this._lastRulePatches = patchMap;
-
-        lcardsLog.debug('[LCARdSMSDCard] Stored rule patches:', {
-            overlayCount: Object.keys(patchMap).length,
-            overlayIds: Object.keys(patchMap)
-        });
-
-        // Apply patches to overlay configs
+        lcardsLog.debug('[LCARdSMSDCard] Stored rule patches:', { overlayIds: Object.keys(patchMap) });
         this._onRulePatchesChanged();
     }
 
     /**
-     * Handle rule patches changed callback
-     * Called by core rulesManager when rules affecting this MSD are re-evaluated
+     * The rule patches changed: a style-only patch is written onto the drawn
+     * elements (no re-render, animations keep running); anything else rebuilds the
+     * overlay config from the card's own config plus the current patches and
+     * re-renders. Building from the unpatched config means a patch that stops
+     * matching leaves nothing behind (its style used to stay merged in for good).
      * @protected
      */
     _onRulePatchesChanged() {
-        lcardsLog.debug('[LCARdSMSDCard] _onRulePatchesChanged - rules updated for MSD card');
+        const patches = this._lastRulePatches;
+        const drawn = this._drawnRulePatches ?? null;
+        this._drawnRulePatches = patches;
 
-        // Apply rule patches to overlay configs before re-rendering
-        // this._lastRulePatches is inherited from LCARdSCard base class
-        // Structure: { overlayId: { style: {...}, ... }, ... }
-        // ✨ Templates are now evaluated by RulesEngine before patches reach the card
-        if (this._lastRulePatches && this._msdConfig?.overlays) {
-            const patchKeys = Object.keys(this._lastRulePatches);
-            lcardsLog.debug('[LCARdSMSDCard] Applying rule patches to overlays:', {
-                patchCount: patchKeys.length,
-                overlayCount: this._msdConfig.overlays.length,
-                patchedOverlays: patchKeys
-            });
-
-            // Check if patches are style-only (can be applied via DOM without full re-render)
-            const isStyleOnlyPatch = this._isStyleOnlyPatch(this._lastRulePatches);
-
-            if (isStyleOnlyPatch) {
-                lcardsLog.debug('[LCARdSMSDCard] ✨ Style-only patch detected - applying directly to DOM (no animation reset)');
-                this._applyStylePatchesToDOM(this._lastRulePatches);
-                return; // Skip full re-render
-            }
-
-            // For non-style patches, proceed with full update
-            lcardsLog.debug('[LCARdSMSDCard] Non-style patch detected - full re-render required');
-
-            // CRITICAL: Overlay objects are frozen - we must create NEW overlay objects, not mutate
-            this._msdConfig.overlays = this._msdConfig.overlays.map(overlay => {
-                const overlayId = overlay.id;
-                if (overlayId && this._lastRulePatches[overlayId]) {
-                    const patch = this._lastRulePatches[overlayId];
-
-                    // Create new overlay object with patches applied
-                    const patchedOverlay = { ...overlay };
-
-                    // Merge style properties
-                    if (patch.style) {
-                        patchedOverlay.style = { ...overlay.style, ...patch.style };
-                        lcardsLog.debug(`[LCARdSMSDCard] Applied style patch to overlay ${overlayId}:`, patch.style);
-                    }
-
-                    // Apply any other top-level properties from patch
-                    for (const key of Object.keys(patch)) {
-                        if (key !== 'style' && key !== 'id' && key !== 'ruleId' && key !== 'ruleCondition') {
-                            patchedOverlay[key] = patch[key];
-                            lcardsLog.debug(`[LCARdSMSDCard] Applied ${key} patch to overlay ${overlayId}`);
-                        }
-                    }
-
-                    return patchedOverlay;
-                }
-                return overlay;
-            });
-
-            // CRITICAL: Update the merged config in the pipeline so ModelBuilder picks up changes
-            // ModelBuilder reads from coordinator.mergedConfig.overlays, not from this._msdConfig
-            if (this._msdPipeline?.coordinator?.mergedConfig) {
-                this._msdPipeline.coordinator.mergedConfig.overlays = this._msdConfig.overlays;
-                lcardsLog.debug('[LCARdSMSDCard] Updated coordinator mergedConfig.overlays with patched overlays');
-            }
-
-            // CRITICAL: Also update cardModel.overlaysBase which is what ModelBuilder._assembleBaseOverlays() uses
-            // Access through coordinator.modelBuilder.cardModel
-            if (this._msdPipeline?.coordinator?.modelBuilder?.cardModel?.overlaysBase) {
-                // IMPORTANT: overlaysBase entries are frozen - create NEW array with NEW objects
-                // Must preserve CardModel-processed properties (position, anchor, etc.) while updating styles
-                const existingOverlaysBase = this._msdPipeline.coordinator.modelBuilder.cardModel.overlaysBase;
-
-                this._msdPipeline.coordinator.modelBuilder.cardModel.overlaysBase = existingOverlaysBase.map(baseOverlay => {
-                    // Find matching patched overlay by ID
-                    const patchedOverlay = this._msdConfig.overlays.find(o => o.id === baseOverlay.id);
-                    if (patchedOverlay && patchedOverlay.style) {
-                        // Create NEW overlay object with merged styles (immutable-safe)
-                        const updatedOverlay = {
-                            ...baseOverlay,  // Preserve all CardModel properties (position, anchor, etc.)
-                            style: { ...baseOverlay.style, ...patchedOverlay.style },  // Merge style changes
-                            raw: {
-                                ...(baseOverlay.raw || {}),
-                                style: { ...(baseOverlay.raw?.style || {}), ...patchedOverlay.style }
-                            }
-                        };
-
-                        lcardsLog.debug(`[LCARdSMSDCard] Created new overlaysBase entry for ${baseOverlay.id} with merged styles:`, patchedOverlay.style);
-                        return updatedOverlay;
-                    }
-                    return baseOverlay;  // No changes for this overlay
-                });
-
-                lcardsLog.debug('[LCARdSMSDCard] Updated cardModel.overlaysBase with patched styles (preserved positions)');
-            } else {
-                lcardsLog.warn('[LCARdSMSDCard] Could not access cardModel.overlaysBase for update', {
-                    hasCoordinator: !!this._msdPipeline?.coordinator,
-                    hasModelBuilder: !!this._msdPipeline?.coordinator?.modelBuilder,
-                    hasCardModel: !!this._msdPipeline?.coordinator?.modelBuilder?.cardModel,
-                    hasOverlaysBase: !!this._msdPipeline?.coordinator?.modelBuilder?.cardModel?.overlaysBase
-                });
-            }
+        if (!this._msdConfig?.overlays) {
+            this.requestUpdate();
+            return;
         }
 
-        // Check if any patches affect base SVG or overlays that require re-render
+        // Style-only, and covering every style key the elements carry from the last
+        // patch: write it onto the elements. A key the new patch drops (or a patch
+        // that clears) needs the overlays drawn again from their own config.
+        if (patches && this._isStyleOnlyPatch(patches) && (!drawn || (this._isStyleOnlyPatch(drawn) && this._patchCovers(patches, drawn)))) {
+            lcardsLog.debug('[LCARdSMSDCard] Style-only patch - applying directly to DOM (no animation reset)');
+            this._applyStylePatchesToDOM(patches);
+            return;
+        }
+
+        lcardsLog.debug('[LCARdSMSDCard] Rule patches need a re-render', { overlayIds: patches ? Object.keys(patches) : [] });
+        this._rebuildOverlaysWithRulePatches(patches && !this._isStyleOnlyPatch(patches) ? patches : null);
+
         if (this._msdPipeline?.coordinator?._reRenderCallback) {
-            // Request MSD pipeline to re-render with updated config.
             // Stash the promise (harmless no-op for callers that don't check it,
             // e.g. live post-reveal rule updates) so _initializeMsdPipeline() can
             // await this specific pass when it's the one triggered during initial
-            // load — see _pendingRulesReRender.
-            lcardsLog.debug('[LCARdSMSDCard] Triggering MSD re-render after rule patches applied');
+            // load — see _pendingRulesReRender. A style-only patch goes onto the
+            // fresh elements afterwards (_onMsdRendered).
             this._pendingRulesReRender = this._msdPipeline.coordinator._reRenderCallback();
         } else {
             lcardsLog.warn('[LCARdSMSDCard] No re-render callback available on coordinator');
         }
-
-        // Request Lit update to re-render card
         this.requestUpdate();
+    }
+
+    /**
+     * Every style key `drawn` set on an overlay is set again by `next`.
+     * @param {Record<string, any>} next
+     * @param {Record<string, any>} drawn
+     * @returns {boolean}
+     * @private
+     */
+    _patchCovers(next, drawn) {
+        return Object.entries(drawn).every(([id, patch]) =>
+            Object.keys(patch?.style ?? {}).every((key) => next[id]?.style && key in next[id].style));
+    }
+
+    /**
+     * Point `_msdConfig.overlays` and the card model's `overlaysBase` (what ModelBuilder
+     * reads) at the card's own overlays with `patches` merged in, or at the unpatched
+     * overlays when `patches` is null. The unpatched arrays are remembered the first
+     * time, and again whenever the pipeline replaces them (a config change, a reload).
+     * Overlay objects are frozen: new objects, never mutation.
+     * @param {Record<string, any>|null} patches
+     * @private
+     */
+    _rebuildOverlaysWithRulePatches(patches) {
+        if (this._msdConfig.overlays !== this._rulePatchedOverlays) this._rulePristineOverlays = this._msdConfig.overlays;
+        const pristine = this._rulePristineOverlays;
+        const overlays = !patches ? pristine : pristine.map((/** @type {any} */ overlay) => {
+            const patch = overlay.id ? patches[overlay.id] : null;
+            if (!patch) return overlay;
+            const patched = { ...overlay };
+            if (patch.style) patched.style = { ...overlay.style, ...patch.style };
+            for (const key of Object.keys(patch)) {
+                if (key !== 'style' && key !== 'id' && key !== 'ruleId' && key !== 'ruleCondition') patched[key] = patch[key];
+            }
+            return patched;
+        });
+        this._msdConfig.overlays = overlays;
+        this._rulePatchedOverlays = overlays;
+
+        // ModelBuilder reads coordinator.mergedConfig.overlays and cardModel.overlaysBase
+        const coordinator = /** @type {any} */ (this._msdPipeline?.coordinator);
+        if (coordinator?.mergedConfig) coordinator.mergedConfig.overlays = overlays;
+        const cardModel = coordinator?.modelBuilder?.cardModel;
+        if (!cardModel?.overlaysBase) {
+            lcardsLog.warn('[LCARdSMSDCard] Could not access cardModel.overlaysBase for update');
+            return;
+        }
+        if (cardModel.overlaysBase !== this._rulePatchedBase) this._rulePristineBase = cardModel.overlaysBase;
+        const base = this._rulePristineBase;
+        // positions and other CardModel properties stay; only the style is patched
+        cardModel.overlaysBase = !patches ? base : base.map((/** @type {any} */ baseOverlay) => {
+            const style = patches[baseOverlay.id]?.style;
+            if (!style) return baseOverlay;
+            return {
+                ...baseOverlay,
+                style: { ...baseOverlay.style, ...style },
+                raw: { ...(baseOverlay.raw || {}), style: { ...(baseOverlay.raw?.style || {}), ...style } }
+            };
+        });
+        this._rulePatchedBase = cardModel.overlaysBase;
     }
 
     /**
@@ -786,7 +826,7 @@ export class LCARdSMSDCard extends LCARdSCard {
     async _processCustomTemplates() {
         if (!this.config?.msd?.overlays) return;
 
-        const hasChanges = await this._preEvaluateStyleTemplates(this.config.msd.overlays);
+        const hasChanges = await this._preEvaluateStyleTemplates(this.config.msd.overlays, 'msd.overlays');
 
         if (hasChanges && this.hass && this._msdPipeline?.coordinator) {
             this._msdPipeline.coordinator.ingestHass(this.hass);
@@ -1011,7 +1051,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             timestamp: new Date().toISOString(),
             hasHass: !!hass,
             cardGuid: this._cardGuid,
-            callerStack: new Error().stack.split('').slice(1, 4).map(line => line.trim()).join(' → ')
+            // split on lines (it was split('') into single characters)
+            callerStack: (new Error().stack ?? '').split('\n').slice(1, 4).map(line => line.trim()).join(' → ')
         });
 
         const oldHass = this._hass;
@@ -1102,7 +1143,8 @@ export class LCARdSMSDCard extends LCARdSCard {
      * Initialize MSD pipeline using initMsdPipeline from pipeline core
      * @private
      */
-    async _initializeMsdPipeline() {
+    async _initializeMsdPipeline(generation = this._msdGeneration) {
+        if (generation !== this._msdGeneration) return;
         if (this._msdInitialized || !this._msdConfig || !this.hass) {
             lcardsLog.debug('[LCARdSMSDCard] Skipping pipeline init:', {
                 initialized: this._msdInitialized,
@@ -1127,6 +1169,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             // This ensures the SVG container is actually mounted in the DOM
             // before the renderer tries to access it
             await this.updateComplete;
+            // Torn down while waiting: the cleanup reset the flags already.
+            if (generation !== this._msdGeneration) return;
 
             lcardsLog.debug('[LCARdSMSDCard] SVG container rendered and mounted to DOM');
 
@@ -1164,12 +1208,23 @@ export class LCARdSMSDCard extends LCARdSCard {
                 mount,
                 this.hass,
                 this._msdInstanceGuid,
-                this._isStudioPreview
+                this._isStudioPreview,
+                this  // the first render resolves colours against the card (view and section themes)
             );
+
+            if (generation !== this._msdGeneration) {
+                // Torn down while the pipeline was built: it belongs to no card now.
+                pipelineResult?.coordinator?.destroy?.();
+                lcardsLog.debug('[LCARdSMSDCard] Discarded a pipeline built for a torn-down card');
+                return;
+            }
 
             if (!pipelineResult || !pipelineResult.enabled) {
                 lcardsLog.error('[LCARdSMSDCard] Pipeline initialization failed or disabled');
-                this._configIssues = pipelineResult?.issues || { errors: ['Pipeline initialization failed'] };
+                this._configIssues = pipelineResult?.issues
+                    || (pipelineResult?.errors?.length
+                        ? { errors: pipelineResult.errors, warnings: pipelineResult.warnings || [] }
+                        : { errors: ['Pipeline initialization failed'] });
                 this._msdInitialized = false;  // Reset on failure
                 this.requestUpdate();
                 return;
@@ -1211,6 +1266,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             lcardsLog.debug('[LCARdSMSDCard] ✅ MSD pipeline initialized successfully with SVG container mounted');
 
         } catch (error) {
+            if (generation !== this._msdGeneration) return;
             lcardsLog.error('[LCARdSMSDCard] Pipeline initialization error:', error);
             this._configIssues = {
                 errors: [{ message: `Pipeline initialization failed: ${error.message}` }]
@@ -1267,6 +1323,8 @@ export class LCARdSMSDCard extends LCARdSCard {
 
         const success = this._backgroundRenderer.init();
         if (success) {
+            // Entity-bound config values: apply them now, not on the next hass update
+            if (this.hass) this._backgroundRenderer.updateHass(this.hass, null, this._fullConfig);
             lcardsLog.debug('[LCARdSMSDCard] Background animation initialized');
         } else {
             lcardsLog.error('[LCARdSMSDCard] Background animation initialization failed');
@@ -1278,6 +1336,8 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @private
      */
     _cleanupMsdPipeline() {
+        this._msdGeneration++;
+        this._destroyMsdAnimationScopes();
         if (this._msdPipeline?.coordinator?.destroy) {
             this._msdPipeline.coordinator.destroy();
         }
@@ -1285,11 +1345,54 @@ export class LCARdSMSDCard extends LCARdSCard {
         this._msdInitialized = false;
         this._msdRevealed = false;
         this._pendingRulesReRender = null;
+        // The next pipeline draws the card's own overlays; the rules engine applies
+        // whatever still matches once it is up
+        if (this._msdConfig && this._rulePatchedOverlays && this._msdConfig.overlays === this._rulePatchedOverlays) {
+            this._msdConfig.overlays = this._rulePristineOverlays;
+        }
+        this._rulePatchedOverlays = null;
+        this._rulePristineOverlays = null;
+        this._rulePatchedBase = null;
+        this._rulePristineBase = null;
+        this._drawnRulePatches = null;
+        this._lastRulePatches = null;
         if (this._backgroundRenderer) {
             this._backgroundRenderer.destroy();
             this._backgroundRenderer = null;
         }
         lcardsLog.debug('[LCARdSMSDCard] Pipeline cleaned up');
+    }
+
+    /**
+     * Remove this card's scopes from the shared AnimationManager: the base SVG and
+     * overlay group ones (named with the card's guid) and each animated overlay's
+     * (named with the overlay id, which other MSDs may use too: only those whose
+     * element is in this card). They held the detached SVG, a TriggerManager with
+     * entity subscriptions and loops still running after the card was removed, and
+     * each new card element (every dashboard edit) added more. Runs before the
+     * coordinator clears the DOM, while the elements are still in this card.
+     * Embedded control cards clean up their own scopes. 2026-11-17
+     * @private
+     */
+    _destroyMsdAnimationScopes() {
+        const am = window.lcards?.core?.animationManager;
+        if (!am?.scopes) return;
+        const guid = this._msdInstanceGuid;
+        const root = this.renderRoot;
+        /** @type {string[]} */
+        const ids = [];
+        am.scopes.forEach((/** @type {any} */ scope, /** @type {string} */ id) => {
+            const ownByName = !!guid && (id === `__msd_base_svg:${guid}` || id === `__msd_animations:${guid}`);
+            const ownByElement = !!root && scope?.element?.getRootNode?.() === root;
+            if (ownByName || ownByElement) ids.push(id);
+        });
+        for (const id of ids) {
+            try {
+                am.destroyOverlayScope(id);
+            } catch (error) {
+                lcardsLog.warn(`[LCARdSMSDCard] Could not remove animation scope ${id}:`, error);
+            }
+        }
     }
 
     // ============================================================================
@@ -1311,7 +1414,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         return html`
             <div style="
                 padding: 20px;
-                background: var(--error-background-color, rgba(244, 67, 54, 0.1));
+                background: color-mix(in srgb, var(--error-color, #db4437) 10%, transparent);
                 border: 2px solid var(--error-color, #f44336);
                 border-radius: 8px;
             ">
@@ -1324,7 +1427,7 @@ export class LCARdSMSDCard extends LCARdSCard {
                         <ul style="margin: 4px 0; padding-left: 20px;">
                             ${errors.map(err => html`
                                 <li style="color: var(--primary-text-color); margin: 4px 0;">
-                                    ${err.message || err}
+                                    ${msdIssueText(err)}
                                 </li>
                             `)}
                         </ul>
@@ -1336,7 +1439,7 @@ export class LCARdSMSDCard extends LCARdSCard {
                         <ul style="margin: 4px 0; padding-left: 20px;">
                             ${warnings.map(warn => html`
                                 <li style="color: var(--primary-text-color); margin: 4px 0;">
-                                    ${warn.message || warn}
+                                    ${msdIssueText(warn)}
                                 </li>
                             `)}
                         </ul>
@@ -1455,8 +1558,10 @@ export class LCARdSMSDCard extends LCARdSCard {
      */
     _getGridOptions() {
         const go = this.config.grid_options || {};
+        // full width by default (the old 4 columns was a third of a sections view: a leftover of
+        // the 4-column layout_options; the user, 2026-11-08)
         return {
-            columns: go.columns ?? 4,
+            columns: go.columns ?? 'full',
             rows: go.rows ?? 8,
             min_columns: 2,
             min_rows: 4,
@@ -1849,18 +1954,19 @@ export class LCARdSMSDCard extends LCARdSCard {
             return '';
         }
 
-        let svgKey = null;
+        // Same key AssetManager.loadSvg() uses: builtin:<name> -> <name>, a path
+        // or URL -> the whole source (so same-named files in other folders, or
+        // a file named like a built-in, never share an entry).
+        const svgKey = assetManager.svgKeyForSource(source);
 
-        if (source.startsWith('builtin:')) {
-            svgKey = source.replace('builtin:', '');
-        } else if (source.startsWith('/local/')) {
-            svgKey = source.split('/').pop().replace('.svg', '');
-
+        if (source.startsWith('/') || /^https?:\/\//.test(source)) {
+            // A path Home Assistant serves (/local/ is the www folder) or a full URL, as
+            // AssetManager.loadSvg takes them (an https:// source drew nothing: only /local/ was read here)
             // Register external SVG if not already registered
-            if (!assetManager.getRegistry('svg').has(svgKey)) {
+            if (svgKey && !assetManager.getRegistry('svg').has(svgKey)) {
                 assetManager.register('svg', svgKey, null, {
-                    url: source,
-                    source: 'user'
+                    url: svgKey,
+                    source: svgKey.startsWith('/') ? 'user' : 'external'
                 });
             }
         } else if (source.startsWith('media-source://')) {
@@ -1872,8 +1978,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             // loadSvgFromMediaSource() and bail out now; the generic
             // "not yet loaded" fallback below would only log a spurious warning
             // since nothing is registered yet at this exact synchronous point.
-            svgKey = source;
-            if (!assetManager.getRegistry('svg').has(svgKey)) {
+            if (svgKey && !assetManager.getRegistry('svg').has(svgKey)) {
                 assetManager.loadSvgFromMediaSource(svgKey).then(loadedContent => {
                     if (loadedContent) {
                         lcardsLog.debug('[LCARdSMSDCard] SVG loaded from media source, triggering re-render:', svgKey);
@@ -2013,14 +2118,16 @@ export class LCARdSMSDCard extends LCARdSCard {
      * Apply style patches directly to DOM elements without full re-render
      * This preserves animation state and avoids expensive pipeline reinit
      * @param {Object} patches - Rule patches by overlay ID
+     * @returns {boolean} false when an overlay is not drawn yet (or there is no mount)
      * @private
      */
     _applyStylePatchesToDOM(patches) {
         const mountEl = this.getMountElement();
         if (!mountEl) {
-            lcardsLog.warn('[LCARdSMSDCard] Cannot apply DOM patches - no mount element');
-            return;
+            lcardsLog.debug('[LCARdSMSDCard] No mount element for DOM patches yet');
+            return false;
         }
+        let allFound = true;
 
         let patchCount = 0;
 
@@ -2032,6 +2139,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             const overlayEl = mountEl.querySelector(`#${overlayId}`);
             if (!overlayEl) {
                 lcardsLog.debug(`[LCARdSMSDCard] Overlay element not found: ${overlayId}`);
+                allFound = false;
                 continue;
             }
 
@@ -2052,7 +2160,9 @@ export class LCARdSMSDCard extends LCARdSCard {
             patchCount++;
         }
 
-        lcardsLog.debug(`[LCARdSMSDCard] ✅ Applied ${patchCount} style patches directly to DOM (animations preserved)`);    }
+        lcardsLog.debug(`[LCARdSMSDCard] ✅ Applied ${patchCount} style patches directly to DOM (animations preserved)`);
+        return allFound;
+    }
 
     /**
      * Apply line style patch to SVG path element
@@ -2064,7 +2174,11 @@ export class LCARdSMSDCard extends LCARdSCard {
         // If element is a group, find child path/line elements
         let targetElements = /** @type {SVGElement[]} */ ([lineEl]);
         if (lineEl.tagName.toLowerCase() === 'g') {
-            const children = lineEl.querySelectorAll('path, line, polyline, polygon');
+            // the visible line only: not its 12-wide transparent hit area, the selection
+            // outline or the marker shapes in its defs (a rule colour made a line look 12 wide)
+            const own = lineEl.querySelectorAll('.line-path');
+            const children = own.length ? own
+                : lineEl.querySelectorAll(':is(path, line, polyline, polygon):not(.line-hit-area):not(.line-selection-indicator):not(defs *):not(marker *)');
             if (children.length > 0) {
                 targetElements = /** @type {SVGElement[]} */ (Array.from(children));
             }
@@ -2086,11 +2200,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             const svgAttr = styleMapping[configKey];
 
             if (svgAttr && value !== null && value !== undefined) {
-                // Resolve computed expressions and CSS variables.
                 // SVG setAttribute does not support var() natively — materialise to concrete value.
-                const _res = window.lcards?.core?.themeManager?.resolver;
-                const afterResolver = (typeof value === 'string' && _res) ? _res.resolve(value, value) : value;
-                const resolvedValue = ColorUtils.resolveCssVariable(afterResolver);
+                const resolvedValue = this._svgStyleValue(svgAttr, value);
 
                 // Apply to all target elements (group children or the element itself)
                 targetElements.forEach(el => {
@@ -2098,6 +2209,37 @@ export class LCARdSMSDCard extends LCARdSCard {
                 });
             }
         }
+    }
+
+    /**
+     * Value for an SVG presentation attribute from a style patch: colours
+     * (stroke/fill) resolved to concrete values, anything else with its CSS
+     * variables materialised.
+     * @param {string} svgAttr
+     * @param {*} value
+     * @returns {*}
+     * @private
+     */
+    _svgStyleValue(svgAttr, value) {
+        if (typeof value !== 'string') return value;
+        if ((svgAttr === 'stroke' || svgAttr === 'fill') && value !== 'none') {
+            return resolveColor(value, { concrete: true, element: this });
+        }
+        return ColorUtils.resolveCssVariable(value, value, this);
+    }
+
+    /**
+     * Alert mode changed the palette (LCARdSCard subscribes; called as soon as
+     * the CSS variables are written). Line and shape colours are concrete SVG
+     * attributes, so every one is re-resolved in place (no re-render: running
+     * animations are not disturbed); a background animation is rebuilt.
+     * @param {string} _mode
+     * @protected
+     */
+    _onAlertModeChanged(_mode) {
+        this._refreshBackgroundAnimationColors();
+        const hass = this.hass ?? this._msdPipeline?.coordinator?.getHass?.();
+        this._msdPipeline?.coordinator?.renderer?.updateLineEntityColors?.(hass, { all: true });
     }
 
     /**
@@ -2133,9 +2275,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             const svgAttr = styleMapping[configKey];
 
             if (svgAttr && value !== null && value !== undefined) {
-                const _res = window.lcards?.core?.themeManager?.resolver;
-                const afterResolver = (typeof value === 'string' && _res) ? _res.resolve(value, value) : value;
-                const resolvedValue = ColorUtils.resolveCssVariable(afterResolver);
+                const resolvedValue = this._svgStyleValue(svgAttr, value);
 
                 targetElements.forEach(el => {
                     el.setAttribute(svgAttr, resolvedValue);
@@ -2151,12 +2291,10 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @private
      */
     _applyControlStyleToDOM(controlEl, style) {
-        // Apply style properties to control container
-        const _resMSD = window.lcards?.core?.themeManager?.resolver;
+        // Apply style properties to control container (inline CSS: var() stays live)
         for (const [key, value] of Object.entries(style)) {
             if (value !== null && value !== undefined) {
-                const afterResolver = (typeof value === 'string' && _resMSD) ? _resMSD.resolve(value, value) : value;
-                const resolvedValue = ColorUtils.resolveCssVariable(afterResolver);
+                const resolvedValue = typeof value === 'string' ? resolveColor(value) : value;
                 controlEl.style[key] = resolvedValue;
                 lcardsLog.trace(`[LCARdSMSDCard]   Set style.${key}=${resolvedValue}`);            }
         }
@@ -2220,5 +2358,5 @@ export class LCARdSMSDCard extends LCARdSCard {
     }
 }
 
-// NOTE: Card registration (customElements.define and window.customCards) handled in src/lcards.js
+// NOTE: Card registration (customElements.define and window.customCards) handled in src/lcards-main.js
 // This ensures all core singletons are initialized before cards can be instantiated

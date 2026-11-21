@@ -1,0 +1,17 @@
+# Gallery video for picard-portrait.yaml (portrait, phone-sized): code blocks and tabs follow the lights and doors, the gauges and the condition readout follow power and shields.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/picard-portrait.yaml --video
+size: 600x1000
+steps:
+- {wait: 800}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_doors}]
+- {wait: 1200}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 15}]
+- {wait: 1500}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_toggle}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 45}]
+- {wait: 1500}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 64}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 82}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_doors}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_toggle}]
+tail: 1500

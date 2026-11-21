@@ -1,10 +1,28 @@
 import DefaultTheme from 'vitepress/theme'
 import { enhanceAppWithTabs } from 'vitepress-plugin-tabs/client'
-import { onMounted, onUnmounted, h } from 'vue'
+import { onMounted, onUnmounted, h, watch, nextTick, defineAsyncComponent } from 'vue'
+import { useData, useRouter, withBase } from 'vitepress'
 import HomeBadges from './HomeBadges.vue'
+import HomeShowcase from './HomeShowcase.vue'
 import AnimationPlayground from './AnimationPlayground.vue'
 import FilterPlayground from './FilterPlayground.vue'
 import EffectPlayground from './EffectPlayground.vue'
+import ChartDemo from './ChartDemo.vue'
+import DataGridDemo from './DataGridDemo.vue'
+import CardDemo from './CardDemo.vue'
+import CardGallery from './CardGallery.vue'
+import DemoBoard from './DemoBoard.vue'
+import GalleryYaml from './GalleryYaml.vue'
+import ProcessorLab from './ProcessorLab.vue'
+import ReleaseList from './ReleaseList.vue'
+import ReleaseMeta from './ReleaseMeta.vue'
+import LibraryTable from './LibraryTable.vue'
+import VersionSwitcher from './VersionSwitcher.vue'
+import VersionBanner from './VersionBanner.vue'
+import HowItWorks from './HowItWorks.vue'
+import AstroScaleDiagram from './AstroScaleDiagram.vue'
+import AstroStarterTiles from './AstroStarterTiles.vue'
+import { keepAnchorInView, stopKeepingAnchor } from './anchor-keeper'
 import './style.css'
 
 // ── Mermaid SVG lightbox ───────────────────────────────────────────────────
@@ -23,7 +41,51 @@ function getLightbox(): HTMLDialogElement {
   lightboxEl.addEventListener('click', (e) => {
     if (e.target === lightboxEl) lightboxEl!.close()
   })
+  // A video stops when the lightbox closes (Esc or the backdrop), and the next image
+  // or diagram gets the normal width back
+  lightboxEl.addEventListener('close', () => {
+    lightboxEl!.classList.remove('is-video')
+    lightboxEl!.querySelector('video')?.pause()
+    lightboxEl!.querySelector('.mz-svg-inner')!.innerHTML = ''
+  })
   return lightboxEl
+}
+
+// Screenshots (gallery, card overview, release pages): click to see them full size
+// in the same lightbox. Images inside links, and small ones, are left alone.
+function openImageLightbox(img: HTMLImageElement) {
+  const lb    = getLightbox()
+  const inner = lb.querySelector('.mz-svg-inner')!
+  const clone = document.createElement('img')
+  clone.src = img.currentSrc || img.src
+  clone.alt = img.alt
+  clone.style.cssText = 'display:block;max-width:100%;max-height:85vh;margin:auto;object-fit:contain;'
+  inner.innerHTML = ''
+  inner.appendChild(clone)
+  lb.showModal()
+}
+const zoomable = (img: HTMLImageElement) => !img.closest('a') && img.naturalWidth >= 480
+
+// Gallery and docs recordings (<video class="doc-video">): click to watch them large,
+// with the browser's controls (fullscreen, pause, seek), from the frame they were on.
+function openVideoLightbox(video: HTMLVideoElement) {
+  const lb    = getLightbox()
+  const inner = lb.querySelector('.mz-svg-inner')!
+  const clone = document.createElement('video')
+  clone.src = video.currentSrc || video.src
+  if (video.poster) clone.poster = video.poster
+  clone.muted = true
+  clone.loop = true
+  clone.playsInline = true
+  clone.controls = true
+  clone.autoplay = true
+  clone.title = video.title
+  clone.style.cssText = 'display:block;max-width:100%;max-height:85vh;margin:auto;'
+  clone.addEventListener('loadedmetadata', () => { clone.currentTime = video.currentTime }, { once: true })
+  inner.innerHTML = ''
+  inner.appendChild(clone)
+  lb.classList.add('is-video')
+  lb.showModal()
 }
 
 function openSvgLightbox(svgEl: SVGSVGElement) {
@@ -48,30 +110,98 @@ export default {
   enhanceApp({ app }: { app: any }) {
     enhanceAppWithTabs(app)
     // Live anime.js preset demos (imports real src/core/packs/animations code
-    // client-side) — registered globally so any doc page can drop in
+    // client-side): registered globally so any doc page can drop in
     // <AnimationPlayground preset="pulse" />. Runs client-only; SSR just
     // renders the loading-shell fallback in the component's own template.
     app.component('AnimationPlayground', AnimationPlayground)
     // Live filter demos (imports real src/msd/utils/BaseSvgFilters.js client-
-    // side) — <FilterPlayground type="blur" />. Same client-only pattern.
+    // side): <FilterPlayground type="blur" />. Same client-only pattern.
     app.component('FilterPlayground', FilterPlayground)
     // Live canvas background-animation demos (imports real
     // src/core/packs/backgrounds/BackgroundAnimationRenderer.js client-side)
-    // — <EffectPlayground preset="grid" />. Lazy-mounts on scroll-into-view
+    // <EffectPlayground preset="grid" />. Lazy-mounts on scroll-into-view
     // (own IntersectionObserver) since several presets do real per-frame
     // per-pixel noise generation.
     app.component('EffectPlayground', EffectPlayground)
+    // Live chart demos (imports the real src/charts pipeline + ApexCharts
+    // client-side, on generated sample data). Used by ```yaml live fences and
+    // <ChartDemo editable /> on the chart playground page.
+    app.component('ChartDemo', ChartDemo)
+    // Live data grid demos (the card's own src/data-grid model + real
+    // animation presets, on sample values). Picked by ```yaml live fences
+    // whose type is custom:lcards-data-grid, and <DataGridDemo editable />.
+    app.component('DataGridDemo', DataGridDemo)
+    // Real LCARdS cards (button, elbow, slider, select menu) from the published
+    // /lcards/ bundle: ```yaml live fences and <CardDemo editable type="..." />.
+    app.component('CardDemo', CardDemo)
+    // A grid of real cards, one per option value: <CardGallery set="button-presets" />.
+    app.component('CardGallery', CardGallery)
+    // The public demo board of this release, live: <DemoBoard /> (getting-started/live-demo.md).
+    app.component('DemoBoard', DemoBoard)
+    // A gallery dashboard's YAML as links (open, download, copy): <GalleryYaml name="bridge" />.
+    app.component('GalleryYaml', GalleryYaml)
+    // ```yaml lab blocks on the processor reference page.
+    app.component('ProcessorLab', ProcessorLab)
+    // Releases section: the index cards and the line under each release page's title.
+    app.component('ReleaseList', ReleaseList)
+    app.component('ReleaseMeta', ReleaseMeta)
+    // About page: the third-party library tables, generated from package.json and node_modules.
+    app.component('LibraryTable', LibraryTable)
+    // "How LCARdS works": the layers and examples (What is LCARdS, the home page).
+    app.component('HowItWorks', HowItWorks)
+    // Astrometrics overview: the scale diagram, and starter picture tiles (the Studio's pictures).
+    app.component('AstroScaleDiagram', AstroScaleDiagram)
+    app.component('AstroStarterTiles', AstroStarterTiles)
+    // The Check Your Config page (ajv, the schemas): its own chunk, loaded on that page only.
+    app.component('ConfigChecker', defineAsyncComponent(() => import('./ConfigChecker.vue')))
+    // The preview page: YAML from the link or pasted, as real cards (getting-started/preview.md).
+    app.component('PreviewBoard', defineAsyncComponent(() => import('./PreviewBoard.vue')))
   },
 
   Layout() {
     return h(DefaultTheme.Layout, null, {
+      // Docs channels: the "not the latest docs" banner on /dev/ and /v/<version>/
+      // builds, and the version switcher next to the site title (theme/docs-versions.js).
+      'layout-top': () => h(VersionBanner),
+      'nav-bar-title-after': () => h(VersionSwitcher),
       'home-hero-actions-after': () => h(HomeBadges),
+      'home-hero-image': () => h(HomeShowcase),
     })
   },
 
 
   setup() {
-    // Delegated click for mermaid diagrams — no timing issues
+    // Moved pages: a stub with frontmatter `redirect: /new/path` sends readers on
+    // (the stub still shows a link, for builds without JavaScript).
+    const { frontmatter } = useData()
+    const router = useRouter()
+    // An old #id goes along: to the stub's own moved_anchors entry for it when it has one, else
+    // onto the new page as it is (it used to be dropped, so every old section link landed at the top).
+    watch(() => frontmatter.value.redirect, (to) => {
+      if (typeof window === 'undefined' || typeof to !== 'string') return
+      const id = decodeURIComponent(window.location.hash.slice(1))
+      const moved = id ? frontmatter.value.moved_anchors?.[id] : undefined
+      router.go(withBase(typeof moved === 'string' ? moved : id && !to.includes('#') ? `${to}#${id}` : to))
+    }, { immediate: true })
+
+    // Moved headings: frontmatter `moved_anchors: { old-id: /new/path#id }` on the page a
+    // heading left sends a reader who arrives at #old-id (an old bookmark, an editor link
+    // from an older release) on to its new home. Only when no element has that id here.
+    const followMovedAnchor = () => {
+      if (typeof window === 'undefined') return
+      const moved = frontmatter.value.moved_anchors
+      const id = decodeURIComponent(window.location.hash.slice(1))
+      const to = moved && id ? moved[id] : undefined
+      if (typeof to === 'string' && !document.getElementById(id)) router.go(withBase(to))
+    }
+    watch(() => [router.route.path, frontmatter.value.moved_anchors], () => nextTick(followMovedAnchor), { immediate: true })
+
+    // A link to a heading keeps it in view while live examples above it mount and grow
+    // (anchor-keeper.ts). After VitePress's own scroll: a frame after the route renders.
+    const keepAnchor = () => { if (typeof window !== 'undefined') requestAnimationFrame(() => keepAnchorInView()) }
+    watch(() => router.route.path, () => nextTick(keepAnchor))
+
+    // Delegated click for mermaid diagrams: no timing issues
     const handleMermaidClick = (e: MouseEvent) => {
       const mermaidDiv = (e.target as Element).closest?.('.vp-doc .mermaid')
       if (!mermaidDiv) return
@@ -79,8 +209,39 @@ export default {
       if (svg) openSvgLightbox(svg as SVGSVGElement)
     }
 
-    onMounted(() => document.addEventListener('click', handleMermaidClick))
-    onUnmounted(() => document.removeEventListener('click', handleMermaidClick))
+    const handleImageClick = (e: MouseEvent) => {
+      const img = (e.target as Element).closest?.('.vp-doc img') as HTMLImageElement | null
+      if (img && zoomable(img)) openImageLightbox(img)
+    }
+    const handleVideoClick = (e: MouseEvent) => {
+      const video = (e.target as Element).closest?.('.vp-doc video.doc-video') as HTMLVideoElement | null
+      if (video) openVideoLightbox(video)
+    }
+    // A zoom-in cursor on the images the lightbox opens.
+    const markZoomable = (e: Event) => {
+      const img = e.target as HTMLImageElement
+      if (img?.tagName === 'IMG' && img.closest('.vp-doc') && zoomable(img)) img.classList.add('zoomable')
+    }
+
+    onMounted(() => {
+      document.addEventListener('click', handleMermaidClick)
+      document.addEventListener('click', handleImageClick)
+      document.addEventListener('click', handleVideoClick)
+      document.addEventListener('load', markZoomable, true)
+      window.addEventListener('hashchange', followMovedAnchor)
+      window.addEventListener('hashchange', keepAnchor)
+      keepAnchor()
+      document.querySelectorAll<HTMLImageElement>('.vp-doc img').forEach(img => img.complete && markZoomable({ target: img } as unknown as Event))
+    })
+    onUnmounted(() => {
+      document.removeEventListener('click', handleMermaidClick)
+      document.removeEventListener('click', handleImageClick)
+      document.removeEventListener('click', handleVideoClick)
+      document.removeEventListener('load', markZoomable, true)
+      window.removeEventListener('hashchange', followMovedAnchor)
+      window.removeEventListener('hashchange', keepAnchor)
+      stopKeepingAnchor()
+    })
   },
 }
 

@@ -9,23 +9,11 @@
 import { ANIMATION_PRESET_PARAMS_SCHEMAS, ANIMATION_PRESET_PARAMS_SCHEMAS_MAPRANGE_AWARE } from './animation-preset-params-schemas.js';
 import { BACKGROUND_ANIMATION_PARAMS_SCHEMAS_REACTIVE_AWARE } from './background-animation-params-schemas.js';
 import { FILTER_PARAMS_SCHEMAS } from './filter-params-schemas.js';
+import { COLOR_VALUE_PATTERN, FILL_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
 
 // ============================================================================
 // COLOR VALUE PRIMITIVES
 // ============================================================================
-
-/**
- * Regex pattern that matches every string the LCARdS colour resolution pipeline accepts:
- *   - Hex:      #RGB · #RGBA · #RRGGBB · #RRGGBBAA
- *   - CSS:      rgb( · rgba( · hsl( · hsla(
- *   - Variable: var(--name)
- *   - Keywords: transparent · match-light
- *   - Token:    theme:path  (includes theme:expr(…))
- *   - Computed: alpha( · darken( · lighten( · saturate( · desaturate( · base(
- *               (functions accepted by ThemeTokenResolver / ColorUtils)
- */
-const COLOR_VALUE_PATTERN =
-    '^(#[0-9A-Fa-f]{3,8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|hsla\\(|var\\(--|alpha\\(|darken\\(|lighten\\(|saturate\\(|desaturate\\(|base\\()';
 
 /**
  * Reusable schema for a single colour value string.
@@ -54,6 +42,113 @@ const colorValueSchema = {
 };
 
 // ============================================================================
+// PROCESSORS - one branch per type (doc/core/datasources/processor-reference.md)
+// ============================================================================
+
+/** Keys every processor takes */
+const processorCommon = {
+    input_source: {
+        type: 'string',
+        description: 'Name of another processor in this pipeline whose output this one reads (creates a dependency chain). If omitted, uses the raw entity value.',
+        examples: ['fahrenheit', 'smoothed', 'scaled']
+    },
+    enabled: { type: 'boolean', description: 'Set false to pass values through unchanged (default true)' }
+};
+
+/**
+ * One processor type's branch: its `type` and settings, plus the common keys.
+ * @param {string} type
+ * @param {string} description
+ * @param {Record<string, any>} [settings]
+ * @param {string[]} [required]
+ */
+function processorBranch(type, description, settings = {}, required = []) {
+    return {
+        type: 'object',
+        title: type,
+        description,
+        required: ['type', ...required],
+        properties: {
+            type: { type: 'string', const: type, description: `${type}: ${description}` },
+            ...processorCommon,
+            ...settings
+        }
+    };
+}
+
+const PROCESSOR_BRANCHES = [
+    processorBranch('convert_unit', 'Convert between units (temperature, power, energy, distance, speed, pressure, data).', {
+        from: { type: 'string', description: 'Source unit (e.g. c, f, w, kw). Not a chaining key: use input_source.' },
+        to: { type: 'string', description: 'Target unit.' }
+    }, ['from', 'to']),
+    processorBranch('scale', 'Map a value from one range to another, with an optional curve.', {
+        input_range: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[min, max] of the input (default [0, 100]).' },
+        output_range: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[min, max] of the output (default [0, 1]).' },
+        curve: { type: 'string', enum: ['linear', 'exponential', 'logarithmic', 'sigmoid'], description: 'Mapping curve (default linear).' }
+    }),
+    processorBranch('smooth', 'Smooth out noise.', {
+        method: { type: 'string', enum: ['exponential', 'moving_average', 'gaussian'], description: 'Smoothing method (default exponential).' },
+        alpha: { type: 'number', minimum: 0, maximum: 1, description: 'exponential: weight of the newest value, 0 to 1 (default 0.3).' },
+        window: { type: 'number', minimum: 1, description: 'moving_average and gaussian: samples in the window (default 10).' }
+    }),
+    processorBranch('expression', 'Compute a value with a JavaScript expression.', {
+        expression: { type: 'string', description: 'JavaScript expression using value/v, t, sources, entity and Math helpers.' },
+        sources: { type: 'array', items: { type: 'string' }, description: 'Processor names available as sources[0], sources[1], ...' }
+    }, ['expression']),
+    processorBranch('statistics', 'Statistics over a time window.', {
+        stats: {
+            type: 'array',
+            items: { type: 'string', enum: ['min', 'max', 'mean', 'avg', 'median', 'std_dev', 'stddev', 'q1', 'q3', 'range', 'count', 'sum'] },
+            description: 'Which statistics: min, max, mean, median, std_dev, q1, q3, range, count, sum (avg and stddev are aliases).'
+        },
+        window: { type: ['number', 'string'], description: 'Time window: seconds, a duration like "5m", or "session".' },
+        max_points: { type: 'number', minimum: 1, description: 'Keep a time series of this many results.' }
+    }),
+    processorBranch('rate', 'Rate of change.', {
+        unit: { type: 'string', enum: ['per_second', 'per_minute', 'per_hour'], description: 'Time unit (default per_second).' },
+        smoothing: { type: 'boolean', description: 'Smooth the rate.' }
+    }),
+    processorBranch('trend', 'Whether the value is rising, falling or stable.', {
+        samples: { type: 'number', minimum: 2, description: 'Samples in the slope window (default 5).' },
+        threshold: { type: 'number', minimum: 0, description: 'Slope below which the trend is stable.' }
+    }),
+    processorBranch('duration', 'How long a condition has held.', {
+        condition: { type: 'string', description: 'Condition like "> 20" that starts the timer.' },
+        reset_on: { type: 'string', description: 'Condition that resets the timer.' }
+    }, ['condition']),
+    processorBranch('threshold', 'Switch between two outputs at a point.', {
+        threshold: { type: 'number', description: 'Switch point.' },
+        above: { description: 'Output when above (default 1).' },
+        below: { description: 'Output when below (default 0).' },
+        hysteresis: { type: 'number', minimum: 0, description: 'Dead band around the switch point.' }
+    }, ['threshold']),
+    processorBranch('clamp', 'Keep the value within bounds.', {
+        min: { type: 'number', description: 'Lower bound.' },
+        max: { type: 'number', description: 'Upper bound.' }
+    }),
+    processorBranch('round', 'Round to a number of decimal places.', {
+        method: { type: 'string', enum: ['round', 'floor', 'ceil'], description: 'Rounding method (default round).' },
+        precision: { type: 'number', minimum: 0, description: 'Decimal places (default 0).' }
+    }),
+    processorBranch('delta', 'Change since the previous value.', {
+        absolute: { type: 'boolean', description: 'Report the absolute change.' }
+    })
+];
+
+/** The processor types, in reference order */
+export const PROCESSOR_TYPES = PROCESSOR_BRANCHES.map((b) => b.title);
+
+/** One named processor in a data source's `processing` map */
+export const processorSchema = {
+    type: 'object',
+    description: `A processor in the pipeline. type picks one of: ${PROCESSOR_TYPES.join(', ')}.`,
+    required: ['type'],
+    // ajv (validator, tests) picks the branch by type and reports only its errors
+    discriminator: { propertyName: 'type' },
+    oneOf: PROCESSOR_BRANCHES
+};
+
+// ============================================================================
 // DATA SOURCES SCHEMA - Historical data queries and processing pipeline
 // ============================================================================
 
@@ -68,13 +163,13 @@ export const dataSourcesSchema = {
                 history: { hours: 6 },
                 processing: {
                     fahrenheit: { type: 'convert_unit', from: 'c', to: 'f' },
-                    smoothed: { type: 'smooth', from: 'fahrenheit', method: 'exponential', alpha: 0.3 },
-                    rounded: { type: 'round', from: 'smoothed', precision: 1 }
+                    smoothed: { type: 'smooth', input_source: 'fahrenheit', method: 'exponential', alpha: 0.3 },
+                    rounded: { type: 'round', input_source: 'smoothed', precision: 1 }
                 }
             },
             power: {
                 entity: 'sensor.power',
-                update_interval: 1000,
+                min_emit_ms: 1000,
                 processing: {
                     kilowatts: { type: 'scale', input_range: [0, 1000], output_range: [0, 1] }
                 }
@@ -96,12 +191,23 @@ export const dataSourcesSchema = {
                 description: 'Entity attribute to track instead of state',
                 examples: ['temperature', 'brightness', 'current']
             },
+            enum_mapping: {
+                type: 'object',
+                description: 'Map non-numeric states to numbers so they can be plotted or processed (on/off map to 1/0 automatically)',
+                additionalProperties: { type: 'number' },
+                examples: [{ heat: 2, cool: 1, idle: 0 }]
+            },
             update_interval: {
                 type: 'number',
-                minimum: 0,
-                maximum: 10000,
-                description: 'Minimum milliseconds between updates (throttling, default: 100)',
-                examples: [100, 1000, 5000]
+                deprecated: true,
+                'x-replacement': 'min_emit_ms',
+                description: 'Never had an effect: min_emit_ms limits how often cards update.'
+            },
+            periodic_update_interval: {
+                type: 'number',
+                minimum: 100,
+                default: 1000,
+                description: 'With a duration processor, ms between the refreshes that keep the elapsed time counting.'
             },
             history: {
                 type: 'object',
@@ -110,6 +216,12 @@ export const dataSourcesSchema = {
                     enabled: {
                         type: 'boolean',
                         description: 'Enable historical data preload (default: true)'
+                    },
+                    preload: {
+                        type: 'boolean',
+                        deprecated: true,
+                        'x-replacement': 'history.enabled',
+                        description: 'Older name for history.enabled'
                     },
                     hours: {
                         type: 'number',
@@ -128,37 +240,39 @@ export const dataSourcesSchema = {
             processing: {
                 type: 'object',
                 description: 'Processing pipeline with named processors. Each processor transforms data and stores results in a buffer accessible via templates.',
-                additionalProperties: {
-                    type: 'object',
-                    properties: {
-                        type: {
-                            type: 'string',
-                            enum: [
-                                'convert_unit',
-                                'scale',
-                                'smooth',
-                                'expression',
-                                'statistics',
-                                'rate',
-                                'trend',
-                                'duration',
-                                'threshold',
-                                'clamp',
-                                'round',
-                                'delta'
-                            ],
-                            description: 'Processor type',
-                            examples: ['convert_unit', 'smooth', 'expression']
-                        },
-                        from: {
-                            type: 'string',
-                            description: 'Source processor name to depend on (creates dependency chain). If omitted, uses raw entity value.',
-                            examples: ['fahrenheit', 'smoothed', 'scaled']
-                        }
-                    },
-                    required: ['type']
-                }
-            }
+                additionalProperties: processorSchema
+            },
+            window_seconds: {
+                type: ['number', 'string'],
+                description: 'Rolling buffer window: seconds, or a duration like "5m" or "1h". About 10 points per second are kept, at most 1,000 (default 60)',
+                examples: [60, 300, '1h']
+            },
+            min_emit_ms: {
+                type: 'number',
+                minimum: 10,
+                description: 'Minimum ms between updates sent to cards (throttle, default 100)'
+            },
+            coalesce_ms: {
+                type: 'number',
+                minimum: 0,
+                description: 'Window in ms for merging rapid changes into one update (default: 40% of min_emit_ms; below 20 counts as 20)'
+            },
+            max_delay_ms: {
+                type: 'number',
+                minimum: 0,
+                description: 'Longest ms an update may be held back while merging (default: 3 x coalesce_ms; never less than min_emit_ms)'
+            },
+            emit_on_same_value: {
+                type: 'boolean',
+                description: 'Send updates even when the value did not change (default true)'
+            },
+            // Older camelCase spellings: still read by DataSource, snake_case wins.
+            windowSeconds: { type: ['number', 'string'], deprecated: true, 'x-replacement': 'window_seconds' },
+            minEmitMs: { type: 'number', deprecated: true, 'x-replacement': 'min_emit_ms' },
+            sampleMs: { type: 'number', deprecated: true, 'x-replacement': 'min_emit_ms' },
+            coalesceMs: { type: 'number', deprecated: true, 'x-replacement': 'coalesce_ms' },
+            maxDelayMs: { type: 'number', deprecated: true, 'x-replacement': 'max_delay_ms' },
+            emitOnSameValue: { type: 'boolean', deprecated: true, 'x-replacement': 'emit_on_same_value' }
         },
         required: ['entity']
     }
@@ -171,15 +285,20 @@ export const dataSourcesSchema = {
 export const actionSchema = {
     type: 'object',
     description: 'Action to perform on interaction (tap, hold, or double-tap). Supports toggle, service calls, navigation, more-info dialog, or no action.',
+    // A fire-dom-event action carries any keys an integration reads from the
+    // ll-custom event (browser_mod, Local Conditional Card's local_conditional_card,
+    // #407), as in Home Assistant: the config checker allows extra keys on it only.
+    openWhen: { action: 'fire-dom-event' },
     examples: [
         {
             action: 'toggle',
             entity: 'light.living_room'
         },
         {
-            action: 'call-service',
-            service: 'light.turn_on',
-            service_data: {
+            action: 'perform-action',
+            perform_action: 'light.turn_on',
+            target: { entity_id: 'light.living_room' },
+            data: {
                 brightness: 255,
                 color_name: 'red'
             }
@@ -196,31 +315,58 @@ export const actionSchema = {
     properties: {
         action: {
             type: 'string',
-            enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'none'],
-            default: 'toggle',
-            description: 'Type of action to perform',
+            enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'fire-dom-event', 'fly-to', 'set-clock', 'set-model-scale', 'point-card', 'none'],
+            // Home Assistant's older names: still run, but not written or published (the checker suggests the current one)
+            'x-legacy-values': { 'call-service': 'perform-action' },
+            description: 'Type of action to perform (no default: an action without it does nothing). fire-dom-event: fire Home Assistant\'s ll-custom event with this action (browser_mod listens for it). fly-to: fly the camera of the astrometrics card named in card to its view or point. set-clock: set the scene date and or rate of the astrometrics card named in card. set-model-scale: draw its models at their real size, or larger to stay visible (model_scale). point-card: open, close or toggle the card pinned to one of its points (point, point_card).',
             enumDescriptions: [
                 'Toggle entity on/off',
-                'Call a Home Assistant service',
+                'Call a Home Assistant service (older name of perform-action)',
+                'Perform a Home Assistant action',
                 'Navigate to another view/dashboard',
+                'Open a URL',
                 'Show entity more-info dialog',
+                'Open the Assist dialog',
+                'Fire an ll-custom event (browser_mod)',
+                'Fly an astrometrics card\'s camera',
+                'Set an astrometrics card\'s scene date and rate',
+                'Change an astrometrics card\'s model scale',
+                'Open or close the card on an astrometrics point',
                 'No action (disabled)'
             ]
+        },
+        pipeline_id: {
+            type: 'string',
+            default: 'preferred',
+            description: 'assist: the Assist pipeline to open (its id, or preferred)'
+        },
+        start_listening: {
+            type: 'boolean',
+            default: true,
+            description: 'assist: start listening for speech when the dialog opens'
         },
         service: {
             type: 'string',
             pattern: '^[a-z_]+\\.[a-z0-9_]+$',
-            description: 'Service to call (format: domain.service)',
+            'x-legacy': 'perform_action',
+            description: 'Older Home Assistant name for perform_action (format: domain.service); still runs',
             examples: ['light.turn_on', 'switch.toggle', 'notify.mobile_app']
+        },
+        perform_action: {
+            type: 'string',
+            pattern: '^[a-z_]+\\.[a-z0-9_]+$',
+            description: 'Action to perform (format: domain.action); the current Home Assistant name for service',
+            examples: ['light.turn_on', 'lcards.red_alert']
         },
         service_data: {
             type: 'object',
-            description: 'Data to pass to the service',
+            'x-legacy': 'data',
+            description: 'Older Home Assistant name for data; still runs',
             examples: [{ brightness: 255, color_name: 'red' }]
         },
         data: {
             type: 'object',
-            description: 'Alias for service_data',
+            description: 'Data for the action (perform-action), such as brightness for light.turn_on',
             examples: [{ brightness: 255 }]
         },
         navigation_path: {
@@ -228,6 +374,45 @@ export const actionSchema = {
             pattern: '^/',
             description: 'Path to navigate to (must start with /)',
             examples: ['/lovelace/dashboard', '/lovelace/0']
+        },
+        navigation_replace: {
+            type: 'boolean',
+            default: false,
+            description: 'navigate only: replace the current page in the browser history instead of adding one, so Back skips it'
+        },
+        confirmation: {
+            description: 'Ask before running the action, as Home Assistant does: true asks Home Assistant\'s own question, an object sets the text and buttons and who is not asked. Works on every action type.',
+            anyOf: [
+                { type: 'boolean', description: 'true: ask with Home Assistant\'s default question' },
+                {
+                    type: 'object',
+                    description: 'The question, its buttons and who is not asked',
+                    properties: {
+                        text: { type: 'string', description: 'The question (default: Home Assistant\'s "Are you sure you want to run action ...?" naming the action)' },
+                        title: { type: 'string', description: 'Dialog heading (default: none)' },
+                        confirm_text: { type: 'string', description: 'Confirm button label (default: OK, translated)' },
+                        dismiss_text: { type: 'string', description: 'Dismiss button label (default: Cancel, translated)' },
+                        exemptions: {
+                            type: 'array',
+                            description: 'Users who are not asked: the action runs straight away for them',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    user: { type: 'string', description: 'A Home Assistant user id (Settings > People > Users with advanced mode on, the user\'s ID)' }
+                                },
+                                required: ['user']
+                            }
+                        }
+                    },
+                    additionalProperties: false
+                }
+            ],
+            examples: [true, { text: 'Open the airlock?', exemptions: [{ user: 'a1b2c3d4e5f6' }] }]
+        },
+        url_path: {
+            type: 'string',
+            description: 'url only: the address to open, in a new tab',
+            examples: ['https://www.home-assistant.io']
         },
         entity: {
             type: 'string',
@@ -238,8 +423,54 @@ export const actionSchema = {
         },
         target: {
             type: 'object',
-            description: 'Service target selector',
+            description: 'What the action acts on: entity_id, device_id, area_id, floor_id or label_id (and exclude), passed to Home Assistant as the action\'s target',
             examples: [{ entity_id: 'light.living_room' }]
+        },
+        browser_mod: {
+            type: 'object',
+            description: 'fire-dom-event: what browser_mod runs, in its own grammar (service and data, e.g. service: browser_mod.popup), read from the ll-custom event'
+        },
+        card: {
+            type: 'string',
+            description: 'fly-to, set-clock, set-model-scale and point-card: the id of the astrometrics card to act on (any card on the same dashboard or open in the same browser). On the astrometrics card\'s own points and objects, leave it out for that card.'
+        },
+        view: {
+            type: 'string',
+            description: 'fly-to only: a named view of that card (camera.views).'
+        },
+        point: {
+            type: 'string',
+            description: 'fly-to: a point id of that card to fly to (wins over view). point-card: the point whose card opens or closes (on the astrometrics card\'s own point, leave it out for that point).'
+        },
+        duration: {
+            type: 'number',
+            minimum: 0,
+            description: 'fly-to only: how long the flight takes, ms. Default the card\'s camera.fly_duration.'
+        },
+        warp: {
+            type: 'boolean',
+            description: 'fly-to only: stars and dust streak on the way (warp), or false for none. Default the view\'s own warp, else the card\'s camera.warp.'
+        },
+        date: {
+            type: 'string',
+            description: 'set-clock only: the scene date, now or an ISO date and time (2026-10-30, 2026-10-30T12:00:00Z). Leave out to keep the date running on.',
+            examples: ['now', '2026-10-30T12:00:00Z']
+        },
+        rate: {
+            type: ['number', 'string'],
+            description: 'set-clock only: how fast the scene date runs, days per second (1 is a day a second, 0 holds it, negative runs back), or live for real time. Leave out to keep the rate.',
+            examples: ['live', 1, 30]
+        },
+        model_scale: {
+            type: 'string',
+            enum: ['real', 'visible', 'toggle'],
+            default: 'toggle',
+            description: 'set-model-scale only: real draws the card\'s models at their real size, visible draws small ones at least 40 px across, toggle (the default) switches between them. Not saved.'
+        },
+        point_card: {
+            type: 'string',
+            enum: ['open', 'close', 'toggle'],
+            description: 'point-card: open, close or toggle (the default) the point\'s card (a card with show: tap; one is open at a time). fly-to with a point: open (or close, toggle) its card as the camera flies there.'
         }
     }
 };
@@ -260,58 +491,67 @@ export const animationSchema = {
         },
         {
             trigger: 'on_entity_change',
-            preset: 'flash',
+            preset: 'blink',
             loop: true
         }
     ],
     properties: {
         trigger: {
             type: 'string',
-            enum: ['on_load', 'on_tap', 'on_hold', 'on_hover', 'on_leave', 'on_entity_change'],
-            description: 'When to trigger the animation',
+            enum: ['on_load', 'on_show', 'on_tap', 'on_double_tap', 'on_hold', 'on_hover', 'on_leave', 'on_entity_change', 'on_datasource_change'],
+            default: 'on_load',
+            description: 'When to trigger the animation (default: on_load)',
             enumDescriptions: [
-                'When card is loaded/rendered',
+                'Once, when the card first renders',
+                'Every time the card appears: when the view opens, a visibility condition shows it, or you come back from another view',
                 'When card is tapped/clicked',
+                'When card is double-tapped',
                 'When card is held (long press)',
                 'When mouse enters card',
                 'When mouse leaves card',
-                'When associated entity state changes'
+                'When associated entity state changes',
+                'When the DataSource named in `datasource` changes'
             ]
         },
         preset: {
             type: 'string',
             description: 'Animation preset name',
-            examples: ['pulse', 'flash', 'bounce', 'shake', 'glow']
+            examples: ['pulse', 'blink', 'bounce', 'shake', 'glow']
         },
         duration: {
             type: ['number', 'object'],
             minimum: 0,
-            maximum: 10000,
-            default: 500,
-            description: 'Animation duration in milliseconds (0-10000). Also accepts a map_range descriptor for entity-driven, live-adjusting duration on looping animations.'
+            description: 'Animation duration in milliseconds; left out, the preset\'s own duration applies (no upper limit: a slow looping background motion can take 20000 or more). Also accepts a map_range descriptor for entity-driven, live-adjusting duration on looping animations.'
         },
         ease: {
             type: ['string', 'object'],
             description: 'Easing function (string name or object with type and params)',
             examples: ['inOutQuad', 'outElastic', 'linear', { type: 'spring', params: { stiffness: 150 } }]
         },
+        easing: {
+            type: ['string', 'object'],
+            deprecated: true,
+            'x-replacement': 'ease',
+            description: 'Old name for ease (read when ease is not set).'
+        },
+        datasource: {
+            type: 'string',
+            description: 'The DataSource whose changes fire an on_datasource_change animation (required for that trigger).'
+        },
         loop: {
             oneOf: [
                 { type: 'boolean', description: 'true = loop infinitely, false = play once' },
                 { type: 'integer', minimum: 1, description: 'Number of additional times to loop (1 = play twice total)' },
             ],
-            default: false,
-            description: 'Loop the animation. true = infinite, false = play once, N = loop N times',
+            description: 'Loop the animation. true = infinite, false = play once, N = loop N times. Left out, the preset decides (pulse and glow loop, most play once).',
         },
         alternate: {
             type: 'boolean',
-            default: false,
-            description: 'Whether animation should alternate direction on each loop'
+            description: 'Whether animation should alternate direction on each loop. Left out, the preset decides.'
         },
         delay: {
             type: ['number', 'object'],
             minimum: 0,
-            maximum: 10000,
             default: 0,
             description: 'Delay before animation starts (milliseconds). Also accepts a map_range descriptor, matching rulesSchema\'s equivalent field.'
         },
@@ -343,7 +583,7 @@ export const animationSchema = {
         },
         while: {
             type: 'object',
-            description: 'Lifecycle condition for looping animations (requires the top-level loop: true field). The animation plays while the condition is true and stops automatically when it becomes false. Note: to_state/from_state are fire-and-forget gates \u2014 they control when the animation starts but will not stop it. Use while to auto-stop a looping animation. The 4 numeric bound keys (above/at_least/below/at_most) AND-combine when more than one is present, so a range can be expressed by combining two of them \u2014 e.g. { at_least: 20, at_most: 80 } for an inclusive range, or { above: 20, below: 80 } for an exclusive one.',
+            description: 'Lifecycle condition for looping animations (requires the top-level loop: true field). The animation plays while the condition is true and stops automatically when it becomes false. Note: to_state/from_state are fire-and-forget gates: they control when the animation starts but will not stop it. Use while to auto-stop a looping animation. The 4 numeric bound keys (above/at_least/below/at_most) AND-combine when more than one is present, so a range can be expressed by combining two of them, e.g. { at_least: 20, at_most: 80 } for an inclusive range, or { above: 20, below: 80 } for an exclusive one.',
             properties: {
                 state:     { type: 'string', description: 'Play while entity value equals this string' },
                 not_state: { type: 'string', description: 'Play while entity value does NOT equal this string' },
@@ -375,7 +615,12 @@ export const animationSchema = {
         },
         target: {
             type: 'string',
-            description: 'CSS selector for a single animation target element.'
+            description: 'CSS selector for a single animation target element, or `background` to animate the card\'s background_animation effects (their config keys in params, with preset: custom).'
+        },
+        effect: {
+            type: 'integer',
+            minimum: 0,
+            description: 'With target: background, the index of the background_animation entry to animate (0 is the first, the bottom layer). Without it, every entry.'
         },
         targets: {
             type: ['string', 'array'],
@@ -386,17 +631,35 @@ export const animationSchema = {
             type: 'object',
             discriminatedBy: {
                 field: 'preset',
-                schemas: ANIMATION_PRESET_PARAMS_SCHEMAS,
+                schemas: ANIMATION_PRESET_PARAMS_SCHEMAS_MAPRANGE_AWARE,
                 default: { type: 'object', additionalProperties: true }
             },
-            description: 'Preset-specific parameters. Shape depends on the sibling `preset` field.'
+            description: 'Preset-specific parameters. Shape depends on the sibling `preset` field. Values may be static or a map_range descriptor that follows an entity.'
+        },
+        essential_motion: {
+            type: 'boolean',
+            default: false,
+            description: 'Keep playing when the device asks for reduced motion (prefers-reduced-motion). Only for motion that carries meaning, such as an alert flash; other animations jump to their end state or stay still.'
+        },
+        type: {
+            type: 'string',
+            deprecated: true,
+            'x-replacement': 'preset',
+            description: 'Old name for preset, written by earlier animation editors as `type: custom` (now `preset: custom`).'
+        },
+        animejs: {
+            type: 'object',
+            deprecated: true,
+            'x-replacement': 'params',
+            description: 'Old home of the raw anime.js properties of a custom animation (now `params` with `preset: custom`).'
         }
     },
     // 'warn', not false: an unrecognized top-level field here is worth surfacing but
     // must never itself block a card from initializing — same reasoning as the
     // per-preset params schemas (see animation-preset-params-schemas.js).
     additionalProperties: 'warn',
-    required: ['trigger', 'preset']
+    // trigger defaults to on_load (AnimationConfigProcessor, AnimationManager)
+    required: ['preset']
 };
 
 // ============================================================================
@@ -460,8 +723,8 @@ export const filterSchema = {
  */
 export const simpleColorSchema = {
     type: 'string',
-    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-    description: 'Colour value (hex, rgb, theme token, or CSS variable)',
+    pattern: COLOR_VALUE_PATTERN,
+    description: 'Colour value (hex, rgb, named colour, theme token, or CSS variable)',
     examples: ['#FF9900', 'transparent', 'theme:colors.text.onDark', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
 };
 
@@ -501,6 +764,24 @@ export const stateColorSchema = {
         },
     ],
 };
+
+/**
+ * State-colour schema for an SVG fill: as stateColorSchema, but `none` is also
+ * accepted (plain or in a state map), as the MSD shape renderer passes it through.
+ */
+export const stateFillSchema = withFillPattern(stateColorSchema);
+
+/**
+ * A copy of a schema with every colour pattern swapped for the fill pattern.
+ * @param {any} node
+ * @returns {any}
+ */
+function withFillPattern(node) {
+    if (Array.isArray(node)) return node.map(withFillPattern);
+    if (!node || typeof node !== 'object') return node;
+    return Object.fromEntries(Object.entries(node).map(([k, v]) =>
+        [k, k === 'pattern' && v === COLOR_VALUE_PATTERN ? FILL_VALUE_PATTERN : withFillPattern(v)]));
+}
 
 /**
  * State-icon schema — icon name (string) or per-state icon map.
@@ -674,17 +955,26 @@ export const gridOptionsSchema = {
                 {
                     type: 'number',
                     minimum: 1,
-                    maximum: 24,
-                    description: 'Number of columns this card spans (1-24)'
+                    description: 'Number of grid columns this card spans: 12 per section column, so a section with column_span: 4 has 48'
                 }
             ],
-            description: 'Number of columns (1-24) or "full" to span all columns'
+            description: 'Number of grid columns (12 per section column; Home Assistant clamps to the section width) or "full" to span all columns'
         },
         rows: {
-            type: 'number',
-            minimum: 1,
-            maximum: 100,
-            description: 'Number of rows this card spans (1-100)'
+            oneOf: [
+                {
+                    type: 'string',
+                    enum: ['auto'],
+                    description: 'Set to "auto" to size the cell to the card\'s own height'
+                },
+                {
+                    type: 'number',
+                    minimum: 1,
+                    maximum: 100,
+                    description: 'Number of rows this card spans (1-100)'
+                }
+            ],
+            description: 'Number of rows this card spans (1-100), or "auto" for the card\'s own height'
         }
     }
 };
@@ -706,20 +996,24 @@ export const rulesSchema = {
                 description: 'Unique rule identifier used for debugging and tracing',
                 examples: ['temp_alert', 'high_cpu_warning', 'offline_status']
             },
+            name: {
+                type: 'string',
+                description: 'A readable label for the rule (shown in the editor)'
+            },
             when: {
                 type: 'object',
-                description: 'Condition(s) that must be met for rule to apply. Supports 20+ condition types including entity state, time, performance, DataSources, and logical composition (all/any/not). Numeric comparisons accept above/below (strict) and at_least/at_most (inclusive).',
+                description: 'Condition(s) that must be met for rule to apply: entity state and attributes, map_range_cond, time_between, weekday_in, sun_elevation, JavaScript and Jinja2 conditions, and logical composition (all/any/not). Numeric comparisons accept above/below (strict) and at_least/at_most (inclusive).',
                 additionalProperties: true,
                 examples: [
                     { entity: 'sensor.temperature', above: 25 },
                     { entity: 'sensor.temperature', at_least: 25 },
-                    { all: [{ entity: 'light.bedroom', state: 'on' }, { time: { after: '22:00' } }] },
-                    { datasource: 'cpu_usage', above: 80 }
+                    { all: [{ entity: 'light.bedroom', state: 'on' }, { time_between: '22:00-06:00' }] },
+                    { sun_elevation: { below: 0 } }
                 ]
             },
             apply: {
                 type: 'object',
-                description: 'Style changes, profile activations, and animations to apply when conditions are met',
+                description: 'Style changes, animations and base SVG filters to apply when conditions are met',
                 properties: {
                     overlays: {
                         type: 'object',
@@ -736,22 +1030,25 @@ export const rulesSchema = {
                         description: 'Base SVG filter updates (MSD cards only)',
                         properties: {
                             filters: {
-                                type: 'object',
-                                description: 'SVG filter properties to update'
+                                type: ['array', 'object'],
+                                description: 'Filters to apply: a stackable filter list [{mode, type, value}] (or the legacy CSS filter object); an empty list clears them'
                             },
                             transition: {
                                 type: 'number',
                                 minimum: 0,
                                 description: 'Transition duration in milliseconds',
-                                default: 300
+                                default: 1000
                             }
                         }
                     },
+                    // Retired with pack-level style profiles (PackManager ignores those);
+                    // the rules engine never applied it. Kept only to warn.
                     profiles: {
                         type: 'array',
                         items: { type: 'string' },
-                        description: 'Profile IDs to activate when rule matches',
-                        examples: [['night_mode'], ['alert_profile', 'dim_displays']]
+                        deprecated: true,
+                        'x-replacement': 'overlays (rule profiles were retired and have no effect)',
+                        description: 'Retired: has no effect'
                     },
                     animations: {
                         type: 'array',
@@ -782,7 +1079,7 @@ export const rulesSchema = {
                                 preset: {
                                     type: 'string',
                                     description: 'Animation preset name',
-                                    examples: ['pulse', 'flash', 'glow', 'alert_pulse']
+                                    examples: ['pulse', 'blink', 'glow', 'strobe']
                                 },
                                 duration: {
                                     type: ['number', 'object'],
@@ -803,10 +1100,19 @@ export const rulesSchema = {
                                     description: 'Delay before animation starts (milliseconds). Also accepts a map_range descriptor for entity-driven dynamic delay.'
                                 },
                                 ease: {
-                                    type: 'string',
-                                    description: 'Animation easing function (anime.js v4 name). Simple strings like \'inOutQuad\', \'outBounce\', \'inElastic\' or parametric types via ease_params.',
+                                    type: ['string', 'object'],
+                                    description: 'Animation easing function (anime.js v4 name, or an object with type and params). Simple strings like \'inOutQuad\', \'outBounce\', \'inElastic\'.',
                                     examples: ['inOutQuad', 'linear', 'outElastic', 'inOutBounce']
                                 },
+                                // Every rule animation entry goes to playAnimation() whole
+                                // (RulesEngine), so it takes the card animation keys too.
+                                alternate:        animationSchema.properties.alternate,
+                                target:           animationSchema.properties.target,
+                                targets:          animationSchema.properties.targets,
+                                effect:           animationSchema.properties.effect,
+                                essential_motion: animationSchema.properties.essential_motion,
+                                id:               animationSchema.properties.id,
+                                enabled:          animationSchema.properties.enabled,
                                 params: {
                                     type: 'object',
                                     discriminatedBy: {
@@ -827,31 +1133,31 @@ export const rulesSchema = {
                             },
                             required: ['preset'],
                             examples: [
-                                { tag: 'temp_widgets', preset: 'alert_pulse', loop: true },
+                                { tag: 'temp_widgets', preset: 'strobe', loop: true },
                                 { overlay: 'cpu_gauge', preset: 'glow', duration: 500 },
                                 { type: 'gauge', preset: 'pulse', duration: 800 }
                             ]
                         },
                         examples: [
-                            [{ tag: 'alert_targets', preset: 'flash', loop: true }],
+                            [{ tag: 'alert_targets', preset: 'blink', loop: true }],
                             [{ overlay: 'temp_display', preset: 'glow', duration: 600 }],
                             [
                                 { tag: 'temperature', preset: 'pulse', loop: true },
-                                { tag: 'status_icon', preset: 'flash', duration: 300 }
+                                { tag: 'status_icon', preset: 'blink', duration: 300 }
                             ]
                         ]
                     }
                 },
                 examples: [
                     { overlays: { temp_display: { style: { color: 'var(--lcars-red)' } } } },
-                    { overlays: { 'tag:warning': { style: { opacity: 1 } } }, animations: ['pulse'] },
-                    { base_svg: { filters: [{ mode: 'svg', type: 'tint', value: { color: 'rgba(180,0,0,0.35)' } }], transition: 500 }, profiles: ['alert_mode'] }
+                    { overlays: { 'tag:warning': { style: { opacity: 1 } } }, animations: [{ tag: 'warning', preset: 'pulse' }] },
+                    { base_svg: { filters: [{ mode: 'svg', type: 'tint', value: { color: 'rgba(180,0,0,0.35)' } }], transition: 500 } }
                 ]
             },
             stop: {
                 type: 'boolean',
                 default: false,
-                description: 'Stop evaluation after this rule if it matches (rule priority control)'
+                description: 'When this rule matches, lower-priority rules no longer patch the same overlays (they are still evaluated)'
             },
             priority: {
                 type: 'number',
@@ -875,7 +1181,7 @@ export const rulesSchema = {
                 when: { entity: 'binary_sensor.critical', state: 'on' },
                 apply: {
                     overlays: { 'tag:critical': { style: { color: 'var(--lcars-alert-red)' } } },
-                    animations: ['pulse_alert']
+                    animations: [{ tag: 'critical', preset: 'pulse', loop: true }]
                 },
                 priority: 100,
                 stop: true
@@ -888,6 +1194,308 @@ export const rulesSchema = {
         helper: 'Conditional styling rules evaluated by RulesEngine singleton'
     }
 };
+
+/**
+ * Spacing between letters: px (a number) or any CSS letter-spacing.
+ * Shared by the text-field default block and every field.
+ */
+export const letterSpacingSchema = {
+    type: ['number', 'string'],
+    description: 'Space between letters: px (a number) or a CSS letter-spacing such as 0.1em or 2px. Default normal.',
+    examples: [1, '0.1em', '2px']
+};
+
+/**
+ * The properties of one text field (`text.<field>`), as the text-field cards
+ * take them. Other renderers of LCARdS text (the astrometrics labels) pick the
+ * keys that mean something to them with `omit`, so every card describes a key
+ * the same way.
+ * @param {Object} [options]
+ * @param {Array<string>} [options.positionEnum] - Available position values
+ * @param {Array<string>} [options.omit] - Keys to leave out
+ * @param {Record<string, string>} [options.descriptions] - Descriptions to replace, by key
+ * @returns {Record<string, any>}
+ */
+export function textFieldProperties(options = {}) {
+    const { positionEnum = [], omit = [], descriptions = {} } = options;
+    /** @type {Record<string, any>} */
+    const props = {
+        content: {
+            type: 'string',
+            description: 'Text content. Templates are evaluated by default (set template:false to disable)',
+            examples: ['Temperature', '{entity.state}', '{entity.attributes.brightness}', '{{ states(...) }}']
+        },
+        show: {
+            type: 'boolean',
+            default: true,
+            description: 'Whether to show this text field'
+        },
+        position: {
+            type: 'string',
+            enum: positionEnum,
+            description: 'Text position (overrides default)'
+        },
+        x: {
+            type: 'number',
+            description: 'Absolute X coordinate in pixels'
+        },
+        y: {
+            type: 'number',
+            description: 'Absolute Y coordinate in pixels'
+        },
+        x_percent: {
+            type: 'number',
+            minimum: 0,
+            maximum: 100,
+            description: 'X position as a percentage of the text zone width (0-100); use with y_percent'
+        },
+        y_percent: {
+            type: 'number',
+            minimum: 0,
+            maximum: 100,
+            description: 'Y position as a percentage of the text zone height (0-100); use with x_percent'
+        },
+        rotation: {
+            type: 'number',
+            minimum: -360,
+            maximum: 360,
+            default: 0,
+            description: 'Text rotation in degrees (-360 to 360)',
+            'x-ui-hints': {
+                label: 'Rotation',
+                helper: 'Rotate text in degrees (negative = counter-clockwise)',
+                selector: {
+                    number: {
+                        mode: 'slider',
+                        min: -360,
+                        max: 360,
+                        step: 1,
+                        unit_of_measurement: '°'
+                    }
+                }
+            }
+        },
+        padding: paddingSchema,
+        font_size: {
+            oneOf: [
+                {
+                    type: 'number',
+                    minimum: 1,
+                    maximum: 200,
+                    description: 'Font size in pixels (1-200)'
+                },
+                {
+                    type: 'string',
+                    pattern: '^(\\d+px|\\d+\\.?\\d*rem|\\d+\\.?\\d*em|var\\(--[a-z-]+\\))$',
+                    description: 'CSS value or theme token',
+                    examples: ['14px', '1.2rem', 'var(--lcars-text-size)']
+                }
+            ],
+            'x-ui-hints': {
+                label: 'Font Size',
+                helper: 'Font size in pixels (1-200). Use YAML for theme tokens.',
+                selector: {
+                    number: {
+                        mode: 'box',
+                        min: 1,
+                        max: 200,
+                        step: 1,
+                        unit_of_measurement: 'px'
+                    }
+                }
+            }
+        },
+        color: stateColorSchema,
+        font_weight: {
+            type: ['string', 'number'],
+            default: 'normal',
+            description: 'Font weight: CSS keyword (normal, bold) or numeric value (100–900)',
+            examples: ['normal', 'bold', 100, 300, 400, 700, 900]
+        },
+        font_family: {
+            type: 'string',
+            format: 'font-family',
+            description: 'CSS font-family (single font, comma-separated stack, or CSS variable)',
+            examples: ['Arial', 'lcards_eurostile', 'Antonio, sans-serif', '"Roboto Mono", monospace', 'var(--lcars-font), Antonio, sans-serif']
+        },
+        text_transform: {
+            type: 'string',
+            enum: ['none', 'uppercase', 'lowercase', 'capitalize'],
+            default: 'none',
+            description: 'Text transformation',
+            enumDescriptions: [
+                'No transformation (original case)',
+                'ALL UPPERCASE',
+                'all lowercase',
+                'Capitalize First Letter'
+            ]
+        },
+        letter_spacing: letterSpacingSchema,
+        anchor: {
+            type: 'string',
+            enum: ['start', 'middle', 'end'],
+            description: 'Horizontal text alignment. Left out, it follows position (start at x/y)',
+            enumDescriptions: [
+                'Left-aligned',
+                'Center-aligned',
+                'Right-aligned'
+            ]
+        },
+        baseline: {
+            type: 'string',
+            enum: ['hanging', 'middle', 'central', 'alphabetic'],
+            description: 'Vertical text alignment. Left out, it follows position (auto at x/y)',
+            enumDescriptions: [
+                'Top of text box',
+                'Center of text box',
+                'Mathematical center',
+                'Bottom of text (baseline)'
+            ]
+        },
+        template: {
+            type: 'boolean',
+            default: true,
+            description: 'Template evaluation is enabled by default for this field’s content (e.g. {entity.state}, {{ states(...) }}, [[[ ... ]]]). Set to false to render {...} / [[[...]]] text literally without evaluating it.'
+        },
+        stretch: {
+            oneOf: [
+                {
+                    type: 'boolean',
+                    description: 'true = stretch text to fill 100% of the available width'
+                },
+                {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1,
+                    description: 'Fraction of available width to stretch text to (0–1)'
+                }
+            ],
+            description: 'Stretch text to fill a fraction of the available width using SVG textLength / lengthAdjust="spacingAndGlyphs". true = 100%, 0.8 = 80%.',
+            'x-ui-hints': {
+                label: 'Stretch Text',
+                helper: 'Expand or compress glyph spacing to fill the specified width fraction'
+            }
+        },
+        fit: {
+            oneOf: [
+                { type: 'boolean', description: 'true = shrink the text to fit its zone, then wrap it to two lines, then end it with an ellipsis' },
+                {
+                    type: 'object',
+                    additionalProperties: false,
+                    description: 'Fit with your own limits',
+                    properties: {
+                        min_font_size: { type: 'number', minimum: 1, description: 'Smallest size the text shrinks to (px; viewBox units in a component zone). Default: 60% of the font size, not below 8' },
+                        max_lines: { type: 'integer', minimum: 1, description: 'Most lines the text wraps to (at spaces). 1 = shrink only. Default 2' },
+                        overflow: { type: 'string', enum: ['ellipsis', 'clip'], description: 'Text still too long at the smallest size: end it with an ellipsis (default) or cut it' },
+                    },
+                },
+            ],
+            description: 'Keep the text inside its zone: shrink it, then wrap it, then cut it. Off by default. Ignored with stretch.',
+        },
+        font_size_percent: {
+            type: 'number',
+            minimum: 1,
+            maximum: 100,
+            description: 'Font size as a percentage of the text area height (component mode). Overrides font_size when set.',
+            'x-ui-hints': {
+                label: 'Font Size (%)',
+                helper: 'Sets font size relative to the text area height. 50 = 50% of the area height.',
+                selector: {
+                    number: {
+                        mode: 'slider',
+                        min: 1,
+                        max: 100,
+                        step: 1,
+                        unit_of_measurement: '%'
+                    }
+                }
+            }
+        },
+        cap_height_ratio: {
+            type: 'number',
+            minimum: 0.1,
+            maximum: 1.0,
+            description: 'Ratio of the font cap-height to the em-square. Used to correct font_size_percent so visible glyph height matches the requested percentage. Defaults to the theme token value (0.86 for Antonio). Override when using a different font.',
+            'x-ui-hints': {
+                label: 'Cap Height Ratio',
+                helper: 'Correction factor for font_size_percent. Antonio = 0.86. 1.0 = no correction. Lower values increase rendered font-size.',
+                selector: {
+                    number: {
+                        mode: 'box',
+                        min: 0.1,
+                        max: 1.0,
+                        step: 0.01
+                    }
+                }
+            }
+        },
+        zone: {
+            type: 'string',
+            description: 'Named zone key to route this text field to. For component cards this matches a key in the component\'s zones map. For slider/elbow cards this matches a named layout zone (e.g. left, track, vertical_bar). Defaults to the first zone if not set.',
+            'x-ui-hints': {
+                label: 'Zone',
+                helper: 'Which named layout zone this text field is routed to'
+            }
+        },
+        display_format: {
+            type: 'string',
+            enum: ['friendly', 'raw', 'parts', 'unit'],
+            default: 'friendly',
+            description: 'How to format entity state or attribute values in this text field. "friendly" (default) uses Home Assistant\'s translated display string matching native cards. "raw" returns the unmodified state/attribute value. "parts" joins value and unit from Home Assistant\'s ToParts API. "unit" returns only the unit portion.',
+            examples: ['friendly', 'raw', 'parts', 'unit'],
+            'x-ui-hints': {
+                label: 'Display Format',
+                helper: 'friendly = translated by Home Assistant (e.g. "Open"), raw = actual state (e.g. "on"), parts = value+unit joined, unit = unit only'
+            }
+        },
+        background: stateColorSchema,
+        background_padding: {
+            type: 'number',
+            minimum: 0,
+            default: 8,
+            description: 'Horizontal padding between text glyphs and the background rect edges (px).',
+            'x-ui-hints': {
+                label: 'Background Padding',
+                selector: { number: { mode: 'box', min: 0, max: 100, step: 1, unit_of_measurement: 'px' } }
+            }
+        },
+        background_radius: {
+            type: 'number',
+            minimum: 0,
+            default: 4,
+            description: 'Corner radius of the background rect (px).',
+            'x-ui-hints': {
+                label: 'Background Corner Radius',
+                selector: { number: { mode: 'box', min: 0, max: 50, step: 1, unit_of_measurement: 'px' } }
+            }
+        },
+        background_width: {
+            type: ['number', 'null'],
+            minimum: 1,
+            description: 'Fixed explicit width of the background rect (px). Overrides auto-sizing from text metrics. Text will overflow if content is wider than this value.',
+            'x-ui-hints': {
+                label: 'Background Width (Fixed)',
+                helper: 'Pin to an exact px width. Use background_min_width for a safe lower bound with dynamic content.',
+                selector: { number: { mode: 'box', min: 1, max: 2000, step: 1, unit_of_measurement: 'px' } }
+            }
+        },
+        background_min_width: {
+            type: ['number', 'null'],
+            minimum: 1,
+            description: 'Minimum width of the background rect (px). Auto-sizes to text width but never smaller than this value. Safe for dynamic content.',
+            'x-ui-hints': {
+                label: 'Background Min Width',
+                helper: 'Auto-sizes with text but will not shrink below this value, so safe for dynamic content.',
+                selector: { number: { mode: 'box', min: 1, max: 2000, step: 1, unit_of_measurement: 'px' } }
+            }
+        }
+    };
+    for (const key of omit) delete props[key];
+    for (const [key, description] of Object.entries(descriptions)) {
+        if (props[key]) props[key] = { ...props[key], description };
+    }
+    return props;
+}
 
 /**
  * Get text schema for multi-text label system
@@ -982,14 +1590,14 @@ export function getTextSchema(options = {}) {
                     font_weight: {
                         type: ['string', 'number'],
                         default: 'normal',
-                        description: 'Font weight — CSS keyword (normal, bold) or numeric value (100–900)',
+                        description: 'Font weight: CSS keyword (normal, bold) or numeric value (100–900)',
                         examples: ['normal', 'bold', 100, 300, 400, 700, 900]
                     },
                     font_family: {
                         type: 'string',
                         format: 'font-family',
                         description: 'CSS font-family (single font, comma-separated stack, or CSS variable)',
-                        examples: ['Arial', 'lcards_title', 'Antonio, sans-serif', '"Roboto Mono", monospace', 'var(--lcars-font), Antonio, sans-serif']
+                        examples: ['Arial', 'lcards_eurostile', 'Antonio, sans-serif', '"Roboto Mono", monospace', 'var(--lcars-font), Antonio, sans-serif']
                     },
                     text_transform: {
                         type: 'string',
@@ -1003,11 +1611,11 @@ export function getTextSchema(options = {}) {
                             'Capitalize First Letter'
                         ]
                     },
+                    letter_spacing: letterSpacingSchema,
                     anchor: {
                         type: 'string',
                         enum: ['start', 'middle', 'end'],
-                        default: 'middle',
-                        description: 'Horizontal text alignment',
+                        description: 'Horizontal text alignment. Left out, it follows position (start at x/y)',
                         enumDescriptions: [
                             'Left-aligned',
                             'Center-aligned',
@@ -1017,8 +1625,7 @@ export function getTextSchema(options = {}) {
                     baseline: {
                         type: 'string',
                         enum: ['hanging', 'middle', 'central', 'alphabetic'],
-                        default: 'middle',
-                        description: 'Vertical text alignment',
+                        description: 'Vertical text alignment. Left out, it follows position (auto at x/y)',
                         enumDescriptions: [
                             'Top of text box',
                             'Center of text box',
@@ -1030,10 +1637,10 @@ export function getTextSchema(options = {}) {
                         type: 'string',
                         enum: ['friendly', 'raw', 'parts', 'unit'],
                         default: 'friendly',
-                        description: 'Default display format for entity state/attribute tokens. "friendly" uses HA\'s translated display string. "raw" returns the unmodified value. "parts" joins value and unit. "unit" returns only the unit.',
+                        description: 'Default display format for entity state/attribute tokens. "friendly" uses Home Assistant\'s translated display string. "raw" returns the unmodified value. "parts" joins value and unit. "unit" returns only the unit.',
                         'x-ui-hints': {
                             label: 'Display Format (Default)',
-                            helper: 'friendly = HA-translated (e.g. "Open"), raw = actual state (e.g. "on"), parts = value+unit joined, unit = unit only'
+                            helper: 'friendly = translated by Home Assistant (e.g. "Open"), raw = actual state (e.g. "on"), parts = value+unit joined, unit = unit only'
                         }
                     },
                     background: stateColorSchema,
@@ -1073,7 +1680,7 @@ export function getTextSchema(options = {}) {
                         description: 'Minimum width of the background rect (px). Auto-sizes to text width but never smaller than this value. Safe for dynamic content.',
                         'x-ui-hints': {
                             label: 'Background Min Width',
-                            helper: 'Auto-sizes with text but will not shrink below this value — safe for dynamic content.',
+                            helper: 'Auto-sizes with text but will not shrink below this value, so safe for dynamic content.',
                             selector: { number: { mode: 'box', min: 1, max: 2000, step: 1, unit_of_measurement: 'px' } }
                         }
                     },
@@ -1081,7 +1688,7 @@ export function getTextSchema(options = {}) {
                         type: 'number',
                         minimum: 1,
                         maximum: 100,
-                        description: 'Default font size as a percentage of the card height. All fields inherit this unless they set an explicit font_size. Useful for bar-label style presets that should auto-scale with the configured card height.',
+                        description: 'Default font size as a percentage of the text zone height. All fields inherit this unless they set an explicit font_size. Useful for bar-label style presets that should auto-scale with the configured card height.',
                         'x-ui-hints': {
                             label: 'Font Size (% of height)',
                             helper: 'Sets the default font size relative to the card height for all fields. 100 = full-height glyphs.',
@@ -1122,262 +1729,7 @@ export function getTextSchema(options = {}) {
             type: 'object',
             description: 'Text field configuration (key becomes field name)',
             $comment: 'Each key creates a separate SVG text element. Use descriptive names like "label1", "status", "title"',
-            properties: {
-                content: {
-                    type: 'string',
-                    description: 'Text content. Templates are evaluated by default (set template:false to disable)',
-                    examples: ['Temperature', '{entity.state}', '{entity.attributes.brightness}', '{{ states(...) }}']
-                },
-                show: {
-                    type: 'boolean',
-                    default: true,
-                    description: 'Whether to show this text field'
-                },
-                position: {
-                    type: 'string',
-                    enum: positionEnum,
-                    description: 'Text position (overrides default)'
-                },
-                x: {
-                    type: 'number',
-                    description: 'Absolute X coordinate in pixels'
-                },
-                y: {
-                    type: 'number',
-                    description: 'Absolute Y coordinate in pixels'
-                },
-                x_percent: {
-                    type: 'number',
-                    minimum: 0,
-                    maximum: 100,
-                    description: 'X position as percentage of card width (0-100)'
-                },
-                y_percent: {
-                    type: 'number',
-                    minimum: 0,
-                    maximum: 100,
-                    description: 'Y position as percentage of card height (0-100)'
-                },
-                rotation: {
-                    type: 'number',
-                    minimum: -360,
-                    maximum: 360,
-                    default: 0,
-                    description: 'Text rotation in degrees (-360 to 360)',
-                    'x-ui-hints': {
-                        label: 'Rotation',
-                        helper: 'Rotate text in degrees (negative = counter-clockwise)',
-                        selector: {
-                            number: {
-                                mode: 'slider',
-                                min: -360,
-                                max: 360,
-                                step: 1,
-                                unit_of_measurement: '°'
-                            }
-                        }
-                    }
-                },
-                padding: paddingSchema,
-                font_size: {
-                    oneOf: [
-                        {
-                            type: 'number',
-                            minimum: 1,
-                            maximum: 200,
-                            description: 'Font size in pixels (1-200)'
-                        },
-                        {
-                            type: 'string',
-                            pattern: '^(\\d+px|\\d+\\.?\\d*rem|\\d+\\.?\\d*em|var\\(--[a-z-]+\\))$',
-                            description: 'CSS value or theme token',
-                            examples: ['14px', '1.2rem', 'var(--lcars-text-size)']
-                        }
-                    ],
-                    'x-ui-hints': {
-                        label: 'Font Size',
-                        helper: 'Font size in pixels (1-200). Use YAML for theme tokens.',
-                        selector: {
-                            number: {
-                                mode: 'box',
-                                min: 1,
-                                max: 200,
-                                step: 1,
-                                unit_of_measurement: 'px'
-                            }
-                        }
-                    }
-                },
-                color: stateColorSchema,
-                font_weight: {
-                    type: ['string', 'number'],
-                    default: 'normal',
-                    description: 'Font weight — CSS keyword (normal, bold) or numeric value (100–900)',
-                    examples: ['normal', 'bold', 100, 300, 400, 700, 900]
-                },
-                font_family: {
-                    type: 'string',
-                    format: 'font-family',
-                    description: 'CSS font-family (single font, comma-separated stack, or CSS variable)',
-                    examples: ['Arial', 'lcards_title', 'Antonio, sans-serif', '"Roboto Mono", monospace', 'var(--lcars-font), Antonio, sans-serif']
-                },
-                text_transform: {
-                    type: 'string',
-                    enum: ['none', 'uppercase', 'lowercase', 'capitalize'],
-                    default: 'none',
-                    description: 'Text transformation',
-                    enumDescriptions: [
-                        'No transformation (original case)',
-                        'ALL UPPERCASE',
-                        'all lowercase',
-                        'Capitalize First Letter'
-                    ]
-                },
-                anchor: {
-                    type: 'string',
-                    enum: ['start', 'middle', 'end'],
-                    default: 'middle',
-                    description: 'Horizontal text alignment',
-                    enumDescriptions: [
-                        'Left-aligned',
-                        'Center-aligned',
-                        'Right-aligned'
-                    ]
-                },
-                baseline: {
-                    type: 'string',
-                    enum: ['hanging', 'middle', 'central', 'alphabetic'],
-                    default: 'middle',
-                    description: 'Vertical text alignment',
-                    enumDescriptions: [
-                        'Top of text box',
-                        'Center of text box',
-                        'Mathematical center',
-                        'Bottom of text (baseline)'
-                    ]
-                },
-                template: {
-                    type: 'boolean',
-                    default: true,
-                    description: 'Template evaluation is enabled by default for this field’s content (e.g. {entity.state}, {{ states(...) }}, [[[ ... ]]]). Set to false to render {...} / [[[...]]] text literally without evaluating it.'
-                },
-                stretch: {
-                    oneOf: [
-                        {
-                            type: 'boolean',
-                            description: 'true = stretch text to fill 100% of the available width'
-                        },
-                        {
-                            type: 'number',
-                            minimum: 0,
-                            maximum: 1,
-                            description: 'Fraction of available width to stretch text to (0–1)'
-                        }
-                    ],
-                    description: 'Stretch text to fill a fraction of the available width using SVG textLength / lengthAdjust="spacingAndGlyphs". true = 100%, 0.8 = 80%.',
-                    'x-ui-hints': {
-                        label: 'Stretch Text',
-                        helper: 'Expand or compress glyph spacing to fill the specified width fraction'
-                    }
-                },
-                font_size_percent: {
-                    type: 'number',
-                    minimum: 1,
-                    maximum: 100,
-                    description: 'Font size as a percentage of the text area height (component mode). Overrides font_size when set.',
-                    'x-ui-hints': {
-                        label: 'Font Size (%)',
-                        helper: 'Sets font size relative to the text area height. 50 = 50% of the area height.',
-                        selector: {
-                            number: {
-                                mode: 'slider',
-                                min: 1,
-                                max: 100,
-                                step: 1,
-                                unit_of_measurement: '%'
-                            }
-                        }
-                    }
-                },
-                cap_height_ratio: {
-                    type: 'number',
-                    minimum: 0.1,
-                    maximum: 1.0,
-                    description: 'Ratio of the font cap-height to the em-square. Used to correct font_size_percent so visible glyph height matches the requested percentage. Defaults to the theme token value (0.86 for Antonio). Override when using a different font.',
-                    'x-ui-hints': {
-                        label: 'Cap Height Ratio',
-                        helper: 'Correction factor for font_size_percent. Antonio = 0.86. 1.0 = no correction. Lower values increase rendered font-size.',
-                        selector: {
-                            number: {
-                                mode: 'box',
-                                min: 0.1,
-                                max: 1.0,
-                                step: 0.01
-                            }
-                        }
-                    }
-                },
-                zone: {
-                    type: 'string',
-                    description: 'Named zone key to route this text field to. For component cards this matches a key in the component\'s zones map. For slider/elbow cards this matches a named layout zone (e.g. left, track, vertical_bar). Defaults to the first zone if not set.',
-                    'x-ui-hints': {
-                        label: 'Zone',
-                        helper: 'Which named layout zone this text field is routed to'
-                    }
-                },
-                display_format: {
-                    type: 'string',
-                    enum: ['friendly', 'raw', 'parts', 'unit'],
-                    default: 'friendly',
-                    description: 'How to format entity state or attribute values in this text field. "friendly" (default) uses HA\'s translated display string matching native cards. "raw" returns the unmodified state/attribute value. "parts" joins value and unit from HA\'s ToParts API. "unit" returns only the unit portion.',
-                    examples: ['friendly', 'raw', 'parts', 'unit'],
-                    'x-ui-hints': {
-                        label: 'Display Format',
-                        helper: 'friendly = HA-translated (e.g. "Open"), raw = actual state (e.g. "on"), parts = value+unit joined, unit = unit only'
-                    }
-                },
-                background: stateColorSchema,
-                background_padding: {
-                    type: 'number',
-                    minimum: 0,
-                    default: 8,
-                    description: 'Horizontal padding between text glyphs and the background rect edges (px).',
-                    'x-ui-hints': {
-                        label: 'Background Padding',
-                        selector: { number: { mode: 'box', min: 0, max: 100, step: 1, unit_of_measurement: 'px' } }
-                    }
-                },
-                background_radius: {
-                    type: 'number',
-                    minimum: 0,
-                    default: 4,
-                    description: 'Corner radius of the background rect (px).',
-                    'x-ui-hints': {
-                        label: 'Background Corner Radius',
-                        selector: { number: { mode: 'box', min: 0, max: 50, step: 1, unit_of_measurement: 'px' } }
-                    }
-                },
-                background_width: {
-                    type: ['number', 'null'],
-                    minimum: 1,
-                    description: 'Fixed explicit width of the background rect (px). Overrides auto-sizing from text metrics. Text will overflow if content is wider than this value.',
-                    'x-ui-hints': {
-                        label: 'Background Width (Fixed)',
-                        helper: 'Pin to an exact px width. Use background_min_width for a safe lower bound with dynamic content.',
-                        selector: { number: { mode: 'box', min: 1, max: 2000, step: 1, unit_of_measurement: 'px' } }
-                    }
-                },
-                background_min_width: {
-                    type: ['number', 'null'],
-                    minimum: 1,
-                    description: 'Minimum width of the background rect (px). Auto-sizes to text width but never smaller than this value. Safe for dynamic content.',
-                    'x-ui-hints': {
-                        label: 'Background Min Width',
-                        helper: 'Auto-sizes with text but will not shrink below this value — safe for dynamic content.',
-                        selector: { number: { mode: 'box', min: 1, max: 2000, step: 1, unit_of_measurement: 'px' } }
-                    }
-                }
-            }
+            properties: textFieldProperties({ positionEnum })
         }
     };
 }
@@ -1491,23 +1843,41 @@ const backgroundAnimationEffectSchema = {
                 schemas: BACKGROUND_ANIMATION_PARAMS_SCHEMAS_REACTIVE_AWARE,
                 default: { type: 'object', additionalProperties: true }
             },
-            description: 'Preset-specific configuration options. Shape depends on the sibling `preset` field. Supports entity-reactive values via map_range descriptor ({ map_range: { attribute, input, output } }) or template strings ([[[...]]]). entity_id defaults to the card-bound entity.'
+            description: 'Preset-specific configuration options. Shape depends on the sibling `preset` field. Supports entity-reactive values via map_range descriptor ({ map_range: { entity, attribute, input, output } }) or template strings ([[[...]]]). entity (the older entity_id also works) defaults to the card-bound entity.'
         },
         enabled: {
             type: 'boolean',
             description: 'Set to false to disable this effect without removing it',
             default: true
         },
+        transition: {
+            type: 'number',
+            minimum: 0,
+            default: 500,
+            description: 'How long, in ms, an entity-bound config value (map_range or a template) glides to its new value. 0 snaps. Under reduced motion values always snap.',
+            'x-ui-hints': { selector: { number: { min: 0, max: 5000, step: 50, mode: 'box', unit_of_measurement: 'ms' } } }
+        },
+        renderer: {
+            type: 'string',
+            enum: ['auto', 'webgl', 'canvas'],
+            default: 'auto',
+            description: 'How a preset with a WebGL version is drawn (warp-starfield, grid, holo-sphere, the noise presets and the other three.js presets). auto: WebGL when the browser has it, otherwise the Canvas2D version. webgl: the same, stated explicitly; without WebGL it still draws the Canvas2D version, so the background never goes blank. canvas: always the Canvas2D version (no GPU use). Ignored by presets that are Canvas2D only.',
+            enumDescriptions: {
+                auto: 'WebGL when available, Canvas2D otherwise',
+                webgl: 'Prefer WebGL (falls back to Canvas2D without it)',
+                canvas: 'Always Canvas2D'
+            }
+        },
         zoom: {
             type: 'object',
-            description: 'Optional zoom wrapper — creates layered depth effect',
+            description: 'Optional zoom wrapper: creates layered depth effect',
             properties: {
-                layers:          { type: 'number', minimum: 1, default: 4 },
-                scale_from:      { type: 'number', default: 0.5 },
-                scale_to:        { type: 'number', default: 2.0 },
-                duration:        { type: 'number', default: 15 },
-                opacity_fade_in: { type: 'number', default: 15 },
-                opacity_fade_out:{ type: 'number', default: 75 }
+                layers:          { type: 'number', minimum: 1, default: 4, description: 'Copies of the effect zooming at once, evenly staggered through the cycle.' },
+                scale_from:      { type: 'number', default: 0.5, description: 'Scale a layer starts at (1 = the effect at its normal size).' },
+                scale_to:        { type: 'number', default: 2.0, description: 'Scale a layer reaches before it fades out.' },
+                duration:        { type: 'number', default: 15, description: 'Seconds for one layer to zoom from scale_from to scale_to.' },
+                opacity_fade_in: { type: 'number', default: 15, description: 'Percent of the cycle over which a layer fades in (0 to 100).' },
+                opacity_fade_out:{ type: 'number', default: 75, description: 'Percent of the cycle at which a layer starts to fade out (0 to 100).' }
             }
         }
     },
@@ -1518,6 +1888,7 @@ const backgroundAnimationEffectSchema = {
  * Inset schema (numeric sides object)
  */
 const backgroundAnimationInsetSchema = {
+    description: "Keeps the animation canvas off the card's edges: px per side, or 'auto' (elbow cards: inside the elbow's arms).",
     oneOf: [
         {
             type: 'string',
@@ -1528,10 +1899,10 @@ const backgroundAnimationInsetSchema = {
             type: 'object',
             description: 'Per-side pixel inset for the animation canvas',
             properties: {
-                top:    { type: 'number', minimum: 0, default: 0 },
-                right:  { type: 'number', minimum: 0, default: 0 },
-                bottom: { type: 'number', minimum: 0, default: 0 },
-                left:   { type: 'number', minimum: 0, default: 0 }
+                top:    { type: 'number', minimum: 0, default: 0, description: 'Inset from the top edge, px.' },
+                right:  { type: 'number', minimum: 0, default: 0, description: 'Inset from the right edge, px.' },
+                bottom: { type: 'number', minimum: 0, default: 0, description: 'Inset from the bottom edge, px.' },
+                left:   { type: 'number', minimum: 0, default: 0, description: 'Inset from the left edge, px.' }
             },
             additionalProperties: false
         }
@@ -1554,6 +1925,7 @@ const backgroundAnimationInsetSchema = {
  *         config: { line_spacing: 40 }
  */
 export const backgroundAnimationSchema = {
+    description: 'Animated background layers drawn behind the card content: a list of effects (preset plus config), or { inset, effects }.',
     oneOf: [
         {
             type: 'array',
@@ -1566,6 +1938,12 @@ export const backgroundAnimationSchema = {
             required: ['effects'],
             properties: {
                 inset: backgroundAnimationInsetSchema,
+                fps: {
+                    type: 'number',
+                    minimum: 0,
+                    default: 30,
+                    description: 'Frame rate cap for the background canvas. 0 removes the cap.'
+                },
                 effects: {
                     type: 'array',
                     description: 'Stack of background effects rendered in order (bottom → top)',
@@ -1594,8 +1972,8 @@ export const cardHeightSchema = {
         },
         {
             type: 'string',
-            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
-            description: 'Card height with CSS unit (e.g. 200px, 50vh, 10em)'
+            pattern: '^([\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?|(calc|min|max|clamp|var)\\(.+\\))$',
+            description: 'Card height with CSS unit (e.g. 200px, 50vh, 10em) or a CSS function: calc(), min(), max(), clamp(), var()'
         }
     ],
     description: 'Card height override. Bare integer = px (e.g. 200 = 200px). CSS units accepted: 200px, 50vh, 10em.',
@@ -1615,8 +1993,8 @@ export const cardWidthSchema = {
         },
         {
             type: 'string',
-            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
-            description: 'Card width with CSS unit (e.g. 400px, 50vw, 10em)'
+            pattern: '^([\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?|(calc|min|max|clamp|var)\\(.+\\))$',
+            description: 'Card width with CSS unit (e.g. 400px, 50vw, 10em) or a CSS function: calc(), min(), max(), clamp(), var()'
         }
     ],
     description: 'Card width override. Bare integer = px (e.g. 400 = 400px). CSS units accepted: 400px, 50vw, 10em.',
@@ -1636,7 +2014,7 @@ export const cardMinHeightSchema = {
         },
         {
             type: 'string',
-            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
+            pattern: '^([\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?|(calc|min|max|clamp|var)\\(.+\\))$',
             description: 'Minimum card height with CSS unit (e.g. 40px, 10vh)'
         }
     ],
@@ -1686,7 +2064,7 @@ export const triggersUpdateSchema = {
         label: 'Extra entity triggers',
         helper:
             'Entity IDs whose state changes should re-evaluate this card\'s templates. '
-            + 'Only needed for JS templates — Jinja2 entity references are tracked automatically.',
+            + 'Only needed for JS templates: Jinja2 entity references are tracked automatically.',
         selector: { entity: {} }
     }
 };
@@ -1700,7 +2078,7 @@ export const cardMinWidthSchema = {
         },
         {
             type: 'string',
-            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
+            pattern: '^([\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?|(calc|min|max|clamp|var)\\(.+\\))$',
             description: 'Minimum card width with CSS unit (e.g. 80px, 10vw)'
         }
     ],
@@ -1721,7 +2099,7 @@ export const cardMaxHeightSchema = {
         },
         {
             type: 'string',
-            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
+            pattern: '^([\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?|(calc|min|max|clamp|var)\\(.+\\))$',
             description: 'Maximum card height with CSS unit (e.g. 400px, 80vh, 20em)'
         }
     ],
@@ -1742,7 +2120,7 @@ export const cardMaxWidthSchema = {
         },
         {
             type: 'string',
-            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
+            pattern: '^([\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?|(calc|min|max|clamp|var)\\(.+\\))$',
             description: 'Maximum card width with CSS unit (e.g. 600px, 80vw, 20em)'
         }
     ],
@@ -1755,11 +2133,11 @@ export const cardMaxWidthSchema = {
 };
 
 const _overflowOptions = [
-    { value: 'visible', label: 'Visible — content paints outside the box' },
-    { value: 'hidden',  label: 'Hidden — clips without scroll' },
-    { value: 'clip',    label: 'Clip — hard clip, no programmatic scroll' },
-    { value: 'scroll',  label: 'Scroll — always shows scrollbar' },
-    { value: 'auto',    label: 'Auto — scrollbar only when needed' },
+    { value: 'visible', label: 'Visible: content paints outside the box' },
+    { value: 'hidden',  label: 'Hidden: clips without scroll' },
+    { value: 'clip',    label: 'Clip: hard clip, no programmatic scroll' },
+    { value: 'scroll',  label: 'Scroll: always shows scrollbar' },
+    { value: 'auto',    label: 'Auto: scrollbar only when needed' },
 ];
 
 export const cardOverflowSchema = {
@@ -1866,4 +2244,36 @@ export const stateClassificationSchema = {
         items: { type: 'string' },
         description: 'Custom bucket: an array of raw entity states that map to this bucket name.',
     },
+};
+
+/**
+ * Card-level keys every LCARdS card reads through the LCARdSCard base class
+ * (rules, sounds, zones, variables). Spread into each card schema's properties.
+ */
+export const cardLevelProperties = {
+    rules: rulesSchema,
+    sounds: soundsSchema,
+    variables: {
+        type: 'object',
+        description: 'Your own named values, available to templates as variables.<name> and {variables.<name>}.',
+        additionalProperties: true,
+    },
+    zones: {
+        type: 'object',
+        description: 'Named rectangles (px or *_percent of the card) that text fields and animations can target.',
+        additionalProperties: {
+            type: 'object',
+            properties: {
+                x: { type: 'number', description: 'Left edge, px from the card\'s left.' },
+                y: { type: 'number', description: 'Top edge, px from the card\'s top.' },
+                width: { type: 'number', description: 'Width, px.' },
+                height: { type: 'number', description: 'Height, px.' },
+                x_percent: { type: 'number', description: 'Left edge, percent of the card width.' },
+                y_percent: { type: 'number', description: 'Top edge, percent of the card height.' },
+                width_percent: { type: 'number', description: 'Width, percent of the card width.' },
+                height_percent: { type: 'number', description: 'Height, percent of the card height.' },
+            },
+        },
+    },
+    debug_zones: { type: 'boolean', description: 'Outline every zone on the card (development aid).' },
 };

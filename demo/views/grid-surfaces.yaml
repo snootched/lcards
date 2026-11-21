@@ -1,0 +1,241 @@
+# Grid surfaces (C4). Rescued from reports/c2-review/c4.yaml.
+title: Grid surfaces
+path: grid-surfaces
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: TURN } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: CAMERA TILT } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface_rotate_y: { map_range: { input: [ 0, 100 ], output: [ -180, 180 ] } }
+                surface: cylinder
+                color: var(--lcards-orange)
+                major_row_interval: 3
+                color_major: var(--lcards-moonlight)
+                line_width_major: 2
+        text: { label: { content: 1 CYLINDER · TURN, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: cylinder
+                surface_axis: horizontal
+                surface_length: 0.8
+                color: var(--lcards-orange)
+        text:
+          label: { content: 2 CYLINDER HORIZONTAL (ROLLS), show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid-hexagonal
+              config: { surface_rotate_y: { map_range: { input: [ 0, 100 ], output: [ -180, 180 ] } }, surface: cylinder, surface_size: 1, surface_length: 0.8 }
+        text: { label: { content: 3 CYLINDER HEXAGONAL · TURN, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface_rotate_y: { map_range: { input: [ 0, 100 ], output: [ -180, 180 ] } }
+                surface: cylinder
+                pattern: dots
+                dot_radius: 2
+                color: var(--lcards-orange)
+                scan_period: 4
+                line_spacing: 25
+        text: { label: { content: 4 CYLINDER DOTS + SCAN · TURN, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface_rotate_y: { map_range: { input: [ 0, 100 ], output: [ -180, 180 ] } }
+                surface: sphere
+                surface_size: 0.9
+                color: "var(--lcards-blue-light, #99ccff)"
+                major_row_interval: 3
+                major_col_interval: 3
+                color_major: var(--lcards-moonlight)
+                line_width_major: 2
+                camera_tilt: 25
+        text: { label: { content: 5 SPHERE · TURN, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: dome
+                surface_size: 1
+                color: "var(--lcards-blue-light, #99ccff)"
+                line_spacing: 30
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 0, 80 ] } }
+        text: { label: { content: 6 DOME · CAMERA TILT, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: dome
+                surface_axis: horizontal
+                surface_size: 1.1
+                color: "var(--lcards-blue-light, #99ccff)"
+                line_spacing: 25
+                scroll_speed_x: 10
+                scan_period: 5
+        text:
+          label: { content: 7 DOME FACING (POLAR CHART), show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: cylinder
+                surface_length: 0
+                color: var(--lcards-orange)
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 0, 80 ] } }
+                camera_yaw: 20
+                back_opacity: 0.4
+        text:
+          label: { content: "8 CYLINDER UNBOUNDED · CAMERA TILT", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: cylinder
+                surface_axis: horizontal
+                surface_side: inside
+                surface_length: 0
+                color: var(--lcards-orange)
+                scroll_speed_x: { map_range: { input: [ 0, 100 ], output: [ 0, 200 ] } }
+                scroll_speed_y: 0
+                major_col_interval: 4
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: "9 TUNNEL (INSIDE, HORIZONTAL) · TURN", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 12, rows: 6 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: dome
+                surface_side: inside
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ -10, 80 ] } }
+                color: "var(--lcards-blue-light, #99ccff)"
+                line_spacing: 20
+                scroll_speed_x: 8
+        text:
+          label: { content: 10 PLANETARIUM (INSIDE A DOME) · CAMERA TILT, show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: sphere
+                surface_side: inside
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ -10, 80 ] } }
+                color: var(--lcards-orange)
+                line_spacing: 20
+                major_row_interval: 3
+                color_major: var(--lcards-moonlight)
+        text: { label: { content: 11 INSIDE A SPHERE · CAMERA TILT, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }

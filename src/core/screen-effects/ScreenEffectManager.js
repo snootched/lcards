@@ -1,8 +1,9 @@
 /**
  * @fileoverview ScreenEffectManager — full-screen composited effect layer.
  *
- * A singleton service that owns a `position:fixed` portal appended to
- * `document.body` (z-index 9100, above the alert overlay portal at 9000).
+ * A singleton service that owns a `position:fixed` portal mounted inside
+ * `<home-assistant>` (`mountDialogNearHomeAssistant`, like Home Assistant's own
+ * dialogs; z-index 9100).
  * The portal contains a small set of named **slot** elements, each with a
  * distinct rendering responsibility:
  *
@@ -33,7 +34,8 @@
 import { BaseService                } from '../BaseService.js';
 import { screenEffectPresetRegistry } from './ScreenEffectPresetRegistry.js';
 import { lcardsLog                  } from '../../utils/lcards-logging.js';
-import { ColorUtils                 } from '../themes/ColorUtils.js';
+import { resolveColor               } from '../themes/resolve-color.js';
+import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
 // Ordered slot names — the portal creates them in this order so z-index follows
 // document order naturally.  Each slot is a direct child of the portal div.
@@ -46,7 +48,7 @@ export class ScreenEffectManager extends BaseService {
     constructor() {
         super();
 
-        /** @type {HTMLDivElement|null} top-level portal element on document.body */
+        /** @type {HTMLDivElement|null} top-level portal element (mounted near <home-assistant>) */
         this._portal = null;
 
         /**
@@ -58,9 +60,13 @@ export class ScreenEffectManager extends BaseService {
          *   active:   boolean,
          *   timer:    ReturnType<typeof setTimeout>|null,
          *   resolve:  (() => void)|null,
+         *   token:    number,
          * }>}
          */
         this._slots = new Map();
+
+        /** Last token handed out by _applySlot() (see slotToken()). */
+        this._tokenSeq = 0;
 
         /** @type {boolean} True while the alert overlay has elements in the portal. */
         this._overlayOccupied = false;
@@ -95,11 +101,14 @@ export class ScreenEffectManager extends BaseService {
                 active:  false,
                 timer:   null,
                 resolve: null,
+                token:   0,
             });
         }
 
-        document.body.appendChild(this._portal);
-        lcardsLog.debug('[ScreenEffectManager] Portal created on document.body');
+        // Inside <home-assistant> (like HA's own dialogs) so HA cards shown in the
+        // portal get Lit contexts and their hass-action/more-info events reach HA.
+        mountDialogNearHomeAssistant(this._portal);
+        lcardsLog.debug('[ScreenEffectManager] Portal created');
     }
 
     /** @private */
@@ -148,7 +157,7 @@ export class ScreenEffectManager extends BaseService {
      */
     get portal() {
         this._ensurePortal();
-        return this._portal;
+        return /** @type {HTMLDivElement} */ (this._portal); // created by _ensurePortal()
     }
 
     /**
@@ -217,6 +226,7 @@ export class ScreenEffectManager extends BaseService {
             // correctly on top of the already-filtered surface.
             const enterEl = slot === 'backdrop' ? this._portal : slotState.el;
             slotState.cleanup = preset.enter(enterEl, finalParams) ?? null;
+            slotState.token = ++this._tokenSeq;
         } catch (err) {
             lcardsLog.error(`[ScreenEffectManager] Error entering preset '${presetName}':`, err);
             slotState.el.style.display = 'none';
@@ -226,6 +236,29 @@ export class ScreenEffectManager extends BaseService {
         }
         lcardsLog.debug(`[ScreenEffectManager] Applied '${presetName}' → slot '${slot}'`);
         return true;
+    }
+
+    /**
+     * Run a preset on an element of the caller's (not a screen slot): the Alert
+     * Studio's mock screen shows the layers inside its frame this way. Defaults
+     * and colours are resolved as for a slot.
+     *
+     * @param {HTMLElement} el
+     * @param {string} presetName
+     * @param {Object} [params]
+     * @returns {(() => void)|null} cleanup, or null when the preset is unknown or fails
+     */
+    enterPreset(el, presetName, params = {}) {
+        const preset = screenEffectPresetRegistry.get(presetName);
+        if (!preset) return null;
+        try {
+            const finalParams = this._resolveColorParams(preset, { ...(preset.defaults ?? {}), ...params });
+            const cleanup = preset.enter(el, finalParams);
+            return typeof cleanup === 'function' ? cleanup : () => {};
+        } catch (err) {
+            lcardsLog.warn(`[ScreenEffectManager] Preset '${presetName}' failed on a preview element:`, err);
+            return null;
+        }
     }
 
     /**
@@ -252,6 +285,7 @@ export class ScreenEffectManager extends BaseService {
         }
         slotState.el.style.display = 'none';
         slotState.active = false;
+        slotState.token = 0;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -268,6 +302,29 @@ export class ScreenEffectManager extends BaseService {
      */
     applySlot(slot, presetName, params = {}) {
         return this._applySlot(slot, presetName, params);
+    }
+
+    /**
+     * Apply a preset to a slot and clear that slot alone after `duration` ms.
+     * Applying or clearing the slot again cancels the timer, so a later
+     * effect on the slot (or on another slot) is never cut short by it.
+     *
+     * @param {string} slot
+     * @param {string} presetName
+     * @param {Object} params
+     * @param {number} duration - ms before the slot clears.
+     * @returns {boolean} `true` if activated successfully.
+     */
+    applySlotFor(slot, presetName, params, duration) {
+        const ok = this._applySlot(slot, presetName, params);
+        const state = ok ? this._slots.get(slot) : null;
+        if (state) {
+            state.timer = setTimeout(() => {
+                state.timer = null;
+                this.clearSlot(slot);
+            }, duration);
+        }
+        return ok;
     }
 
     /**
@@ -322,20 +379,9 @@ export class ScreenEffectManager extends BaseService {
 
     /**
      * Resolve any `color-text` params in a preset's params_schema to concrete
-     * CSS colour strings before they are handed to `el.style.*`.
-     *
-     * ### Why the two-step approach matters
-     * `ThemeTokenResolver.computedCache` stores results keyed by the raw
-     * expression string.  If an expression like `alpha(var(--foo), 0.3)` is
-     * resolved while the CSS var is not yet committed to the DOM (e.g. in the
-     * same microtask flush as `setAlertMode()`), the cache is poisoned with a
-     * wrong value for the duration of the alert cycle.
-     *
-     * By calling `ColorUtils.resolveCssVariable()` **first** we substitute all
-     * `var()` references with live-DOM values and feed the resolver a concrete
-     * expression such as `alpha(#93e1ff, 0.3)`.  The cache key then contains
-     * the concrete colour — it expires naturally when the var value changes
-     * and can never carry a stale "pre-theme-load" value.
+     * CSS colour strings before they are handed to `el.style.*`. Read at call
+     * time (resolveColor's concrete mode never caches), so a palette change
+     * from an alert mode is picked up on the next call.
      *
      * @param {Object} preset   - Preset definition (may include params_schema).
      * @param {Object} params   - Already-merged param object.
@@ -346,31 +392,7 @@ export class ScreenEffectManager extends BaseService {
         if (!schema?.length) return params;
         const colorKeys = schema.filter(s => s.type === 'color-text').map(s => s.key);
         if (!colorKeys.length) return params;
-        const _resolver = window.lcards?.core?.themeManager?.resolver;
-
-        const resolve = (raw) => {
-            if (typeof raw !== 'string') return raw;
-
-            // Step 1 — Substitute CSS var() refs from live computed style BEFORE
-            // the resolver.  Prevents stale computedCache poisoning: the resolver
-            // would otherwise cache the whole `alpha(var(...), 0.3)` expression
-            // keyed by the raw var string; if that key was populated before the
-            // LCARS theme committed its CSS vars it stays wrong for the cycle.
-            // After substitution the cache key is a concrete expression such as
-            // `alpha(#93e1ff, 0.3)` which cannot be poisoned by var timing.
-            let val = raw.includes('var(') ? ColorUtils.resolveCssVariable(raw, raw) : raw;
-
-            // Step 2 — Route through the resolver for computed expressions
-            // (alpha/darken/lighten/…) and token paths.
-            if (_resolver) val = _resolver.resolve(val, val);
-
-            // Step 3 — Materialise any var() the resolver itself emitted
-            // (e.g. from a token whose value is a CSS variable reference).
-            if (typeof val === 'string' && val.includes('var(')) {
-                val = ColorUtils.resolveCssVariable(val, raw);
-            }
-            return val;
-        };
+        const resolve = (raw) => resolveColor(raw, { concrete: true });
 
         const out = { ...params };
         for (const key of colorKeys) {
@@ -388,6 +410,34 @@ export class ScreenEffectManager extends BaseService {
         this._releaseSlot(slot);
         this._syncPortalVisibility();
         lcardsLog.debug(`[ScreenEffectManager] Cleared slot '${slot}'`);
+    }
+
+    /**
+     * Which application of an effect is running on a slot: a new number each
+     * time an effect is applied there, 0 while the slot is empty. A caller that
+     * applied an effect keeps the token and later clears the slot with
+     * clearSlotIfToken(), so it never clears an effect someone applied after it
+     * (the portal overlays do this; lcards.trigger_effect stays untouched).
+     *
+     * @param {string} slot - Slot name ('backdrop' | 'canvas' | 'color').
+     * @returns {number}
+     */
+    slotToken(slot) {
+        return this._slots.get(slot)?.token ?? 0;
+    }
+
+    /**
+     * Clear a slot only while it still runs the effect `token` names
+     * (see slotToken()).
+     *
+     * @param {string} slot
+     * @param {number} token
+     * @returns {boolean} `true` if the slot was cleared.
+     */
+    clearSlotIfToken(slot, token) {
+        if (!token || this.slotToken(slot) !== token) return false;
+        this.clearSlot(slot);
+        return true;
     }
 
     /**

@@ -1,4 +1,4 @@
-// Version and build date are injected by webpack DefinePlugin at build time
+// Version and build date are injected by Vite's `define` at build time (vite.config.js)
 export const LCARdS_VERSION = __LCARDS_VERSION__;
 export const project_url = "https://lcards.unimatrix01.ca";
 

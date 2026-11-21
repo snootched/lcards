@@ -7,12 +7,15 @@
  * @module core/config-manager/merge-helpers
  */
 
+import { stateMapOverColor } from '../themes/color-syntax.js';
+
 /**
  * Deep merge two objects recursively
  *
  * Rules:
  * - Primitives and arrays in source overwrite target
- * - Objects are merged recursively
+ * - Objects are merged recursively; an object over a scalar replaces it, except a
+ *   state map over a colour, which keeps the colour as its `default`
  * - null/undefined values are treated as overrides
  *
  * @param {Object} target - Target object (lower priority)
@@ -36,6 +39,8 @@ export function deepMerge(target, source) {
 
   // Merge each property from source
   for (const [key, value] of Object.entries(source)) {
+    // never config, and merged they reach a prototype (see utils/deepMerge.js)
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
     if (value === null || value === undefined) {
       // Explicit null/undefined overrides
       result[key] = value;
@@ -43,8 +48,15 @@ export function deepMerge(target, source) {
       // Arrays overwrite (no merge)
       result[key] = [...value];
     } else if (typeof value === 'object' && value.constructor === Object) {
-      // Plain objects - recurse
-      result[key] = deepMerge(result[key] || {}, value);
+      const under = result[key];
+      if (under !== null && typeof under === 'object' && !Array.isArray(under)) {
+        // Plain objects - recurse
+        result[key] = deepMerge(under, value);
+      } else {
+        // An object over a scalar replaces it (spreading a string made keys 0, 1, 2, ...),
+        // except a state map over a colour, which keeps the colour as its default
+        result[key] = stateMapOverColor(under, value) ?? deepMerge({}, value);
+      }
     } else {
       // Primitives, functions, class instances - overwrite
       result[key] = value;
@@ -198,11 +210,13 @@ export function getNestedValue(obj, path) {
  */
 export function setNestedValue(obj, path, value) {
   const parts = path.split('.');
-  const lastPart = parts.pop();
+  const lastPart = /** @type {string} */ (parts.pop());
   let current = obj;
 
+  if (lastPart === '__proto__' || lastPart === 'constructor' || lastPart === 'prototype') return;
   // Create nested structure
   for (const part of parts) {
+    if (part === '__proto__' || part === 'constructor' || part === 'prototype') return;
     if (!(part in current) || typeof current[part] !== 'object') {
       current[part] = {};
     }

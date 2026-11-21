@@ -1,0 +1,721 @@
+# lcards-test dashboard, written by tests/ha/ha-client.mjs (ensureDashboard) on every
+# run. Only lcards_test_* helpers are referenced. Edit here, not in HA.
+title: LCARdS Test
+views:
+  - title: Cards
+    path: cards
+    cards:
+      - type: custom:lcards-button
+        id: test_toggle_button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: TOGGLE
+            show: true
+        tap_action:
+          action: toggle
+      - type: custom:lcards-button
+        id: test_confirm_button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: CONFIRM
+            show: true
+        tap_action:
+          action: toggle
+          confirmation:
+            title: Airlock
+            text: Cycle the airlock doors?
+            confirm_text: Cycle
+            dismiss_text: Stay
+      - type: custom:lcards-button
+        id: test_info_button
+        entity: input_number.lcards_test_value
+        preset: lozenge
+        text:
+          label:
+            content: MORE INFO
+            show: true
+        tap_action:
+          action: more-info
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: pills-left-border
+      - type: custom:lcards-data-grid
+        data_mode: data
+        rows:
+          - values: [Helper, Value]
+            header: true
+          - [Toggle, input_boolean.lcards_test_toggle]
+          - [Value, input_number.lcards_test_value]
+          - [Mode, input_select.lcards_test_mode]
+        grid:
+          grid-template-columns: 140px 1fr
+          gap: 4px
+
+  # Same chart in a masonry view and in a sections view. Sections give cards a
+  # definite height; in masonry the chart collapses to 0px (masonry is not a
+  # supported target; the masonry test is marked fixme).
+  - title: Chart masonry
+    path: chart-masonry
+    cards:
+      - type: custom:lcards-chart
+        sources:
+          - entity: input_number.lcards_test_value
+            name: Value
+
+  - title: Chart sections
+    path: chart-sections
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: custom:lcards-chart
+            sources:
+              - entity: input_number.lcards_test_value
+                name: Value
+            grid_options:
+              columns: 12
+              rows: 4
+
+  # Alert mode on themed scopes: Home Assistant writes the view's theme on its
+  # hui-view-container and the second section's own theme on that hui-section.
+  # Both must shift under an alert and come back exactly on green.
+  - title: Themed alert
+    path: themed-alert
+    type: sections
+    theme: LCARS Modern
+    sections:
+      - type: grid
+        cards:
+          - type: custom:lcards-button
+            id: themed_view_button
+            preset: lozenge
+            text:
+              label:
+                content: VIEW THEME
+                show: true
+      - type: grid
+        theme: LCARS TNG
+        cards:
+          - type: custom:lcards-button
+            id: themed_section_button
+            preset: lozenge
+            text:
+              label:
+                content: SECTION THEME
+                show: true
+
+  - title: Layout
+    path: layout
+    type: custom:lcards-layout-view
+    layout:
+      grid-template-columns: 1fr
+      grid-template-rows: 80px 1fr
+      grid-template-areas: |
+        "top"
+        "main"
+      grid-gap: 0px
+    cards:
+      # Row collapse needs a definite layout.height on the hidden card
+      # (doc/cards/layout-view: Visibility-driven row sizing), hence the layout card.
+      - type: custom:lcards-layout-card
+        layout:
+          height: 80px
+          grid-template-columns: 1fr
+          grid-template-rows: 1fr
+        view_layout:
+          grid-area: top
+        visibility:
+          - condition: state
+            entity: input_boolean.lcards_test_visible
+            state: "on"
+        cards:
+          - type: custom:lcards-button
+            id: test_visible_button
+            preset: lozenge
+            text:
+              label:
+                content: CONDITIONAL
+                show: true
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 90
+            bar_height: 20
+        view_layout:
+          grid-area: main
+
+  # #408 / #409 checks (tests/ha/issues.spec.js): a layout view with many cards,
+  # data sources, a rule, a chart and an MSD, opened by in-app navigation.
+  - title: Issues
+    path: issues
+    type: custom:lcards-layout-view
+    layout:
+      grid-template-columns: repeat(4, 1fr)
+      grid-template-rows: repeat(3, 60px) 60px 200px 260px
+      grid-template-areas: |
+        "b0 b1 b2 b3"
+        "b4 b5 b6 b7"
+        "b8 b9 b10 b11"
+        "ds rule s1 s2"
+        "chart chart chart chart"
+        "msd msd msd msd"
+      grid-gap: 8px
+    cards:
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: WARP
+            show: true
+        view_layout:
+          grid-area: b0
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: IMPULSE
+            show: true
+        view_layout:
+          grid-area: b1
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: SHIELDS
+            show: true
+        view_layout:
+          grid-area: b2
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: PHASERS
+            show: true
+        view_layout:
+          grid-area: b3
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: SENSORS
+            show: true
+        view_layout:
+          grid-area: b4
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: COMMS
+            show: true
+        view_layout:
+          grid-area: b5
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: DEFLECTOR
+            show: true
+        view_layout:
+          grid-area: b6
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: TRANSPORT
+            show: true
+        view_layout:
+          grid-area: b7
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: HOLODECK
+            show: true
+        view_layout:
+          grid-area: b8
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: REPLICATOR
+            show: true
+        view_layout:
+          grid-area: b9
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: LIFE SUPPORT
+            show: true
+        view_layout:
+          grid-area: b10
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: NAVIGATION
+            show: true
+        view_layout:
+          grid-area: b11
+      - type: custom:lcards-button
+        id: issue_ds_button
+        preset: lozenge
+        data_sources:
+          issue_value:
+            entity: input_number.lcards_test_value
+        text:
+          label:
+            content: "VALUE {ds:issue_value}"
+            show: true
+        view_layout:
+          grid-area: ds
+      - type: custom:lcards-button
+        id: issue_rule_button
+        preset: lozenge
+        text:
+          label:
+            content: RULE
+            show: true
+        style:
+          card:
+            color:
+              background: "#333366"
+        rules:
+          - id: issue-toggle-rule
+            when:
+              entity: input_boolean.lcards_test_toggle
+              state: "on"
+            apply:
+              overlays:
+                issue_rule_button:
+                  style:
+                    card:
+                      color:
+                        background: "#00aa00"
+        view_layout:
+          grid-area: rule
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: pills-basic
+        view_layout:
+          grid-area: s1
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: gauge-basic
+        view_layout:
+          grid-area: s2
+      - type: custom:lcards-chart
+        sources:
+          - entity: input_number.lcards_test_value
+        view_layout:
+          grid-area: chart
+      - type: custom:lcards-msd-card
+        id: issue_msd
+        data_sources:
+          msd_value:
+            entity: input_number.lcards_test_value
+        msd:
+          base_svg:
+            source: none
+          view_box: [0, 0, 600, 240]
+          anchors:
+            a_start: [50, 120]
+          overlays:
+            - id: issue_msd_button
+              type: control
+              position: [350, 90]
+              size: [180, 60]
+              card:
+                type: custom:lcards-button
+                entity: input_boolean.lcards_test_toggle
+                preset: lozenge
+                text:
+                  label:
+                    content: MSD CONTROL
+                    show: true
+            - id: issue_msd_line
+              type: line
+              anchor: a_start
+              attach_to: issue_msd_button
+              attach_side: left
+        view_layout:
+          grid-area: msd
+
+  # #400 checks (tests/ha/issue400.spec.js): visibility and conditional children of a
+  # layout card, by row sizing; and whether a hidden nav column collapses. One case per card.
+  # #410: a view whose only LCARdS card is the alert overlay
+  - title: Issue 410
+    path: issue-410
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: custom:lcards-alert-overlay
+  - title: Issue 400
+    path: issue-400
+    cards:
+      - # case: vis-select-auto
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: auto
+        cards:
+          - type: custom:lcards-select-menu
+            entity: input_select.lcards_test_mode
+            preset: lozenge
+            visibility:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+      - # case: cond-select-auto
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: auto
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+            card:
+              type: custom:lcards-select-menu
+              entity: input_select.lcards_test_mode
+              preset: lozenge
+      - # case: cond-stock-button-auto
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: auto
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+            card:
+              type: button
+              entity: input_boolean.lcards_test_toggle
+              name: STOCK
+      - # case: cond-lcards-button-auto
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: auto
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+            card:
+              type: custom:lcards-button
+              preset: lozenge
+              text:
+                label:
+                  content: LCARDS
+                  show: true
+      - # case: stock-button-auto
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: auto
+        cards:
+          - type: button
+            entity: input_boolean.lcards_test_toggle
+            name: STOCK
+      - # case: lcards-button-auto
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: auto
+        cards:
+          - type: custom:lcards-button
+            preset: lozenge
+            text:
+              label:
+                content: LCARDS
+                show: true
+      - # case: cond-stock-button-maxcontent
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: minmax(0, max-content)
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+            card:
+              type: button
+              entity: input_boolean.lcards_test_toggle
+              name: STOCK
+      - # case: cond-stock-button-fr
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 1fr
+          grid-template-rows: 1fr
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+            card:
+              type: button
+              entity: input_boolean.lcards_test_toggle
+              name: STOCK
+      - # case: nav-column
+        type: custom:lcards-layout-card
+        layout:
+          height: 160px
+          grid-template-columns: 120px 1fr
+          grid-template-rows: 1fr
+          grid-template-areas: '"nav main"'
+        cards:
+          - type: custom:lcards-button
+            preset: lozenge
+            text:
+              label:
+                content: LCARDS
+                show: true
+            view_layout:
+              grid-area: nav
+            visibility:
+              - condition: state
+                entity: input_boolean.lcards_test_visible
+                state: "on"
+          - type: custom:lcards-button
+            preset: lozenge
+            text:
+              label:
+                content: LCARDS
+                show: true
+            view_layout:
+              grid-area: main
+
+  # Track collapse baseline (tests/ha/collapse.spec.js, reports/shell-collapse-plan.md):
+  # one card per track kind, every one hidden with input_boolean.lcards_test_visible.
+  - title: Collapse
+    path: collapse
+    type: custom:lcards-layout-view
+    layout:
+      grid-gap: 5px
+      grid-template-columns: 120px 1fr minmax(0, auto)
+      grid-template-rows: 60px 1fr auto
+      grid-template-areas: |
+        "top  top  top"
+        "nav  main side"
+        "foot foot foot"
+    cards:
+      - type: custom:lcards-layout-card
+        layout:
+          height: 60px
+          grid-template-columns: 1fr
+          grid-template-rows: 1fr
+        view_layout:
+          grid-area: top
+        visibility:
+          - condition: state
+            entity: input_boolean.lcards_test_visible
+            state: "on"
+        cards:
+          - type: custom:lcards-button
+            preset: lozenge
+            text:
+              label:
+                content: TOP
+                show: true
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          label:
+            content: NAV
+            show: true
+        view_layout:
+          grid-area: nav
+        visibility:
+          - condition: state
+            entity: input_boolean.lcards_test_visible
+            state: "on"
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          label:
+            content: MAIN
+            show: true
+        view_layout:
+          grid-area: main
+      - type: custom:lcards-button
+        preset: lozenge
+        width: 150px
+        text:
+          label:
+            content: SIDE
+            show: true
+        view_layout:
+          grid-area: side
+        visibility:
+          - condition: state
+            entity: input_boolean.lcards_test_visible
+            state: "on"
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 50px
+        text:
+          label:
+            content: FOOT
+            show: true
+        view_layout:
+          grid-area: foot
+        visibility:
+          - condition: state
+            entity: input_boolean.lcards_test_visible
+            state: "on"
+
+  - title: MSD
+    path: msd
+    cards:
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: none
+          view_box: [0, 0, 600, 300]
+          anchors:
+            a_start: [50, 100]
+            a_end: [550, 100]
+            b_start: [50, 250]
+            b_end: [550, 40]
+          overlays:
+            - id: line_a
+              type: line
+              anchor: a_start
+              attach_to: a_end
+              route: auto
+            - id: line_b
+              type: line
+              anchor: b_start
+              attach_to: b_end
+              route: auto
+
+  # E3b: lcards.fly_to reaches the page
+  - title: Astrometrics
+    path: astrometrics
+    cards:
+      - type: custom:lcards-astrometrics-card
+        id: lcards_test_astro
+        height: 300
+        camera:
+          view: top
+          views:
+            top: { target: [0, 0, 0], tilt: 90, distance: 200 }
+        points:
+          - { id: beacon, xyz: [-60, 0, 0], marker: square, label: BEACON }
+          # F2: a Home Assistant tile card on a point, opened by a point-card action
+          - id: relay
+            xyz: [-40, 0, 40]
+            marker: dot
+            label: RELAY
+            card:
+              width: 220
+              leader: true
+              card: { type: tile, entity: input_boolean.lcards_test_toggle }
+        objects:
+          - { type: grid, shape: plane, size: [240, 160], line_spacing: 20 }
+
+  # S2 regressions: entity_attr rules, `condition: |` rules, mixed templates.
+  - title: Rules
+    path: rules
+    cards:
+      - type: custom:lcards-button
+        id: test_attr_rule
+        preset: lozenge
+        text:
+          label:
+            content: ATTR RULE
+            show: true
+        style:
+          card:
+            color:
+              background: "#333366"
+        rules:
+          - id: test-attr-rule
+            when:
+              entity_attr: input_number.lcards_test_value
+              attribute: max
+              above: 150
+            apply:
+              overlays:
+                test_attr_rule:
+                  style:
+                    card:
+                      color:
+                        background: "#cc0000"
+      - type: custom:lcards-button
+        id: test_js_rule
+        preset: lozenge
+        text:
+          label:
+            content: JS RULE
+            show: true
+        style:
+          card:
+            color:
+              background: "#333366"
+        rules:
+          - id: test-js-rule
+            when:
+              condition: |
+                [[[
+                  return states['input_boolean.lcards_test_toggle'].state === 'on';
+                ]]]
+            apply:
+              overlays:
+                test_js_rule:
+                  style:
+                    card:
+                      color:
+                        background: "#00aa00"
+      - type: custom:lcards-button
+        id: test_mixed_template
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: "{entity.state} / {{ states('input_select.lcards_test_mode') }}"
+            show: true
+      # Jinja2 followed by Home Assistant itself: the states.x.y.state form, which
+      # LCARdS can't find in the template (no triggers_update)
+      - type: custom:lcards-button
+        id: test_jinja_server_follow
+        preset: lozenge
+        text:
+          label:
+            content: "MODE {{ states.input_select.lcards_test_mode.state | upper }}"
+            show: true

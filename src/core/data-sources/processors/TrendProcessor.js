@@ -15,7 +15,7 @@ import { Processor } from './BaseProcessor.js';
  * ```yaml
  * processor_name:
  *   type: trend
- *   from: source_processor  # Optional
+ *   input_source: source_processor  # Optional
  *   samples: 5              # Number of recent samples
  *   threshold: 0.01         # Minimum slope for trend
  * ```

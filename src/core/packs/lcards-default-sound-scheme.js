@@ -115,7 +115,7 @@ const AUDIO_ASSETS = {
   },
   lcards_default_alert_clear: {
     url: `${BASE_URL}/alert_clear.mp3`,
-    description: 'Alert cleared — all-clear tone',
+    description: 'Alert cleared: all-clear tone',
   },
   lcards_default_system_ready: {
     url: `${BASE_URL}/system_ready.mp3`,
@@ -143,7 +143,6 @@ const LCARDS_DEFAULT_SCHEME = {
   card_hold:         'lcards_default_hold',
   card_double_tap:   'lcards_default_double_tap',
   card_hover:        'lcards_default_hover',
-  button_tap:        'lcards_default_tap',
   toggle_on:         'lcards_default_toggle_on',
   toggle_off:        'lcards_default_toggle_off',
   slider_drag_start: 'lcards_default_slider_grab',

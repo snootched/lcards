@@ -1,6 +1,6 @@
 /**
  * Comprehensive list of Home Assistant domain names
- * Used to distinguish HA entities from MSD datasources in triggers_update
+ * Used to pick the entity ids out of a control overlay's triggers_update
  *
  * Source: Home Assistant Core domains as of 2024
  * @module utils/HADomains
@@ -92,40 +92,4 @@ export function isHAEntity(ref) {
 
   // Check if first part is a known HA domain
   return HA_DOMAINS.includes(parts[0]);
-}
-
-/**
- * Parse a trigger reference into type and identifier
- * @param {string} ref - Reference string
- * @returns {Object} { type: 'ha_entity' | 'msd_datasource', id: string, path?: string }
- */
-export function parseTriggerReference(ref) {
-  if (!ref || typeof ref !== 'string') {
-    return null;
-  }
-
-  const parts = ref.split('.');
-
-  if (parts.length < 2) {
-    // Simple datasource name (no dots)
-    return {
-      type: 'msd_datasource',
-      id: ref
-    };
-  }
-
-  // Check if it's an HA entity
-  if (HA_DOMAINS.includes(parts[0])) {
-    return {
-      type: 'ha_entity',
-      id: ref  // Full entity_id
-    };
-  }
-
-  // Otherwise it's a datasource with path
-  return {
-    type: 'msd_datasource',
-    id: parts[0],           // Base datasource name
-    path: parts.slice(1).join('.')  // Path like 'transformations.celsius'
-  };
 }

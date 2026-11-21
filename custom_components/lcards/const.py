@@ -2,8 +2,26 @@
 import logging
 
 DOMAIN = "lcards"
+
+# Minimum supported Home Assistant (major, minor). Keep in sync with hacs.json
+# "homeassistant" and src/utils/support-info-format.js (tests/support/min-ha-version.test.js). 2026.11: chips read only --ha-* vars, Lovelace string card
+# paths (2026.10 brought core-evaluated dashboard visibility and probatio).
+MIN_HA_VERSION = (2026, 11)
+
 FRONTEND_SCRIPT_URL = "lcards.js"
-DOMAIN_VERSION = "2026.09.0"
+
+# The LCARdS user folder: files users add (their own 3D models in models/,
+# other kinds in sibling folders later). In the Home Assistant config, so
+# upgrades never touch it (HACS replaces custom_components/lcards/, not www/;
+# no hacs.json persistent_directory needed, that one is for a folder inside
+# the integration directory), served on LCARdS's own path so it works whether
+# or not /config/www existed when Home Assistant started (/local/ is only
+# registered if it did).
+USER_DIR = "www/lcards"
+USER_URL = "/lcards-user"
+MY_MODELS_DIR = f"{USER_DIR}/models"
+MY_MODELS_URL = f"{USER_URL}/models"
+DOMAIN_VERSION = "2026.11.0"
 
 # Options
 CONF_SHOW_PANEL = "show_panel"

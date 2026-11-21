@@ -1,0 +1,89 @@
+# Button components (D1c): the D-pad (each segment its own entity and action) and the
+# alert symbol, switching presets by VALUE's ranges.
+title: Button components
+path: button-components
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: VALUE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        text: { name: { content: LIGHTS, show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_doors
+        preset: lozenge
+        text: { name: { content: DOORS, show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      # Up and down step VALUE, left and right toggle the lights and doors, the centre lights up with LIGHTS
+      - type: custom:lcards-button
+        component: dpad
+        dpad:
+          segments:
+            default:
+              style:
+                fill:
+                  default: var(--lcards-gray)
+                  active: var(--lcards-orange)
+            center:
+              entity: input_boolean.lcards_test_lights
+              tap_action: { action: toggle }
+            up:
+              tap_action:
+                action: perform-action
+                perform_action: input_number.increment
+                target: { entity_id: input_number.lcards_test_value }
+            down:
+              tap_action:
+                action: perform-action
+                perform_action: input_number.decrement
+                target: { entity_id: input_number.lcards_test_value }
+            left:
+              entity: input_boolean.lcards_test_lights
+              tap_action: { action: toggle }
+            right:
+              entity: input_boolean.lcards_test_doors
+              tap_action: { action: toggle }
+        grid_options: { columns: 16, rows: 5 }
+      # The alert symbol's preset by range: red from 80, yellow from 50, the default below
+      - type: custom:lcards-button
+        component: alert
+        preset: default
+        entity: input_number.lcards_test_value
+        ranges:
+          - { preset: condition_red, at_least: 80 }
+          - { preset: condition_yellow, at_least: 50, below: 80 }
+          - { preset: default, below: 50 }
+        grid_options: { columns: 16, rows: 5 }
+      # Every alert symbol preset
+      - type: custom:lcards-button
+        component: alert
+        preset: condition_blue
+        grid_options: { columns: 8, rows: 2 }
+      - type: custom:lcards-button
+        component: alert
+        preset: condition_green
+        grid_options: { columns: 8, rows: 2 }
+      - type: custom:lcards-button
+        component: alert
+        preset: condition_gray
+        grid_options: { columns: 8, rows: 2 }
+      - type: custom:lcards-button
+        component: alert
+        preset: condition_black
+        grid_options: { columns: 8, rows: 2 }

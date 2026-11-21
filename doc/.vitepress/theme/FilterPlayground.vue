@@ -85,7 +85,7 @@ function hexOrFallback(v) {
 }
 
 // Numeric slider bounds: prefer explicit x-ui-hints, else schema min/max,
-// else a practical fallback — same precedence EffectPlayground.vue uses.
+// else a practical fallback: same precedence EffectPlayground.vue uses.
 function numericBounds(def) {
   const hint = def['x-ui-hints']?.selector?.number
   if (hint) return { min: hint.min ?? def.minimum ?? 0, max: hint.max ?? def.maximum ?? 10, step: hint.step ?? (def.type === 'integer' ? 1 : 0.1) }
@@ -101,7 +101,7 @@ function humanize(key) {
 
 // Builds one control from a leaf field schema. CSS-length-shaped string
 // fields (blur's '3px', hue-rotate's '0deg') carry an explicit `unit` in
-// their x-ui-hints — rendered as a unit-aware slider (raw number in
+// their x-ui-hints: rendered as a unit-aware slider (raw number in
 // localValues, unit suffix re-appended in buildFilterValue()) rather than a
 // free-text box.
 function buildFieldControl(key, def) {
@@ -124,7 +124,7 @@ function buildFieldControl(key, def) {
   return { key, label, kind: 'text' }
 }
 
-// A filter's `value` schema is either a bare scalar (most CSS filters —
+// A filter's `value` schema is either a bare scalar (most CSS filters:
 // blur/brightness/opacity/etc., a single field keyed 'value') or an object
 // with `properties` (drop-shadow, and every SVG filter primitive).
 function buildControls(schema) {
@@ -135,7 +135,7 @@ function buildControls(schema) {
 }
 
 // Reassembles the {mode, type, value} filter object BaseSvgFilters.js
-// expects from the individual per-param control values — a single control
+// expects from the individual per-param control values: a single control
 // literally keyed 'value' means this type's `value` is a bare scalar (e.g.
 // blur's '3px'); anything else means `value` is an object built from every
 // control's key (e.g. drop-shadow's {x, y, blur, color}).

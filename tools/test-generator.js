@@ -290,7 +290,7 @@ export const testcardSchema = {
         console.log('\n📋 Next steps to complete integration:');
         console.log('  1. Create card class: src/cards/lcards-test-card.js');
         console.log('  2. Import editor in card class');
-        console.log('  3. Register card in src/lcards.js');
+        console.log('  3. Register card in src/lcards-main.js');
         console.log('  4. Run: npm run build');
         console.log('  5. Test in Home Assistant');
     } else {

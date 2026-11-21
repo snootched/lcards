@@ -2,7 +2,16 @@
  * PackManager - Central Pack Registration System
  *
  * Manages loading and registration of builtin and external packs.
- * Packs contain only: style_presets, animations, rules, and themes.
+ * A pack can hold (registerPack hands each to its manager):
+ *   - themes         → ThemeManager
+ *   - style_presets  → StylePresetManager
+ *   - rules          → RulesEngine
+ *   - svg_assets, font_assets, audio_assets, image_assets, model_assets
+ *                    → AssetManager
+ *   - sound_schemes  → SoundManager
+ *   - components     → ComponentManager
+ * Animation presets are not a pack key: the built-in ones come from
+ * core/animation/presets.js (registerBuiltinAnimationPresets).
  *
  * Obsolete fields (overlays, anchors, routing, palettes, profiles) are
  * deprecated and will be ignored with a warning.
@@ -10,14 +19,14 @@
  * @module core/PackManager
  */
 
-import { loadBuiltinPacks } from './packs/loadBuiltinPacks.js';
+import { loadBuiltinPacks, CORE_REQUESTED_PACK_IDS } from './packs/loadBuiltinPacks.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 
 /**
  * PackManager - Centralized pack loading and registration
  *
  * Coordinates pack loading and registers pack contents to appropriate
- * core singleton managers (StylePresetManager, AnimationRegistry, etc.)
+ * core singleton managers (StylePresetManager, ThemeManager, ComponentManager, etc.)
  */
 export class PackManager {
   constructor(core) {
@@ -31,7 +40,7 @@ export class PackManager {
    *
    * @param {Array<string>} packIds - Pack IDs to load (default: all core packs)
    */
-  async loadBuiltinPacks(packIds = ['core', 'lcards_buttons', 'lcards_sliders', 'lcars_fx', 'builtin_themes']) {
+  async loadBuiltinPacks(packIds = [...CORE_REQUESTED_PACK_IDS]) {
     lcardsLog.debug('[PackManager] Loading builtin packs:', packIds);
 
     const packs = loadBuiltinPacks(packIds);
@@ -48,14 +57,14 @@ export class PackManager {
 
     // Log the actual pack IDs that were loaded (not just the requested ones)
     const loadedPackIds = packs.map(p => p.id);
-    lcardsLog.info('[PackManager] ✅ Loaded and registered builtin packs:', loadedPackIds);
+    lcardsLog.debug('[PackManager] ✅ Loaded and registered builtin packs:', loadedPackIds);
   }
 
   /**
    * Register pack contents to core managers
    * Distributes pack data to ThemeManager, StylePresetManager, RulesEngine, etc.
    *
-   * @param {Object} pack - Pack object with style_presets, animations, rules, themes, svg_assets
+   * @param {Object} pack - Pack object (the keys are listed in this file's header)
    */
   async registerPack(pack) {
     if (!pack || !pack.id) {
@@ -97,13 +106,15 @@ export class PackManager {
 
       if (pack.rules.length > 0) {
         this.core.rulesManager.buildDependencyIndex();
+        // Compile them, as cards do for their rules: an uncompiled rule never matched
+        this.core.rulesManager._compileRules();
         this.core.rulesManager.markAllDirty();
         lcardsLog.debug(`[PackManager] Registered ${pack.rules.length} rules from pack: ${pack.id}`);
       }
     }
 
     // ✅ 4. Register assets to AssetManager
-    if ((pack.svg_assets || pack.font_assets || pack.audio_assets || pack.image_assets) && this.core.assetManager) {
+    if ((pack.svg_assets || pack.font_assets || pack.audio_assets || pack.image_assets || pack.model_assets) && this.core.assetManager) {
       await this.core.assetManager.preloadFromPack(pack);
     }
 
@@ -113,8 +124,8 @@ export class PackManager {
       lcardsLog.debug(`[PackManager] Registered sound schemes from pack: ${pack.id}`);
     }
 
-    // ✅ 6. Animations - AnimationRegistry is a cache, no registration needed
-    // Animation definitions in packs are used on-demand via getOrCreateInstance()
+    // 6. Animations: packs register none. The built-in presets come from
+    // core/animation/presets.js (registerBuiltinAnimationPresets)
 
     // ✅ 7. Register structural components to ComponentManager
     if (pack.components && this.core.componentManager) {

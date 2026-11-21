@@ -7,10 +7,12 @@
  *   3. Canvas intro       → `borg-assimilation` SEM preset, persistent until the user
  *                           clicks anywhere on the canvas (or an optional timeout fires)
  *   4. Persistent effects → zero or more SEM presets applied after the intro is dismissed
- *   5. Deassimilation     → glitch outro, palette + font revert, SEM clear
+ *   5. Deassimilation     → glitch outro, palette back to the alert mode that was
+ *                           active before (green_alert when unknown or a Borg
+ *                           alert), font revert, SEM clear
  *
  * Exposed on `window.lcards.core.borgAssimilationManager` and accessed via the
- * `window.lcards.borg.*` console API defined in `src/lcards.js`.
+ * `window.lcards.borg.*` console API defined in `src/lcards-main.js`.
  *
  * @module core/borg/BorgAssimilationManager
  */
@@ -18,6 +20,7 @@
 import { BaseService      } from '../BaseService.js';
 import { lcardsLog        } from '../../utils/lcards-logging.js';
 import { injectBorgFont, revertBorgFont } from '../themes/borgFontAssimilation.js';
+import { borgIntroSupported } from '../screen-effects/effects/BorgAssimilationEffect.js';
 import {
     setAlertModeTransformParameter,
     getAlertModeTransform,
@@ -55,7 +58,10 @@ const DEFAULTS = {
         canvas: { preset: 'glitch', duration: 1200, intensity: 0.4, opacity: 0.7 },
     },
 
-    /** Fallback wait time (ms) when no outro layer specifies a duration. */
+    /**
+     * Minimum wait (ms) for the outro: the wait is the longest layer `duration`,
+     * never shorter than this.
+     */
     outroDuration: 1200,
 
     /**
@@ -68,6 +74,20 @@ const DEFAULTS = {
         backdrop: { preset: 'saturate',    amount: '200%' },
     },
 };
+
+/**
+ * Play a Borg sound: the `sound` option when given (an asset key, a
+ * `media-source://` id or a URL; `'none'` stays silent), otherwise the event
+ * through the sound scheme and overrides (silent in the default scheme).
+ * @param {string} event - 'borg_assimilate' | 'borg_deassimilate'
+ * @param {string|null|undefined} sound
+ */
+function playBorgSound(event, sound) {
+    const sm = window.lcards?.core?.soundManager;
+    if (!sm || sound === 'none' || sound === null) return;
+    if (typeof sound === 'string' && sound) sm.playSource(sound, event);
+    else sm.play(event);
+}
 
 export class BorgAssimilationManager extends BaseService {
 
@@ -88,6 +108,12 @@ export class BorgAssimilationManager extends BaseService {
          * @type {boolean}
          */
         this._fontWasSwapped = false;
+        /**
+         * Alert mode active when assimilate() started; deassimilate() goes back
+         * to it. null while not assimilated.
+         * @type {string|null}
+         */
+        this._priorAlertMode = null;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -113,7 +139,7 @@ export class BorgAssimilationManager extends BaseService {
      * @param {Object}  [opts]
      * @param {number}  [opts.duration=0]                       Auto-dismiss timeout in ms.
      *                                                          0 (default) = click-to-dismiss only.
-     * @param {string}  [opts.transitionStyle='flash']          Palette transition style.
+     * @param {string}  [opts.transitionStyle='blur_fade']      Palette transition style.
      *                                                          One of: 'flash', 'fade_only', 'blur_fade', 'off'.
      * @param {Object}  [opts.intro]                            Intro layers. Merged per-slot with DEFAULTS.intro.
      *                                                          e.g. { canvas: { siteCount: 12 },
@@ -127,6 +153,10 @@ export class BorgAssimilationManager extends BaseService {
      * @param {boolean}     [opts.fontSwap=true]                Whether to inject the Borg typeface.
      *                                                          Set to `false` to keep the existing dashboard font
      *                                                          while all other assimilation effects still run.
+     * @param {string}      [opts.sound]                        Sound to play at the start: an asset key, a
+     *                                                          `media-source://` id or a URL (`/local/…`);
+     *                                                          `'none'` for silence. Omitted: the
+     *                                                          `borg_assimilate` sound event (scheme, overrides).
      * @returns {Promise<void>}
      */
     async assimilate(opts = {}) {
@@ -137,6 +167,7 @@ export class BorgAssimilationManager extends BaseService {
             persistentLayers,            // undefined → use DEFAULTS.persistentLayers
             paletteHue       = null,     // null → use alertModeTransform default (110°)
             fontSwap         = true,     // false = skip font injection
+            sound,                       // undefined → the borg_assimilate sound event
         } = opts;
 
         if (this._assimilated) {
@@ -146,9 +177,13 @@ export class BorgAssimilationManager extends BaseService {
 
         this._assimilated = true;
         lcardsLog.info('[BorgAssimilationManager] Initiating Borg assimilation sequence…');
+        playBorgSound('borg_assimilate', sound);
 
         const tm  = window.lcards?.core?.themeManager;
         const sem = window.lcards?.core?.screenEffectManager;
+
+        // Remember the alert mode to return to (read before the borg_alert swap).
+        this._priorAlertMode = tm?.getAlertMode?.() ?? null;
 
         // ── Apply palette hue override before the swap so it takes effect immediately ─
         if (paletteHue != null) {
@@ -168,7 +203,11 @@ export class BorgAssimilationManager extends BaseService {
         const fontPromise = fontSwap ? injectBorgFont() : Promise.resolve();
 
         // ── Step 3: intro layers (persistent — awaited until click or timeout) ─
-        if (sem) {
+        // Skipped where the intro cannot draw: its invisible canvas would
+        // otherwise take every click until the first one dismissed it.
+        if (sem && !borgIntroSupported()) {
+            lcardsLog.debug('[BorgAssimilationManager] Intro skipped: OffscreenCanvas or Worker not available');
+        } else if (sem) {
             // Merge caller intro per-slot over defaults.
             const introLayers = {
                 ...DEFAULTS.intro,
@@ -203,7 +242,7 @@ export class BorgAssimilationManager extends BaseService {
                     }
                     if (timer !== null) { clearTimeout(timer); timer = null; }
                     this._introDismiss = null;
-                    resolve();
+                    resolve(undefined);
                 };
 
                 this._introDismiss = dismiss;
@@ -246,7 +285,10 @@ export class BorgAssimilationManager extends BaseService {
      *   { slot: { preset, ...params } }
      * The `duration` key inside any layer's params determines how long to wait
      * before proceeding to palette revert. The longest duration among all layers
-     * is used; falls back to DEFAULTS.outroDuration if none is specified.
+     * is used, with DEFAULTS.outroDuration (1200 ms) as the minimum.
+     *
+     * The palette returns to the alert mode that was active when assimilate()
+     * started; green_alert when none was recorded or it was a Borg alert.
      *
      * @param {Object}  [opts]
      * @param {boolean} [opts.withOutro=true]                    Play outro layers before reverting.
@@ -255,6 +297,8 @@ export class BorgAssimilationManager extends BaseService {
      *                                                           e.g. { canvas: { preset: 'glitch', duration: 800 } }
      * @param {string}  [opts.revertTransitionStyle='fade_only']  Palette transition back to normal.
      *                                                           One of: 'flash', 'fade_only', 'blur_fade', 'off'.
+     * @param {string}  [opts.sound]                             Sound to play at the start, as for assimilate();
+     *                                                           omitted: the `borg_deassimilate` sound event.
      * @returns {Promise<void>}
      */
     async deassimilate(opts = {}) {
@@ -262,6 +306,7 @@ export class BorgAssimilationManager extends BaseService {
             withOutro             = true,
             outroLayers,                  // undefined → use DEFAULTS.outroLayers
             revertTransitionStyle = 'fade_only',
+            sound,                        // undefined → the borg_deassimilate sound event
         } = opts;
 
         if (!this._assimilated) {
@@ -280,6 +325,7 @@ export class BorgAssimilationManager extends BaseService {
         }
 
         lcardsLog.info('[BorgAssimilationManager] Initiating deassimilation sequence…');
+        playBorgSound('borg_deassimilate', sound);
 
         const tm  = window.lcards?.core?.themeManager;
         const sem = window.lcards?.core?.screenEffectManager;
@@ -307,8 +353,11 @@ export class BorgAssimilationManager extends BaseService {
         // ── Revert palette → font → SEM (in that order to minimise FOUC) ─────
         // Reset any runtime hue override so the next assimilation starts clean.
         resetAlertModeTransform('borg_alert');
+        const prior = this._priorAlertMode;
+        this._priorAlertMode = null;
+        const restoreMode = (typeof prior === 'string' && prior && !/borg/i.test(prior)) ? prior : 'green_alert';
         if (tm) {
-            await tm.setAlertMode('green_alert', { transitionStyle: revertTransitionStyle });
+            await tm.setAlertMode(restoreMode, { transitionStyle: revertTransitionStyle });
         }
         if (this._fontWasSwapped) {
             revertBorgFont();

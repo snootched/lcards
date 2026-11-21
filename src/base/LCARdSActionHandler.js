@@ -16,6 +16,116 @@
 
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { TriggerManager } from '../core/animation/TriggerManager.js';
+import { showConfirmDialog } from '../utils/lcards-confirm-dialog.js';
+
+/**
+ * States a toggle turns on from (Home Assistant's STATES_OFF, src/common/const.ts
+ * in the frontend); any other state turns off.
+ */
+export const TOGGLE_OFF_STATES = ['closed', 'locked', 'off'];
+
+/**
+ * The sound event for a gesture's action: toggle_on / toggle_off for a toggle
+ * (by the entity's state, as the toggle itself decides), the gesture's own
+ * event otherwise, and null for an action that does nothing.
+ * @param {any} actionConfig
+ * @param {string|undefined|null} state - the toggled entity's state
+ * @param {string} fallback - e.g. card_tap
+ * @returns {string|null}
+ */
+export function actionSoundEvent(actionConfig, state, fallback) {
+    if (!actionConfig?.action || actionConfig.action === 'none') return null;
+    if (actionConfig.action === 'toggle' && state != null) return TOGGLE_OFF_STATES.includes(state) ? 'toggle_on' : 'toggle_off';
+    return fallback;
+}
+
+/**
+ * Domains whose toggle is not turn_on / turn_off: Home Assistant's
+ * SPECIAL_TOGGLE_ACTIONS (src/common/entity/get_toggle_action.ts in the
+ * frontend). A domain with only `on` calls it both ways.
+ * @type {Record<string, { on: string, off?: string }>}
+ */
+export const SPECIAL_TOGGLE_ACTIONS = {
+    button: { on: 'press' },
+    camera: { on: 'turn_on', off: 'turn_off' },
+    climate: { on: 'turn_on', off: 'turn_off' },
+    cover: { on: 'open_cover', off: 'close_cover' },
+    input_button: { on: 'press' },
+    lock: { on: 'unlock', off: 'lock' },
+    media_player: { on: 'turn_on', off: 'turn_off' },
+    scene: { on: 'turn_on' },
+    siren: { on: 'turn_on', off: 'turn_off' },
+    valve: { on: 'open_valve', off: 'close_valve' }
+};
+
+/**
+ * The service a toggle calls, as Home Assistant's own toggle picks it: from
+ * the entity's state (off, closed, locked: on; else off) and its domain. A
+ * group goes through the homeassistant domain. With no known state, the
+ * domain's own toggle service.
+ * @param {string} entityId
+ * @param {string | undefined} state
+ * @returns {{ domain: string, service: string }}
+ */
+export function toggleService(entityId, state) {
+    const domain = entityId.split('.')[0];
+    if (state === undefined) return { domain, service: 'toggle' };
+    const turnOn = TOGGLE_OFF_STATES.includes(state);
+    const special = SPECIAL_TOGGLE_ACTIONS[domain];
+    const service = special?.[turnOn ? 'on' : 'off'] || special?.on || (turnOn ? 'turn_on' : 'turn_off');
+    return { domain: domain === 'group' ? 'homeassistant' : domain, service };
+}
+
+/**
+ * Whether an action asks first, as Home Assistant decides it
+ * (frontend src/panels/lovelace/common/handle-action.ts): `confirmation: true`
+ * or an object, unless the current user is in its `exemptions`.
+ * @param {any} actionConfig
+ * @param {any} hass
+ * @returns {boolean}
+ */
+export function confirmationApplies(actionConfig, hass) {
+    const confirmation = actionConfig?.confirmation;
+    if (confirmation === true) return true;
+    if (!confirmation || typeof confirmation !== 'object') return false;
+    const exemptions = confirmation.exemptions;
+    return !(Array.isArray(exemptions) && exemptions.some((e) => e?.user === hass?.user?.id));
+}
+
+/**
+ * The question a confirmation asks: its own `text`, else Home Assistant's
+ * translated "Are you sure you want to run action '...'?" naming the action
+ * as Home Assistant does (for perform-action, "Domain: Action name" from the
+ * backend translations; otherwise the action's editor label, else its type).
+ * @param {any} actionConfig
+ * @param {any} hass
+ * @returns {Promise<string>}
+ */
+export async function confirmationText(actionConfig, hass) {
+    const confirmation = typeof actionConfig?.confirmation === 'object' ? actionConfig.confirmation : {};
+    if (confirmation.text) return confirmation.text;
+    const action = actionConfig?.action;
+    /** @type {string|undefined} */
+    let actionName;
+    if (action === 'call-service' || action === 'perform-action') {
+        const [domain, service] = String(actionConfig.perform_action || actionConfig.service || '').split('.', 2);
+        const serviceInfo = hass?.services?.[domain]?.[service];
+        if (serviceInfo) {
+            try {
+                const titles = await hass.loadBackendTranslation?.('title');
+                const services = (await hass.loadBackendTranslation?.('services')) ?? titles ?? hass.localize;
+                const domainName = services?.(`component.${domain}.title`) || domain;
+                const serviceName = services?.(`component.${domain}.services.${service}.name`, serviceInfo.description_placeholders) || serviceInfo.name || service;
+                actionName = `${domainName}: ${serviceName}`;
+            } catch (err) {
+                lcardsLog.debug('[LCARdSActionHandler] Could not load action names for the confirmation', err);
+            }
+        }
+    }
+    actionName ||= hass?.localize?.(`ui.panel.lovelace.editor.action-editor.actions.${action}`) || action;
+    return hass?.localize?.('ui.panel.lovelace.cards.actions.action_confirmation', { action: actionName })
+        || `Are you sure you want to run action '${actionName}'?`;
+}
 
 /**
  * Action handler for LCARdS cards
@@ -26,11 +136,28 @@ import { TriggerManager } from '../core/animation/TriggerManager.js';
  * - Shadow DOM support
  * - Late-binding for AnimationManager
  */
+/**
+ * Viewport position of a mouse, pointer or touch event, or null (keyboard activation).
+ * @param {any} event
+ * @returns {{ clientX: number, clientY: number }|null}
+ */
+export function pointerOf(event) {
+    const point = event?.touches?.[0] ?? event?.changedTouches?.[0] ?? event;
+    const { clientX, clientY } = point ?? {};
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
+    // A keyboard "click" reports 0,0
+    if (clientX === 0 && clientY === 0 && event?.detail === 0) return null;
+    return { clientX, clientY };
+}
+
+/**
+ * One instance per card (LCARdSCard creates `this._actionHandler`); there is no
+ * page-wide action handler.
+ */
 export class LCARdSActionHandler {
 
-    constructor() {
-        this._activeHandlers = new Set();
-    }
+    /** Asks the user to confirm (replaced in tests). */
+    confirmDialog = showConfirmDialog;
 
     /**
      * Setup action handlers on element with full animation support
@@ -54,6 +181,8 @@ export class LCARdSActionHandler {
      * @param {string} options.entity - Default entity ID for actions (fallback if action.entity not specified)
      * @param {Object} [options.soundOverride] - Per-event sound override config
      * @param {boolean} [options.disableHover] - When true, suppresses pointer cursor and hover/leave animation handlers
+     * @param {Function} [options.getHass] - Returns the card's current hass at action time (falls back to `hass`)
+     * @param {boolean} [options.segmentsOwnHold] - A hold that starts inside a `[data-lcards-segment]` child is left to that segment's own handler (taps always are)
      * @returns {Function} Cleanup function
      */
     setupActions(element, actions = {}, hass, options = /** @type {any} */ ({})) {
@@ -66,6 +195,9 @@ export class LCARdSActionHandler {
         const animationManager = options.animationManager;
         const elementId = options.elementId || element.id || element.getAttribute('data-overlay-id');
         const defaultEntity = options.entity; // Fallback entity for actions
+        // The card's hass at action time: a handler set up once (a data grid cell) must not
+        // act on the states it was set up with (a toggle would keep sending the same service)
+        const liveHass = () => options.getHass?.() ?? hass;
 
         lcardsLog.debug(`[LCARdSActionHandler] Setting up actions:`, {
             elementId,
@@ -213,11 +345,18 @@ export class LCARdSActionHandler {
         const playToggleSound = (actionConfig, defaultEntityId) => {
             if (actionConfig?.action !== 'toggle') return false;
             const entityId = actionConfig.entity || defaultEntityId || options.entity;
-            const liveHass = options.getHass?.() ?? hass;
-            if (!entityId || !liveHass?.states?.[entityId]) return false;
-            const state = liveHass.states[entityId].state;
-            playSound(state === 'on' ? 'toggle_off' : 'toggle_on');
+            const now = liveHass();
+            if (!entityId || !now?.states?.[entityId]) return false;
+            const state = now.states[entityId].state;
+            playSound(TOGGLE_OFF_STATES.includes(state) ? 'toggle_on' : 'toggle_off');
             return true;
+        };
+
+        // The sound for a gesture: its toggle sound, else the generic one. Nothing
+        // for an action that does nothing (action: none, or none set).
+        const playActionSound = (actionConfig, defaultEntityId, eventType) => {
+            if (!actionConfig?.action || actionConfig.action === 'none') return;
+            if (!playToggleSound(actionConfig, defaultEntityId)) playSound(eventType);
         };
 
         // Track action state to prevent conflicts
@@ -229,6 +368,8 @@ export class LCARdSActionHandler {
         // Tap action handler with double-tap coordination
         if (actions.tap_action || actions.double_tap_action) {
             const tapHandler = async (event) => {
+                // The tap point, for stagger `from: 'pointer'` (tap-ripple)
+                const tapContext = { pointer: pointerOf(event) };
                 // Check if click target is a segment element (Phase 2 multi-action regions)
                 // Walk up the DOM tree to check for data-lcards-segment attribute
                 let targetElement = event.target;
@@ -271,11 +412,11 @@ export class LCARdSActionHandler {
                                 // Trigger animation if registration completed
                                 const currentAnimationManager = options.getAnimationManager?.() || window.lcards?.core?.getAnimationManager?.();
                                 if (currentAnimationManager && elementId) {
-                                    currentAnimationManager.triggerAnimations(elementId, 'on_tap');
+                                    currentAnimationManager.triggerAnimations(elementId, 'on_tap', tapContext);
                                 }
 
-                                if (!playToggleSound(actions.tap_action, defaultEntity)) playSound('card_tap');
-                                this._executeAction(actions.tap_action, hass, element, defaultEntity);
+                                playActionSound(actions.tap_action, defaultEntity, 'card_tap');
+                                this._executeAction(actions.tap_action, liveHass(), element, defaultEntity);
                             }
                             tapCount = 0;
                         }, 300);
@@ -290,11 +431,11 @@ export class LCARdSActionHandler {
                         // Trigger animation if registration completed
                         const dtAnimationManager = options.getAnimationManager?.() || window.lcards?.core?.getAnimationManager?.();
                         if (dtAnimationManager && elementId) {
-                            dtAnimationManager.triggerAnimations(elementId, 'on_double_tap');
+                            dtAnimationManager.triggerAnimations(elementId, 'on_double_tap', tapContext);
                         }
 
-                        if (!playToggleSound(actions.double_tap_action, defaultEntity)) playSound('card_double_tap');
-                        this._executeAction(actions.double_tap_action, hass, element, defaultEntity);
+                        playActionSound(actions.double_tap_action, defaultEntity, 'card_double_tap');
+                        this._executeAction(actions.double_tap_action, liveHass(), element, defaultEntity);
                     }
                 } else {
                     // No double-tap action configured, execute immediately
@@ -306,11 +447,11 @@ export class LCARdSActionHandler {
                     // Trigger animation if registration completed
                     const currentAnimationManager = options.getAnimationManager?.() || window.lcards?.core?.getAnimationManager?.();
                     if (currentAnimationManager && elementId) {
-                        currentAnimationManager.triggerAnimations(elementId, 'on_tap');
+                        currentAnimationManager.triggerAnimations(elementId, 'on_tap', tapContext);
                     }
 
-                    if (!playToggleSound(actions.tap_action, defaultEntity)) playSound('card_tap');
-                    this._executeAction(actions.tap_action, hass, element, defaultEntity);
+                    playActionSound(actions.tap_action, defaultEntity, 'card_tap');
+                    this._executeAction(actions.tap_action, liveHass(), element, defaultEntity);
                 }
             };
 
@@ -321,7 +462,16 @@ export class LCARdSActionHandler {
 
         // Hold action handler
         if (actions.hold_action) {
+            /** Is the event target inside a segment with its own handler? */
+            const insideSegment = (target) => {
+                for (let n = target; n && n !== element; n = n.parentElement) {
+                    if (n.hasAttribute?.('data-lcards-segment')) return true;
+                }
+                return false;
+            };
             const holdStart = (event) => {
+                if (options.segmentsOwnHold && insideSegment(event.target)) return;
+                const holdContext = { pointer: pointerOf(event) };
                 event.stopPropagation();
                 event.preventDefault(); // Prevent click from firing
                 isHolding = false;
@@ -338,11 +488,11 @@ export class LCARdSActionHandler {
                     // Trigger animation if registration completed
                     const currentAnimationManager = options.getAnimationManager?.() || window.lcards?.core?.getAnimationManager?.();
                     if (currentAnimationManager && elementId) {
-                        currentAnimationManager.triggerAnimations(elementId, 'on_hold');
+                        currentAnimationManager.triggerAnimations(elementId, 'on_hold', holdContext);
                     }
 
-                    if (!playToggleSound(actions.hold_action, defaultEntity)) playSound('card_hold');
-                    this._executeAction(actions.hold_action, hass, element, defaultEntity);
+                    playActionSound(actions.hold_action, defaultEntity, 'card_hold');
+                    this._executeAction(actions.hold_action, liveHass(), element, defaultEntity);
                 }, 500);
             };
 
@@ -387,7 +537,11 @@ export class LCARdSActionHandler {
             const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
             if (isDesktop) {
-                const hoverHandler = async () => {
+                // A capture listener also gets the enter and leave of every element inside
+                // (text, shapes): only the card's own count, or a hover loop started again
+                // per child and a leave stopped it with the pointer still on the card.
+                const hoverHandler = async (/** @type {Event} */ ev) => {
+                    if (ev.target !== element) return;
                     lcardsLog.trace(`[LCARdSActionHandler] Mouseenter event on ${elementId}`);
 
                     // Ensure animations are registered (late-binding if needed)
@@ -403,7 +557,8 @@ export class LCARdSActionHandler {
                     playSound('card_hover');
                 };
 
-                const leaveHandler = async () => {
+                const leaveHandler = async (/** @type {Event} */ ev) => {
+                    if (ev.target !== element) return;
                     // Ensure animations are registered (late-binding if needed)
                     await ensureAnimationsRegistered();
 
@@ -449,14 +604,70 @@ export class LCARdSActionHandler {
     }
 
     /**
+     * Run one action now, for things that are not elements with listeners
+     * (an astrometrics point picked on a canvas). Same action types as
+     * setupActions(); no sounds or animations (the caller plays those).
+     * @param {Object} actionConfig - e.g. { action: 'more-info', entity }
+     * @param {Object} hass
+     * @param {HTMLElement} element - dispatches more-info and assist events
+     * @param {string|null} [defaultEntity] - when the action names none
+     */
+    runAction(actionConfig, hass, element, defaultEntity = null) {
+        if (!this._validateActionConfig(actionConfig)) return;
+        this._executeAction(actionConfig, hass, element, defaultEntity);
+    }
+
+    /**
      * Execute action configuration
      * @private
+     * @param {*} [defaultEntity]
      */
     _executeAction(actionConfig, hass, element, defaultEntity = null) {
         if (!actionConfig || !hass) {
             return;
         }
+        if (confirmationApplies(actionConfig, hass)) {
+            this._confirmThenRun(actionConfig, hass, element, defaultEntity);
+            return;
+        }
+        this._runAction(actionConfig, hass, element, defaultEntity);
+    }
 
+    /**
+     * Ask first (an action with `confirmation`), then run it if confirmed. The
+     * tap's sound and animation have already played; only the action waits.
+     * @private
+     * @param {any} actionConfig
+     * @param {any} hass
+     * @param {any} element
+     * @param {*} [defaultEntity]
+     * @returns {Promise<boolean>} whether it ran
+     */
+    async _confirmThenRun(actionConfig, hass, element, defaultEntity = null) {
+        const confirmation = typeof actionConfig.confirmation === 'object' ? actionConfig.confirmation : {};
+        // Home Assistant's warning haptic (the companion apps vibrate)
+        window.dispatchEvent(new CustomEvent('haptic', { detail: 'warning' }));
+        const confirmed = await this.confirmDialog({
+            title: confirmation.title,
+            message: await confirmationText(actionConfig, hass),
+            confirmText: confirmation.confirm_text || hass.localize?.('ui.common.ok') || 'OK',
+            dismissText: confirmation.dismiss_text || hass.localize?.('ui.common.cancel') || 'Cancel',
+            startEl: element
+        });
+        if (!confirmed) return false;
+        this._runAction(actionConfig, hass, element, defaultEntity);
+        return true;
+    }
+
+    /**
+     * Run an action now (any confirmation already given)
+     * @private
+     * @param {any} actionConfig
+     * @param {any} hass
+     * @param {any} element
+     * @param {*} [defaultEntity]
+     */
+    _runAction(actionConfig, hass, element, defaultEntity = null) {
         const action = actionConfig.action;
         // Use entity from action config, or fall back to defaultEntity, or element data attribute
         const entityId = actionConfig.entity || defaultEntity || element?.dataset?.entity;
@@ -481,118 +692,32 @@ export class LCARdSActionHandler {
             case 'assist':
                 this._handleAssist(hass, actionConfig, element);
                 break;
+            case 'fly-to':
+                // An astrometrics card's camera, by the card's id
+                /** @type {any} */ (window).lcards?.cards?.astrometrics?.flyTo(actionConfig.card, actionConfig.point ? { point: actionConfig.point } : { view: actionConfig.view }, { duration: actionConfig.duration, warp: actionConfig.warp, point_card: actionConfig.point_card });
+                break;
+            case 'point-card':
+                // A point's card on an astrometrics card, by the card's id: open, close or toggle
+                /** @type {any} */ (window).lcards?.cards?.astrometrics?.pointCard(actionConfig.card, actionConfig.point, actionConfig.point_card ?? 'toggle');
+                break;
+            case 'set-clock':
+                // An astrometrics card's scene date and rate, by the card's id
+                /** @type {any} */ (window).lcards?.cards?.astrometrics?.setClock(actionConfig.card, { date: actionConfig.date, rate: actionConfig.rate });
+                break;
+            case 'set-model-scale':
+                // An astrometrics card's models at their real size or larger, by the card's id
+                /** @type {any} */ (window).lcards?.cards?.astrometrics?.setModelScale(actionConfig.card, actionConfig.model_scale ?? 'toggle');
+                break;
+            case 'fire-dom-event':
+                // As Home Assistant: an ll-custom event with the action config (browser_mod listens for it)
+                element?.dispatchEvent(new CustomEvent('ll-custom', { detail: actionConfig, bubbles: true, composed: true }));
+                break;
             case 'none':
                 // Do nothing
                 break;
             default:
                 lcardsLog.warn(`[LCARdSActionHandler] Unknown action: ${action}`);
         }
-    }
-
-    // ============================================================================
-    // LEGACY API - For backwards compatibility with MSD ActionHelpers
-    // ============================================================================
-
-    /**
-     * Handle an action event (legacy API)
-     * @deprecated Use setupActions() instead for new code
-     * @param {Object} element - Source element
-     * @param {Object} hass - Home Assistant object
-     * @param {Object} actionConfig - Action configuration
-     * @param {string} actionName - Action name (tap, hold, double_tap)
-     */
-    handleAction(element, hass, actionConfig, actionName = 'tap') {
-        lcardsLog.debug(`[LCARdSActionHandler] handleAction (legacy) called:`, {
-            element: element?.tagName,
-            hass: !!hass,
-            actionConfig,
-            actionName
-        });
-
-        if (!element || !hass || !actionConfig) {
-            lcardsLog.warn(`[LCARdSActionHandler] Missing params: element=${!!element}, hass=${!!hass}, actionConfig=${!!actionConfig}`);
-            return;
-        }
-
-        try {
-            // Validate action config
-            if (!this._validateActionConfig(actionConfig)) {
-                lcardsLog.warn(`[LCARdSActionHandler] Invalid action config:`, actionConfig);
-                return;
-            }
-
-            lcardsLog.debug(`[LCARdSActionHandler] Handling ${actionName} action:`, actionConfig);
-
-            // Execute action directly
-            this._executeAction(actionConfig, hass, element);
-
-        } catch (error) {
-            lcardsLog.error('[LCARdSActionHandler] Action handling error:', error);
-        }
-    }
-
-    /**
-     * Check if an action configuration is actionable
-     * @param {Object} actionConfig - Action configuration
-     * @returns {boolean} True if actionable
-     */
-    hasAction(actionConfig) {
-        if (!actionConfig || typeof actionConfig !== 'object') return false;
-
-        const action = actionConfig.action;
-        if (!action || action === 'none') return false;
-
-        // Check if we support this action type
-        const supportedActions = [
-            'toggle', 'turn_on', 'turn_off', 'more-info',
-            'call-service', 'perform-action', 'navigate', 'url', 'assist'
-        ];
-
-        return supportedActions.includes(action);
-    }
-
-    /**
-     * Create action configuration from various input formats
-     * @param {Object|string} input - Action input
-     * @returns {Object} Normalized action config
-     */
-    normalizeActionConfig(input) {
-        if (!input) return { action: 'none' };
-
-        // If already an object, validate and return
-        if (typeof input === 'object') {
-            return {
-                action: input.action || 'none',
-                ...input
-            };
-        }
-
-        // If string, create basic action
-        if (typeof input === 'string') {
-            // Handle entity toggles
-            if (input.startsWith('entity:')) {
-                return {
-                    action: 'toggle',
-                    entity: input.replace('entity:', '')
-                };
-            }
-
-            // Handle service calls
-            if (input.includes('.')) {
-                return {
-                    action: 'call-service',
-                    service: input
-                };
-            }
-
-            // Default to navigation
-            return {
-                action: 'navigate',
-                navigation_path: input
-            };
-        }
-
-        return { action: 'none' };
     }
 
     // ============================================================================
@@ -628,6 +753,18 @@ export class LCARdSActionHandler {
             case 'assist':
                 // Optional pipeline_id and start_listening
                 return true;
+
+            case 'fly-to':
+                return typeof actionConfig.card === 'string' && !!(actionConfig.view || actionConfig.point);
+
+            case 'set-clock':
+                return typeof actionConfig.card === 'string' && (actionConfig.date !== undefined || actionConfig.rate !== undefined);
+
+            case 'set-model-scale':
+                return typeof actionConfig.card === 'string';
+
+            case 'point-card':
+                return typeof actionConfig.card === 'string' && typeof actionConfig.point === 'string';
 
             case 'toggle':
             case 'more-info':
@@ -682,9 +819,9 @@ export class LCARdSActionHandler {
             return;
         }
 
-        const domain = entityId.split('.')[0];
-        lcardsLog.debug(`[LCARdSActionHandler] Toggling ${entityId}`);
-        hass.callService(domain, 'toggle', { entity_id: entityId });
+        const { domain, service } = toggleService(entityId, hass.states?.[entityId]?.state);
+        lcardsLog.debug(`[LCARdSActionHandler] Toggling ${entityId}: ${domain}.${service}`);
+        hass.callService(domain, service, { entity_id: entityId });
     }
 
     /**
@@ -719,23 +856,25 @@ export class LCARdSActionHandler {
      * @private
      */
     _handleCallService(hass, actionConfig) {
-        // Support both 'service' (legacy) and 'perform_action' (new HA naming)
-        const service = actionConfig.service || actionConfig.perform_action;
+        // Home Assistant's names first: perform_action over the older service,
+        // data over service_data (as Home Assistant's own handle-action does)
+        const service = actionConfig.perform_action ?? actionConfig.service;
         if (!service) {
             lcardsLog.warn(`[LCARdSActionHandler] Call service action requires service or perform_action`);
             return;
         }
+        if (actionConfig.action === 'call-service' || actionConfig.service !== undefined || actionConfig.service_data !== undefined) {
+            lcardsLog.debug('[LCARdSActionHandler] Older Home Assistant action names (call-service, service, service_data); the current ones are perform-action, perform_action and data', actionConfig);
+        }
 
         const [domain, serviceAction] = service.split('.');
-        // Support both service_data and data
-        const serviceData = actionConfig.service_data || actionConfig.data || {};
-        const target = actionConfig.target || {};
+        const serviceData = actionConfig.data ?? actionConfig.service_data ?? {};
+        // The target goes separately, as Home Assistant passes it (entity_id, device_id,
+        // area_id, ... and exclude since 2026.11), not merged into the data
+        const target = actionConfig.target;
 
-        // Merge target into serviceData if provided
-        const finalData = { ...serviceData, ...target };
-
-        lcardsLog.debug(`[LCARdSActionHandler] Calling service ${service} with data:`, finalData);
-        hass.callService(domain, serviceAction, finalData);
+        lcardsLog.debug(`[LCARdSActionHandler] Calling service ${service}`, { data: serviceData, target });
+        hass.callService(domain, serviceAction, serviceData, target);
     }
 
     /**
@@ -751,24 +890,18 @@ export class LCARdSActionHandler {
 
         lcardsLog.debug(`[LCARdSActionHandler] Navigating to ${navigationPath}`);
 
-        window.history.pushState(null, '', navigationPath);
+        // As Home Assistant's navigate(): navigation_replace replaces the current history entry
+        const replace = actionConfig.navigation_replace === true;
+        if (replace) {
+            window.history.replaceState(null, '', navigationPath);
+        } else {
+            window.history.pushState(null, '', navigationPath);
+        }
         window.dispatchEvent(new CustomEvent('location-changed', {
-            detail: { replace: false },
+            detail: { replace },
             bubbles: true,
             composed: true
         }));
-    }
-
-    /**
-     * Get debug information about the action handler state
-     * @returns {Object} Debug information
-     */
-    getDebugInfo() {
-        return {
-            type: 'LCARdSActionHandler',
-            activeHandlers: this._activeHandlers?.size || 0,
-            initialized: true
-        };
     }
 
     /**
@@ -784,9 +917,5 @@ export class LCARdSActionHandler {
 
         lcardsLog.debug(`[LCARdSActionHandler] Opening URL ${url}`);
         window.open(url, '_blank');
-    }
-
-    destroy() {
-        this._activeHandlers.clear();
     }
 }

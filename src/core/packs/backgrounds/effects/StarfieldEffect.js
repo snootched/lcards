@@ -1,6 +1,7 @@
 import { BaseEffect } from './BaseEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
+import { numProp, colorProp } from './animatable-props.js';
 
 /**
  * StarfieldEffect - Scrolling starfield with parallax depth
@@ -24,6 +25,18 @@ import { ColorUtils } from '../../../themes/ColorUtils.js';
  * @extends BaseEffect
  */
 export class StarfieldEffect extends BaseEffect {
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    scroll_speed_x: numProp('scrollSpeedX'),
+    scroll_speed_y: numProp('scrollSpeedY'),
+    // One colour for every star (a `colors` list collapses to it while animated)
+    color: {
+      color: true,
+      get: (e) => e.resolvedColors[0],
+      set: (e, v) => e._recolor(v)
+    }
+  };
+
   /**
    * @param {object} config - Effect configuration
    *
@@ -47,6 +60,12 @@ export class StarfieldEffect extends BaseEffect {
    */
   constructor(config = {}) {
     super(/** @type {any} */ (config));
+    /** @type {any[]} */
+    this.stars = [];
+    /** @type {() => number} seeded RNG, set by _initRNG() before any use */
+    this._rng = /** @type {any} */ (null);
+    /** @type {Array<any>} built with the stars */
+    this._drawBuckets = /** @type {any} */ (null);
 
     // Star generation config
     this.seed = config.seed ?? 1;
@@ -61,8 +80,7 @@ export class StarfieldEffect extends BaseEffect {
     this.colors = Array.isArray(colorInput) ? colorInput : [colorInput];
 
     // Resolve colour expressions (CSS vars + computed functions like darken/lighten/alpha)
-    const _resolver = window.lcards?.core?.themeManager?.resolver;
-    const _resolve = (c) => ColorUtils.resolveCssVariable((_resolver ? _resolver.resolve(c, c) : c), c);
+    const _resolve = (c) => resolveColor(c, { concrete: true });
     this.resolvedColors = this.colors.map(_resolve);
 
     // Scrolling
@@ -208,8 +226,8 @@ export class StarfieldEffect extends BaseEffect {
     // Update each star position in normalized 0-1 space
     for (const star of this.stars) {
       // Convert pixel speeds to normalized speeds
-      const normalizedSpeedX = (this.scrollSpeedX * dt * star.speedMultiplier) / canvasWidth;
-      const normalizedSpeedY = (this.scrollSpeedY * dt * star.speedMultiplier) / canvasHeight;
+      const normalizedSpeedX = (this.scrollSpeedX * this.speed * dt * star.speedMultiplier) / canvasWidth;
+      const normalizedSpeedY = (this.scrollSpeedY * this.speed * dt * star.speedMultiplier) / canvasHeight;
 
       // Update position
       star.x += normalizedSpeedX;
@@ -267,12 +285,27 @@ export class StarfieldEffect extends BaseEffect {
   }
 
   /**
-   * Update animation state (called by anime.js or manual updates)
+   * Give every star one colour (the animatable `color`) and rebuild the draw buckets.
+   * @param {string} color - Concrete CSS colour
    */
-  updateAnimatableProps(props) {
-    if (props.scrollSpeedX !== undefined) this.scrollSpeedX = props.scrollSpeedX;
-    if (props.scrollSpeedY !== undefined) this.scrollSpeedY = props.scrollSpeedY;
-    if (props.opacity !== undefined) this.opacity = props.opacity;
+  _recolor(color) {
+    this.resolvedColors = [color];
+    for (const star of this.stars) star.color = color;
+    this._buildDrawBuckets();
+  }
+
+  /**
+   * Take the new palette from `fresh` (same seed, so star i has the same
+   * colour slot): positions and motion stay.
+   * @param {any} fresh
+   * @returns {boolean}
+   */
+  recolorFrom(fresh) {
+    if (!(fresh instanceof StarfieldEffect) || fresh.stars.length !== this.stars.length) return false;
+    this.resolvedColors = fresh.resolvedColors;
+    this.stars.forEach((star, i) => { star.color = fresh.stars[i].color; });
+    this._buildDrawBuckets();
+    return true;
   }
 
   /**
@@ -280,6 +313,6 @@ export class StarfieldEffect extends BaseEffect {
    */
   destroy() {
     this.stars = [];
-    this._rng = null;
+    this._rng = /** @type {any} */ (null); // released; _initRNG() sets it again
   }
 }

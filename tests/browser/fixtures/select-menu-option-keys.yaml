@@ -1,0 +1,31 @@
+# an option's card-level keys (variables, rules, zones) reach that option's button
+type: custom:lcards-select-menu
+entity: input_select.demo_mode
+preset: lozenge
+id: deck-nav
+grid:
+  columns: 2
+options:
+  Auto:
+    label: "{variables.deck}"
+    variables:
+      deck: BRIDGE
+  Cool:
+    zones:
+      strip:
+        x: 0
+        y: 0
+        width: 10
+        height: 10
+    rules:
+      - id: option-rule-alert
+        when:
+          entity: switch.demo_switch
+          state: "on"
+        apply:
+          overlays:
+            deck-nav:
+              style:
+                card:
+                  color:
+                    background: "#cc0000"

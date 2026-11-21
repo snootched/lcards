@@ -27,6 +27,7 @@ import { LCARdSFormFieldHelper as FormField } from './shared/lcards-form-field.j
 import { ANIMATION_PRESET_PARAMS_SCHEMAS, _CANONICAL_REDECLARED } from '../../cards/schemas/animation-preset-params-schemas.js';
 import { ANIMATION_PRESET_DOCS_URL } from './shared/docs-links.js';
 import { infoGuideStyles } from './shared/info-guide-styles.js';
+import { renderInfoGuide } from './shared/info-guide.js';
 import { searchableSelectStyles } from './shared/searchable-select-styles.js';
 import { getAttributeOptions } from '../../utils/attribute-options.js';
 
@@ -77,11 +78,13 @@ const SCHEMA_DRIVEN_PRESETS = new Set([
   'flicker', 'cascade', 'cascade-color', 'ripple', 'scale', 'scale-reset',
   'set', 'slide', 'shake', 'color-shift',
   // Text presets
-  'text-reveal', 'text-typewriter', 'text-scramble', 'text-glitch',
+  'text-reveal', 'text-typewriter', 'text-scramble', 'text-decode', 'text-glitch',
   // Stagger presets
   'stagger-grid', 'stagger-flash', 'stagger-wave', 'stagger-radial',
   // Timeline presets
-  'timeline-cascade', 'timeline-attention'
+  'timeline-cascade', 'timeline-attention',
+  // Effect presets
+  'tap-ripple', 'boot-sequence', 'sensor-sweep', 'morph'
 ]);
 
 /**
@@ -123,13 +126,17 @@ const PRESET_HIDDEN_CANONICAL_FIELDS = {
   'glitch': { hideEasing: true },
   'text-typewriter': { hideDuration: true, hideEasing: true },
   'text-scramble': { hideEasing: true, hideAlternate: true },
+  'text-decode': { hideEasing: true, hideAlternate: true },
   'text-glitch': { hideEasing: true },
   'physics-spring': { hideDuration: true, hideEasing: true, hideAlternate: true },
   'march': { hideEasing: true, hideAlternate: true, hideStartDelay: true },
   'stagger-flash': { hideDuration: true, hideEasing: true, hideLoop: true, hideAlternate: true, hideStartDelay: true },
   'sequence': { hideDuration: true, hideEasing: true },
   'timeline-cascade': { hideDuration: true, hideEasing: true },
-  'timeline-attention': { hideDuration: true, hideEasing: true }
+  'timeline-attention': { hideDuration: true, hideEasing: true },
+  'tap-ripple': { hideLoop: true, hideAlternate: true },
+  'boot-sequence': { hideEasing: true, hideLoop: true, hideAlternate: true },
+  'sensor-sweep': { hideEasing: true, hideAlternate: true }
 };
 
 const CANONICAL_KEY_HIDE_FLAG = { duration: 'hideDuration', ease: 'hideEasing', loop: 'hideLoop', alternate: 'hideAlternate', delay: 'hideStartDelay' };
@@ -192,9 +199,14 @@ const ANIMEJS_REFERENCE_URLS = {
   'timeline-cascade': `${ANIMEJS_DOCS_BASE}/timeline`,
   'timeline-attention': `${ANIMEJS_DOCS_BASE}/timeline`,
   'text-reveal': `${ANIMEJS_DOCS_BASE}/text/splittext`,
-  'text-scramble': `${ANIMEJS_DOCS_BASE}/text/splittext`,
+  'text-scramble': `${ANIMEJS_DOCS_BASE}/text/scrambletext`,
+  'text-decode': `${ANIMEJS_DOCS_BASE}/text/scrambletext`,
   'text-glitch': `${ANIMEJS_DOCS_BASE}/text/splittext`,
-  'text-typewriter': `${ANIMEJS_DOCS_BASE}/text/splittext`
+  'text-typewriter': `${ANIMEJS_DOCS_BASE}/text/splittext`,
+  'tap-ripple': `${ANIMEJS_DOCS_BASE}/utilities/stagger`,
+  'boot-sequence': `${ANIMEJS_DOCS_BASE}/timeline`,
+  'sensor-sweep': `${ANIMEJS_DOCS_BASE}/timeline`,
+  morph: `${ANIMEJS_DOCS_BASE}/svg/morphto`
 };
 // Everything else uses the default plain-tween mechanism.
 const ANIMEJS_DEFAULT_REFERENCE_URL = `${ANIMEJS_DOCS_BASE}/animation`;
@@ -219,7 +231,6 @@ export class LCARdSAnimationEditor extends LitElement {
       _workingAnimations: { state: true }, // Internal editing state — never overwritten by parent re-renders
       _expandedIndex: { type: Number },
       _pendingDeleteIndex: { type: Number },
-      _expandedGuideIndices: { state: true } // Set<number> — which animations' "How this preset works" info guide is open
     };
   }
 
@@ -270,6 +281,11 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _normalizeAnimation(anim) {
     const TOP_LEVEL_KEYS = ['loop', 'alternate', 'duration', 'delay', 'ease'];
+    // Legacy custom animation (type: custom, properties in animejs) -> preset: custom + params
+    if (anim.type === 'custom' && anim.animejs && typeof anim.animejs === 'object') {
+      const { type: _type, animejs, ...rest } = anim;
+      anim = { ...rest, preset: 'custom', params: { ...animejs } };
+    }
     if (!anim.params) return anim;
 
     const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[anim.preset];
@@ -604,6 +620,9 @@ export class LCARdSAnimationEditor extends LitElement {
 
   constructor() {
     super();
+    // Reactive properties (declared in static properties); typed here for the checker.
+    /** @type {string|undefined} */
+    this.searchRootSelector;
         /** @type {any} */
         this.hass = undefined;
     /** @type {any} */
@@ -612,7 +631,6 @@ export class LCARdSAnimationEditor extends LitElement {
     this.systemAnimationIds = [];
     this._expandedIndex = null;
     this._pendingDeleteIndex = null;
-    this._expandedGuideIndices = new Set();
     this._targetRediscoveryTimer = null;
     this._targetRediscoveryAttempts = 0;
   }
@@ -648,7 +666,7 @@ export class LCARdSAnimationEditor extends LitElement {
   _renderAnimationItem(anim, index) {
     const isExpanded = this._expandedIndex === index;
     const trigger = anim.trigger || 'on_load';
-    const isCustom = anim.type === 'custom';
+    const isCustom = anim.preset === 'custom' || anim.type === 'custom';
     const preset = anim.preset || 'pulse';
     const isEnabled = anim.enabled !== false;
     const isSystem = !!(anim.id && this.systemAnimationIds?.includes(anim.id));
@@ -666,29 +684,29 @@ export class LCARdSAnimationEditor extends LitElement {
             <div class="animation-id-row">
               ${hasId
                 ? html`<span class="animation-id">${anim.id}</span>`
-                : html`<span class="animation-unnamed">⚠ Unnamed animation</span>`
+                : html`<span class="animation-unnamed">Unnamed animation</span>`
               }
             </div>
             <div class="animation-chips">
               <ha-assist-chip
                 .filled=${true}
-                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-color) 80%, transparent); --md-sys-color-primary: var(--primary-text-color); --md-sys-color-on-surface: var(--primary-text-color);"
+                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-color) 80%, transparent); --ha-assist-chip-label-text-color: var(--primary-text-color);"
                 .label=${isCustom ? 'custom' : this._formatPresetName(preset)}>
               </ha-assist-chip>
               <ha-assist-chip
                 .filled=${true}
-                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-color) 80%, transparent); --md-sys-color-primary: var(--primary-text-color); --md-sys-color-on-surface: var(--primary-text-color);"
+                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-color) 80%, transparent); --ha-assist-chip-label-text-color: var(--primary-text-color);"
                 .label=${this._formatTrigger(trigger)}>
               </ha-assist-chip>
               ${isSystem ? html`<ha-assist-chip
                 .filled=${true}
-                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--info-color, #039be5) 80%, transparent); --md-sys-color-primary: var(--primary-text-color); --md-sys-color-on-surface: var(--primary-text-color);"
+                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--info-color, #039be5) 80%, transparent); --ha-assist-chip-label-text-color: var(--primary-text-color);"
                 label="component">
                 <ha-icon slot="icon" icon="mdi:puzzle-outline"></ha-icon>
               </ha-assist-chip>` : ''}
               ${!isEnabled ? html`<ha-assist-chip
                 .filled=${true}
-                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-background-color, #000000) 80%, transparent); --md-sys-color-primary: var(--primary-text-color); --md-sys-color-on-surface: var(--primary-text-color);"
+                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-background-color, #000000) 80%, transparent); --ha-assist-chip-label-text-color: var(--primary-text-color);"
                 label="disabled"></ha-assist-chip>` : ''}
             </div>
           </div>
@@ -726,7 +744,7 @@ export class LCARdSAnimationEditor extends LitElement {
   }
 
   _renderAnimationForm(anim, index) {
-    const isCustom = anim.type === 'custom';
+    const isCustom = anim.preset === 'custom' || anim.type === 'custom';
     const preset = anim.preset || 'pulse';
     const isPlaceholder = this._isPlaceholderPreset(preset);
     const isEnabled = anim.enabled !== false;
@@ -743,7 +761,7 @@ export class LCARdSAnimationEditor extends LitElement {
               .selector=${{ text: {} }}
               .value=${anim.id || ''}
               .label=${'Animation ID'}
-              .helper=${'Letters, numbers, hyphens and underscores only — e.g. my-pulse'}
+              .helper=${'Letters, numbers, hyphens and underscores only, e.g. my-pulse'}
               @value-changed=${(e) => this._handleIdChange(index, e.detail.value)}>
             </ha-selector>
             ${idError ? html`
@@ -775,6 +793,16 @@ export class LCARdSAnimationEditor extends LitElement {
         </ha-selector>
       </div>
 
+      <!-- Essential motion: keeps playing under prefers-reduced-motion -->
+      <ha-selector
+        .hass=${this.hass}
+        .selector=${{ boolean: {} }}
+        .value=${anim.essential_motion === true}
+        .label=${'Essential motion'}
+        .helper=${'Keep playing when the device asks for reduced motion. Only for motion that carries meaning, such as an alert flash.'}
+        @value-changed=${(e) => this._setEssentialMotion(index, e.detail.value)}
+      ></ha-selector>
+
       <!-- Trigger Section -->
       <lcards-form-section
         header="Trigger"
@@ -787,9 +815,12 @@ export class LCARdSAnimationEditor extends LitElement {
               mode: 'dropdown',
               options: [
                 { value: 'on_load', label: 'On Load' },
+                { value: 'on_show', label: 'On Show (Each Time It Appears)' },
                 { value: 'on_hover', label: 'On Hover' },
                 { value: 'on_leave', label: 'On Leave (Exit Hover)' },
                 { value: 'on_tap', label: 'On Tap' },
+                { value: 'on_double_tap', label: 'On Double Tap' },
+                { value: 'on_hold', label: 'On Hold' },
                 { value: 'on_datasource_change', label: 'On Data Change' },
                 { value: 'on_entity_change', label: 'On Entity Change' }
               ]
@@ -831,7 +862,7 @@ export class LCARdSAnimationEditor extends LitElement {
       return html`
         <div class="confirm-delete-row">
           <span class="confirm-delete-label">Delete this animation permanently?</span>
-          <ha-button @click=${() => { this._pendingDeleteIndex = null; this.requestUpdate(); }}>
+          <ha-button appearance="plain" @click=${() => { this._pendingDeleteIndex = null; this.requestUpdate(); }}>
             Cancel
           </ha-button>
           <ha-button
@@ -1006,7 +1037,7 @@ export class LCARdSAnimationEditor extends LitElement {
               .selector=${{ number: { min: 1, max: 10, step: 1, mode: 'slider' } }}
               .value=${params.bounces ?? 3}
               .label=${'Number of Bounces'}
-              .helper=${'When > 1, this preset forces outQuad easing and multiplies duration by this count — see the info guide above.'}
+              .helper=${'When > 1, this preset forces outQuad easing and multiplies duration by this count; see the info guide above.'}
               @value-changed=${(e) => this._updateParam(index, 'bounces', e.detail.value)}>
             </ha-selector>
           </div>
@@ -1043,7 +1074,7 @@ export class LCARdSAnimationEditor extends LitElement {
               .selector=${{ number: { min: -45, max: 45, step: 1, mode: 'box' } }}
               .value=${params.from_skewX ?? 0}
               .label=${'From Skew X (degrees)'}
-              .helper=${'Optional starting X skew — if either From field is set, the animation goes from these values to Skew X/Y above instead of from 0'}
+              .helper=${'Optional starting X skew: if either From field is set, the animation goes from these values to Skew X/Y above instead of from 0'}
               @value-changed=${(e) => this._updateParam(index, 'from_skewX', e.detail.value)}>
             </ha-selector>
             <ha-selector
@@ -1051,7 +1082,7 @@ export class LCARdSAnimationEditor extends LitElement {
               .selector=${{ number: { min: -45, max: 45, step: 1, mode: 'box' } }}
               .value=${params.from_skewY ?? 0}
               .label=${'From Skew Y (degrees)'}
-              .helper=${'Optional starting Y skew — see From Skew X'}
+              .helper=${'Optional starting Y skew: see From Skew X'}
               @value-changed=${(e) => this._updateParam(index, 'from_skewY', e.detail.value)}>
             </ha-selector>
           </div>
@@ -1269,7 +1300,7 @@ export class LCARdSAnimationEditor extends LitElement {
             .value=${params.delay ?? 0}
             min="0"
             step="100"
-            helper="Delay before animation starts"
+            hint="Delay before animation starts"
             @input=${(e) => this._updateParam(index, 'delay', Number(e.target.value))}>
           </ha-input>` : ''}
 
@@ -1367,16 +1398,16 @@ export class LCARdSAnimationEditor extends LitElement {
                 { value: 'outInCirc', label: 'Circ - Out/In' },
 
                 // Back (parametric: overshoot = 1.70158 by default)
-                { value: 'inBack', label: 'Back - In ↩️' },
-                { value: 'outBack', label: 'Back - Out ↩️' },
-                { value: 'inOutBack', label: 'Back - In/Out ↩️' },
-                { value: 'outInBack', label: 'Back - Out/In ↩️' },
+                { value: 'inBack', label: 'Back - In' },
+                { value: 'outBack', label: 'Back - Out' },
+                { value: 'inOutBack', label: 'Back - In/Out' },
+                { value: 'outInBack', label: 'Back - Out/In' },
 
                 // Elastic (parametric: amplitude = 1, period = 0.3 by default)
-                { value: 'inElastic', label: 'Elastic - In 🎯' },
-                { value: 'outElastic', label: 'Elastic - Out 🎯' },
-                { value: 'inOutElastic', label: 'Elastic - In/Out 🎯' },
-                { value: 'outInElastic', label: 'Elastic - Out/In 🎯' },
+                { value: 'inElastic', label: 'Elastic - In' },
+                { value: 'outElastic', label: 'Elastic - Out' },
+                { value: 'inOutElastic', label: 'Elastic - In/Out' },
+                { value: 'outInElastic', label: 'Elastic - Out/In' },
 
                 // Bounce
                 { value: 'inBounce', label: 'Bounce - In' },
@@ -1385,12 +1416,12 @@ export class LCARdSAnimationEditor extends LitElement {
                 { value: 'outInBounce', label: 'Bounce - Out/In' },
 
                 // Advanced Easings (require custom parameters)
-                { value: 'cubicBezier', label: '🔧 Cubic Bézier - Custom curve' },
-                { value: 'spring', label: '🔧 Spring - Physics-based' },
-                { value: 'steps', label: '🔧 Steps - Frame-by-frame' },
-                { value: 'linear', label: '🔧 Linear - Custom linear points' },
-                { value: 'irregular', label: '🔧 Irregular - Randomized' },
-                { value: 'custom', label: '🔧 Custom - anime.js string' }
+                { value: 'cubicBezier', label: 'Cubic Bézier - Custom curve' },
+                { value: 'spring', label: 'Spring - Physics-based' },
+                { value: 'steps', label: 'Steps - Frame-by-frame' },
+                { value: 'linear', label: 'Linear - Custom linear points' },
+                { value: 'irregular', label: 'Irregular - Randomized' },
+                { value: 'custom', label: 'Custom - anime.js string' }
               ]
             }
           }}
@@ -1418,7 +1449,7 @@ export class LCARdSAnimationEditor extends LitElement {
           min="0.1"
           max="10"
           step="0.1"
-          helper="Default: 1.675. Higher = steeper curve"
+          hint="Default: 1.675. Higher = steeper curve"
           @input=${(e) => this._updateEaseParam(index, 'power', Number(e.target.value))}>
         </ha-input>
       `;
@@ -1434,7 +1465,7 @@ export class LCARdSAnimationEditor extends LitElement {
           min="0"
           max="5"
           step="0.1"
-          helper="Default: 1.70158. Higher = more overshoot"
+          hint="Default: 1.70158. Higher = more overshoot"
           @input=${(e) => this._updateEaseParam(index, 'overshoot', Number(e.target.value))}>
         </ha-input>
       `;
@@ -1451,7 +1482,7 @@ export class LCARdSAnimationEditor extends LitElement {
             min="0.1"
             max="5"
             step="0.1"
-            helper="Default: 1"
+            hint="Default: 1"
             @input=${(e) => this._updateEaseParam(index, 'amplitude', Number(e.target.value))}>
           </ha-input>
 
@@ -1462,7 +1493,7 @@ export class LCARdSAnimationEditor extends LitElement {
             min="0.1"
             max="2"
             step="0.05"
-            helper="Default: 0.3"
+            hint="Default: 0.3"
             @input=${(e) => this._updateEaseParam(index, 'period', Number(e.target.value))}>
           </ha-input>
         </div>
@@ -1650,7 +1681,13 @@ export class LCARdSAnimationEditor extends LitElement {
   }
 
   _renderCustomForm(anim, index) {
-    const animeConfig = anim.animejs || {};
+    // Legacy configs keep the properties in animejs (type: custom); _normalizeAnimation
+    // converts them, so this is a fallback
+    const animeConfig = anim.animejs || anim.params || {};
+    // Timing and easing live at the top level, like every preset (see _normalizeAnimation),
+    // and get the same Timing & Duration / Easing Function sections
+    const TOP_LEVEL_KEYS = ['loop', 'alternate', 'duration', 'delay', 'ease'];
+    const timing = Object.fromEntries(TOP_LEVEL_KEYS.filter(k => anim[k] !== undefined).map(k => [k, anim[k]]));
 
     return html`
       <lcards-form-section
@@ -1667,12 +1704,13 @@ export class LCARdSAnimationEditor extends LitElement {
           }}>
         </ha-yaml-editor>
         <lcards-message type="info">
-          Enter a valid object for anime.js v4 configuration (JSON or YAML syntax both work).
+          anime.js v4 properties (YAML or JSON), e.g. scale, opacity, keyframes. The target is set above; duration, delay, loop, alternate and easing in the sections below.
           <a href="https://animejs.com/documentation/" target="_blank" rel="noopener noreferrer">
             View Documentation →
           </a>
         </lcards-message>
       </lcards-form-section>
+      ${this._renderCommonParams(timing, index)}
     `;
   }
 
@@ -1691,9 +1729,12 @@ export class LCARdSAnimationEditor extends LitElement {
   _formatTrigger(trigger) {
     const map = {
       'on_load': 'Load',
+      'on_show': 'Show',
       'on_hover': 'Hover',
       'on_leave': 'Leave',
       'on_tap': 'Tap',
+      'on_double_tap': 'Double Tap',
+      'on_hold': 'Hold',
       'on_datasource_change': 'Data Change',
       'on_entity_change': 'Entity Change'
     };
@@ -1703,9 +1744,12 @@ export class LCARdSAnimationEditor extends LitElement {
   _getTriggerIcon(trigger) {
     const icons = {
       'on_load': 'mdi:loading',
+      'on_show': 'mdi:eye-outline',
       'on_hover': 'mdi:cursor-default-click',
       'on_leave': 'mdi:cursor-default-outline',
       'on_tap': 'mdi:gesture-tap',
+      'on_double_tap': 'mdi:gesture-double-tap',
+      'on_hold': 'mdi:gesture-tap-hold',
       'on_datasource_change': 'mdi:database-sync',
       'on_entity_change': 'mdi:state-machine'
     };
@@ -1714,10 +1758,13 @@ export class LCARdSAnimationEditor extends LitElement {
 
   _getTriggerHelp(trigger) {
     const help = {
-      'on_load': 'Executes when the card loads or updates',
+      'on_load': 'Executes once, when the card first renders',
+      'on_show': 'Executes every time the card appears: when the view opens, when a visibility condition shows it, or when you come back from another view. Use it for entrance animations.',
       'on_hover': 'Executes when mouse enters the element',
       'on_leave': 'Executes when mouse leaves the element (use for exit animations)',
       'on_tap': 'Executes when the element is clicked/tapped',
+      'on_double_tap': 'Executes when the element is double-tapped',
+      'on_hold': 'Executes when the element is held (long press)',
       'on_datasource_change': 'Executes when associated data source value changes',
       'on_entity_change': 'Triggers when a monitored entity (or attribute) changes. Use from_state/to_state as fire-and-forget gates, and while to auto-stop a looping animation when a condition clears.'
     };
@@ -1749,7 +1796,7 @@ export class LCARdSAnimationEditor extends LitElement {
           .label=${'Attribute (optional)'}
           .helper=${'Attribute to read instead of entity state. Applies to from_state, to_state, and while. Use brightness_pct for a computed 0\u2013100 light brightness percentage.'}
           .selector=${{ select: { mode: 'dropdown', custom_value: true, options: [
-            { value: '__none__', label: '\u2014 Use entity state' },
+            { value: '__none__', label: '(Use entity state)' },
             ...getAttributeOptions(this.hass, anim.entity || this.cardElement?.config?.entity)
           ] } }}
           .value=${anim.attribute || '__none__'}
@@ -1760,12 +1807,12 @@ export class LCARdSAnimationEditor extends LitElement {
           style="width: 100%; margin-bottom: 12px;">
         </ha-selector>
 
-        <lcards-message type="warning" .message=${'\u26a0\ufe0f from_state and to_state are fire-and-forget gates \u2014 they control when an animation starts but will NOT stop a looping animation. To automatically stop a loop when a condition clears, add a While Condition below.'}></lcards-message>
+        <lcards-message type="warning" .message=${'From and To state only decide when an animation starts; they never stop a loop. To stop a loop when a condition clears, add a While Condition below.'}></lcards-message>
 
         <ha-input
           label="From State (optional)"
           .value=${anim.from_state || ''}
-          .helper=${'Fire-and-forget gate: only trigger when transitioning FROM this value (leave empty for any)'}
+          .hint=${'Fire-and-forget gate: only trigger when transitioning FROM this value (leave empty for any)'}
           @input=${(e) => this._updateAnimation(index, 'from_state', e.target.value)}
           style="width: 100%; margin-bottom: 12px;">
         </ha-input>
@@ -1773,7 +1820,7 @@ export class LCARdSAnimationEditor extends LitElement {
         <ha-input
           label="To State (optional)"
           .value=${anim.to_state || ''}
-          .helper=${'Fire-and-forget gate: only trigger when transitioning TO this value (leave empty for any)'}
+          .hint=${'Fire-and-forget gate: only trigger when transitioning TO this value (leave empty for any)'}
           @input=${(e) => this._updateAnimation(index, 'to_state', e.target.value)}
           style="width: 100%; margin-bottom: 12px;">
         </ha-input>
@@ -1818,7 +1865,7 @@ export class LCARdSAnimationEditor extends LitElement {
               label="Value"
               type=${whileIsNumeric ? 'number' : 'text'}
               .value=${whileValue}
-              .helper=${whileIsNumeric ? 'Numeric threshold' : 'State string (e.g. on, off, heating)'}
+              .hint=${whileIsNumeric ? 'Numeric threshold' : 'State string (e.g. on, off, heating)'}
               @input=${(e) => this._updateWhileConditionValue(index, whileType, e.target.value)}
               style="flex: 1;">
             </ha-input>
@@ -1939,7 +1986,11 @@ export class LCARdSAnimationEditor extends LitElement {
       'stagger-flash': 'Stagger Flash',
       'stagger-grid': 'Stagger Grid',
       'stagger-wave': 'Stagger Wave',
-      'stagger-radial': 'Stagger Radial'
+      'stagger-radial': 'Stagger Radial',
+      'tap-ripple': 'Tap Ripple',
+      'boot-sequence': 'Boot Sequence',
+      'sensor-sweep': 'Sensor Sweep',
+      'morph': 'Morph'
     };
     return names[preset] || preset;
   }
@@ -2009,26 +2060,33 @@ export class LCARdSAnimationEditor extends LitElement {
       { value: 'color-shift', label: 'Colour Shift - Pure colour transition' },
       { value: 'skew', label: 'Skew - Slant transformation' },
       { value: 'motionpath', label: 'Motion Path - Follow SVG path' },
+      { value: 'morph', label: 'Morph - Become another SVG shape' },
       { value: 'sequence', label: 'Sequence - Multi-step timeline of tweens' },
       { value: 'chaos', label: 'Chaos - Randomized multi-property glitch motion' },
       { value: 'glitch', label: 'Glitch - Digital distortion' },
       { value: 'physics-spring', label: 'Physics Spring - Spring physics simulation' },
 
       // Text Animations (NEW - PR#234)
-      { value: 'text-reveal', label: '✨ Text Reveal - Character-by-character reveal' },
-      { value: 'text-typewriter', label: '✨ Text Typewriter - Typing effect' },
-      { value: 'text-scramble', label: '✨ Text Scramble - Matrix-style scramble' },
-      { value: 'text-glitch', label: '✨ Text Glitch - Rapid jitter' },
+      { value: 'text-reveal', label: 'Text Reveal - Character-by-character reveal' },
+      { value: 'text-typewriter', label: 'Text Typewriter - Typing effect' },
+      { value: 'text-scramble', label: 'Text Scramble - Decode with per-character timing' },
+      { value: 'text-decode', label: 'Text Decode - LCARS readout decode from glyph noise' },
+      { value: 'text-glitch', label: 'Text Glitch - Rapid jitter' },
 
       // Stagger Animations (NEW - PR#233)
-      { value: 'stagger-flash', label: '⚡ Stagger Flash - LCARS chasing bar effect' },
-      { value: 'stagger-grid', label: '⚡ Stagger Grid - Grid-based stagger' },
-      { value: 'stagger-wave', label: '⚡ Stagger Wave - Wave pattern' },
-      { value: 'stagger-radial', label: '⚡ Stagger Radial - Radial burst' },
+      { value: 'stagger-flash', label: 'Stagger Flash - LCARS chasing bar effect' },
+      { value: 'stagger-grid', label: 'Stagger Grid - Grid-based stagger' },
+      { value: 'stagger-wave', label: 'Stagger Wave - Wave pattern' },
+      { value: 'stagger-radial', label: 'Stagger Radial - Radial burst' },
+      { value: 'tap-ripple', label: 'Tap Ripple - Pulse spreading from the tap point' },
+
+      // Effects
+      { value: 'boot-sequence', label: 'Boot Sequence - Power-up: draw, fill, decode' },
+      { value: 'sensor-sweep', label: 'Sensor Sweep - Rotating scanner with ring ping' },
 
       // Timeline Animations (NEW - PR#233)
-      { value: 'timeline-cascade', label: '🎬 Timeline Cascade - Sequential steps' },
-      { value: 'timeline-attention', label: '🎬 Timeline Attention - Attention-getter' },
+      { value: 'timeline-cascade', label: 'Timeline Cascade - Sequential steps' },
+      { value: 'timeline-attention', label: 'Timeline Attention - Attention-getter' },
 
       // Utility
       { value: 'set', label: 'Set - Immediate property change' }
@@ -2101,7 +2159,6 @@ export class LCARdSAnimationEditor extends LitElement {
     const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[preset];
     if (!presetSchema) return '';
 
-    const expanded = this._expandedGuideIndices.has(index);
     const CANONICAL_KEYS = new Set(['duration', 'ease', 'loop', 'alternate', 'delay']);
     // See needsOwnCanonicalField()'s doc comment — a preset-redeclared canonical
     // key (e.g. stagger-flash's duration/delay/loop) belongs in the example YAML
@@ -2115,18 +2172,10 @@ export class LCARdSAnimationEditor extends LitElement {
     const { yaml: exampleYaml, missingFields } = this._buildExampleYaml(preset, presetSchema, paramEntries);
 
     return html`
-      <div class="preset-info-guide">
-        <div class="preset-info-guide-header"
-             @click=${() => this._toggleGuideExpanded(index)}>
-          <ha-icon icon="mdi:information-outline"></ha-icon>
-          <span>How ${preset} works</span>
-          <ha-icon
-            icon="mdi:chevron-down"
-            class="guide-chevron ${expanded ? 'expanded' : ''}">
-          </ha-icon>
-        </div>
-        ${expanded ? html`
-          <div class="preset-info-guide-body">
+      ${renderInfoGuide({
+        header: `How ${preset} works`,
+        icon: 'mdi:information-outline',
+        body: html`
             ${this._splitIntoSentences(presetSchema.description).map(sentence => html`<p>${sentence}</p>`)}
             ${paramEntries.length ? html`
               <strong>Params:</strong>
@@ -2134,26 +2183,25 @@ export class LCARdSAnimationEditor extends LitElement {
                 ${paramEntries.map(([key, fieldSchema]) => html`
                   <li>
                     <code>${key}</code>${fieldSchema.default !== undefined ? html` (default: <code>${JSON.stringify(fieldSchema.default)}</code>)` : ''}
-                    ${fieldSchema.description ? ` — ${fieldSchema.description}` : ''}
+                    ${fieldSchema.description ? `: ${fieldSchema.description}` : ''}
                   </li>
                 `)}
               </ul>
             ` : ''}
             <strong>Example:</strong>
-            <pre class="preset-info-guide-example">${exampleYaml}</pre>
+            <pre class="info-guide-example">${exampleYaml}</pre>
             ${missingFields.length ? html`
-              <p class="preset-info-guide-missing-note">
-                No known default to show for: ${missingFields.map(f => html`<code>${f}</code>`)} — add these yourself before using this example.
+              <p class="info-guide-note">
+                No known default to show for: ${missingFields.map(f => html`<code>${f}</code>`)}. Add these yourself before using this example.
               </p>
             ` : ''}
             ${this._renderMapRangeNote()}
-            <div class="preset-info-guide-links">
+            <div class="info-guide-links">
               <a href=${docsUrl} target="_blank" rel="noopener noreferrer">View full docs →</a>
               ${animejsUrl ? html`<a href=${animejsUrl} target="_blank" rel="noopener noreferrer">anime.js reference →</a>` : ''}
             </div>
-          </div>
-        ` : ''}
-      </div>
+          `,
+      })}
     `;
   }
 
@@ -2173,22 +2221,11 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _renderMapRangeNote() {
     return html`
-      <lcards-message type="info">
-        <strong>Entity-reactive parameters:</strong> <code>duration</code>, <code>delay</code>, and any preset param above can live-track an entity's value instead of a fixed number — edit this animation's YAML directly to use it:<br><br>
-        <code>speed: { map_range: { entity: sensor.grid_power, input: [0, 5000], output: [8, 0.5] } }</code><br><br>
-        <code>output</code> can also be a two-color pair (<code>['#00ff88', '#ff4400']</code>) to interpolate color instead of a number.
-      </lcards-message>
+      <p class="info-guide-tip"><strong>Follow an entity:</strong> <code>duration</code>, <code>delay</code> and any param above
+        can track an entity's value instead of a fixed number (in this animation's YAML). <code>output</code> can also be two
+        colours, to blend between them.</p>
+      <pre class="info-guide-example">speed: { map_range: { entity: sensor.grid_power, input: [0, 5000], output: [8, 0.5] } }</pre>
     `;
-  }
-
-  _toggleGuideExpanded(index) {
-    const updated = new Set(this._expandedGuideIndices);
-    if (updated.has(index)) {
-      updated.delete(index);
-    } else {
-      updated.add(index);
-    }
-    this._expandedGuideIndices = updated;
   }
 
   _isPlaceholderPreset(preset) {
@@ -2372,15 +2409,31 @@ export class LCARdSAnimationEditor extends LitElement {
     this._fireChange();
   }
 
+  /** essential_motion is written only when on, so the default stays out of the YAML. */
+  _setEssentialMotion(index, value) {
+    const updated = [...this.animations];
+    const { essential_motion: _old, ...rest } = updated[index];
+    updated[index] = value ? { ...rest, essential_motion: true } : rest;
+    this._workingAnimations = updated;
+    this._fireChange();
+  }
+
   _toggleCustomMode(index, isCustom) {
     const updated = [...this.animations];
     if (isCustom) {
-      // Convert preset to custom
+      // Convert preset to custom: raw anime.js v4 properties in params. Keeps the
+      // trigger, id, target and enabled flag (the target picker still applies).
+      const { id, trigger, target, targets, effect, enabled, essential_motion } = updated[index];
       updated[index] = {
-        trigger: updated[index].trigger || 'on_load',
-        type: 'custom',
-        animejs: {
-          targets: '#your-overlay-id',
+        ...(id !== undefined ? { id } : {}),
+        trigger: trigger || 'on_load',
+        ...(target !== undefined ? { target } : {}),
+        ...(targets !== undefined ? { targets } : {}),
+        ...(effect !== undefined ? { effect } : {}),
+        ...(enabled !== undefined ? { enabled } : {}),
+        ...(essential_motion ? { essential_motion } : {}),
+        preset: 'custom',
+        params: {
           scale: [1, 1.1, 1],
           duration: 1000,
           loop: true
@@ -2388,7 +2441,7 @@ export class LCARdSAnimationEditor extends LitElement {
       };
     } else {
       // Convert custom to preset
-      const { type, animejs, ...rest } = updated[index];
+      const { type, animejs, preset: _preset, params: _params, ...rest } = updated[index];
       updated[index] = {
         ...rest,
         preset: 'pulse',
@@ -2406,9 +2459,24 @@ export class LCARdSAnimationEditor extends LitElement {
   // needed, unlike the old plain-text-input version of this handler.
   _updateCustomConfig(index, config) {
     const updated = [...this.animations];
+    // Writes the current shape (preset: custom + params), dropping the legacy type/animejs
+    // keys. Timing keys typed into the YAML move to the top level, where the Timing &
+    // Duration / Easing Function sections edit them (and the runtime reads them).
+    const TOP_LEVEL_KEYS = ['loop', 'alternate', 'duration', 'delay', 'ease'];
+    const { type: _type, animejs: _animejs, ...rest } = updated[index];
+    const params = { ...(config && typeof config === 'object' ? config : {}) };
+    const promoted = {};
+    for (const key of TOP_LEVEL_KEYS) {
+      if (params[key] !== undefined) {
+        promoted[key] = params[key];
+        delete params[key];
+      }
+    }
     updated[index] = {
-      ...updated[index],
-      animejs: config
+      ...rest,
+      ...promoted,
+      preset: 'custom',
+      params
     };
     this._workingAnimations = updated;
     this._fireChange();
@@ -2460,7 +2528,7 @@ export class LCARdSAnimationEditor extends LitElement {
 
         <lcards-message
             type="info"
-            message="If the element list below looks empty or incomplete, click Refresh — the live preview reloads periodically and this list can go stale.">
+            message="If the element list below looks empty or incomplete, click Refresh; the live preview reloads periodically and this list can go stale.">
         </lcards-message>
         <ha-button
             outlined
@@ -2503,6 +2571,11 @@ export class LCARdSAnimationEditor extends LitElement {
   _renderSingleTarget(animation, index) {
     const options = this._getTargetOptions();
     const currentValue = animation.target || null;
+    const bgConfig = this.cardElement?.config?.background_animation;
+    const bgEffects = Array.isArray(bgConfig) ? bgConfig : (bgConfig?.effects ?? []);
+    const bgOptions = bgEffects.length > 0 || currentValue === 'background'
+      ? [{ value: 'background', label: 'Background animation' }]
+      : [];
 
     return html`
       <ha-selector
@@ -2513,6 +2586,7 @@ export class LCARdSAnimationEditor extends LitElement {
             custom_value: true,
             options: [
               { value: '_default', label: 'Card (Default)' },
+              ...bgOptions,
               ...options
             ]
           }
@@ -2522,13 +2596,49 @@ export class LCARdSAnimationEditor extends LitElement {
         @value-changed=${(e) => this._updateTarget(index, e.detail.value)}
       ></ha-selector>
 
-      <div class="help-text">
-        ${currentValue && currentValue !== '_default'
-          ? this._renderValidation(currentValue)
-          : html`<span>Leave empty to use card's default animation target</span>`
-        }
-      </div>
+      ${currentValue === 'background' ? html`
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{
+            select: {
+              mode: 'dropdown',
+              options: [
+                { value: '_all', label: '(All effects)' },
+                ...bgEffects.map((/** @type {any} */ fx, /** @type {number} */ i) => ({ value: String(i), label: `${i}: ${fx?.preset ?? '-'}` }))
+              ]
+            }
+          }}
+          .value=${animation.effect === undefined ? '_all' : String(animation.effect)}
+          .label=${'Background effect'}
+          @value-changed=${(e) => this._updateBackgroundEffect(index, e.detail.value)}
+        ></ha-selector>
+        <div class="help-text">
+          <span>Use the Custom preset with the effect's config keys in params, e.g. speed: [1, 8]</span>
+        </div>
+      ` : html`
+        <div class="help-text">
+          ${currentValue && currentValue !== '_default'
+            ? this._renderValidation(currentValue)
+            : html`<span>Leave empty to use card's default animation target</span>`
+          }
+        </div>
+      `}
     `;
+  }
+
+  /**
+   * Pick the background_animation entry a `target: background` animation drives.
+   * @param {number} index
+   * @param {string} value - an index, or '_all'
+   */
+  _updateBackgroundEffect(index, value) {
+    const animations = [...this.animations];
+    const animation = { ...animations[index] };
+    animations[index] = animation;
+    if (value === '_all' || value === '' || value === null || value === undefined) delete animation.effect;
+    else animation.effect = Number(value);
+    this._workingAnimations = animations;
+    this._fireChange();
   }
 
   /**
@@ -2910,6 +3020,7 @@ export class LCARdSAnimationEditor extends LitElement {
     } else {
       animation.target = value;
     }
+    if (animation.target !== 'background') delete animation.effect;
 
     // Remove targets array if switching from multiple mode
     delete animation.targets;
@@ -2991,7 +3102,7 @@ export class LCARdSAnimationEditor extends LitElement {
       return {
         valid: false,
         count: 0,
-        message: 'Cannot validate — card preview not available',
+        message: 'Cannot validate: card preview not available',
         type: 'warning'
       };
     }

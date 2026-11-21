@@ -52,6 +52,15 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
 
     // Create HATemplateEvaluator for Jinja2 support
     this._haEvaluator = new HATemplateEvaluator(context);
+
+    /**
+     * Optional test for a `{token}` that is not a token: one that names a data
+     * source in the legacy `{source}` form. A token it accepts is left in place for
+     * the data source phase (UnifiedTemplateEvaluator sets it); without it, mixing
+     * the legacy form with a real token emptied the reference.
+     * @type {((token: string) => boolean) | null}
+     */
+    this.deferToken = null;
   }
 
   /**
@@ -196,10 +205,13 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
     // - {entity.state}
     // - {config.name}
     // - {theme:colors.text.onDark}
-    const tokenRegex = /\{(?!\{)(?!%)(?!#)(?!datasource:)(?!ds:)([^{}]+)\}/g;
+    // (?<!\{) stops a match on the inner brace of {{ ... }}: without it, mixed
+    // content like "{entity.state} {{ states('x') }}" lost its Jinja2 expression.
+    const tokenRegex = /(?<!\{)\{(?!\{)(?!%)(?!#)(?!datasource:)(?!ds:)([^{}]+)\}/g;
 
     return content.replace(tokenRegex, (match, token) => {
       try {
+        if (this.deferToken?.(token.trim())) return match;
         const value = this._resolveToken(token.trim());
         // Handle null/undefined/empty string - return empty string for clean UI
         if (value === null || value === undefined || value === '') {
@@ -223,6 +235,8 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
   _safeEvalCode(code) {
     // Create evaluation context with safe access to required objects
     const evalContext = {
+      // Card-supplied names (e.g. sky, point) first, so the standard ones win
+      ...(this.context.extra && typeof this.context.extra === 'object' ? this.context.extra : {}),
       entity: this.context.entity,
       config: this.context.config,
       hass: this.context.hass,
@@ -263,6 +277,18 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
    * @returns {*} Resolved value
    */
   _resolveToken(token) {
+    // {theme:path}: the theme manager's resolver (references and computed tokens
+    // resolve there, as for whole-value theme: settings), else the context's theme
+    // tree. A dot-walk can't do it: "theme:colors" isn't a key.
+    if (token.startsWith('theme:')) {
+      const path = token.slice('theme:'.length).trim();
+      const resolved = window.lcards?.core?.themeManager?.getToken?.(path);
+      if (resolved !== undefined && resolved !== null) return resolved;
+      let node = this.context.theme;
+      for (const part of path.split('.')) node = node?.[part];
+      return node ?? '';
+    }
+
     const parsed = TemplateParser.parseToken(token);
     const { parts } = parsed;
 
@@ -417,17 +443,17 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
    * @returns {Array<string>} Array of entity IDs
    */
   extractDependencies(content) {
-    return /** @type {any} */ (this._haEvaluator).extractDependencies(content);
+    return TemplateParser.extractJinja2Entities(content);
   }
 
   /**
-   * Update the Home Assistant connection
+   * Update the Home Assistant connection (also the one Jinja2 renders with)
    *
    * @param {Object} newHass - New hass object
    */
   updateHass(newHass) {
     this.context.hass = newHass;
-    /** @type {any} */ (this._haEvaluator).updateHass(newHass);
+    this._haEvaluator.getContext().hass = newHass;
   }
 
   /**
@@ -474,6 +500,8 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
    */
   updateContext(newContext) {
     super.updateContext(newContext);
+    // Jinja2 renders with the same context (hass, config, variables)
+    this._haEvaluator.setContext(this.context);
 
     // Warn if critical context is missing
     if (!this.context.hass) {

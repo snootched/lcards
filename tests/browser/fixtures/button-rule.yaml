@@ -1,0 +1,21 @@
+# Card-level rule driving the card's own style (config is frozen by the harness, as in HA)
+type: custom:lcards-button
+id: rule_button
+entity: switch.demo_switch
+preset: lozenge
+style:
+  card:
+    color:
+      background: "#333366"
+rules:
+  - id: rule-button-on
+    when:
+      entity: switch.demo_switch
+      state: "on"
+    apply:
+      overlays:
+        rule_button:
+          style:
+            card:
+              color:
+                background: "#cc0000"

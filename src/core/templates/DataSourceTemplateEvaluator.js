@@ -104,6 +104,21 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
   }
 
   /**
+   * Whether a reference (`name[.path][:format]`, no braces) resolves to a value
+   * now. The token phase asks this to leave legacy `{name}` references alone.
+   *
+   * @param {string} reference
+   * @returns {boolean}
+   */
+  canResolve(reference) {
+    try {
+      return this._resolveDatasourceReference(reference) !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Resolve datasource reference to value
    *
    * Supports:
@@ -126,7 +141,8 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
 
     // Parse reference: name[.path][:format]
     const parsed = TemplateParser.parseMSDReference(reference);
-    const { source, path, format } = parsed;
+    const { source, format } = parsed;
+    let { path } = parsed;
 
     lcardsLog.trace(`[DataSourceTemplateEvaluator] Parsed: source=${source}, path=${JSON.stringify(path)}, format=${format}`);
 
@@ -146,6 +162,13 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
 
     lcardsLog.trace(`[DataSourceTemplateEvaluator] currentData:`, currentData);
 
+    // `name.processor` (the documented short form) means that processor's output,
+    // the same as `name.processing.processor`.
+    if (path?.length && !['processing', 'transformations', 'aggregations'].includes(path[0])
+        && currentData.processing && path[0] in currentData.processing) {
+      path = ['processing', ...path];
+    }
+
     // Check if accessing processor output (don't append original entity unit)
     const isProcessorOutput = path && path.length > 0 && path[0] === 'processing';
 
@@ -163,7 +186,7 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
     if (format) {
       // Explicit format spec: caller owns the output — number only, no auto-unit.
       // Analogous to {{states('sensor.temp')}} in HA Jinja2 — raw value, you control the suffix.
-      value = this._applyFormat(value, format);
+      value = this._applyFormat(value, format, currentData.metadata);
     } else if (!isProcessorOutput) {
       // No format spec: HA-native display — locale-formatted number + unit from entity metadata.
       // Analogous to haFormatEntityState() — consistent with how HA itself displays the value.
@@ -190,7 +213,7 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
 
     // No path - return base value
     if (!path || path.length === 0) {
-      return currentData.v || currentData.value;
+      return currentData.v ?? currentData.value;
     }
 
     // REFACTORED: Handle new unified processing field
@@ -237,7 +260,7 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
         const processorData = currentData.processing[processorKey];
 
         if (processorData !== undefined) {
-          lcardsLog.info(
+          lcardsLog.debug(
             `[DataSourceTemplateEvaluator] ℹ️ Found processor '${processorKey}' in new 'processing' field. ` +
             `Update template from {datasource.transformations.${processorKey}} to {datasource.processing.${processorKey}}`
           );
@@ -271,7 +294,7 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
         const processorData = currentData.processing[processorKey];
 
         if (processorData !== undefined) {
-          lcardsLog.info(
+          lcardsLog.debug(
             `[DataSourceTemplateEvaluator] ℹ️ Found processor '${processorKey}' in new 'processing' field. ` +
             `Update template from {datasource.aggregations.${processorKey}} to {datasource.processing.${processorKey}}`
           );
@@ -322,7 +345,7 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
    * @param {Object} metadata - DataSource metadata (for units)
    * @returns {string} Formatted value
    */
-  _applyFormat(value, formatSpec) {
+  _applyFormat(value, formatSpec, metadata) {
     if (typeof value !== 'number') {
       return String(value);
     }

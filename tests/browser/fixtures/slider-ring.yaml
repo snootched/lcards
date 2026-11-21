@@ -1,0 +1,6 @@
+# doc/cards/slider-card/index.md: ring gauge (light brightness)
+type: custom:lcards-slider
+entity: light.demo
+preset: ring
+control:
+  attribute: brightness

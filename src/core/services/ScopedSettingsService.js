@@ -52,6 +52,7 @@
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BaseService } from '../BaseService.js';
+import { canWriteGlobalStorage } from './storage-permissions.js';
 
 export class ScopedSettingsService extends BaseService {
 
@@ -86,7 +87,7 @@ export class ScopedSettingsService extends BaseService {
      * @param {string}   key            - Setting key (see ScopedSettingsConstants.js)
      * @param {string[]} [scopes]       - Ordered list of scopes to check.
      *                                   Valid values: ``'device'``, ``'user'``, ``'global'``
-     * @param {Function} [globalFallback] - Optional sync/async function called when
+     * @param {Function|null} [globalFallback] - Optional sync/async function called when
      *                                   all scopes return null.
      * @returns {Promise<any>} Resolved value, or null if nothing found.
      */
@@ -119,7 +120,9 @@ export class ScopedSettingsService extends BaseService {
     }
 
     /**
-     * Write a setting value to a specific scope tier.
+     * Write a setting value to a specific scope tier. The key's stored value
+     * becomes exactly `value` (an object is replaced, not merged into the old
+     * one), so writing a smaller map removes the entries it no longer has.
      *
      * @param {string} key   - Setting key.
      * @param {any}    value - Value to store (must be JSON-serialisable).
@@ -137,6 +140,11 @@ export class ScopedSettingsService extends BaseService {
                 `[ScopedSettingsService] write("${key}", scope="${scope}") — scoped_storage capability absent, downgrading to global`
             );
             scope = 'global';
+        }
+
+        if (scope === 'global' && !canWriteGlobalStorage(this._hass)) {
+            lcardsLog.warn(`[ScopedSettingsService] write("${key}", scope="global") refused: needs an admin`);
+            return false;
         }
 
         return this._writeScope(key, value, scope, integration, opts);
@@ -158,6 +166,10 @@ export class ScopedSettingsService extends BaseService {
             lcardsLog.warn(`[ScopedSettingsService] clear("${key}", scope="${scope}") — integration unavailable`);
             return false;
         }
+        if (scope === 'global' && !canWriteGlobalStorage(this._hass)) {
+            lcardsLog.warn(`[ScopedSettingsService] clear("${key}", scope="global") refused: needs an admin`);
+            return false;
+        }
         return this._clearScope(key, scope, integration, opts);
     }
 
@@ -172,7 +184,7 @@ export class ScopedSettingsService extends BaseService {
      * ("From: Global", "User override", etc.).
      *
      * @param {string}   key            - Setting key.
-     * @param {Function} [globalFallback] - Fallback for global miss.
+     * @param {Function|null} [globalFallback] - Fallback for global miss.
      * @returns {Promise<{device: any, user: any, global: any, resolved: any}>}
      */
     async readAllScopes(key, globalFallback = null, opts = {}) {
@@ -196,6 +208,53 @@ export class ScopedSettingsService extends BaseService {
         result.resolved = result.device ?? result.user ?? result.global;
 
         return result;
+    }
+
+    /**
+     * read() for several keys at once: each scope is read in one call (the device
+     * and user records whole, the global keys with readStorageMany()), then each key
+     * takes its first non-null value in `scopes` order. The connection overlay's 25
+     * settings took one call per key and scope (up to 75) at every page load, and a
+     * slow tablet logged a warning for each while Home Assistant was starting
+     * (HA-LCARS feedback, 2026-11-18). A scope that fails reads as empty (debug).
+     *
+     * @param {string[]} keys
+     * @param {string[]} [scopes]
+     * @returns {Promise<Record<string, any>>} key -> value, or null when no scope has it
+     */
+    async readMany(keys, scopes = ['device', 'user', 'global']) {
+        const integration = this._getIntegration();
+        const scopedAvailable = this._isScopedAvailable(integration);
+        const conn = this._hass?.connection;
+        /** @type {Record<string, Record<string, any>>} */
+        const byScope = {};
+        await Promise.all(scopes.map(async (scope) => {
+            try {
+                if (scope === 'device' && scopedAvailable && conn) {
+                    const deviceId = window.lcards?.core?.deviceIdentityManager?.getDeviceId();
+                    if (!deviceId) return;
+                    const r = await conn.sendMessagePromise({ type: 'lcards/storage/device/get', device_id: deviceId });
+                    byScope.device = r?.value ?? {};
+                } else if (scope === 'user' && scopedAvailable && conn) {
+                    const r = await conn.sendMessagePromise({ type: 'lcards/storage/user/get' });
+                    byScope.user = r?.value ?? {};
+                } else if (scope === 'global' && integration?.available) {
+                    byScope.global = await integration.readStorageMany(keys);
+                }
+            } catch (err) {
+                lcardsLog.debug(`[ScopedSettingsService] readMany: scope "${scope}" failed:`, err);
+            }
+        }));
+        /** @type {Record<string, any>} */
+        const out = {};
+        for (const key of keys) {
+            out[key] = null;
+            for (const scope of scopes) {
+                const value = byScope[scope]?.[key];
+                if (value !== null && value !== undefined) { out[key] = value; break; }
+            }
+        }
+        return out;
     }
 
     // -----------------------------------------------------------------------
@@ -249,8 +308,16 @@ export class ScopedSettingsService extends BaseService {
         }
     }
 
-    /** @private */
+    /**
+     * A write sets the key to exactly `value`: on a backend that advertises
+     * `scoped_storage_replace` the user/device set commands carry `replace: true`,
+     * so a smaller map (a sound override removed) replaces the stored one instead
+     * of being deep-merged into it. Older backends refuse the unknown flag, so it
+     * is only sent when advertised.
+     * @private
+     */
     async _writeScope(key, value, scope, integration, opts = {}) {
+        const replace = integration?.capabilities?.has?.('scoped_storage_replace') ? { replace: true } : {};
         try {
             switch (scope) {
                 case 'device': {
@@ -262,6 +329,7 @@ export class ScopedSettingsService extends BaseService {
                         type: 'lcards/storage/device/set',
                         device_id: deviceId,
                         data: { [key]: value },
+                        ...replace,
                     });
                     lcardsLog.debug(`[ScopedSettingsService] write device "${key}" = ${JSON.stringify(value)}`);
                     return true;
@@ -274,12 +342,14 @@ export class ScopedSettingsService extends BaseService {
                             type: 'lcards/storage/users/set',
                             user_id: opts.targetUserId,
                             data: { [key]: value },
+                            ...replace,
                         });
                         lcardsLog.debug(`[ScopedSettingsService] write user[${opts.targetUserId}] "${key}" = ${JSON.stringify(value)}`);
                     } else {
                         await this._hass.connection.sendMessagePromise({
                             type: 'lcards/storage/user/set',
                             data: { [key]: value },
+                            ...replace,
                         });
                         lcardsLog.debug(`[ScopedSettingsService] write user "${key}" = ${JSON.stringify(value)}`);
                     }

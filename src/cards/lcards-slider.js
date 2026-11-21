@@ -88,40 +88,39 @@ import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSButton } from './lcards-button.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { prefersReducedMotion } from '../utils/reduced-motion.js';
 import { UnifiedTemplateEvaluator } from '../core/templates/UnifiedTemplateEvaluator.js';
 import { escapeHtml } from '../utils/StringUtils.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
-import { haFormatStateParts, extractUnit } from '../utils/ha-entity-display.js';
+import { haFormatStateParts, extractUnit, haFormatNumber } from '../utils/ha-entity-display.js';
+import { ringNameFollowsFill, RING_FILL_TOKEN } from './slider-ring-text.js';
 
 // Import unified schema
 import { getSliderSchema } from './schemas/slider-schema.js';
+import { DEFAULT_CONTROL_ATTRIBUTE, controlSetter, controlServiceCall, controlValueFromEntity, controlRange } from './slider-control.js';
+import { createLiveSender } from './slider-live-update.js';
+import { TEXT_POSITIONS } from './schemas/schema-options.js';
+import {
+    arcPath, fractionToAngle, pointToFraction, hitsRing, fractionToValue, snapValue, scaleValues, fitTickIntervals,
+    estimateTextWidth, labelCentre, markerRadialSpan, ringMarkerSize, ringLayout, RING_MARKER_ALIGN, TICK_GAP
+} from './slider-ring-geometry.js';
 
-// Import editor (registers custom element)
-import '../editor/cards/lcards-slider-editor.js';
+/** Animation triggers the border action handlers fire; every other trigger runs on the card scope. */
+const INTERACTIVE_TRIGGERS = new Set(['on_tap', 'on_hold', 'on_double_tap', 'on_hover', 'on_leave']);
+
 
 /**
  * COLOR RESOLUTION PATTERNS:
  *
- * This card uses three different color resolution methods depending on the use case:
+ * Colours go through the LCARdSCard helpers (doc/development/colour-resolution.md),
+ * which accept a plain colour or a state map alike:
  *
- * 1. resolveStateColor() - For state-aware colors
- *    - Use when color should change based on entity state (on/off/unavailable)
- *    - Examples: tick colors, label colors, borders with state variants
- *    - Takes: {actualState, classifiedState, colorConfig, fallback}
- *    - Config structure: { default: '#color', active: '#color', inactive: '#color', unavailable: '#color' }
- *
- * 2. ColorUtils.resolveCssVariable() - For static colors
- *    - Use when color is single value, no state awareness needed
- *    - Examples: progress bars, range backgrounds, indicators
- *    - Takes: string (CSS variable or hex color)
- *    - Resolves CSS variables to actual color values
- *
- * 3. _resolveStateBorderColor() - Convenience wrapper for borders
- *    - Wraps resolveStateColor() with border-specific defaults
- *    - Use for all border color resolution (consistent fallback)
- *    - Automatically uses current entity state
+ * 1. _resolveColorValue() - concrete colour for SVG attributes (fills, strokes, borders
+ *    via _resolveBorderFill()) and Canvas2D; resolves var() against this card's element
+ * 2. _resolveEntityStateColor() - for HTML/CSS (inline styles), where var() stays live
+ * 3. _resolveStateBorderColor() - _resolveEntityStateColor() with the slider's border default
  */
 
 export class LCARdSSlider extends LCARdSButton {
@@ -152,6 +151,14 @@ export class LCARdSSlider extends LCARdSButton {
         return [
             super.styles,
             css`
+                /* Indicator lights of the Picard components (pulseStyle() in
+                 * components/sliders/picard.js): a CSS opacity animation runs on the
+                 * compositor, where SVG <animate> repainted the gauge every frame */
+                @keyframes lcards-slider-pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.3; }
+                }
+
                 :host {
                     display: block;
                     /* width: 100% omitted — see LCARdSCard base comment (overflows with card_margin).
@@ -205,11 +212,76 @@ export class LCARdSSlider extends LCARdSButton {
                 }
 
                 .text-field {
-                    font-family: var(--primary-font-family, 'Antonio', sans-serif);
+                    font-family: var(--lcars-font, var(--lcars-fallback-font, 'Antonio')), 'Antonio', sans-serif;
                     font-size: 14px;
                     line-height: 1.2;
                     color: var(--lcars-text-light, #ffffff);
                     white-space: nowrap;
+                }
+
+                /* Live drag-value badge (style.drag_badge). Left/top are written
+                 * imperatively per drag frame (see _updateDragBadgePosition()) to avoid
+                 * a full Lit re-render on every pointer-move; opacity is animated via
+                 * CSS, but transition-duration is set imperatively per show/hide call
+                 * (_showDragBadge()/_hideDragBadge()) — always 0ms on show (instant
+                 * pop-in) and only configurable on hide (release.duration/behavior). */
+                .drag-badge {
+                    position: absolute;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    white-space: nowrap;
+                    pointer-events: none;
+                    z-index: 15;
+                    padding: 2px 8px;
+                    border-radius: var(--ha-border-radius-pill, 9999px);
+                    font-family: var(--lcars-font, var(--lcars-fallback-font, 'Antonio')), 'Antonio', sans-serif;
+                    line-height: 1.2;
+                    opacity: 0;
+                    transition-property: opacity;
+                    transition-timing-function: ease-out;
+                }
+
+                .drag-badge.horizontal {
+                    transform: translate(-50%, 8px);
+                }
+
+                .drag-badge.vertical-right {
+                    transform: translate(8px, -50%);
+                }
+
+                .drag-badge.vertical-left {
+                    /* Extra clearance vs. vertical-right's 8px — picard's decorative
+                     * shell puts the thumb control closer to the track's left edge,
+                     * so 8px alone left the badge overlapping it. */
+                    transform: translate(calc(-100% - 20px), -50%);
+                }
+
+                .drag-badge.center {
+                    transform: translate(-50%, -50%);
+                }
+
+                .drag-badge.visible {
+                    opacity: 1;
+                }
+
+                /* Ring gauge pointer/keyboard overlay (component: ring). Round, so
+                 * the focus ring follows the ring; presses off the band are ignored
+                 * in _handleRingPointerDown(). */
+                .ring-overlay {
+                    position: absolute;
+                    z-index: 10;
+                    border-radius: var(--ha-border-radius-circle, 50%);
+                    cursor: pointer;
+                    touch-action: none;
+                    outline: none;
+                    -webkit-tap-highlight-color: transparent;
+                }
+
+                /* Off unless style.ring.focus_ring: most rings are used by touch. */
+                .ring-overlay.show-focus:focus-visible {
+                    outline: var(--ha-border-width-md, 2px) solid var(--primary-color, var(--lcards-orange));
+                    outline-offset: 2px;
                 }
 
                 .slider-input-overlay {
@@ -294,6 +366,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // SVG component state
         this._componentLoaded = false;
+        this._componentLoadFailed = false; // a load that failed for good (not one still waiting)
         this._componentMetadata = null;   // NEW: Component metadata (zones, features, etc.)
 
         // Render function architecture
@@ -307,7 +380,6 @@ export class LCARdSSlider extends LCARdSButton {
         this._memoizedGaugeConfig = null;
 
         // Alert mode subscription
-        this._alertModeUnsubscribe = null;
 
         // Resolved numeric values for value-based (marker) range entries
         this._resolvedMarkerValues = [];
@@ -385,6 +457,23 @@ export class LCARdSSlider extends LCARdSButton {
 
         this._isDragging = false;
         this._isHorizontalDragging = false;
+
+        // Live drag-value badge (style.drag_badge). _dragBadgeEl is a cached shadow-DOM
+        // reference (queried lazily on first use) written to imperatively on every drag
+        // tick — see _updateDragBadgePosition(). _dragBadgeZone caches the control-zone
+        // pixel box + orientation from the most recent full render (_renderWithRenderer())
+        // so per-frame position math never needs to re-run zone calculation.
+        this._dragBadgeEl = null;
+        this._dragBadgeZone = null;
+
+        // Ring gauge (component: ring): layout from the last render, the drag's
+        // previous fraction (seam guard) and the keyboard commit timer.
+        /** @type {import('./slider-ring-geometry.js').RingLayout|null} */
+        this._ringLayout = null;
+        /** @type {number|null} */
+        this._ringDragFraction = null;
+        /** @type {ReturnType<typeof setTimeout>|null} */
+        this._ringKeyCommitTimer = null;
     }
 
     /**
@@ -438,6 +527,12 @@ export class LCARdSSlider extends LCARdSButton {
     _onConfigUpdated() {
         lcardsLog.debug(`[LCARdSSlider] Config updated by CoreConfigManager, re-resolving slider style`);
 
+        // A ring preset's name is "in the fill colour": follow the user's own fill.
+        if (this.config?.component === 'ring') {
+            this.config = ringNameFollowsFill(this.config, this._rawConfig,
+                this.getThemeToken(RING_FILL_TOKEN.slice('theme:'.length)));
+        }
+
         // Re-process SVG configuration (in case config was replaced by CoreConfigManager)
         this._processSvgConfig();
 
@@ -449,6 +544,12 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Re-update entity context (now reads the correct style.track.type from merged preset)
         this._updateEntityContext();
+
+        // Evaluate templates against the merged config: preset text fields (a preset's
+        // name/state) only arrive here. LCARdSButton._onConfigUpdated does the same.
+        if (this._initialized) {
+            this._scheduleTemplateUpdate();
+        }
     }
 
     /**
@@ -484,22 +585,29 @@ export class LCARdSSlider extends LCARdSButton {
      * @protected
      */
     /**
+     * The slider resolves its own style (_resolveSliderStyleSync) and follows its
+     * entity's value itself: no button style resolve on attribute changes.
+     * @returns {boolean}
+     * @protected
+     * @override
+     */
+    _styleFollowsAttributes() {
+        return false;
+    }
+
+    /**
      * Bust the SVG memoization cache whenever the light-colour CSS variable
      * changes so subsequent renders pick up the new resolved colour instead
      * of the stale cached SVG (which may have been built before the variable
      * was set on the first render after a card reload).
      *
-     * This hook fires far more often than "this light changed": the base class's
-     * _updateLightColorVariable() (LCARdSCard.js) calls it unconditionally from
-     * _onHassChanged(), which itself runs on EVERY HASS object change reaching this
-     * card — any entity anywhere in the install, not just this card's own tracked
-     * entities — and never compares the newly-resolved colour against the previous
-     * one first. Left unguarded, this forces a full gauge SVG rebuild (bypassing the
-     * configHash memoization entirely, since _invalidateMemoization() nulls the cache
-     * directly) on basically every unrelated HASS push — e.g. a once-per-second clock
-     * sensor — landing inside nearly every value_tween animation window and causing a
-     * very consistently-timed jank. Dedupe against the last colour that actually
-     * triggered an invalidation so only genuine colour/brightness changes rebuild.
+     * This hook used to fire on every Home Assistant update (any entity in the
+     * install), which forced a full gauge SVG rebuild (bypassing the configHash
+     * memoization, since _invalidateMemoization() nulls the cache directly) on
+     * every unrelated push, e.g. a once-per-second clock sensor, landing inside
+     * nearly every value_tween window as a consistently timed jank. The base class
+     * now calls it only when the colour or brightness changed (2026-11-17); the
+     * dedupe below stays, so a brightness-only change doesn't rebuild either.
      * @protected
      * @override
      */
@@ -528,7 +636,9 @@ export class LCARdSSlider extends LCARdSButton {
             // own service call has gone out on release — overwriting _sliderValue
             // here would snap the handle back to the stale entity value out from
             // under the user's finger/pointer. See issue #392.
-            const isDragging = this._isDragging || this._isHorizontalDragging;
+            // also while a live update is settling: a light's late state echo would
+            // move the handle back to where it was two sends ago
+            const isDragging = this._isDragging || this._isHorizontalDragging || !!this._liveSender?.holding();
 
             if (!isDragging) {
                 // Get new value and set it
@@ -622,7 +732,7 @@ export class LCARdSSlider extends LCARdSButton {
     _valueTweenAvailable() {
         const tweenConfig = this.config?.value_tween;
         const enabled = tweenConfig?.enabled !== false;
-        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+        const reducedMotion = prefersReducedMotion();
         const anime = window.lcards?.anim?.anime;
         return enabled && !reducedMotion && typeof anime === 'function' && !!this.shadowRoot;
     }
@@ -650,7 +760,7 @@ export class LCARdSSlider extends LCARdSButton {
         const available = this._valueTweenAvailable();
 
         if (!available) {
-            this._valueTween?.revert();
+            this._valueTween?.cancel();
             this._valueTween = null;
             this._pendingTween = false;
             this._setPillTransitionsSuspended(false);
@@ -663,7 +773,7 @@ export class LCARdSSlider extends LCARdSButton {
         // position (not the stale `from`) so the new tween doesn't visually snap back.
         const startFrom = this._valueTween ? this._displayValue : from;
         const startMarkers = this._valueTween ? (this._displayMarkerValues || prevMarkerValues) : prevMarkerValues;
-        this._valueTween?.revert();
+        this._valueTween?.cancel();
 
         // Pills have their own CSS opacity transition (.pill { transition: opacity
         // 0.15s ease-out }), added long before this feature to softly fade a single
@@ -766,8 +876,17 @@ export class LCARdSSlider extends LCARdSButton {
      * @protected
      */
     _handleFirstUpdate(changedProperties) {
-        // NOTE: Do NOT call super._handleFirstUpdate() - it doesn't exist
-        // This is an optional hook called by parent's _onFirstUpdated()
+        // NOTE: Do NOT call super._handleFirstUpdate(): the button's version sets up
+        // button actions and sizing the slider does differently. It also runs the
+        // first template pass, so that part is repeated here.
+
+        // Templates (text fields, including a preset's name/state, and style values)
+        // whose config arrived before the first render: evaluate them now. Without this
+        // they stayed raw ("[[[return ...]]]" on screen) until the entity next changed.
+        if (this._needsInitialTemplateProcessing) {
+            this._needsInitialTemplateProcessing = false;
+            this._scheduleTemplateUpdate();
+        }
 
         // Setup auto-sizing
         this._setupAutoSizing((width, height) => {
@@ -792,29 +911,28 @@ export class LCARdSSlider extends LCARdSButton {
         }
 
         // Register for rules
-        if (this.config.id) {
-            this._registerOverlayForRules(`slider-${this.config.id}`, 'slider', ['slider']);
-        } else {
-            this._registerOverlayForRules(`slider-${this._cardGuid}`, 'slider', ['slider']);
-        }
-
-        // Subscribe to alert mode changes so hue-shifts bust the memoization cache
-        this._subscribeToAlertMode();
+        // Rules target the card by its own id (as on a button) and by its tags
+        const tags = ['slider', ...(Array.isArray(this.config.tags) ? this.config.tags : [])];
+        this._registerOverlayForRules(this.config.id || `slider-${this._cardGuid}`, 'slider', tags);
     }
 
     /**
      * Pre-evaluate Jinja2/JS templates found in the style config so that
      * synchronous SVG generation can call `_resolveTemplateValue()` and get
      * the already-resolved result from `_evaluatedStyleCache`.
+     * @returns {Promise<boolean>} whether any template result changed
      * @protected
      * @override
      */
     async _processCustomTemplates() {
+        let evaluated = false;
         if (this.config.style) {
-            await this._preEvaluateStyleTemplates(this.config.style);
+            evaluated = !!(await this._preEvaluateStyleTemplates(this.config.style, 'style'));
         }
-        await this._preEvaluateMarkerLabelTemplates();
-        await super._processCustomTemplates();
+        // A marker label or template evaluated here counts as a change, as the
+        // button's own style ones do
+        evaluated = (await this._preEvaluateMarkerLabelTemplates()) || evaluated;
+        return (await super._processCustomTemplates()) || evaluated;
     }
 
     /**
@@ -828,22 +946,26 @@ export class LCARdSSlider extends LCARdSButton {
      * Called unconditionally (not gated by a Jinja2/JS syntax pre-check like
      * `_preEvaluateStyleTemplates()`) because Token/DataSource-only label text
      * still needs to reach `processTemplate()` to resolve.
+     * @returns {Promise<boolean>} whether any label text was evaluated
      * @private
      */
     async _preEvaluateMarkerLabelTemplates() {
         const ranges = this.config.style?.ranges;
-        if (!Array.isArray(ranges)) return;
+        if (!Array.isArray(ranges)) return false;
 
-        for (const range of ranges) {
+        let evaluated = false;
+        for (const [i, range] of ranges.entries()) {
             const text = range?.label?.text;
             if (typeof text !== 'string' || !text) continue;
+            evaluated = true;
             try {
-                const result = await this.processTemplate(text, { displayFormat: 'friendly' });
+                const result = await this.processTemplate(text, { displayFormat: 'friendly', field: `style.ranges[${i}].label.text` });
                 this._evaluatedStyleCache.set(text, result);
             } catch (e) {
                 lcardsLog.warn('[LCARdSSlider] Failed to pre-evaluate marker label template:', e);
             }
         }
+        return evaluated;
     }
 
     /**
@@ -877,9 +999,16 @@ export class LCARdSSlider extends LCARdSButton {
         if (activeComponent === 'shaped') {
             this._mode = 'shaped';
         }
+        // Same for the ring component: its track is the ring arc.
+        if (activeComponent === 'ring') {
+            this._mode = 'ring';
+        }
 
         // Update control config (handles locked state based on domain)
         this._updateControlConfig();
+        // Ranges and markers are placed through control.invert_value, which is only
+        // known now (setConfig resolves the style first)
+        if (this._sliderStyle) this._resolveMarkerValues();
     }
 
     /**
@@ -887,18 +1016,24 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      * @returns {string|null}
      */
-    _getDefaultAttribute() {
-        switch (this._domain) {
-            case 'light': return 'brightness';
-            case 'cover': return 'current_position';
-            case 'fan': return 'percentage';
-            case 'climate': return 'temperature';
-            case 'media_player': return 'volume_level';
-            case 'humidifier': return 'humidity';
-            case 'water_heater': return 'temperature';
-            case 'valve': return 'current_valve_position';
-            default: return null;
+    /**
+     * style.track.margin as { top, right, bottom, left } px: one number is all
+     * four sides, an object sets each side (missing sides 0).
+     * @returns {{ top: number, right: number, bottom: number, left: number }}
+     * @private
+     */
+    _trackMargins() {
+        const m = this._sliderStyle?.track?.margin;
+        if (typeof m === 'number' || (typeof m === 'string' && m.trim() !== '' && !isNaN(Number(m)))) {
+            const n = Number(m);
+            return { top: n, right: n, bottom: n, left: n };
         }
+        const side = (/** @type {any} */ v) => Number(v) || 0;
+        return { top: side(m?.top), right: side(m?.right), bottom: side(m?.bottom), left: side(m?.left) };
+    }
+
+        _getDefaultAttribute() {
+        return DEFAULT_CONTROL_ATTRIBUTE[this._domain] ?? null;
     }
 
     /**
@@ -910,57 +1045,57 @@ export class LCARdSSlider extends LCARdSButton {
         const config = this.config;
         const entity = this._entity;
 
-        // Determine if entity is controllable based on domain
-        const controllableDomains = ['light', 'cover', 'fan', 'input_number', 'number', 'climate', 'media_player', 'humidifier', 'water_heater', 'valve'];
-        const isControllable = controllableDomains.includes(this._domain);
-
         // Value inversion (explicit only, no auto-detection)
         const invertValue = config.control?.invert_value ?? false;
 
-        // Domain-specific attribute min/max/step defaults
-        let defaultMin, defaultMax, defaultStep, defaultUnit;
-        if (this._domain === 'climate' || this._domain === 'water_heater') {
-            defaultMin = entity?.attributes?.min_temp ?? 15;
-            defaultMax = entity?.attributes?.max_temp ?? (this._domain === 'water_heater' ? 60 : 30);
-            defaultStep = entity?.attributes?.target_temp_step ?? 0.5;
-        } else if (this._domain === 'media_player') {
-            // volume_level is 0.0–1.0 internally; slider operates in 0–100 percentage space
-            defaultMin = 0;
-            defaultMax = 100;
-            defaultStep = 1;
-            defaultUnit = '%';
-        } else if (this._domain === 'humidifier') {
-            defaultMin = entity?.attributes?.min_humidity ?? 0;
-            defaultMax = entity?.attributes?.max_humidity ?? 100;
-            defaultStep = 1;
-        } else if (this._domain === 'valve') {
-            defaultMin = 0;
-            defaultMax = 100;
-            defaultStep = 1;
-        } else {
-            defaultMin = entity?.attributes?.min ?? 0;
-            defaultMax = entity?.attributes?.max ?? 100;
-            defaultStep = entity?.attributes?.step ?? 1;
+        // What the slider reads and sets: the configured attribute (templates
+        // resolved) or the domain's default. Only attributes with a Home
+        // Assistant action that sets them (slider-control.js) can be dragged;
+        // anything else is shown read-only, whatever control.locked says.
+        const rawAttribute = config.control?.attribute ?? this._getDefaultAttribute();
+        const attribute = this._resolveControlAttribute(rawAttribute);
+        const settable = !!controlSetter(this._domain, attribute);
+        if (config.control?.locked === false && !settable) {
+            lcardsLog.warn(`[LCARdSSlider] ${config.entity}: ${attribute ? `attribute '${attribute}'` : 'the state'} of a ${this._domain} entity can't be set from a slider; it is shown read-only`);
         }
+
+        // Default range: the attribute's own (brightness 0-100 %, a climate's
+        // min_temp..max_temp, a light's colour temperature in K), else the
+        // entity's min/max/step (input_number, number, sensors).
+        const attrs = entity?.attributes ?? {};
+        const range = controlRange(this._domain, attribute, attrs)
+            ?? { min: attrs.min ?? 0, max: attrs.max ?? 100, step: attrs.step ?? 1, unit: undefined };
+        const defaultUnit = range.unit;
 
         // CONTROL CONFIG: What user can set via slider input
         this._controlConfig = {
-            min: config.control?.min ?? defaultMin,
-            max: config.control?.max ?? defaultMax,
-            step: config.control?.step ?? defaultStep,
-            attribute: config.control?.attribute ?? this._getDefaultAttribute(),
-            locked: config.control?.locked ?? !isControllable,
-            invertValue: !!invertValue  // NEW: Store inversion flag
+            min: config.control?.min ?? range.min,
+            max: config.control?.max ?? range.max,
+            step: config.control?.step ?? range.step,
+            attribute: rawAttribute,
+            locked: !settable || (config.control?.locked ?? false),
+            invertValue: !!invertValue,
+            // the entity follows the handle while it is dragged: lights by default
+            liveUpdate: config.control?.live_update ?? this._domain === 'light',
+            attributeName: typeof attribute === 'string' ? attribute : null
         };
+        // a new config or entity: start the live sender afresh
+        this._liveSender?.stop();
+        this._liveSender = null;
 
         // DISPLAY CONFIG: What visual scale shows (from style.track.display)
         // Default to control range if not explicitly configured (no breaking changes)
-        // Unit preference: explicit config > HA ToParts unit (locale-correct) > unit_of_measurement fallback
+        // Unit preference: explicit config > HA ToParts unit (locale-correct) > unit_of_measurement > domain default.
+        // Uses || rather than ?? deliberately: extractUnit() returns '' (not null/undefined)
+        // whenever the entity's formatted STATE has no unit part — true for every non-numeric
+        // domain (light "on"/"off", media_player "playing", etc.) — and '' is never a meaningful
+        // unit value here, so each rung must be skipped on '' too or the chain dead-ends on the
+        // first non-numeric-state entity before ever reaching unit_of_measurement/defaultUnit.
         const haUnit = extractUnit(haFormatStateParts(this.hass, entity));
         this._displayConfig = {
             min: this._sliderStyle?.track?.display?.min ?? this._controlConfig.min,
             max: this._sliderStyle?.track?.display?.max ?? this._controlConfig.max,
-            unit: this._sliderStyle?.track?.display?.unit ?? haUnit ?? entity?.attributes?.unit_of_measurement ?? defaultUnit ?? ''
+            unit: this._sliderStyle?.track?.display?.unit || haUnit || entity?.attributes?.unit_of_measurement || defaultUnit || ''
         };
 
         lcardsLog.debug('[LCARdSSlider] Config resolved:', {
@@ -990,14 +1125,8 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Convert from entity's native range to slider value range
         // This is necessary for lights (brightness 0-255 → percentage 0-100)
-        if (this._domain === 'light' && attribute === 'brightness') {
-            // Convert brightness (0-255) to percentage (0-100)
-            // The slider operates in percentage space, regardless of control min/max
-            rawValue = (rawValue / 255) * 100;
-        } else if (this._domain === 'media_player' && attribute === 'volume_level') {
-            // Convert volume_level (0.0–1.0) to percentage (0–100)
-            rawValue = rawValue * 100;
-        }
+        // (a light's brightness 0-255 and a volume 0-1 become 0-100 %)
+        rawValue = controlValueFromEntity(this._domain, attribute, rawValue);
 
         // Apply value inversion if configured
         if (this._controlConfig.invertValue) {
@@ -1200,7 +1329,8 @@ export class LCARdSSlider extends LCARdSButton {
             if (!('value' in range)) return null; // Band range, not a marker
             const resolved = this._resolveMarkerValue(range.value, evaluator);
             lcardsLog.trace(`[LCARdSSlider] Marker range[${idx}] resolved: ${JSON.stringify(range.value)} → ${resolved}`);
-            return resolved;
+            // Configured as the entity's value; placed in the slider's (flipped) space (#411)
+            return resolved === null ? null : this._toSliderValue(resolved);
         });
         // Also resolve dynamic band range bounds (min/max templates)
         this._resolveRangeBounds(evaluator);
@@ -1224,7 +1354,13 @@ export class LCARdSSlider extends LCARdSButton {
             const resolvedMin = this._resolveMarkerValue(range.min, evaluator);
             const resolvedMax = this._resolveMarkerValue(range.max, evaluator);
             lcardsLog.trace(`[LCARdSSlider] Band range[${idx}] bounds resolved: min=${JSON.stringify(range.min)}→${resolvedMin}, max=${JSON.stringify(range.max)}→${resolvedMax}`);
-            return { min: resolvedMin, max: resolvedMax };
+            if (!this._controlConfig?.invertValue) return { min: resolvedMin, max: resolvedMax };
+            // Configured in the entity's values; placed in the slider's flipped space,
+            // where the band's ends swap (#411). An open end is the display range's end.
+            const lo = resolvedMin ?? (range.min === undefined ? this._displayConfig?.min : null);
+            const hi = resolvedMax ?? (range.max === undefined ? this._displayConfig?.max : null);
+            if (lo === null || lo === undefined || hi === null || hi === undefined) return { min: null, max: null };
+            return { min: this._toSliderValue(hi), max: this._toSliderValue(lo) };
         });
     }
 
@@ -1324,7 +1460,7 @@ export class LCARdSSlider extends LCARdSButton {
         if (colorConfig && typeof colorConfig === 'object') {
             const resolved = this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig,
                 fallback
             });
@@ -1376,6 +1512,7 @@ export class LCARdSSlider extends LCARdSButton {
                     this._componentCalculateZones = component.calculateZones || null;
 
                     this._componentLoaded = true;
+                    this._componentLoadFailed = false;
 
                     // Set orientation from component metadata
                     if (!this.config.style?.track?.orientation && component.metadata?.orientation) {
@@ -1396,6 +1533,8 @@ export class LCARdSSlider extends LCARdSButton {
 
                 // Component found but doesn't use render architecture
                 lcardsLog.error(`[LCARdSSlider] Component "${componentName}" does not use render function architecture`);
+                this._componentLoadFailed = true;
+                this._componentRenderer = null;
                 this._componentLoaded = false;
                 this._componentMetadata = null;
                 return;
@@ -1403,11 +1542,15 @@ export class LCARdSSlider extends LCARdSButton {
 
             // No component found
             lcardsLog.error(`[LCARdSSlider] Component not found: ${componentName}`);
+            this._componentLoadFailed = true;
+            this._componentRenderer = null;
             this._componentLoaded = false;
             this._componentMetadata = null;
 
         } catch (error) {
             lcardsLog.error(`[LCARdSSlider] Component load failed:`, error);
+            this._componentLoadFailed = true;
+            this._componentRenderer = null;
             this._componentLoaded = false;
             this._componentMetadata = null;
         }
@@ -1457,7 +1600,7 @@ export class LCARdSSlider extends LCARdSButton {
      * @param {Object|string|null} rawValue - Raw color config: state-object or string
      * @param {string} [fallback=''] - Returned when rawValue is falsy or resolution yields nothing
      * @returns {string} Resolved concrete color string, or fallback
-     * @private
+     * @protected
      */
     _resolveColorValue(rawValue, fallback = '') {
         const result = super._resolveColorValue(rawValue, fallback);
@@ -1467,6 +1610,16 @@ export class LCARdSSlider extends LCARdSButton {
             return this._lightColorValue || fallback;
         }
         return result;
+    }
+
+    /**
+     * Concrete fill for a border rect (an SVG attribute cannot hold var()).
+     * @param {Object|string} colorConfig - State map or colour
+     * @returns {string}
+     * @private
+     */
+    _resolveBorderFill(colorConfig) {
+        return this._resolveColorValue(colorConfig || 'theme:components.slider.border.color.default', '#000000') || '#000000';
     }
 
     /**
@@ -1527,10 +1680,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('y', '0');
             rect.setAttribute('width', String(leftSize));
             rect.setAttribute('height', String(height));
-            const leftColor = this._resolveStateBorderColor(borderConfig.left.color);
-            const resolvedColor = ColorUtils.resolveCssVariable(String(leftColor ?? ''), '#000000', this);
-            // Ensure color is valid before setting (never empty/null)
-            rect.setAttribute('fill', String(resolvedColor || '#000000'));
+            rect.setAttribute('fill', this._resolveBorderFill(borderConfig.left.color));
             fragment.appendChild(rect);
         }
 
@@ -1543,10 +1693,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('y', '0');
             rect.setAttribute('width', String(width));
             rect.setAttribute('height', String(topSize));
-            const topColor = this._resolveStateBorderColor(borderConfig.top.color);
-            const resolvedColor = ColorUtils.resolveCssVariable(String(topColor ?? ''), '#000000', this);
-            // Ensure color is valid before setting (never empty/null)
-            rect.setAttribute('fill', String(resolvedColor || '#000000'));
+            rect.setAttribute('fill', this._resolveBorderFill(borderConfig.top.color));
             fragment.appendChild(rect);
         }
 
@@ -1559,8 +1706,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('y', '0');
             rect.setAttribute('width', String(rightSize));
             rect.setAttribute('height', String(height));
-            const rightColor = this._resolveStateBorderColor(borderConfig.right.color);
-            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(rightColor ?? ''), '#000000', this) || '#000000'));
+            rect.setAttribute('fill', this._resolveBorderFill(borderConfig.right.color));
             fragment.appendChild(rect);
         }
 
@@ -1573,8 +1719,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('y', String(height - bottomSize));
             rect.setAttribute('width', String(width));
             rect.setAttribute('height', String(bottomSize));
-            const bottomColor = this._resolveStateBorderColor(borderConfig.bottom.color);
-            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(bottomColor ?? ''), '#000000', this) || '#000000'));
+            rect.setAttribute('fill', this._resolveBorderFill(borderConfig.bottom.color));
             fragment.appendChild(rect);
         }
 
@@ -1809,7 +1954,7 @@ export class LCARdSSlider extends LCARdSButton {
         if (bottomSize > 0) borderZones.bottom = { x: 0,                   y: height - bottomSize,  width: width,      height: bottomSize           };
 
         // Track zone: interior area inset by all enabled border sizes + track margins
-        const margins = this._sliderStyle?.track?.margin || { top: 0, right: 0, bottom: 0, left: 0 };
+        const margins = this._trackMargins();
         const trackZone = {
             x: leftSize   + (margins.left   || 0),
             y: topSize    + (margins.top    || 0),
@@ -1818,6 +1963,20 @@ export class LCARdSSlider extends LCARdSButton {
         };
 
         return { borderZones, trackZone };
+    }
+
+    /**
+     * Context for the component's calculateZones(): the style and config, and
+     * for the ring the room it leaves outside itself (it depends on label texts
+     * only the card can resolve).
+     * @param {number} width
+     * @param {number} height
+     * @returns {{style: any, config: any, ringOuterPad?: number}}
+     * @private
+     */
+    _zoneContext(width, height) {
+        const ctx = { style: this._sliderStyle, config: this.config };
+        return this._mode === 'ring' ? { ...ctx, ringOuterPad: this._ringOuterPad(width, height) } : ctx;
     }
 
     /**
@@ -1835,7 +1994,7 @@ export class LCARdSSlider extends LCARdSButton {
     _calculateZones(width, height) {
         const componentName = this.config.component || 'default';
         const rawZones = this._componentCalculateZones
-            ? this._componentCalculateZones(width, height, { style: this._sliderStyle, config: this.config })
+            ? this._componentCalculateZones(width, height, this._zoneContext(width, height))
             : null;
 
         if (!rawZones) {
@@ -1895,7 +2054,7 @@ export class LCARdSSlider extends LCARdSButton {
             `${window.lcards?.core?.themeManager?.getAlertMode?.() || 'green_alert'}|` +
             // Entity state + classified state bust the cache when state-aware range
             // colors resolve differently (e.g. { active: red, inactive: gray }).
-            `${this._entity?.state ?? ''}|${this._getButtonState?.() ?? ''}`; // Bust cache on alert mode change
+            `${this._entity?.state ?? ''}|${this._classifyEntityState() ?? ''}`; // Bust cache on alert mode change
 
         // Check memoization cache
         if (this._memoizedTrack && this._memoizedTrackConfig === configHash) {
@@ -1926,13 +2085,13 @@ export class LCARdSSlider extends LCARdSButton {
         const radius = trackConfig?.shape?.radius ?? 4;
         let gradientStart = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: trackConfig?.gradient?.start,
             fallback: 'theme:components.slider.pills.gradient.start'
         }) ?? ''));
         let gradientEnd = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: trackConfig?.gradient?.end,
             fallback: 'theme:components.slider.pills.gradient.end'
         }) ?? ''));
@@ -2131,14 +2290,15 @@ export class LCARdSSlider extends LCARdSButton {
             if (resolvedValue === null || resolvedValue === undefined) return;
             const valuePercent = displayRange > 0 ? (resolvedValue - displayMin) / displayRange : 0;
             const pillStyle = range.pill_style || {};
-            const fillColor = this._resolveRangeColor(range.color || 'var(--lcars-text-light, #ffffff)');
+            // one colour rule for every look: indicator.color, then the range's color
+            const fillColor = this._resolveRangeColor(range.indicator?.color || range.color || 'var(--lcars-text-light, #ffffff)');
 
             const rawLabelText = range.label?.text;
             const label = rawLabelText ? {
                 text: String(this._resolveTemplateValue(rawLabelText) ?? rawLabelText),
                 color: this._resolveColorValue(String(this._resolveStateValue({
                     actualState: this._entity?.state,
-                    classifiedState: this._getButtonState(),
+                    classifiedState: this._classifyEntityState(),
                     colorConfig: range.label.color,
                     fallback: 'theme:components.slider.indicator.label.color'
                 }) ?? '')),
@@ -2286,7 +2446,7 @@ export class LCARdSSlider extends LCARdSButton {
 
             labelsMarkup += `
                 <text ${labelTag} x="0" y="0" transform="translate(${labelX},${labelY})"
-                      font-size="${label.fontSize}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
+                      font-size="${label.fontSize}px" font-weight="400" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif"
                       fill="${label.color}"
                       text-anchor="${isVertical ? 'start' : 'middle'}" dominant-baseline="${isVertical ? 'middle' : 'auto'}">${escapeHtml(label.text)}</text>
             `;
@@ -2326,7 +2486,7 @@ export class LCARdSSlider extends LCARdSButton {
             type: indicatorConfig.type || 'line',
             color: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: indicatorConfig.color,
                 fallback: 'theme:components.slider.indicator.color'
             }) ?? '')),
@@ -2338,7 +2498,7 @@ export class LCARdSSlider extends LCARdSButton {
             borderEnabled: indicatorConfig.border?.enabled !== false,
             borderColor: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: indicatorConfig.border?.color,
                 fallback: 'theme:components.slider.indicator.border.color'
             }) ?? '')),
@@ -2460,7 +2620,7 @@ export class LCARdSSlider extends LCARdSButton {
             controlMax: this._controlConfig.max,
             displayMin: this._displayConfig.min,
             displayMax: this._displayConfig.max,
-            classifiedState: this._getButtonState?.() ?? '',
+            classifiedState: this._classifyEntityState() ?? '',
             resolvedMarkerValues: this._resolvedMarkerValues,
             resolvedRangeBounds: this._resolvedRangeBounds
         });
@@ -2494,9 +2654,11 @@ export class LCARdSSlider extends LCARdSButton {
                 const rangeColor = this._resolveRangeColor(rangeConfig.color);
                 const rangeOpacity = rangeConfig.opacity ?? 0.3;
 
-                // Calculate range position as percentage of display range
-                const startPercent = (rangeMin - min) / range;
-                const endPercent = (rangeMax - min) / range;
+                // Calculate range position as percentage of display range; with
+                // invert_fill the track runs the other way, as the fill and the
+                // markers do (the bands stayed at the unflipped end, #411)
+                const startPercent = this._invertFill ? 1 - (rangeMax - min) / range : (rangeMin - min) / range;
+                const endPercent = this._invertFill ? 1 - (rangeMin - min) / range : (rangeMax - min) / range;
 
                 if (isVertical) {
                     // Vertical: ranges stack from bottom to top
@@ -2535,10 +2697,15 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Major tick configuration
         const majorEnabled = tickConfig?.major?.enabled !== false;
-        const majorInterval = tickConfig?.major?.interval || 10; // Value units (not percentage)
+        // Value units (not percentage). Fitted to the track: majors at least 8 px apart,
+        // minors at least 2 px, however large the range (fitTickIntervals).
+        const fitted = fitTickIntervals(range, tickConfig?.major?.interval || 10, tickConfig?.minor?.interval || 2,
+            Math.max(1, Math.floor((isVertical ? trackHeight : trackWidth) / 8)),
+            Math.max(1, Math.floor((isVertical ? trackHeight : trackWidth) / 2)));
+        const majorInterval = fitted.major;
         const majorColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: tickConfig?.major?.color,
             fallback: 'theme:components.slider.gauge.tick.major.color.default'
         }) ?? ''));
@@ -2547,10 +2714,10 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Minor tick configuration
         const minorEnabled = tickConfig?.minor?.enabled !== false;
-        const minorInterval = tickConfig?.minor?.interval || 2; // Value units (not percentage)
+        const minorInterval = fitted.minor;
         const minorColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: tickConfig?.minor?.color,
             fallback: 'theme:components.slider.gauge.tick.minor.color.default'
         }) ?? ''));
@@ -2565,11 +2732,17 @@ export class LCARdSSlider extends LCARdSButton {
             ? (labelConfig?.unit ?? this._displayConfig.unit ?? '')
             : '';
         const labelPadding = labelConfig?.padding || 3; // Padding between tick and label
+        // Tick label text: as many decimals as the major interval (0.5 -> one), in the
+        // user's number format without grouping, so a fractional interval reads 1,5 / 2
+        // rather than repeating rounded values or showing floating-point noise.
+        const intervalDecimals = (String(majorInterval).split('.')[1] ?? '').length;
+        const tickLabel = (/** @type {number} */ value) => haFormatNumber(this.hass, Number(value.toFixed(intervalDecimals)),
+            { maximumFractionDigits: intervalDecimals, useGrouping: false });
 
         // Label color - state-aware resolution for tick labels
         const tickLabelColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: labelConfig?.color,
             fallback: 'theme:components.slider.gauge.label.color.default'
         }) ?? ''));
@@ -2578,7 +2751,7 @@ export class LCARdSSlider extends LCARdSButton {
         const progressConfig = gaugeConfig?.progress_bar;
         const progressColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: progressConfig?.color,
             fallback: 'theme:components.slider.gauge.progress_bar.color.default'
         }) ?? ''));
@@ -2607,7 +2780,7 @@ export class LCARdSSlider extends LCARdSButton {
         const bgPbPath = (px, py, pw, ph, isH, fill) => pbRect(bgPr, px, py, pw, ph, isH, fill);
         const progressBgColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: progressConfig?.background?.color,
             fallback: ''
         }) ?? ''));
@@ -2631,10 +2804,23 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Calculate label positioning
         // Labels need space at the bottom - use height minus label space
-        const labelFontSize = 14; // px
+        const labelFontSize = Number(labelConfig?.font_size) || 14; // px (scale.labels.font_size)
         const labelBottomMargin = 5; // px breathing room
-        const labelY = trackHeight - labelBottomMargin; // Position labels near bottom with margin (horizontal)
-        const labelX = trackWidth - labelBottomMargin; // Position labels near right edge with margin (vertical)
+        // scale.labels.align: 'end' (default) puts the labels at the far edge of the
+        // track zone, 'start' right beside the ticks (and a start-aligned bar), so a
+        // narrow gauge stays one compact column in a wide cell.
+        const labelsAtStart = labelConfig?.align === 'start';
+        const tickExtent = Math.max(Number(tickConfig?.major?.height) || 0, Number(tickConfig?.minor?.height) || 10);
+        const barConfig = gaugeConfig?.progress_bar;
+        const barExtent = barConfig?.align === 'start' && Number(barConfig?.height) > 0
+            ? (Number(barConfig?.padding?.left ?? barConfig?.padding_left) || 0) + Number(barConfig.height) : 0;
+        const besideTicks = Math.max(tickExtent, barExtent) + labelPadding;
+        const labelY = labelsAtStart
+            ? Math.min(trackHeight - labelBottomMargin, besideTicks + labelFontSize) // just under the ticks (horizontal)
+            : trackHeight - labelBottomMargin; // Position labels near bottom with margin (horizontal)
+        const labelX = labelsAtStart
+            ? besideTicks // just right of the ticks (vertical)
+            : trackWidth - labelBottomMargin; // Position labels near right edge with margin (vertical)
 
         // Calculate current value percentage. targetEnabled=false when
         // value_tween.targets.track is off — see _effectiveSliderValue() — so a
@@ -2656,7 +2842,7 @@ export class LCARdSSlider extends LCARdSButton {
                     if (positionValue > max) break;
 
                     // Display value: reversed when inverted (show high→low instead of low→high)
-                    const displayValue = this._invertFill ? (max - (positionValue - min)) : positionValue;
+                    const displayValue = this._toEntityValue(this._invertFill ? (max - (positionValue - min)) : positionValue);
 
                     // Calculate x position as percentage of track width
                     const percent = ((positionValue - min) / range) * 100;
@@ -2684,8 +2870,8 @@ export class LCARdSSlider extends LCARdSButton {
                     // Label - positioned near bottom with proper spacing
                     if (labelsEnabled && !isFirstTick) {
                         // Estimate label width (rough approximation: ~8px per digit + unit)
-                        const labelText = Math.round(displayValue) + labelUnit;
-                        const estimatedLabelWidth = labelText.length * 8;
+                        const labelText = tickLabel(displayValue) + labelUnit;
+                        const estimatedLabelWidth = labelText.length * labelFontSize * 0.57;
 
                         // Check if label would extend beyond track bounds
                         // For text-anchor="end", text extends LEFT of x position
@@ -2697,7 +2883,7 @@ export class LCARdSSlider extends LCARdSButton {
                         if (shouldRenderLabel) {
                             svg += `
                         <text x="${x}" y="${labelY}"
-                              font-size="${labelFontSize}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
+                              font-size="${labelFontSize}px" font-weight="400" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif"
                               fill="${tickLabelColor}"
                               text-anchor="end"
                               dx="${-labelPadding}" dy="0">${labelText}</text>
@@ -2778,7 +2964,7 @@ export class LCARdSSlider extends LCARdSButton {
                     if (positionValue > max) break;
 
                     // Display value: reversed when inverted (show high→low instead of low→high)
-                    const displayValue = this._invertFill ? (max - (positionValue - min)) : positionValue;
+                    const displayValue = this._toEntityValue(this._invertFill ? (max - (positionValue - min)) : positionValue);
 
                     // Calculate y position as percentage of track height
                     // INVERTED: 0% = top (max value), 100% = bottom (min value)
@@ -2808,22 +2994,24 @@ export class LCARdSSlider extends LCARdSButton {
 
                     // Draw label if enabled (to the right, below the line)
                     if (labelsEnabled && !isBottomTick) {
-                        const labelText = `${displayValue}${labelUnit}`;
-                        const labelFontSizeVertical = labelConfig?.font_size || labelFontSize;
+                        const labelText = `${tickLabel(displayValue)}${labelUnit}`;
+                        const labelFontSizeVertical = labelFontSize;
 
                         // Estimate label width and check bounds
-                        const estimatedLabelWidth = labelText.length * 8;
+                        const estimatedLabelWidth = labelText.length * labelFontSize * 0.57;
                         const labelLeftEdge = labelX - estimatedLabelWidth;
 
-                        // Ensure label doesn't extend past left edge
+                        // Ensure label doesn't extend past left edge (or, beside the ticks, the right edge)
                         // Position labels below tick line for better readability
                         const labelVerticalOffset = labelFontSizeVertical + 2; // Position below tick, not at tick
-                        const shouldRenderLabel = labelLeftEdge >= edgeClearance;
+                        const shouldRenderLabel = labelsAtStart
+                            ? labelX + estimatedLabelWidth <= trackWidth
+                            : labelLeftEdge >= edgeClearance;
 
                         if (shouldRenderLabel) {
                             svg += `
-                        <text x="${labelX}" y="${y}" font-size="${labelFontSizeVertical}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
-                              fill="${tickLabelColor}" text-anchor="end"
+                        <text x="${labelX}" y="${y}" font-size="${labelFontSizeVertical}px" font-weight="400" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif"
+                              fill="${tickLabelColor}" text-anchor="${labelsAtStart ? 'start' : 'end'}"
                               dx="0" dy="${labelVerticalOffset}">${labelText}</text>
                     `;
                         }
@@ -2979,6 +3167,9 @@ export class LCARdSSlider extends LCARdSButton {
 
         if (this._mode === 'pills') {
             this._updatePillOpacities();
+        } else if (this._mode === 'ring') {
+            const fill = this.shadowRoot.querySelector('[data-lcards-role="progress-fill"]');
+            if (fill) this._applyRingFill(fill, this._calculateValuePercent(this._sliderValue));
         }
         // Note: Gauge mode uses full re-render, no incremental updates needed
     }
@@ -3232,16 +3423,20 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     _updateFillGeometryFromValue() {
-        const el = this.shadowRoot.querySelector('[data-lcards-role="progress-fill"]');
+        const el = this.shadowRoot?.querySelector('[data-lcards-role="progress-fill"]');
         if (!el) return;
 
         const percent = this._calculateValuePercent(this._displayValue);
         const axis = el.getAttribute('data-fill-axis');
-        const sizeScale = parseFloat(el.getAttribute('data-fill-size-scale')) || 0;
-        const posBase = parseFloat(el.getAttribute('data-fill-pos-base')) || 0;
-        const posScale = parseFloat(el.getAttribute('data-fill-pos-scale')) || 0;
-        const fixedPos = parseFloat(el.getAttribute('data-fill-fixed-pos')) || 0;
-        const fixedSize = parseFloat(el.getAttribute('data-fill-fixed-size')) || 0;
+        if (axis === 'arc') {
+            this._applyRingFill(el, percent);
+            return;
+        }
+        const sizeScale = parseFloat(el.getAttribute('data-fill-size-scale') ?? '') || 0;
+        const posBase = parseFloat(el.getAttribute('data-fill-pos-base') ?? '') || 0;
+        const posScale = parseFloat(el.getAttribute('data-fill-pos-scale') ?? '') || 0;
+        const fixedPos = parseFloat(el.getAttribute('data-fill-fixed-pos') ?? '') || 0;
+        const fixedSize = parseFloat(el.getAttribute('data-fill-fixed-size') ?? '') || 0;
 
         const size = Math.max(0, sizeScale * percent);
         const pos = posBase + posScale * percent;
@@ -3253,8 +3448,8 @@ export class LCARdSSlider extends LCARdSButton {
         const height = isH ? fixedSize : size;
 
         if (el.tagName.toLowerCase() === 'path') {
-            const rStart = parseFloat(el.getAttribute('data-fill-radius-start')) || 0;
-            const rEnd = parseFloat(el.getAttribute('data-fill-radius-end')) || 0;
+            const rStart = parseFloat(el.getAttribute('data-fill-radius-start') ?? '') || 0;
+            const rEnd = parseFloat(el.getAttribute('data-fill-radius-end') ?? '') || 0;
             const corners = isH
                 ? { tl: rStart, tr: rEnd, br: rEnd, bl: rStart }
                 : { tl: rEnd, tr: rEnd, br: rStart, bl: rStart };
@@ -3276,7 +3471,7 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     _updateValueIndicatorFromValue() {
-        const el = this.shadowRoot.querySelector('[data-lcards-role="value-indicator"]');
+        const el = this.shadowRoot?.querySelector('[data-lcards-role="value-indicator"]');
         if (!el) return;
 
         const percent = this._calculateValuePercent(this._displayValue);
@@ -3298,12 +3493,12 @@ export class LCARdSSlider extends LCARdSButton {
 
         const displayMin = this._displayConfig.min;
         const displayMax = this._displayConfig.max;
-        const markerEls = this.shadowRoot.querySelectorAll(
+        const markerEls = this.shadowRoot?.querySelectorAll(
             '[data-lcards-role="range-marker"], [data-lcards-role="range-marker-label"]'
         );
 
-        markerEls.forEach((el) => {
-            const idx = parseInt(el.getAttribute('data-marker-index'), 10);
+        markerEls?.forEach((el) => {
+            const idx = parseInt(el.getAttribute('data-marker-index') ?? '', 10);
             const dv = values[idx];
             if (dv === null || dv === undefined || Number.isNaN(dv)) return;
 
@@ -3321,10 +3516,25 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     _applyTransformFromCoefficients(el, percent) {
-        const axis = el.getAttribute('data-pos-axis'); // 'x' | 'y' — which coordinate varies
-        const posBase = parseFloat(el.getAttribute('data-pos-base')) || 0;
-        const posScale = parseFloat(el.getAttribute('data-pos-scale')) || 0;
-        const fixed = parseFloat(el.getAttribute('data-pos-fixed')) || 0;
+        const axis = el.getAttribute('data-pos-axis'); // 'x' | 'y' | 'angle' — which coordinate varies
+        const posBase = parseFloat(el.getAttribute('data-pos-base') ?? '') || 0;
+        const posScale = parseFloat(el.getAttribute('data-pos-scale') ?? '') || 0;
+        if (axis === 'ring-label') {
+            // Ring marker labels: upright, pushed clear of the ring at the new angle.
+            const deg = posBase + posScale * percent;
+            const num = (/** @type {string} */ name) => parseFloat(el.getAttribute(name) ?? '') || 0;
+            const pos = labelCentre(num('data-pos-cx'), num('data-pos-cy'), num('data-ring-r0'), deg, num('data-ring-w'), num('data-ring-h'));
+            el.setAttribute('transform', `translate(${pos.x + num('data-ring-ox')},${pos.y + num('data-ring-oy')})`);
+            return;
+        }
+        if (axis === 'angle') {
+            // Ring markers rotate about the ring centre.
+            const cx = el.getAttribute('data-pos-cx') || '0';
+            const cy = el.getAttribute('data-pos-cy') || '0';
+            el.setAttribute('transform', `rotate(${posBase + posScale * percent} ${cx} ${cy})`);
+            return;
+        }
+        const fixed = parseFloat(el.getAttribute('data-pos-fixed') ?? '') || 0;
         const rotation = el.getAttribute('data-pos-rotation') || '0';
 
         const pos = posBase + posScale * percent;
@@ -3346,55 +3556,193 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
-     * Subscribe to alert mode changes via ThemeManager.
-     *
-     * ThemeManager fires its subscribers AFTER CSS variables have been written,
-     * the token resolver cache has been cleared, and currentAlertMode has been
-     * updated — so it is safe to call requestUpdate() immediately from the
-     * callback without any animation-frame deferral.
-     *
-     * Previous approach subscribed to the HelperManager's alert_mode helper
-     * state change, which fired BEFORE CSS variables were committed, causing
-     * the slider to re-render with stale resolved colours ("one mode behind").
-     * @private
+     * Alert mode changed the palette (LCARdSCard subscribes; called as soon as
+     * the CSS variables are written). Busts the memoization cache and re-renders
+     * so baked-in resolved colours (pills gradient, gauge ticks, borders) are
+     * recomputed; cheaper than the default config re-process.
+     * @param {string} newMode
+     * @protected
      */
-    _subscribeToAlertMode() {
-        this._alertModeUnsubscribe?.();
-        this._alertModeUnsubscribe = null;
-
-        const themeManager = window.lcards?.core?.themeManager;
-        if (themeManager?.subscribeToAlertMode) {
-            this._alertModeUnsubscribe = themeManager.subscribeToAlertMode(
-                this._handleAlertModeChange.bind(this)
-            );
-            lcardsLog.debug('[LCARdSSlider] Subscribed to ThemeManager alert mode changes');
-        } else {
-            lcardsLog.warn('[LCARdSSlider] ThemeManager.subscribeToAlertMode not available — alert mode subscription skipped');
-        }
+    _onAlertModeChanged(newMode) {
+        lcardsLog.debug(`[LCARdSSlider] Alert mode changed to ${newMode} — invalidating memoization cache`);
+        this._invalidateMemoization();
+        super._onAlertModeChanged(newMode);
     }
 
     /**
-     * Called when alert mode changes (red/yellow/blue/green/gray).
-     * Busts the memoization cache and triggers a full re-render so all
-     * baked-in resolved colours (pills gradient, gauge ticks, etc.) are
-     * recomputed from the updated CSS variables.
-     *
-     * This callback is invoked by ThemeManager AFTER:
-     *   - CSS variables (`--lcars-*` and `--lcards-*`) have been written
-     *   - `currentAlertMode` has been updated
-     *   - the ThemeTokenResolver cache has been cleared
-     *
-     * Because all state is already consistent when we are called, it is
-     * correct (and optimal) to call requestUpdate() immediately — no
-     * animation-frame deferral is required.
-     *
-     * @param {string} newMode
+     * Render the live drag-value badge element (style.drag_badge). Returns an empty
+     * string when disabled. Colours/size/duration are resolved here (once per real
+     * render, via the CSS-native _resolveEntityStateColor() — this is a plain HTML
+     * element, not SVG/Canvas2D, so no two-step var() resolution is needed). Position
+     * and text content are NOT set here — they're written imperatively per drag frame
+     * by _updateDragBadgePosition(), matching the pattern already used for pill-opacity
+     * updates so dragging never forces a full Lit re-render.
+     * @returns {import('lit').TemplateResult|string}
      * @private
      */
-    _handleAlertModeChange(newMode) {
-        lcardsLog.debug(`[LCARdSSlider] Alert mode changed to ${newMode} — invalidating memoization cache`);
-        this._invalidateMemoization();
-        this.requestUpdate();
+    _renderDragBadge() {
+        const cfg = this.config?.drag_badge;
+        if (!cfg?.enabled) return '';
+
+        const isVertical = this._sliderStyle?.track?.orientation === 'vertical';
+        const isPicard = (this.config.component || this._sliderStyle?.component || 'default') === 'picard';
+        // Horizontal always sits below the track (any track type). Vertical sits beside
+        // it — left for picard's decorative shell, right for every other component —
+        // matching the anchor math in _updateDragBadgePosition().
+        const isRing = this._mode === 'ring';
+        const placementClass = isRing ? 'center'
+            : isVertical ? (isPicard ? 'vertical-left' : 'vertical-right') : 'horizontal';
+        const textColor = this._resolveEntityStateColor(cfg.color, 'var(--lcars-text-light, #ffffff)');
+        const bgEnabled = cfg.background?.enabled !== false;
+        const bgColor = bgEnabled
+            ? this._resolveEntityStateColor(
+                cfg.background?.color,
+                'color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent))'
+            )
+            : 'transparent';
+        const borderEnabled = cfg.border?.enabled !== false;
+        const borderWidth = cfg.border?.width ?? 1;
+        const borderColor = borderEnabled
+            ? this._resolveEntityStateColor(cfg.border?.color, 'theme:components.slider.border.color.default')
+            : 'transparent';
+        const fontSize = cfg.font_size ?? 14;
+
+        // transition-duration is deliberately NOT set here — it's applied imperatively
+        // per action by _showDragBadge()/_hideDragBadge() so the show (opacity 0→1)
+        // is always an instant pop-in and only the release-side hide honours
+        // release.duration/behavior. A single static duration here would fade BOTH
+        // directions since it's the same CSS transition rule either way.
+        return html`
+            <div
+                class="drag-badge ${placementClass}"
+                style="
+                    color: ${textColor};
+                    background-color: ${bgColor};
+                    border: ${borderEnabled ? `${borderWidth}px solid ${borderColor}` : 'none'};
+                    font-size: ${fontSize}px;
+                "
+            ></div>
+        `;
+    }
+
+    /**
+     * Lazily query and cache the drag-badge shadow-DOM element. Re-queried whenever
+     * the cached reference is no longer attached (e.g. after a full re-render
+     * recreated the shell), so callers never need to worry about staleness.
+     * @returns {HTMLElement|null}
+     * @private
+     */
+    _getDragBadgeEl() {
+        if (this._dragBadgeEl?.isConnected) return this._dragBadgeEl;
+        this._dragBadgeEl = /** @type {HTMLElement|null} */ (this.shadowRoot?.querySelector('.drag-badge') ?? null);
+        return this._dragBadgeEl;
+    }
+
+    /**
+     * Format the live drag value for the badge, reusing the same locale-aware
+     * formatter and resolved display unit (style.track.display.unit / entity
+     * unit_of_measurement) as the rest of the card — see _updateControlConfig().
+     * @returns {string}
+     * @private
+     */
+    _formatDragBadgeValue() {
+        const cfg = this.config?.drag_badge;
+        const decimals = cfg?.format?.decimals;
+        const showUnit = cfg?.format?.show_unit !== false;
+        const unit = cfg?.format?.unit || this._displayConfig?.unit || '';
+
+        const numberOpts = Number.isFinite(decimals)
+            ? { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
+            : {};
+        const formatted = haFormatNumber(this.hass, this._toEntityValue(this._sliderValue), numberOpts);
+        return showUnit && unit ? `${formatted} ${unit}` : formatted;
+    }
+
+    /**
+     * Reposition and re-label the badge for the CURRENT this._sliderValue. Called on
+     * every drag tick (from the input/pointermove handlers) — reuses _dragBadgeZone,
+     * cached from the most recent full render, and _calculateValuePercent() (against
+     * DISPLAY range, matching how the fill/progress-bar position themselves) rather
+     * than re-deriving control-zone geometry per frame.
+     * @private
+     */
+    _updateDragBadgePosition() {
+        const cfg = this.config?.drag_badge;
+        if (!cfg?.enabled) return;
+        const zone = this._dragBadgeZone;
+        const el = this._getDragBadgeEl();
+        if (!zone || !el) return;
+
+        const percent = this._calculateValuePercent(this._sliderValue);
+        const offsetX = cfg.offset?.x ?? 0;
+        const offsetY = cfg.offset?.y ?? 0;
+
+        // Mirror the leading-edge math _generateProgressBar() uses for the fill/needle
+        // itself, so the badge always lines up with wherever the visible fill actually
+        // is — including when style.track.invert_fill flips which end it grows from.
+        // x/y anchor the SIDE of the track the CSS placement class (.horizontal /
+        // .vertical-left / .vertical-right, set in _renderDragBadge()) pushes away
+        // from — left edge for picard's left-anchored vertical badge, right edge for
+        // every other vertical component, bottom edge for horizontal (below the track).
+        let x, y;
+        if (zone.isRing) {
+            // Ring: the badge sits in the centre of the ring.
+            x = zone.x + zone.width / 2;
+            y = zone.y + zone.height / 2;
+        } else if (zone.isVertical) {
+            const p = this._invertFill ? percent : (1 - percent);
+            x = zone.isPicard ? zone.x : zone.x + zone.width;
+            y = zone.y + p * zone.height;
+        } else {
+            const p = this._invertFill ? (1 - percent) : percent;
+            x = zone.x + p * zone.width;
+            y = zone.y + zone.height;
+        }
+
+        el.style.left = `${x + offsetX}px`;
+        el.style.top = `${y + offsetY}px`;
+        el.textContent = this._formatDragBadgeValue();
+    }
+
+    /**
+     * Show the drag badge — called the moment a user drag actually starts (never for
+     * entity-driven/external value changes, which don't touch this at all). Always an
+     * instant pop-in regardless of style.drag_badge.release.* — that config only
+     * governs the hide side. transition-duration is force-reset to 0ms first because
+     * the cached element may still carry the fade duration left over from a previous
+     * release. See _hideDragBadge() for the release-side counterpart.
+     * @private
+     */
+    _showDragBadge() {
+        const cfg = this.config?.drag_badge;
+        if (!cfg?.enabled) return;
+        const el = this._getDragBadgeEl();
+        if (!el) return;
+
+        el.style.transitionDuration = '0ms';
+        el.classList.add('visible');
+        this._updateDragBadgePosition();
+    }
+
+    /**
+     * Hide the drag badge on release (pointer-up), before the entity commit.
+     * Branches on style.drag_badge.release.behavior: 'fade' sets transition-duration
+     * to release.duration so the CSS opacity transition plays; 'instant' — or
+     * prefers-reduced-motion, which always wins regardless of config — sets it to
+     * 0ms so the badge disappears on the same frame.
+     * @private
+     */
+    _hideDragBadge() {
+        const el = this._getDragBadgeEl();
+        if (!el) return;
+
+        const cfg = this.config?.drag_badge;
+        const reducedMotion = prefersReducedMotion();
+        const instant = reducedMotion || cfg?.release?.behavior === 'instant';
+        const duration = cfg?.release?.duration ?? 500;
+
+        el.style.transitionDuration = instant ? '0ms' : `${duration}ms`;
+        el.classList.remove('visible');
     }
 
     /**
@@ -3405,6 +3753,7 @@ export class LCARdSSlider extends LCARdSButton {
                 if (!this._isHorizontalDragging) {
             this._isHorizontalDragging = true;
             this._playSound('slider_drag_start');
+            this._showDragBadge();
         } else {
             this._playSound('slider_change');
         }
@@ -3435,6 +3784,8 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Update visuals immediately
         this._updateDynamicElements();
+        this._updateDragBadgePosition();
+        this._pushLiveValue();
     }
 
     /**
@@ -3444,6 +3795,7 @@ export class LCARdSSlider extends LCARdSButton {
     async _handleSliderChange(event) {
         this._playSound('slider_drag_end');
         this._isHorizontalDragging = false;
+        this._hideDragBadge();
 
         let value = parseFloat(event.target.value);
         const rawValue = value;
@@ -3474,6 +3826,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._isDragging = true;
         this._verticalSliderOverlay = event.currentTarget; // Store reference
         this._playSound('slider_drag_start');
+        this._showDragBadge();
         this._updateVerticalSliderValue(event);
 
         // Add global listeners for drag
@@ -3505,6 +3858,7 @@ export class LCARdSSlider extends LCARdSButton {
         window.removeEventListener('mouseup', this._handleVerticalSliderMouseUp);
 
         this._playSound('slider_drag_end');
+        this._hideDragBadge();
 
         // Call service to update entity
         await this._setEntityValue(this._sliderValue);
@@ -3519,6 +3873,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._isDragging = true;
         this._verticalSliderOverlay = event.currentTarget; // Store reference
         this._playSound('slider_drag_start');
+        this._showDragBadge();
         this._updateVerticalSliderValueFromTouch(event);
 
         // Add global listeners for drag
@@ -3550,6 +3905,7 @@ export class LCARdSSlider extends LCARdSButton {
         window.removeEventListener('touchend', this._handleVerticalSliderTouchEnd);
 
         this._playSound('slider_drag_end');
+        this._hideDragBadge();
 
         // Call service to update entity
         await this._setEntityValue(this._sliderValue);
@@ -3590,6 +3946,8 @@ export class LCARdSSlider extends LCARdSButton {
 
         this._sliderValue = value;
         this._updateDynamicElements();
+        this._updateDragBadgePosition();
+        this._pushLiveValue();
         this.requestUpdate();
     }
 
@@ -3620,6 +3978,8 @@ export class LCARdSSlider extends LCARdSButton {
 
         this._sliderValue = value;
         this._updateDynamicElements();
+        this._updateDragBadgePosition();
+        this._pushLiveValue();
         this.requestUpdate();
     }
 
@@ -3627,12 +3987,70 @@ export class LCARdSSlider extends LCARdSButton {
      * Set entity value via service call
      * @private
      */
+    /**
+     * The entity's value for a slider value. With control.invert_value the slider
+     * works in a flipped space (max - value + min); every number it shows (the drag
+     * badge, scale labels, aria-valuenow) is the entity's value, the number Home
+     * Assistant and other cards show (GitHub #411, 2026-11-18). Positions stay in
+     * the slider's space.
+     * @param {number} value
+     * @returns {number}
+     * @private
+     */
+    _toEntityValue(value) {
+        if (!this._controlConfig?.invertValue || !Number.isFinite(value)) return value;
+        const { min, max } = this._controlConfig;
+        return max - value + min;
+    }
+
+    /**
+     * The slider's value for an entity value (the same flip: it is its own inverse).
+     * Ranges and value markers are configured in the entity's values and placed with
+     * this (#411).
+     * @param {number} value
+     * @returns {number}
+     * @private
+     */
+    _toSliderValue(value) {
+        return this._toEntityValue(value);
+    }
+
+    /**
+     * Live update (control.live_update): while the handle is dragged, the entity
+     * follows it through the slider's live sender (slider-live-update.js), one call
+     * at a time. A light's brightness is not sent at the bottom of the range mid-drag
+     * (that would switch the light off and on again); letting go there does.
+     * @private
+     */
+    _pushLiveValue() {
+        const control = this._controlConfig;
+        if (!control?.liveUpdate || control.locked || !this.hass || !this.config.entity) return;
+        const value = this._sliderValue;
+        if (!Number.isFinite(value)) return;
+        if (this._domain === 'light' && (control.attributeName ?? 'brightness') === 'brightness' && value <= control.min) return;
+        this._liveSender ??= createLiveSender({ send: (v) => this._sendEntityValue(v) });
+        this._liveSender.push(value);
+    }
+
+    /**
+     * Set the entity to a slider value: on release, keyboard and taps. With a live
+     * update in progress, the final value goes out after the one in flight.
+     * @param {number} value
+     */
     async _setEntityValue(value) {
+        if (this._liveSender) return this._liveSender.finish(value);
+        return this._sendEntityValue(value);
+    }
+
+    /**
+     * @param {number} value
+     * @private
+     */
+    async _sendEntityValue(value) {
         if (!this.hass || !this.config.entity) return;
 
         const domain = this._domain;
         const entityId = this.config.entity;
-        const attribute = this._controlConfig.attribute;
 
         // Reverse value inversion before sending to entity
         let entityValue = value;
@@ -3642,59 +4060,13 @@ export class LCARdSSlider extends LCARdSButton {
         }
 
         try {
-            if (domain === 'light') {
-                // Convert value to 0-255 brightness range
-                // The slider value represents a percentage (e.g., min=10, max=50 means 10%-50% brightness)
-                // Convert the percentage directly to 0-255 range
-                const brightness = Math.round((entityValue / 100) * 255);
-
-                await this.hass.callService('light', 'turn_on', {
-                    entity_id: entityId,
-                    brightness: brightness
-                });
-            } else if (domain === 'cover') {
-                await this.hass.callService('cover', 'set_cover_position', {
-                    entity_id: entityId,
-                    position: entityValue
-                });
-            } else if (domain === 'fan') {
-                await this.hass.callService('fan', 'set_percentage', {
-                    entity_id: entityId,
-                    percentage: entityValue
-                });
-            } else if (domain === 'input_number' || domain === 'number') {
-                await this.hass.callService(domain, 'set_value', {
-                    entity_id: entityId,
-                    value: entityValue
-                });
-            } else if (domain === 'climate') {
-                await this.hass.callService('climate', 'set_temperature', {
-                    entity_id: entityId,
-                    temperature: entityValue
-                });
-            } else if (domain === 'media_player') {
-                await this.hass.callService('media_player', 'volume_set', {
-                    entity_id: entityId,
-                    volume_level: entityValue / 100
-                });
-            } else if (domain === 'humidifier') {
-                await this.hass.callService('humidifier', 'set_humidity', {
-                    entity_id: entityId,
-                    humidity: Math.round(entityValue)
-                });
-            } else if (domain === 'water_heater') {
-                await this.hass.callService('water_heater', 'set_temperature', {
-                    entity_id: entityId,
-                    temperature: entityValue
-                });
-            } else if (domain === 'valve') {
-                await this.hass.callService('valve', 'set_valve_position', {
-                    entity_id: entityId,
-                    position: Math.round(entityValue)
-                });
-            } else {
-                lcardsLog.warn(`[LCARdSSlider] Unsupported domain for value setting: ${domain}`);
+            const attribute = this._resolveControlAttribute(this._controlConfig.attribute);
+            const call = controlServiceCall(entityId, attribute, entityValue, this._entity?.attributes);
+            if (!call) {
+                lcardsLog.warn(`[LCARdSSlider] Can't set ${attribute ? `'${attribute}' on` : 'the state of'} ${entityId} (${domain}) from a slider`);
+                return;
             }
+            await this.callService(call.domain, call.service, call.data);
 
             lcardsLog.debug(`[LCARdSSlider] Set ${entityId} to ${entityValue} (slider: ${value}, inverted: ${this._controlConfig.invertValue})`);
 
@@ -3718,7 +4090,7 @@ export class LCARdSSlider extends LCARdSButton {
         // apply border/margin insets to them exactly once.
         const componentName = this.config.component || 'default';
         const zones = this._componentCalculateZones
-            ? this._componentCalculateZones(width, height, { style: this._sliderStyle, config: this.config })
+            ? this._componentCalculateZones(width, height, this._zoneContext(width, height))
             : null;
 
         if (!zones) {
@@ -3740,7 +4112,7 @@ export class LCARdSSlider extends LCARdSButton {
         // border/margin insets on top of the text_band offset would double-shift the track.
         const borderConfig = this._sliderStyle?.border;
         // Track margins are under style.track.margin
-        const margins = this._sliderStyle?.track?.margin || { top: 0, right: 0, bottom: 0, left: 0 };
+        const margins = this._trackMargins();
 
         // Calculate total insets (borders + margins)
         const getBorderSize = (borderDef) => borderDef?.size ?? borderDef?.width ?? 0;
@@ -3749,7 +4121,7 @@ export class LCARdSSlider extends LCARdSButton {
         const rightInset = (borderConfig?.right?.enabled ? getBorderSize(borderConfig.right) : 0) + (margins.right || 0);
         const bottomInset = (borderConfig?.bottom?.enabled ? getBorderSize(borderConfig.bottom) : 0) + (margins.bottom || 0);
 
-        if (componentName !== 'shaped' && (leftInset > 0 || topInset > 0 || rightInset > 0 || bottomInset > 0)) {
+        if (componentName !== 'shaped' && componentName !== 'ring' && (leftInset > 0 || topInset > 0 || rightInset > 0 || bottomInset > 0)) {
             // Inset zones that should not overlap borders/margins (track, progress, control, range)
             const zonesToInset = ['track', 'progress', 'control', 'range', 'solidBar'];
             zonesToInset.forEach(zoneName => {
@@ -3778,41 +4150,41 @@ export class LCARdSSlider extends LCARdSButton {
             // Progress bar color (state-aware)
             progressBar: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: this._sliderStyle?.gauge?.progress_bar?.color,
                 fallback: 'theme:components.slider.gauge.progress_bar.color.default'
             }) ?? '')),
             // Range frame and borders
             rangeBorder: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: this._sliderStyle?.range?.border?.color,
                 fallback: 'theme:components.slider.range.border.color'
             }) ?? '')),
             rangeFrame: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: this._sliderStyle?.range?.frame?.color,
                 fallback: ''
             }) ?? '')) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Solid bar (defaults to same as top border)
             solidBar: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: this._sliderStyle?.solid_bar?.color,
                 fallback: ''
             }) ?? '')) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Animation indicator
             animationIndicator: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: this._sliderStyle?.animation?.indicator?.color,
                 fallback: 'theme:components.slider.animation.indicator.color'
             }) ?? '')),
             // Shaped component: track background (the "empty" portion inside the shape)
             trackBackground: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: this._sliderStyle?.shaped?.track?.background ?? this._sliderStyle?.track?.background,
                 fallback: 'var(--lcards-gray-dark, #12121c)'
             }) ?? ''))
@@ -3851,7 +4223,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         let trackContent = '';
         // Shaped component always uses shaped fill mode — ignore this._mode for it.
-        const effectiveMode = (componentName === 'shaped') ? 'shaped' : this._mode;
+        const effectiveMode = (componentName === 'shaped' || componentName === 'ring') ? componentName : this._mode;
         if (effectiveMode === 'pills') {
             trackContent = this._generatePillsContent(trackZone, orientation);
         } else if (effectiveMode === 'gauge') {
@@ -3861,6 +4233,8 @@ export class LCARdSSlider extends LCARdSButton {
             trackContent = this._generateGaugeContent(trackZone, orientation, !!progressZone, true);
         } else if (effectiveMode === 'shaped') {
             trackContent = this._generateShapedContent(trackZone, orientation);
+        } else if (effectiveMode === 'ring') {
+            trackContent = this._generateRingContent(zones._ring);
         }
 
         // Step 6: Inject content into shell using shadow DOM queries
@@ -3920,15 +4294,18 @@ export class LCARdSSlider extends LCARdSButton {
         // both 'default' and 'picard' have one; unknown/future components get it too if they
         // declare the zone.  skipRanges=true was passed to _generateGaugeContent() above so
         // ranges are never also rendered inside the track-zone SVG.
-        if (effectiveMode === 'gauge' && rangeZone) {
+        // Picard's range column is its own strip beside the track, so its bands
+        // are drawn there in every mode (pills recolour the track only).
+        const ownRangeColumn = (this.config.component || this._sliderStyle?.component) === 'picard';
+        if ((effectiveMode === 'gauge' || ownRangeColumn) && rangeZone) {
             const rangeZoneEl = shellElement.querySelector('#range-zone');
             if (rangeZoneEl) {
-                rangeZoneEl.innerHTML = this._generateGaugeBandRanges(rangeZone.width, rangeZone.height);
+                rangeZoneEl.innerHTML = this._generateGaugeBandRanges(rangeZone.width, rangeZone.height, ownRangeColumn);
             }
         }
 
-        // Inject borders if configured
-        this._injectBordersToElement(shellElement, width, height);
+        // Inject borders if configured (not around a ring: it has no edges to frame)
+        if (effectiveMode !== 'ring') this._injectBordersToElement(shellElement, width, height);
 
         // Inject text fields if configured
         this._injectTextFieldsToElement(shellElement, width, height);
@@ -3949,6 +4326,16 @@ export class LCARdSSlider extends LCARdSButton {
         const controlZone = (effectiveMode === 'shaped' && zones._shaped) ? zones._shaped : zones.control;
         const isVertical = orientation === 'vertical';
 
+        // Cache for the imperative per-drag-frame badge position updater — see
+        // _updateDragBadgePosition(). Percent-to-pixel math there reuses this exact
+        // box because _calculateValuePercent() is already computed against the same
+        // DISPLAY range that controlZone's pixel width/height spans. isPicard drives
+        // the vertical anchor side (left for picard's decorative shell, right for
+        // every other vertical component) — see _renderDragBadge() for the matching
+        // CSS placement class.
+        const isPicard = (this.config.component || this._sliderStyle?.component || 'default') === 'picard';
+        this._dragBadgeZone = { x: controlZone.x, y: controlZone.y, width: controlZone.width, height: controlZone.height, isVertical, isPicard };
+
         // Map control range into display-range pixel space so the overlay/input
         // spans only the fraction of the track that the control range covers.
         // This keeps the thumb and the progress bar fill in exact alignment even
@@ -3960,6 +4347,14 @@ export class LCARdSSlider extends LCARdSButton {
         const ctrlStartFrac = dispRange > 0 ? Math.max(0, Math.min(1, (ctrlMin - dispMin) / dispRange)) : 0;
         const ctrlEndFrac   = dispRange > 0 ? Math.max(0, Math.min(1, (ctrlMax - dispMin) / dispRange)) : 1;
 
+        // Ring: a pointer/keyboard overlay over the ring box (angle to value).
+        if (effectiveMode === 'ring') {
+            this._ringLayout = zones._ring;
+            this._dragBadgeZone = { ...this._dragBadgeZone, isRing: true };
+            return this._renderRingOverlay(finalSvg, containerStyle);
+        }
+        this._ringLayout = null;
+
         // For vertical sliders, use a div overlay with mouse events instead of <input type="range">
         // because writing-mode breaks mouse coordinate mapping in browsers
         if (isVertical) {
@@ -3967,6 +4362,13 @@ export class LCARdSSlider extends LCARdSButton {
             // Overlay top aligns with ctrlMax, overlay bottom aligns with ctrlMin.
             const overlayTop    = controlZone.y + (1 - ctrlEndFrac)   * controlZone.height;
             const overlayHeight = (ctrlEndFrac - ctrlStartFrac) * controlZone.height;
+            // The hit area is at least 44 px wide (a finger), centred on the track and kept
+            // inside the card: a Picard track is a 10 px bar, too thin to touch on a tablet
+            // (2026-11-19, the Live Demo usability test). Only the drag area grows; the
+            // value comes from the pointer's height alone.
+            const cardWidth = Number(this._containerSize?.width) || (controlZone.x + controlZone.width);
+            const hitWidth = Math.min(Math.max(controlZone.width, 44), cardWidth);
+            const hitLeft = Math.max(0, Math.min(cardWidth - hitWidth, controlZone.x - (hitWidth - controlZone.width) / 2));
             return html`
                 <div class="slider-container" style="${containerStyle}">
                     ${unsafeHTML(finalSvg)}
@@ -3976,14 +4378,15 @@ export class LCARdSSlider extends LCARdSButton {
                             @mousedown="${this._handleVerticalSliderMouseDown}"
                             @touchstart="${this._handleVerticalSliderTouchStart}"
                             style="
-                                left: ${controlZone.x}px;
+                                left: ${hitLeft}px;
                                 top: ${overlayTop}px;
-                                width: ${controlZone.width}px;
+                                width: ${hitWidth}px;
                                 height: ${overlayHeight}px;
                                 cursor: pointer;
                             "
                         ></div>
                     ` : ''}
+                    ${!this._controlConfig.locked ? this._renderDragBadge() : ''}
                 </div>
             `;
         }
@@ -4011,6 +4414,7 @@ export class LCARdSSlider extends LCARdSButton {
                         type="range"
                         class="slider-input-overlay"
                         .value="${inputDisplayValue}"
+                        aria-valuetext="${String(this._toEntityValue(this._sliderValue))}"
                         .min="${String(ctrlMin)}"
                         .max="${String(ctrlMax)}"
                         .step="${String(this._controlConfig.step || 1)}"
@@ -4025,6 +4429,7 @@ export class LCARdSSlider extends LCARdSButton {
                         "
                     />
                 ` : ''}
+                ${!this._controlConfig.locked ? this._renderDragBadge() : ''}
             </div>
         `;
     }
@@ -4075,7 +4480,7 @@ export class LCARdSSlider extends LCARdSButton {
      * @returns {string} SVG markup (rect elements)
      * @private
      */
-    _generateGaugeBandRanges(zoneWidth, zoneHeight) {
+    _generateGaugeBandRanges(zoneWidth, zoneHeight, separated = false) {
         const ranges = this._sliderStyle?.ranges || [];
         const orientation = this._sliderStyle?.track?.orientation || 'horizontal';
         const isVertical = orientation === 'vertical';
@@ -4093,10 +4498,28 @@ export class LCARdSSlider extends LCARdSButton {
             if (rangeMin === null || rangeMin === undefined || rangeMax === null || rangeMax === undefined) return;
             const rangeColor = this._resolveRangeColor(rangeConfig.color);
             const rangeOpacity = rangeConfig.opacity ?? 0.3;
-            const startPercent = Math.max(0, (rangeMin - min) / displayRange);
-            const endPercent   = Math.min(1, (rangeMax - min) / displayRange);
+            // with invert_fill the track runs the other way, as the fill and markers do (#411)
+            const lo = this._invertFill ? 1 - (rangeMax - min) / displayRange : (rangeMin - min) / displayRange;
+            const hi = this._invertFill ? 1 - (rangeMin - min) / displayRange : (rangeMax - min) / displayRange;
+            const startPercent = Math.max(0, lo);
+            const endPercent   = Math.min(1, hi);
 
-            if (isVertical) {
+            if (isVertical && separated) {
+                // Picard: each band in a ] frame of style.range.border.color, a
+                // gap wide, so neighbouring bands are split by a line
+                const gap = Math.max(0, Number(this._sliderStyle?.range?.border?.gap ?? 2));
+                const border = this._resolveColorValue(String(this._resolveStateValue({
+                    actualState: this._entity?.state,
+                    classifiedState: this._classifyEntityState(),
+                    colorConfig: this._sliderStyle?.range?.border?.color,
+                    fallback: 'theme:components.slider.range.border.color'
+                }) ?? ''));
+                const yStart = zoneHeight * (1 - endPercent);
+                const yEnd   = zoneHeight * (1 - startPercent);
+                const h = Math.max(0, yEnd - yStart - gap);
+                svg += `<rect class="range-border" x="0" y="${yStart}" width="${zoneWidth}" height="${yEnd - yStart}" fill="${border}" />`;
+                svg += `<rect class="range-bg" x="0" y="${yStart + gap / 2}" width="${Math.max(0, zoneWidth - gap)}" height="${h}" fill="${rangeColor}" opacity="${rangeOpacity}" />`;
+            } else if (isVertical) {
                 const yStart = zoneHeight * (1 - endPercent);
                 const yEnd   = zoneHeight * (1 - startPercent);
                 svg += `<rect class="range-bg" x="0" y="${yStart}" width="${zoneWidth}" height="${yEnd - yStart}" fill="${rangeColor}" opacity="${rangeOpacity}" />`;
@@ -4140,7 +4563,7 @@ export class LCARdSSlider extends LCARdSButton {
         // Fill colour: shaped-specific override (state-aware) → gauge active colour → default
         const fillColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: this._sliderStyle?.shaped?.fill?.color,
             fallback: this._sliderStyle?.gauge?.fill?.color?.active ?? 'theme:components.slider.shaped.fill.color'
         }) ?? ''));
@@ -4252,6 +4675,541 @@ export class LCARdSSlider extends LCARdSButton {
         return svg;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Ring gauge (component: ring)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Angle (deg) of a display-range fraction on the ring, honouring invert_fill
+     * (the fill then grows from the end angle back towards the start).
+     * @param {number} p - 0..1 of the display range
+     * @param {{start:number, sweep:number}} ring
+     * @returns {number}
+     * @private
+     */
+    _ringAngle(p, ring) {
+        return fractionToAngle(this._invertFill ? 1 - p : p, ring.start, ring.sweep);
+    }
+
+    /**
+     * Ring track content: the track arc, band ranges as arcs, the value arc, the
+     * scale (ticks and labels outside the ring) and value markers with their
+     * labels. Absolute SVG coordinates (the track zone has translate(0,0)).
+     *
+     * The value arc is a stroked path with pathLength=1, so the value is just its
+     * stroke-dasharray: _applyRingFill() updates it in place on drag and during
+     * value tweens without a re-render.
+     *
+     * @param {import('./slider-ring-geometry.js').RingLayout} ring
+     * @returns {string} SVG markup
+     * @private
+     */
+    _generateRingContent(ring) {
+        if (!ring) return '';
+        const ringStyle = this._sliderStyle?.ring || {};
+        const { cx, cy, rMid, stroke, start, sweep } = ring;
+        const end = start + sweep;
+        const cap = ringStyle.cap === 'flat' ? 'butt' : 'round';
+
+        const trackColor = this._resolveRingColor(ringStyle.track?.color, 'theme:components.slider.ring.track.color');
+        const fillColor = this._resolveRingColor(ringStyle.fill?.color, 'theme:components.slider.ring.fill.color');
+
+        let svg = `<path data-lcards-role="ring-track" d="${arcPath(cx, cy, rMid, start, end)}" fill="none" stroke="${trackColor}" stroke-width="${stroke}" stroke-linecap="${cap}" />`;
+
+        // Band ranges: arcs over the track, under the value arc. Flat ends, so
+        // neighbouring ranges meet cleanly.
+        const displayMin = this._displayConfig.min;
+        const displayMax = this._displayConfig.max;
+        const displayRange = displayMax - displayMin;
+        if (displayRange > 0) {
+            (this._sliderStyle?.ranges || []).forEach((/** @type {any} */ range, /** @type {number} */ idx) => {
+                if ('value' in range) return;
+                const bounds = this._resolvedRangeBounds?.[idx];
+                const lo = Math.max(0, ((bounds?.min ?? range.min ?? displayMin) - displayMin) / displayRange);
+                const hi = Math.min(1, ((bounds?.max ?? range.max ?? displayMax) - displayMin) / displayRange);
+                if (hi <= lo) return;
+                const a0 = this._ringAngle(lo, ring);
+                const a1 = this._ringAngle(hi, ring);
+                const color = this._resolveRangeColor(range.color, '#888888');
+                svg += `<path data-lcards-role="ring-range" d="${arcPath(cx, cy, rMid, Math.min(a0, a1), Math.max(a0, a1))}" fill="none" stroke="${color}" stroke-width="${stroke}" opacity="${range.opacity ?? 1}" />`;
+            });
+        }
+
+        // Value arc, drawn from the fill origin (the end angle when inverted).
+        const percent = this._calculateValuePercent(undefined, this.config?.value_tween?.targets?.track !== false);
+        const fillD = this._invertFill ? arcPath(cx, cy, rMid, end, start) : arcPath(cx, cy, rMid, start, end);
+        svg += `<path data-lcards-role="progress-fill" data-fill-axis="arc" d="${fillD}" pathLength="1" fill="none" stroke="${fillColor}" stroke-width="${stroke}" stroke-linecap="${cap}" ${this._ringFillAttrs(percent)} />`;
+
+        svg += this._generateRingScale(ring);
+        svg += this._generateRingMarkers(ring);
+        return svg;
+    }
+
+    /**
+     * State-aware colour for ring parts (concrete, for SVG attributes).
+     * @param {any} colorConfig
+     * @param {string} fallback
+     * @returns {string}
+     * @private
+     */
+    _resolveRingColor(colorConfig, fallback) {
+        return this._resolveColorValue(String(this._resolveStateValue({
+            actualState: this._entity?.state,
+            classifiedState: this._classifyEntityState(),
+            colorConfig,
+            fallback
+        }) ?? ''));
+    }
+
+    /**
+     * style.ring.scale resolved: the same shape as style.gauge.scale. A tick
+     * level (or the labels) shows when its block is set and not `enabled: false`.
+     * @returns {{major: any, minor: any, labels: any}}
+     * @private
+     */
+    _ringScaleConfig() {
+        const scale = this._sliderStyle?.ring?.scale || {};
+        /** @param {any} t @param {number} interval @param {number} len @param {number} width @param {string} color */
+        const level = (t, interval, len, width, color) => (t && t.enabled !== false) ? {
+            interval: t.interval || interval,
+            length: t.height ?? len,
+            width: t.width ?? width,
+            color: t.color,
+            fallback: color
+        } : null;
+        const major = level(scale.tick_marks?.major, 10, 8, 2, 'theme:components.slider.gauge.tick.major.color.default');
+        const minor = level(scale.tick_marks?.minor, 2, 4, 1, 'theme:components.slider.gauge.tick.minor.color.default');
+        // Fitted to the range by count (the ring's size depends on its labels, so its
+        // arc length isn't known here): at most 60 major and 240 minor ticks.
+        const fit = fitTickIntervals(this._displayConfig.max - this._displayConfig.min,
+            scale.tick_marks?.major?.interval || 10, scale.tick_marks?.minor?.interval || 2, 60, 240);
+        if (major) major.interval = fit.major;
+        if (minor) minor.interval = fit.minor;
+        const lc = scale.labels;
+        const labels = (lc && lc.enabled !== false) ? {
+            interval: fit.major,
+            unit: lc.show_unit !== false ? (lc.unit ?? this._displayConfig.unit ?? '') : '',
+            fontSize: lc.font_size ?? 12,
+            padding: lc.padding ?? 3,
+            color: lc.color
+        } : null;
+        return { major, minor, labels };
+    }
+
+    /**
+     * Scale label texts at the label interval (shared by drawing and padding).
+     * @returns {{value:number, text:string}[]}
+     * @private
+     */
+    _ringScaleLabels() {
+        const { labels } = this._ringScaleConfig();
+        if (!labels) return [];
+        return scaleValues(this._displayConfig.min, this._displayConfig.max, labels.interval)
+            .map(v => ({ value: v, text: `${this._toEntityValue(v)}${labels.unit}` }));
+    }
+
+    /**
+     * Fraction of the display range for a value, or null when off the scale.
+     * The end of a full ring is skipped (it would sit on top of the start).
+     * @param {number} v
+     * @param {{sweep:number}} ring
+     * @returns {number|null}
+     * @private
+     */
+    _ringScaleFraction(v, ring) {
+        const dMin = this._displayConfig.min;
+        const dRange = this._displayConfig.max - dMin;
+        if (!(dRange > 0)) return null;
+        const p = (v - dMin) / dRange;
+        if (p < -1e-9 || p > 1 + 1e-9) return null;
+        if (ring.sweep >= 360 && p > 1 - 1e-9) return null;
+        return Math.max(0, Math.min(1, p));
+    }
+
+    /**
+     * How far the scale (ticks, then labels) reaches past the ring's outer
+     * edge, in px; 0 without a scale. Marker labels go beyond it.
+     * @returns {number}
+     * @private
+     */
+    _ringScaleExtent() {
+        const { major, minor, labels } = this._ringScaleConfig();
+        const tickExt = Math.max(major?.length ?? 0, minor?.length ?? 0);
+        let ext = tickExt > 0 ? TICK_GAP + tickExt : 0;
+        if (labels) {
+            const widest = Math.max(0, ...this._ringScaleLabels().map(l => estimateTextWidth(l.text, labels.fontSize)));
+            ext = TICK_GAP + tickExt + labels.padding + Math.max(widest, labels.fontSize);
+        }
+        return ext;
+    }
+
+    /**
+     * Scale ticks and labels outside the ring (style.ring.scale).
+     * @param {import('./slider-ring-geometry.js').RingLayout} ring
+     * @returns {string}
+     * @private
+     */
+    _generateRingScale(ring) {
+        const { major, minor, labels } = this._ringScaleConfig();
+        const { cx, cy, rOuter } = ring;
+        const dMin = this._displayConfig.min;
+        const dMax = this._displayConfig.max;
+        const r0 = rOuter + TICK_GAP;
+        let svg = '';
+
+        /** @param {any} lvl @param {number[]} values */
+        const ticks = (lvl, values) => {
+            if (!lvl) return '';
+            let out = `<g data-lcards-role="ring-ticks" stroke="${this._resolveRingColor(lvl.color, lvl.fallback)}" stroke-width="${lvl.width}">`;
+            for (const v of values) {
+                const p = this._ringScaleFraction(v, ring);
+                if (p === null) continue;
+                out += `<line x1="${cx}" y1="${cy - r0}" x2="${cx}" y2="${cy - r0 - lvl.length}" transform="rotate(${this._ringAngle(p, ring)} ${cx} ${cy})" />`;
+            }
+            return out + '</g>';
+        };
+        if (major) svg += ticks(major, scaleValues(dMin, dMax, major.interval));
+        if (minor) svg += ticks(minor, scaleValues(dMin, dMax, minor.interval, major?.interval));
+
+        if (labels) {
+            const color = this._resolveRingColor(labels.color, 'theme:components.slider.gauge.label.color.default');
+            const tickExt = Math.max(major?.length ?? 0, minor?.length ?? 0);
+            const rl = r0 + tickExt + labels.padding;
+            svg += `<g data-lcards-role="ring-scale-labels" fill="${color}" font-size="${labels.fontSize}px" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif" text-anchor="middle" dominant-baseline="central">`;
+            for (const { value, text } of this._ringScaleLabels()) {
+                const p = this._ringScaleFraction(value, ring);
+                if (p === null) continue;
+                const pos = labelCentre(cx, cy, rl, this._ringAngle(p, ring), estimateTextWidth(text, labels.fontSize), labels.fontSize);
+                svg += `<text x="${pos.x}" y="${pos.y}">${escapeHtml(text)}</text>`;
+            }
+            svg += '</g>';
+        }
+        return svg;
+    }
+
+    /**
+     * Value markers (ranges with a `value` key) resolved for the ring: shape,
+     * size, alignment, radial offset, colours and the label text.
+     * @param {number} stroke - Band thickness
+     * @returns {any[]}
+     * @private
+     */
+    _ringMarkerSpecs(stroke) {
+        const markersTargetEnabled = this.config?.value_tween?.targets?.markers !== false;
+        return (this._sliderStyle?.ranges || [])
+            .map((/** @type {any} */ range, /** @type {number} */ index) => ({ range, index, value: this._effectiveMarkerValue(index, markersTargetEnabled) }))
+            .filter((/** @type {any} */ m) => 'value' in m.range && m.value != null)
+            .map((/** @type {any} */ m) => {
+                const ind = m.range.indicator || {};
+                const type = ['line', 'triangle', 'round'].includes(ind.type) ? ind.type : 'line';
+                const size = ringMarkerSize(type, stroke);
+                const rawText = m.range.label?.text;
+                const labelText = rawText ? String(this._resolveTemplateValue(rawText) ?? rawText) : '';
+                return {
+                    ...m,
+                    type,
+                    align: ['start', 'center', 'end'].includes(ind.align) ? ind.align : RING_MARKER_ALIGN[type],
+                    width: ind.size?.width ?? size.width,
+                    height: type === 'round' ? (ind.size?.width ?? size.width) : (ind.size?.height ?? size.height),
+                    offset: ind.offset?.y ?? 0,
+                    // Same rule as gauge markers: a border only with border.enabled: true.
+                    border: ind.border?.enabled === true ? ind.border : null,
+                    labelText,
+                    labelFontSize: m.range.label?.font_size ?? 12
+                };
+            });
+    }
+
+    /**
+     * Value markers on the ring: a radial line (default), a triangle pointing at
+     * the band or a dot, drawn at the top and rotated into place, with angle
+     * coefficients so value tweens move them in place. Labels sit outside the
+     * marker, upright, and follow it the same way.
+     * @param {import('./slider-ring-geometry.js').RingLayout} ring
+     * @returns {string}
+     * @private
+     */
+    _generateRingMarkers(ring) {
+        const markers = this._ringMarkerSpecs(ring.stroke);
+        if (markers.length === 0) return '';
+
+        const { cx, cy, start, sweep } = ring;
+        const base = this._invertFill ? start + sweep : start;
+        const scale = this._invertFill ? -sweep : sweep;
+        const scaleExt = this._ringScaleExtent();
+        let shapes = '';
+        let labels = '';
+        for (const m of markers) {
+            const color = this._resolveRingColor(
+                m.range.indicator?.color ?? m.range.color ?? this._sliderStyle?.gauge?.marker_indicator?.color,
+                'theme:components.slider.indicator.color'
+            );
+            const p = this._calculateValuePercent(m.value);
+            const angle = base + scale * p;
+            const span = markerRadialSpan(m.type, m.align, ring, m.height, m.offset);
+            const borderAttrs = m.border
+                ? `stroke="${this._resolveRingColor(m.border.color, 'theme:components.slider.indicator.border.color')}" stroke-width="${m.border.width ?? 1}"`
+                : '';
+            let shape;
+            if (m.type === 'triangle') {
+                const back = span.tip === span.r0 ? span.r1 : span.r0;
+                shape = `<polygon points="${cx},${cy - span.tip} ${cx - m.width / 2},${cy - back} ${cx + m.width / 2},${cy - back}" fill="${color}" ${borderAttrs} />`;
+            } else if (m.type === 'round') {
+                shape = `<circle cx="${cx}" cy="${cy - (span.r0 + span.r1) / 2}" r="${m.width / 2}" fill="${color}" ${borderAttrs} />`;
+            } else {
+                shape = `<line x1="${cx}" y1="${cy - span.r0}" x2="${cx}" y2="${cy - span.r1}" stroke="${color}" stroke-width="${m.width}" />`;
+            }
+            shapes += `<g data-lcards-role="range-marker" data-marker-index="${m.index}" data-pos-axis="angle" ` +
+                `data-pos-base="${base}" data-pos-scale="${scale}" data-pos-cx="${cx}" data-pos-cy="${cy}" ` +
+                `transform="rotate(${angle} ${cx} ${cy})">${shape}</g>`;
+
+            if (m.labelText) {
+                const w = estimateTextWidth(m.labelText, m.labelFontSize);
+                const h = m.labelFontSize;
+                // Beyond the marker and the scale, so it never sits on a scale label.
+                const r0 = Math.max(span.r1, ring.rOuter + scaleExt) + 4;
+                const ox = m.range.label?.offset?.x ?? 0;
+                const oy = m.range.label?.offset?.y ?? 0;
+                const pos = labelCentre(cx, cy, r0, angle, w, h);
+                const labelColor = this._resolveRingColor(m.range.label?.color, 'theme:components.slider.indicator.label.color');
+                labels += `<text data-lcards-role="range-marker-label" data-marker-index="${m.index}" data-pos-axis="ring-label" ` +
+                    `data-pos-base="${base}" data-pos-scale="${scale}" data-pos-cx="${cx}" data-pos-cy="${cy}" ` +
+                    `data-ring-r0="${r0}" data-ring-w="${w}" data-ring-h="${h}" data-ring-ox="${ox}" data-ring-oy="${oy}" ` +
+                    `x="0" y="0" transform="translate(${pos.x + ox},${pos.y + oy})" ` +
+                    `font-size="${m.labelFontSize}px" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif" fill="${labelColor}" ` +
+                    `text-anchor="middle" dominant-baseline="central">${escapeHtml(m.labelText)}</text>`;
+            }
+        }
+        // Labels after every marker, so a label is never covered by a later marker.
+        return shapes + labels;
+    }
+
+    /**
+     * Room the ring leaves outside itself (px) for the scale, the markers and
+     * their labels; `style.ring.padding` overrides it. Estimated against the
+     * ring at full size (thickness is a share of the diameter).
+     * @param {number} width
+     * @param {number} height
+     * @returns {number}
+     * @private
+     */
+    _ringOuterPad(width, height) {
+        const configured = this._sliderStyle?.ring?.padding;
+        if (typeof configured === 'number' && configured >= 0) return configured;
+
+        const ring = ringLayout(width, height, this._sliderStyle?.ring);
+        const scaleExt = this._ringScaleExtent();
+        let pad = scaleExt;
+        for (const m of this._ringMarkerSpecs(ring.stroke)) {
+            const span = markerRadialSpan(m.type, m.align, ring, m.height, m.offset);
+            let ext = Math.max(0, span.r1 - ring.rOuter);
+            if (m.labelText) {
+                ext = Math.max(ext, scaleExt) + 4 + Math.max(estimateTextWidth(m.labelText, m.labelFontSize), m.labelFontSize);
+            }
+            pad = Math.max(pad, ext);
+        }
+        return pad > 0 ? Math.ceil(pad + 1) : 0;
+    }
+
+    /**
+     * stroke-dasharray (and visibility at zero, where a round cap would still
+     * paint a dot) for the value arc.
+     * @param {number} percent - 0..1
+     * @returns {string}
+     * @private
+     */
+    _ringFillAttrs(percent) {
+        const p = Math.max(0, Math.min(1, percent));
+        return `stroke-dasharray="${p} 1" visibility="${p <= 0.0005 ? 'hidden' : 'visible'}"`;
+    }
+
+    /**
+     * Patch the value arc for a percent (drag frames, value tweens).
+     * @param {Element} el
+     * @param {number} percent - 0..1
+     * @private
+     */
+    _applyRingFill(el, percent) {
+        const p = Math.max(0, Math.min(1, percent));
+        el.setAttribute('stroke-dasharray', `${p} 1`);
+        el.setAttribute('visibility', p <= 0.0005 ? 'hidden' : 'visible');
+    }
+
+    /**
+     * The ring's pointer/keyboard overlay over the ring box. A press counts only
+     * on the ring band (centre text and corners stay inert); dragging maps the
+     * pointer angle to a value. Locked rings render no overlay.
+     * @param {string} finalSvg
+     * @param {string} containerStyle
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRingOverlay(finalSvg, containerStyle) {
+        const ring = this._ringLayout;
+        const locked = this._controlConfig.locked;
+        const { min, max } = this._controlConfig;
+        const label = this.config?.name || this._entity?.attributes?.friendly_name || this.config?.entity || 'Slider';
+        return html`
+            <div class="slider-container" style="${containerStyle}">
+                ${unsafeHTML(finalSvg)}
+                ${!locked && ring ? html`
+                    <div
+                        class="ring-overlay ${this._sliderStyle?.ring?.focus_ring === true ? 'show-focus' : ''}"
+                        role="slider"
+                        tabindex="0"
+                        aria-label="${label}"
+                        aria-valuemin="${min}"
+                        aria-valuemax="${max}"
+                        aria-valuenow="${this._toEntityValue(this._sliderValue)}"
+                        @pointerdown="${this._handleRingPointerDown}"
+                        @pointermove="${this._handleRingPointerMove}"
+                        @pointerup="${this._handleRingPointerUp}"
+                        @pointercancel="${this._handleRingPointerUp}"
+                        @keydown="${this._handleRingKeyDown}"
+                        style="
+                            left: ${ring.box.x}px;
+                            top: ${ring.box.y}px;
+                            width: ${ring.box.width}px;
+                            height: ${ring.box.height}px;
+                        "
+                    ></div>
+                ` : ''}
+                ${!locked ? this._renderDragBadge() : ''}
+            </div>
+        `;
+    }
+
+    /**
+     * Pointer event to SVG coordinates (the overlay covers ring.box exactly).
+     * @param {PointerEvent} event
+     * @returns {{x:number, y:number}|null}
+     * @private
+     */
+    _ringPoint(event) {
+        const ring = this._ringLayout;
+        const el = /** @type {HTMLElement|null} */ (event.currentTarget);
+        if (!ring || !el) return null;
+        const rect = el.getBoundingClientRect();
+        const sx = rect.width > 0 ? ring.box.width / rect.width : 1;
+        const sy = rect.height > 0 ? ring.box.height / rect.height : 1;
+        return { x: ring.box.x + (event.clientX - rect.left) * sx, y: ring.box.y + (event.clientY - rect.top) * sy };
+    }
+
+    /**
+     * Set the slider value from a pointer position on the ring.
+     * @param {{x:number, y:number}} pt
+     * @private
+     */
+    _setRingValueFromPoint(pt) {
+        const ring = this._ringLayout;
+        if (!ring) return;
+        const fraction = pointToFraction(pt.x, pt.y, ring, this._ringDragFraction);
+        this._ringDragFraction = fraction;
+        const p = this._invertFill ? 1 - fraction : fraction;
+        this._setRingValue(fractionToValue(p, this._displayConfig, this._controlConfig));
+    }
+
+    /**
+     * Apply a new (already stepped and clamped) value while the user is
+     * interacting: the value arc, the drag badge and aria-valuenow, without a
+     * re-render.
+     * @param {number} value
+     * @private
+     */
+    _setRingValue(value) {
+        this._sliderValue = value;
+        this._updateDynamicElements();
+        this._updateDragBadgePosition();
+        this.shadowRoot?.querySelector('.ring-overlay')?.setAttribute('aria-valuenow', String(this._toEntityValue(value)));
+        if (this._isDragging) this._pushLiveValue();
+    }
+
+    /**
+     * @param {PointerEvent} event
+     * @private
+     */
+    _handleRingPointerDown(event) {
+        const ring = this._ringLayout;
+        const pt = this._ringPoint(event);
+        if (!ring || !pt) return;
+        if (event.button !== 0) return;
+        if (!hitsRing(pt.x, pt.y, ring, Math.max(8, ring.stroke * 0.5))) return;
+
+        const el = /** @type {HTMLElement} */ (event.currentTarget);
+        event.preventDefault();
+        el.focus?.({ preventScroll: true });
+        try { el.setPointerCapture?.(event.pointerId); } catch (_) { /* capture is optional */ }
+        this._isDragging = true;
+        this._ringDragFraction = null;
+        this._playSound('slider_drag_start');
+        this._showDragBadge();
+        this._setRingValueFromPoint(pt);
+    }
+
+    /**
+     * @param {PointerEvent} event
+     * @private
+     */
+    _handleRingPointerMove(event) {
+        if (!this._isDragging || !this._ringLayout) return;
+        const pt = this._ringPoint(event);
+        if (!pt) return;
+        event.preventDefault();
+        const before = this._sliderValue;
+        this._setRingValueFromPoint(pt);
+        if (this._sliderValue !== before) this._playSound('slider_change');
+    }
+
+    /**
+     * @param {PointerEvent} event
+     * @private
+     */
+    async _handleRingPointerUp(event) {
+        if (!this._isDragging || !this._ringLayout) return;
+        this._isDragging = false;
+        this._ringDragFraction = null;
+        const el = /** @type {HTMLElement} */ (event.currentTarget);
+        try { el.releasePointerCapture?.(event.pointerId); } catch (_) { /* not captured */ }
+        this._playSound('slider_drag_end');
+        this._hideDragBadge();
+        await this._setEntityValue(this._sliderValue);
+    }
+
+    /**
+     * Keyboard: arrows change by one step, Page Up/Down by ten, Home/End jump to
+     * the control range ends. A burst of key presses commits once, shortly after
+     * the last one.
+     * @param {KeyboardEvent} event
+     * @private
+     */
+    _handleRingKeyDown(event) {
+        const { min, max } = this._controlConfig;
+        const step = this._controlConfig.step || 1;
+        const current = Number.isFinite(this._sliderValue) ? this._sliderValue : min;
+        let next;
+        switch (event.key) {
+            case 'ArrowUp':
+            case 'ArrowRight': next = current + step; break;
+            case 'ArrowDown':
+            case 'ArrowLeft': next = current - step; break;
+            case 'PageUp': next = current + step * 10; break;
+            case 'PageDown': next = current - step * 10; break;
+            case 'Home': next = min; break;
+            case 'End': next = max; break;
+            default: return;
+        }
+        event.preventDefault();
+        const value = snapValue(next, min, max, step);
+        if (value === this._sliderValue) return;
+        this._playSound('slider_change');
+        this._setRingValue(value);
+        if (this._ringKeyCommitTimer) clearTimeout(this._ringKeyCommitTimer);
+        this._ringKeyCommitTimer = setTimeout(() => {
+            this._ringKeyCommitTimer = null;
+            this._setEntityValue(this._sliderValue);
+        }, 400);
+    }
+
     /**
      * Generate just the progress bar visual for separate progress zone
      * @param {Object} zoneSpec - Progress zone specification from calculateZones()
@@ -4345,7 +5303,7 @@ export class LCARdSSlider extends LCARdSButton {
         // Get fill color (state-aware progress_bar color)
         const fillColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: progressBarConfig.color,
             fallback: 'theme:components.slider.gauge.progress_bar.color.default'
         }) ?? ''));
@@ -4371,7 +5329,7 @@ export class LCARdSSlider extends LCARdSButton {
         // Optional background track — extent clamped to background.min/max (defaults to control range)
         const bgColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: progressBarConfig.background?.color,
             fallback: ''
         }) ?? ''));
@@ -4553,12 +5511,12 @@ export class LCARdSSlider extends LCARdSButton {
             const riCfg = range.indicator || {};
             // Fallback chain: per-range indicator → style.gauge.marker_indicator (preset) → component-aware defaults
             const presetMarker = gaugeConfig?.marker_indicator || {};
-            // Color lives under indicator.color for value markers, not range.color
-            // (range.color is the band fill — a separate concept)
+            // indicator.color, then the range's own color (as on pills), then the
+            // preset's marker_indicator.color
             const markerColor = this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
-                colorConfig: riCfg.color ?? presetMarker.color,
+                classifiedState: this._classifyEntityState(),
+                colorConfig: riCfg.color ?? range.color ?? presetMarker.color,
                 fallback: 'theme:components.slider.indicator.color'
             }) ?? ''));
             const markerIndicator = {
@@ -4593,7 +5551,7 @@ export class LCARdSSlider extends LCARdSButton {
                 borderEnabled: riCfg.border?.enabled   ?? presetMarker.border?.enabled   ?? false,
                 borderColor:   this._resolveColorValue(String(this._resolveStateValue({
                     actualState: this._entity?.state,
-                    classifiedState: this._getButtonState(),
+                    classifiedState: this._classifyEntityState(),
                     colorConfig: riCfg.border?.color ?? presetMarker.border?.color,
                     fallback: 'theme:components.slider.indicator.border.color'
                 }) ?? '')),
@@ -4655,7 +5613,7 @@ export class LCARdSSlider extends LCARdSButton {
                     markerIndicator.borderColor, markerIndicator.borderWidth, false,
                     markerTag
                 );
-                labelsMarkup += this._renderMarkerLabel(range, markerIndicator, mX + markerIndicator.offsetX, mY, false, posCoeffs);
+                labelsMarkup += this._renderMarkerLabel(range, markerIndicator, mX + markerIndicator.offsetX, mY, false, posCoeffs, zoneSpec.y ?? 0);
             }
         }
         return svg + labelsMarkup;
@@ -4683,10 +5641,11 @@ export class LCARdSSlider extends LCARdSButton {
      * @param {boolean} isVertical
      * @param {{index:number, axis:string, posBase:number, posScale:number, fixed:number}} posCoeffs
      *   - The marker's own linear-coefficient geometry (see _generateGaugeMarkers)
+     * @param {number} [zoneTop] - the track zone's top in the card's SVG, px (room above a flat marker)
      * @returns {string} SVG markup, or '' if no label configured
      * @private
      */
-    _renderMarkerLabel(range, markerIndicator, drawX, drawY, isVertical, posCoeffs) {
+    _renderMarkerLabel(range, markerIndicator, drawX, drawY, isVertical, posCoeffs, zoneTop = 0) {
         const rawText = range.label?.text;
         if (!rawText) return '';
 
@@ -4695,7 +5654,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         const labelColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: range.label.color,
             fallback: 'theme:components.slider.indicator.label.color'
         }) ?? ''));
@@ -4712,9 +5671,14 @@ export class LCARdSSlider extends LCARdSButton {
             labelPosBase = posCoeffs.posBase + alongOffset;
             labelFixed = posCoeffs.fixed + crossOffset;
         } else {
-            // Default: above the marker
+            // Default: above the marker, or below it when the card has no room
+            // above (a flat gauge's marker sits at the top of the track, so a
+            // caption above it would be drawn off the card).
             const alongOffset = range.label.offset?.x ?? 0;
-            const crossOffset = range.label.offset?.y ?? -(markerIndicator.height / 2 + 6);
+            const above = -(markerIndicator.height / 2 + 6);
+            const below = markerIndicator.height / 2 + 6 + labelFontSize * 0.8;
+            const roomAbove = zoneTop + drawY + above - labelFontSize * 0.8 >= 0;
+            const crossOffset = range.label.offset?.y ?? (roomAbove ? above : below);
             labelX = drawX + alongOffset;
             labelY = drawY + crossOffset;
             textAnchor = 'middle';
@@ -4729,7 +5693,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         return `
             <text ${labelTag} x="0" y="0" transform="translate(${labelX},${labelY})"
-                  font-size="${labelFontSize}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
+                  font-size="${labelFontSize}px" font-weight="400" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif"
                   fill="${labelColor}"
                   text-anchor="${textAnchor}" dominant-baseline="${isVertical ? 'middle' : 'auto'}">${escapeHtml(labelText)}</text>
         `;
@@ -4911,6 +5875,8 @@ export class LCARdSSlider extends LCARdSButton {
         }
         // Note: Gauge mode uses full re-render, no incremental updates needed
 
+        this._setupCardAnimationScope();
+
         // Only setup border interactivity for Default component
         // Advanced components (Gauge, Pills) have complex custom rendering
         const componentName = this.config.component || 'default';
@@ -4964,7 +5930,8 @@ export class LCARdSSlider extends LCARdSButton {
                     getAnimationManager,
                     elementId: `slider-${this._cardGuid}-border-${side}`,
                     entity: this.config.entity,
-                    animations: this.config.animations
+                    // The interactive ones; the rest run on the card scope (_setupCardAnimationScope)
+                    animations: (this.config.animations || []).filter(a => INTERACTIVE_TRIGGERS.has(a?.trigger))
                 }
             );
 
@@ -4977,19 +5944,49 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Card-level animations (on_load, on_show, on_entity_change, ...) on the slider
+     * container, for every component. Tap/hold/hover animations stay on the borders,
+     * which carry the actions. Re-registers when the container or the config changes.
+     * @private
+     */
+    _setupCardAnimationScope() {
+        const animationManager = this._singletons?.animationManager;
+        const container = this.shadowRoot?.querySelector('.slider-container');
+        // Not before the component has rendered (the loading placeholder has no svg)
+        if (!animationManager || !container?.querySelector('svg')) return;
+        if (container === this._animationContainer && this.config === this._animationConfig) return;
+        this._animationContainer = container;
+        this._animationConfig = this.config;
+
+        const { overlayId } = this._getAnimationSetup();
+        const animations = (this.config.animations || []).filter(a => !INTERACTIVE_TRIGGERS.has(a?.trigger));
+        animationManager.onOverlayRendered(overlayId, container, { animations }).catch(error => {
+            lcardsLog.error('[LCARdSSlider] Failed to initialize animation scope:', error);
+        });
+    }
+
+    /**
      * Cleanup on card removal
      * @override
      */
     disconnectedCallback() {
         super.disconnectedCallback();
+        this._animationContainer = null;
 
         // Cancel any in-flight value_tween animation
-        this._valueTween?.revert();
+        this._valueTween?.cancel();
         this._valueTween = null;
 
+        // A pending keyboard commit on the ring is dropped with the card.
+        if (this._ringKeyCommitTimer) {
+            clearTimeout(this._ringKeyCommitTimer);
+            this._ringKeyCommitTimer = null;
+        }
+        this._isDragging = false;
+        this._liveSender?.stop();
+        this._liveSender = null;
+
         // Unsubscribe from alert mode changes
-        this._alertModeUnsubscribe?.();
-        this._alertModeUnsubscribe = null;
 
         // Clear any pending hover restore timer
         if (this._borderHoverRestoreTimer) {
@@ -5031,17 +6028,29 @@ export class LCARdSSlider extends LCARdSButton {
         const toCssVal = val => { const n = Number(val); return Number.isFinite(n) ? `${n}px` : String(val); };
         const cssHeight    = this.config.height     ? toCssVal(this.config.height)     : '';
         const cssMinHeight = this.config.min_height ? toCssVal(this.config.min_height) : '';
+        // The host already has the configured size: a % here would apply twice (as on the button)
+        const own = (/** @type {string} */ v) => (v && !v.includes('%') ? v : '');
+        // In a layout cell of a definite height the slider follows the cell (its 56px floor
+        // would spill out of shorter rows); a min_height you set still applies.
+        const fitted = !cssMinHeight && !cssHeight && this._inFittedCell();
+        if (fitted) this.style.minHeight = '0px';
+        else if (!this.config.min_height && !this.config.height) this.style.removeProperty('min-height');
         const containerStyleParts = [];
         if (cssHeight) {
-            containerStyleParts.push(`height: ${cssHeight}`);
+            if (own(cssHeight)) containerStyleParts.push(`height: ${cssHeight}`);
             containerStyleParts.push('min-height: 0px');
-        } else if (cssMinHeight) {
+        } else if (own(cssMinHeight)) {
             containerStyleParts.push(`min-height: ${cssMinHeight}`);
+        } else if (fitted) {
+            containerStyleParts.push('min-height: 0px');
         }
         const containerStyle = containerStyleParts.join('; ');
 
-        // Check if component is loaded
-        if (this.config.component && !this._componentLoaded) {
+        // Not loaded yet (the core and its components are still starting, or a preset
+        // names the component): show the loading state. Every render before the
+        // load used to warn "No component renderer available": 10 to 30 times per
+        // page load on a slow tablet (HA-LCARS feedback, 2026-11-18).
+        if (!this._componentRenderer && !this._componentLoadFailed) {
             return html`
                 <div class="slider-container" style="${containerStyle}">
                     <div class="slider-loading">Loading component...</div>
@@ -5054,8 +6063,7 @@ export class LCARdSSlider extends LCARdSButton {
             return this._renderWithRenderer(width, height, containerStyle);
         }
 
-        // Fallback: no component loaded
-        lcardsLog.warn('[LCARdSSlider] No component renderer available, showing error');
+        // Loading failed for good (already logged as an error by _loadSliderComponent)
         return html`
             <div class="slider-container" style="${containerStyle}">
                 <div class="slider-loading">Component not loaded</div>
@@ -5082,12 +6090,27 @@ export class LCARdSSlider extends LCARdSButton {
         const isVertical = orientation === 'vertical';
         const go = this.config.grid_options || {};
 
-        if (isVertical) {
+        // Ring: a square-ish cell by default (6 columns x 4 rows in a sections view).
+        if (this._mode === 'ring') {
             return {
-                columns:     go.columns     ?? 1,
-                rows:        go.rows,
-                min_columns: go.min_columns ?? 1,
-                min_rows:    go.min_rows    ?? 1,
+                columns:     go.columns     ?? 6,
+                rows:        go.rows        ?? 4,
+                min_columns: go.min_columns ?? 2,
+                min_rows:    go.min_rows    ?? 2,
+            };
+        }
+
+        if (isVertical) {
+            // An upright slider draws to its cell height, so it needs real rows:
+            // with none, Home Assistant sizes the cell to the content ("auto") and
+            // the card collapses to a strip. One of the section's 12 columns
+            // crushes it sideways. Picard is drawn for a tall, half-width cell.
+            const picard = (this.config.component || this._sliderStyle?.component) === 'picard';
+            return {
+                columns:     go.columns     ?? (picard ? 6 : 3),
+                rows:        go.rows        ?? (picard ? 7 : 4),
+                min_columns: go.min_columns ?? 2,
+                min_rows:    go.min_rows    ?? 2,
             };
         } else {
             return {
@@ -5132,14 +6155,7 @@ export class LCARdSSlider extends LCARdSButton {
         const availableComponents = componentManager ?
             componentManager.getComponentsByType('slider') : [];
 
-        // Position options with proper labels
-        const positionEnum = [
-            'top-left', 'top-center', 'top-right',
-            'center-left', 'center', 'center-right',
-            'bottom-left', 'bottom-center', 'bottom-right',
-            'top', 'bottom', 'left', 'right',
-            'left-center', 'right-center',              // accepted aliases (deprecated)
-        ];
+        const positionEnum = [...TEXT_POSITIONS];
 
         lcardsLog.debug('[LCARdSSlider] Registering schema with presets:', availablePresets);
 
@@ -5166,12 +6182,15 @@ export class LCARdSSlider extends LCARdSButton {
      * @static
      * @override
      */
-    static getConfigElement() {
+    static async getConfigElement() {
+        // Editors load on demand (HA awaits getConfigElement), keeping them out of
+        // the bundle every dashboard loads.
+        await import('../editor/cards/lcards-slider-editor.js');
         return document.createElement('lcards-slider-editor');
     }
 }
 
-// NOTE: Card registration handled in src/lcards.js initializeCustomCard().then()
+// NOTE: Card registration handled in src/lcards-main.js initializeCustomCard().then()
 
 lcardsLog.debug('[LCARdSSlider] Card module loaded');
 

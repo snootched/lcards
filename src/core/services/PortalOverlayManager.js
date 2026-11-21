@@ -17,7 +17,10 @@
  *
  * - **SEM integration**: acquires the SEM portal, manages `setOverlayOccupied`,
  *   and applies per-slot layer configs.  Only the most-recently-shown slot
- *   with `layers` owns the SEM slots at any time (`_semOwner` tracks this).
+ *   with `layers` owns SEM effects at any time (`_semOwner` tracks this).  A
+ *   slot remembers the SEM token of each effect it applied and, when it hides
+ *   or is evicted, clears only those: an effect from `lcards.trigger_effect` on
+ *   another SEM slot, or applied later on the same one, keeps running.
  *
  * - **Card mounting**: mounts arbitrary HA card YAML via `createCardElement`,
  *   `applyCardConfig`, and `applyHassToCard` (the same utilities used by both
@@ -39,9 +42,9 @@
  *   - `'connection-overlay'` — owned by `ConnectionOverlayService`
  *   - `'ha-service'`         — owned by the `show_portal_card` HA service
  *
- * Slots are independent for DOM purposes; only SEM effect slots have a single
+ * Slots are independent for DOM purposes; only SEM effects have a single
  * owner at a time.  Calling `show(name, { layers })` evicts the previous SEM
- * owner.
+ * owner, clearing the effects that owner applied (and nothing else).
  *
  * @module core/services/PortalOverlayManager
  */
@@ -54,7 +57,7 @@ import { createCardElement, applyHassToCard, applyCardConfig } from '../../utils
 // Position → flex alignment mapping
 // ---------------------------------------------------------------------------
 
-const POSITION_MAP = {
+export const POSITION_MAP = {
     'top-left':      { alignItems: 'flex-start', justifyContent: 'flex-start' },
     'top':           { alignItems: 'flex-start', justifyContent: 'center' },
     'top-center':    { alignItems: 'flex-start', justifyContent: 'center' },
@@ -76,6 +79,20 @@ const POSITION_MAP = {
 // PortalOverlayManager
 // ---------------------------------------------------------------------------
 
+/**
+ * One open portal overlay (see show()).
+ * @typedef {object} SlotState
+ * @property {HTMLElement|null} [dismissEl]
+ * @property {HTMLElement|null} [wrapperEl]
+ * @property {HTMLElement|null} [contentContainer]
+ * @property {HTMLElement|null} [contentElement]
+ * @property {HTMLStyleElement|null} [portalStyleEl]
+ * @property {Record<string, number>|null} [semTokens] - SEM slot → token of the
+ *   effect this overlay applied there (see ScreenEffectManager.slotToken()).
+ * @property {object} [options]
+ * @property {ReturnType<typeof setTimeout>|null} [durationTimer]
+ */
+
 export class PortalOverlayManager extends BaseService {
 
     constructor() {
@@ -83,10 +100,7 @@ export class PortalOverlayManager extends BaseService {
 
         /**
          * Active named slots.
-         * Map<string, SlotState> where SlotState = {
-         *   dismissEl, wrapperEl, contentContainer, contentElement,
-         *   portalStyleEl, ownsSemSlots, options, durationTimer
-         * }
+         * @type {Map<string, SlotState>}
          */
         this._slots = new Map();
 
@@ -125,6 +139,17 @@ export class PortalOverlayManager extends BaseService {
     // -------------------------------------------------------------------------
 
     /**
+     * Whether any slot currently shows a card (which needs live HASS).
+     * @returns {boolean}
+     */
+    hasActiveContent() {
+        for (const slot of this._slots.values()) {
+            if (slot.contentElement) return true;
+        }
+        return false;
+    }
+
+    /**
      * Show a named portal overlay slot.  If the name is already active,
      * the existing slot is torn down and replaced (last-in-wins).
      *
@@ -136,14 +161,18 @@ export class PortalOverlayManager extends BaseService {
      * @param {string}   [options.position='center']  - POSITION_MAP key.
      * @param {string}   [options.width='auto']       - CSS width for contentContainer.
      * @param {string}   [options.height='auto']      - CSS height for contentContainer.
-     * @param {boolean}  [options.dismiss=true]       - Whether backdrop clicks dismiss.
+     * @param {boolean}  [options.dismiss=false]      - Whether backdrop clicks dismiss.
      * @param {Function} [options.onDismiss=null]     - Called before hide() on dismiss.
      * @param {Object}   [options.content=null]       - HA card config object to mount.
      * @param {Object}   [options.text=null]          - Text fallback config:
      *   `{ text, color, font, size, weight, transform }`.
      * @param {Object}   [options.layers=null]        - SEM layer config:
-     *   `{ backdrop, color, canvas }` — each slot: `{ preset, ...params }` or `null`.
+     *   `{ backdrop, color, canvas }`, each slot `{ preset, ...params }` or `null`
+     *   (`null` or a missing slot: this overlay leaves that SEM slot alone).
      * @param {number}   [options.duration=null]      - Auto-hide after N ms.
+     * @param {boolean}  [options.passThrough=false]  - Clicks reach the page under the
+     *   content box; the content enables pointer events on its own interactive parts
+     *   (the alert band's emblem). Use with `dismiss: false`.
      */
     show(name, options = {}) {
         const sem = window.lcards?.core?.screenEffectManager;
@@ -158,8 +187,11 @@ export class PortalOverlayManager extends BaseService {
             this._destroySlot(name, { releaseSemOccupied: false });
         }
 
-        sem.setOverlayOccupied(true);
+        // Create the portal before marking it occupied: setOverlayOccupied() can
+        // only show a portal that exists, so the first overlay without layers
+        // (the alert band) stayed hidden when the order was reversed.
         const portal = sem.portal;
+        sem.setOverlayOccupied(true);
 
         // ── Dismiss click-catcher (z:10) ──────────────────────────────────────
         const dismissEl = document.createElement('div');
@@ -187,26 +219,36 @@ export class PortalOverlayManager extends BaseService {
         // aspect-ratio (set by lcards-button) ignores the container height.
         const contentContainer = document.createElement('div');
         Object.assign(contentContainer.style, {
-            pointerEvents: 'auto',
+            pointerEvents: options.passThrough ? 'none' : 'auto',
             display:       'flex',
             alignItems:    'stretch',
         });
 
-        // ── Stylesheet: override inline aspect-ratio on mounted cards ─────────
-        // lcards-button re-applies aspect-ratio on every render; a <style> tag
-        // with !important beats inline styles without JS intervention per frame.
+        // ── Stylesheet: size the mounted card to the container ────────────────
+        // With a definite height the card fills the box, so the inline
+        // aspect-ratio lcards-button re-applies on every render is overridden (a
+        // <style> tag with !important beats inline styles without JS per frame).
+        // With `height: auto` there is no height to fill: the card keeps its
+        // aspect-ratio and takes its height from the width (the alert symbol with
+        // only a width set); `height: 100%` there collapsed it to its 40 px minimum.
         const attrName = `data-lcards-pom-content-${name}`;
+        const autoHeight = (options.height ?? 'auto') === 'auto';
         const portalStyleEl = document.createElement('style');
         portalStyleEl.dataset.lcardsPortalSlot = name;
         portalStyleEl.textContent = [
             `[${attrName}] {`,
-            '  aspect-ratio: unset !important;',
+            ...(autoHeight ? ['  height:       auto   !important;'] : [
+                '  aspect-ratio: unset !important;',
+                '  height:       100%   !important;',
+            ]),
             '  width:        100%   !important;',
-            '  height:       100%   !important;',
             '  min-height:   0      !important;',
             '}',
         ].join('\n');
-        document.head.appendChild(portalStyleEl);
+        // The portal lives inside <home-assistant>'s shadow root, which document
+        // styles don't reach: put the rule in the portal's own root.
+        const styleRoot = portal.getRootNode();
+        (styleRoot instanceof ShadowRoot ? styleRoot : document.head).appendChild(portalStyleEl);
 
         // ── Layout: position + size ───────────────────────────────────────────
         const pos = POSITION_MAP[options.position ?? 'center'] ?? POSITION_MAP['center'];
@@ -227,35 +269,34 @@ export class PortalOverlayManager extends BaseService {
         portal.appendChild(wrapperEl);
 
         // ── SEM layers ────────────────────────────────────────────────────────
-        let ownsSemSlots = false;
+        /** @type {Record<string, number>|null} */
+        let semTokens = null;
         if (options.layers && typeof options.layers === 'object') {
-            // Evict the previous SEM owner if it is a different slot.
+            // Evict the previous SEM owner if it is a different slot: its effects
+            // go, any other effect (lcards.trigger_effect) stays.
             if (this._semOwner !== null && this._semOwner !== name) {
                 const prevSlot = this._slots.get(this._semOwner);
-                if (prevSlot) prevSlot.ownsSemSlots = false;
+                if (prevSlot) this._releaseSemEffects(prevSlot, sem);
             }
-            // Clear all three SEM slots, then apply the configured ones.
-            sem.clearSlot('backdrop');
-            sem.clearSlot('color');
-            sem.clearSlot('canvas');
+            semTokens = {};
             for (const [slot, layerCfg] of Object.entries(options.layers)) {
                 if (layerCfg?.preset) {
                     const { preset, ...params } = layerCfg;
-                    sem.applySlot(slot, preset, params);
+                    if (sem.applySlot(slot, preset, params)) semTokens[slot] = sem.slotToken(slot);
                 }
             }
             this._semOwner = name;
-            ownsSemSlots = true;
         }
 
         // ── Build slot state (before async card mount) ────────────────────────
+        /** @type {SlotState} */
         const slotState = {
             dismissEl,
             wrapperEl,
             contentContainer,
             contentElement:  null,
             portalStyleEl,
-            ownsSemSlots,
+            semTokens,
             options:         { ...options },
             durationTimer:   null,
         };
@@ -320,8 +361,8 @@ export class PortalOverlayManager extends BaseService {
      * Synchronously tear down a named slot.
      *
      * @param {string}  name
-     * @param {object}  opts
-     * @param {boolean} opts.releaseSemOccupied - Call sem.setOverlayOccupied(false) if
+     * @param {object}  [opts]
+     * @param {boolean} [opts.releaseSemOccupied] - Call sem.setOverlayOccupied(false) if
      *   this is the last slot.  Pass `false` when immediately replacing the slot.
      * @private
      */
@@ -341,14 +382,9 @@ export class PortalOverlayManager extends BaseService {
             slot.contentElement = null;
         }
 
-        // Release SEM effect slots owned by this slot.
+        // Release the SEM effects this slot applied (only those still running).
         const sem = window.lcards?.core?.screenEffectManager;
-        if (sem && slot.ownsSemSlots) {
-            sem.clearSlot('backdrop');
-            sem.clearSlot('color');
-            sem.clearSlot('canvas');
-            slot.ownsSemSlots = false;
-        }
+        if (sem) this._releaseSemEffects(slot, sem);
         if (this._semOwner === name) {
             this._semOwner = null;
         }
@@ -365,6 +401,21 @@ export class PortalOverlayManager extends BaseService {
         if (releaseSemOccupied && this._slots.size === 0) {
             sem?.setOverlayOccupied(false);
         }
+    }
+
+    /**
+     * Clear the SEM effects a slot applied, each only while it still runs there
+     * (an effect applied after it on the same SEM slot is left alone).
+     *
+     * @param {SlotState} slot
+     * @param {{ clearSlotIfToken: (slot: string, token: number) => boolean }} sem
+     * @private
+     */
+    _releaseSemEffects(slot, sem) {
+        for (const [semSlot, token] of Object.entries(slot.semTokens ?? {})) {
+            sem.clearSlotIfToken(semSlot, token);
+        }
+        slot.semTokens = null;
     }
 
     // -------------------------------------------------------------------------

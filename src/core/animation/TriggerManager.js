@@ -2,24 +2,17 @@
  * TriggerManager - Handles animation triggers for a single overlay
  *
  * Responsibilities:
- * - Register animations with specific triggers
- * - Handle non-interactive triggers (on_load, on_datasource_change, etc.)
- * - Coordinate with AnimationManager for animation execution
+ * - Register an overlay's animations by trigger
+ * - Set up the one reactive trigger it owns, on_entity_change: entity
+ *   subscriptions, and `while` animations that start and stop with a condition
  * - Cleanup resources on destroy
  *
- * NOTE: Interactive triggers (on_tap, on_hold, on_hover, on_double_tap) are now
- * handled by ActionHelpers.js to leverage its proven event handling and button-card
- * bridge pattern. TriggerManager only handles reactive/automatic triggers.
- *
- * Supported Triggers:
- * - on_load: Execute when overlay is first rendered (Phase 1) ✅
- * - on_datasource_change: Execute when datasource value changes (Phase 2) 🔮
- * - on_state_change: Execute when HA entity state changes (Phase 2) 🔮
- * - on_redraw: Execute when overlay re-renders (Future) 🔮
- * - on_exit: Execute when overlay is removed (Future) 🔮
- *
- * Interactive triggers handled by ActionHelpers:
- * - on_tap, on_hold, on_hover, on_double_tap ➡️ See ActionHelpers.js
+ * Not handled here:
+ * - on_load: fired by AnimationManager when the overlay is rendered
+ * - on_show: fired by AnimationManager each time the card is attached
+ * - on_tap, on_hold, on_hover, on_leave, on_double_tap: the card's own event
+ *   handlers (ActionHelpers / the card's action setup) play them
+ * - on_datasource_change, on_state_change: accepted, no listener (logged)
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -42,6 +35,8 @@ export class TriggerManager {
 
     /** @type {boolean} Set by AnimationManager when recreating a scope that had active while-animations */
     this._isRecreation = false;
+    /** The scope is being rebuilt (a re-render), not set up for the first time */
+    this._isRebuild = false;
 
     /** @type {boolean} Set to true in destroy() — guards deferred callbacks after teardown */
     this._destroyed = false;
@@ -125,6 +120,10 @@ export class TriggerManager {
     }
 
     switch(trigger) {
+      case 'on_show':
+        // Fired by AnimationManager each time the card is attached (_maybeFireOnShow)
+        break;
+
       case 'on_datasource_change':
         // Handled by AnimationManager via DataSourceManager subscriptions
         lcardsLog.debug(`[TriggerManager] on_datasource_change will be handled by AnimationManager`);
@@ -221,12 +220,21 @@ export class TriggerManager {
             } else if (isActive) {
               this._whileActiveAnims.delete(anim);
               lcardsLog.debug(`[TriggerManager] ⏹️ while-stop: ${this.overlayId}, entity: ${changedEntityId}`);
-              this.animationManager.stopAnimations(this.overlayId, 'on_entity_change');
+              this.animationManager.stopAnimations(this.overlayId, 'on_entity_change', anim);
             }
             return; // while-path fully handled — never fall through to fire-and-forget
           }
 
           // --- Fire-and-forget path ---
+          // from_state / to_state describe a transition: an update that keeps the
+          // value (an attribute or context change, a re-sent state) is not one.
+          // Without this a `to_state: red_alert` ramp restarted on every such
+          // update while in red alert, and the matching `from_state: red_alert`
+          // ramp-down fired and cancelled it.
+          if ((anim.from_state !== undefined || anim.to_state !== undefined) && oldState &&
+              String(oldValue) === String(newValue)) {
+            return;
+          }
           if (anim.from_state !== undefined) {
             if (!oldState || String(oldValue) !== String(anim.from_state)) {
               lcardsLog.trace(`[TriggerManager] from_state mismatch: expected ${anim.from_state}, got ${oldValue ?? 'unavailable'}`);
@@ -243,7 +251,7 @@ export class TriggerManager {
         });
       });
 
-      this._entitySubscriptions.push(unsubscribe);
+      this._entitySubscriptions?.push(unsubscribe);
       lcardsLog.debug(`[TriggerManager] ✅ Subscribed to entity: ${entityId} for overlay: ${this.overlayId}`);
     });
 
@@ -319,7 +327,13 @@ export class TriggerManager {
           return;
         }
 
-        // Fire-and-forget: from_state not applicable on load (no prior state)
+        // Fire-and-forget runs on the first setup only. On a rebuild (a re-render)
+        // the AnimationManager carry-over keeps or replays what was running;
+        // firing again here restarted a running `to_state` ramp on every
+        // re-render, and fired every `from_state` animation.
+        if (this._isRebuild) return;
+        // from_state needs a prior state, which a load does not have
+        if (anim.from_state !== undefined) return;
         if (anim.to_state !== undefined && String(currentValue) !== String(anim.to_state)) {
           lcardsLog.debug(`[TriggerManager] check_on_load: to_state mismatch for ${entityId} \u2014 expected ${anim.to_state}, got ${currentValue}`);
           return;

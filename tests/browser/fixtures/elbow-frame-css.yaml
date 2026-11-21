@@ -1,0 +1,9 @@
+# Frame lengths take CSS lengths like the other elbow lengths
+type: custom:lcards-elbow
+elbow:
+  type: frame
+  segment:
+    color: "#ff9900"
+  frame:
+    bar_width: clamp(24px, 1vw, 24px)
+    bar_height: calc(10px + 6px)

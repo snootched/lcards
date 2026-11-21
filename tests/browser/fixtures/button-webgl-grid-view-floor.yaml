@@ -1,0 +1,11 @@
+# grid in floor view, wide, to check the horizon fades calmly (background-webgl.spec.js)
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+height: 300
+background_animation:
+  - preset: grid
+    config:
+      view: floor
+      scan_period: 0
+      color: 'rgba(255, 153, 102, 0.8)'

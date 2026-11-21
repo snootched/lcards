@@ -1,0 +1,6 @@
+# doc/cards/slider-card/control.md: a light's colour temperature instead of its brightness
+type: custom:lcards-slider
+entity: light.demo
+preset: pills-left-border
+control:
+  attribute: color_temp_kelvin

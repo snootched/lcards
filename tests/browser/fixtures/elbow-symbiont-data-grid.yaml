@@ -1,0 +1,32 @@
+# a two-row data grid inside a short elbow frame (symbiont): with a small gap and no padding both rows
+# fit 48 px (doc/cards/data-grid/index.md "In a short space"; samples rollout, 2026-11-11)
+type: custom:lcards-elbow
+elbow:
+  type: frame
+  segment:
+    color: var(--test-orange)
+  frame:
+    bar_width: 4
+    bar_height: 4
+    outer_curve: 10
+symbiont:
+  enabled: true
+  position:
+    top: 6
+    right: 6
+    bottom: 6
+    left: 6
+  imprint:
+    enabled: false
+  card:
+    type: custom:lcards-data-grid
+    data_mode: data
+    rows:
+      - [Inside, sensor.demo_temperature]
+      - [Outside, sensor.demo_outdoor_temperature]
+    grid:
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)
+      gap: 2px
+    style:
+      font_size: 14
+      padding: 0

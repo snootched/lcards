@@ -8,7 +8,8 @@
  * Editor UI is defined separately in lcards-button-editor.js config.
  */
 
-import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, stateIconSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema } from './common-schemas.js';
+import { COLOR_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
+import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, stateIconSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema, cardLevelProperties, letterSpacingSchema } from './common-schemas.js';
 
 /**
  * Get complete button card schema
@@ -25,13 +26,15 @@ export function getButtonSchema(options = {}) {
 
     // Action, animation, and filter schemas imported from common-schemas.js
 
-    return {
+    const schema = {
         $schema: 'http://json-schema.org/draft-07/schema#',
         $id: 'https://github.com/snootched/lcards/schemas/button-schema',
         title: 'LCARdS Button Card Configuration',
         description: 'Complete configuration schema for lcards-button custom card',
         type: 'object',
         properties: {
+            // rules, sounds, variables, zones, debug_zones (LCARdSCard base); card entries below win.
+            ...cardLevelProperties,
             // ============================================================================
             // HOME ASSISTANT REQUIRED PROPERTIES
             // ============================================================================
@@ -88,8 +91,7 @@ export function getButtonSchema(options = {}) {
 
             interactive: {
                 type: 'boolean',
-                default: true,
-                description: 'When false, hover colour changes and hover animations are suppressed. The cursor defaults to the arrow unless overridden via style.cursor. Tap/hold actions still fire if configured.',
+                description: 'When false, hover colour changes and hover animations are suppressed. The cursor defaults to the arrow unless overridden via style.cursor. Tap/hold actions still fire if configured. Left out, a button is interactive when it has a tap, hold or double tap action, a component or SVG segments, an animation the pointer starts (on_tap, on_hover, ...), or an entity its default tap (toggle) can switch (lights, switches, input booleans, covers, locks, ...), and decorative (false) otherwise: a title, a filler, or a readout of a sensor or number.',
                 'x-ui-hints': {
                     label: 'Show hover effects',
                     helper: 'Disable to suppress colour change and hover animations on mouse-over. Does not affect tap/hold actions.'
@@ -102,14 +104,8 @@ export function getButtonSchema(options = {}) {
 
             control: {
                 type: 'object',
-                description: 'Control behavior configuration',
-                properties: {
-                    attribute: {
-                        type: 'string',
-                        description: 'Entity attribute to control (leave blank to control entity state)',
-                        examples: ['brightness', 'temperature', 'position', 'percentage']
-                    }
-                },
+                description: 'No longer used: a button has no value to set, so this had no effect. Kept so older configs still validate.',
+                deprecated: true,
                 additionalProperties: true
             },
 
@@ -129,12 +125,13 @@ export function getButtonSchema(options = {}) {
 
             component: {
                 type: 'string',
-                enum: ['dpad', 'dpad_voyager', 'alert'],
+                enum: ['dpad', 'dpad_voyager', 'alert', 'brackets'],
                 description: 'Component type (mutually exclusive with preset)',
                 enumDescriptions: [
                     'D-pad directional control (up/down/left/right/center)',
                     'D-pad directional control, Voyager LCARS ring styling (up/down/left/right/center)',
-                    'Alert symbol with animated bar segments (red/blue/green/yellow/grey/black)'
+                    'Alert symbol with animated bar segments (red/blue/green/yellow/grey/black)',
+                    'Bracket arcs ( ) framing a round display; content in the center zone'
                 ]
             },
 
@@ -150,8 +147,7 @@ export function getButtonSchema(options = {}) {
 
             show_icon: {
                 type: 'boolean',
-                default: true,
-                description: 'Whether to show the icon'
+                description: 'Whether to show the icon. Default: the preset\'s setting (some presets show it), else false.'
             },
 
             icon_area: {
@@ -191,8 +187,7 @@ export function getButtonSchema(options = {}) {
                 type: 'number',
                 minimum: 20,
                 maximum: 500,
-                default: 60,
-                description: 'Fixed size for icon area in pixels (width for left/right, height for top/bottom, default: 60)',
+                description: 'Fixed size for icon area in pixels (width for left/right, height for top/bottom). Default: the preset\'s size, else sized to the icon (icon size plus spacing on both sides plus the divider).',
                 'x-ui-hints': {
                     label: 'Icon Area Size',
                     helper: 'Size in pixels',
@@ -220,8 +215,7 @@ export function getButtonSchema(options = {}) {
                         type: 'number',
                         minimum: 0,
                         maximum: 200,
-                        default: 0,
-                        description: 'Divider width in pixels (0 = no divider, default: 0)',
+                        description: 'Divider width in pixels (0 = no divider). Default: the preset\'s width, else the theme\'s, else 6.',
                         'x-ui-hints': {
                             label: 'Width',
                             helper: 'Divider line width',
@@ -238,7 +232,7 @@ export function getButtonSchema(options = {}) {
                     },
                     color: {
                         type: 'string',
-                        pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|rgb\\(|rgba\\(|var\\(--)',
+                        pattern: COLOR_VALUE_PATTERN,
                         description: 'Divider colour',
                         examples: ['#FF9900', 'rgba(255, 153, 0, 0.5)']
                     }
@@ -249,7 +243,6 @@ export function getButtonSchema(options = {}) {
                 type: 'object',
                 description: 'Advanced icon styling configuration',
                 examples: [{
-                    type: 'mdi',
                     color: '#FF9900',
                     size: 32,
                     position: 'center'
@@ -257,14 +250,8 @@ export function getButtonSchema(options = {}) {
                 properties: {
                     type: {
                         type: 'string',
-                        enum: ['mdi', 'si', 'entity'],
-                        default: 'mdi',
-                        description: 'Icon type',
-                        enumDescriptions: [
-                            'Material Design Icons',
-                            'Simple Icons',
-                            'Entity state icon'
-                        ]
+                        deprecated: true,
+                        description: 'No longer used: the icon type comes from the icon\'s prefix (mdi:, si:) or entity. Kept so older configs still validate.'
                     },
                     color: stateColorSchema,
                     icon: {
@@ -368,25 +355,25 @@ export function getButtonSchema(options = {}) {
                         type: 'number',
                         minimum: 0,
                         maximum: 200,
-                        description: 'Left padding in pixels (overrides padding)'
+                        description: 'Left side of the per-side icon padding in pixels, for an icon placed in its icon area: a shorthand for padding.left, and wins over it. The other sides keep their own values.'
                     },
                     padding_right: {
                         type: 'number',
                         minimum: 0,
                         maximum: 200,
-                        description: 'Right padding in pixels (overrides padding)'
+                        description: 'Right side of the per-side icon padding in pixels, for an icon placed in its icon area: a shorthand for padding.right, and wins over it. The other sides keep their own values.'
                     },
                     padding_top: {
                         type: 'number',
                         minimum: 0,
                         maximum: 200,
-                        description: 'Top padding in pixels (overrides padding)'
+                        description: 'Top side of the per-side icon padding in pixels, for an icon placed in its icon area: a shorthand for padding.top, and wins over it. The other sides keep their own values.'
                     },
                     padding_bottom: {
                         type: 'number',
                         minimum: 0,
                         maximum: 200,
-                        description: 'Bottom padding in pixels (overrides padding)'
+                        description: 'Bottom side of the per-side icon padding in pixels, for an icon placed in its icon area: a shorthand for padding.bottom, and wins over it. The other sides keep their own values.'
                     }
                 }
             },
@@ -439,8 +426,8 @@ export function getButtonSchema(options = {}) {
                             color: stateColorSchema,
                             radius: {
                                 oneOf: [
-                                    { type: 'number', minimum: 0, maximum: 100, default: 12 },
-                                    { type: 'string', pattern: '^(\\{theme:.*\\}|var\\(--.*\\))$', description: 'Theme token reference' },
+                                    { type: 'number', minimum: 0, maximum: 100, description: 'Corner radius in pixels. Default: the preset\'s radius, else 20.' },
+                                    { type: 'string', pattern: '^(theme:.+|var\\(--.*\\)|\\d+(\\.\\d+)?(px)?)$', description: 'A theme token (theme: and its path), a CSS variable or a px value' },
                                     {
                                         type: 'object',
                                         properties: {
@@ -521,7 +508,13 @@ export function getButtonSchema(options = {}) {
                                         ]
                                     },
                                     font_weight: { type: ['string', 'number'] },
-                                    font_family: { type: 'string', format: 'font-family' }
+                                    font_family: { type: 'string', format: 'font-family' },
+                                    letter_spacing: letterSpacingSchema,
+                                    text_transform: {
+                                        type: 'string',
+                                        enum: ['none', 'uppercase', 'lowercase', 'capitalize'],
+                                        description: 'Case for every text field that sets none of its own: none, uppercase, lowercase or capitalize.'
+                                    }
                                 }
                             }
                         }
@@ -569,7 +562,7 @@ export function getButtonSchema(options = {}) {
                         description: 'Texture opacity (0-1). Supports state-based object.',
                         oneOf: [
                             { type: 'number', minimum: 0, maximum: 1 },
-                            { '$ref': '#/$defs/stateColorSchema' }
+                            { type: 'object', description: 'State-based values: keys are states (default, active, inactive, unavailable, ...), values are numbers' }
                         ]
                     },
                     speed: {
@@ -817,7 +810,7 @@ export function getButtonSchema(options = {}) {
                     //   alert.color.bars  → bars.style.stroke
                     color: {
                         type: 'object',
-                        description: 'Colour shorthand — overrides the active preset\'s colours',
+                        description: 'Colour shorthand: overrides the active preset\'s colours',
                         properties: {
                             shape: {
                                 type: 'string',
@@ -916,8 +909,8 @@ export function getButtonSchema(options = {}) {
                                     type: 'object',
                                     description: 'SVG styling for the segment',
                                     properties: {
-                                        fill: stateColorSchema,
-                                        stroke: stateColorSchema,
+                                        fill: { ...stateColorSchema, description: 'Segment fill colour: a colour, or a state map (default, active, inactive, ranges)' },
+                                        stroke: { ...stateColorSchema, description: 'Segment outline colour: a colour, or a state map (default, active, inactive, ranges)' },
                                         'stroke-width': {
                                             title: 'Stroke Width',
                                             description: 'SVG stroke width (number in pixels, CSS string, or state-based)',
@@ -941,6 +934,7 @@ export function getButtonSchema(options = {}) {
                                 },
                                 animations: {
                                     type: 'array',
+                                    description: 'Animations on this segment only (the same entries as the card\'s animations list)',
                                     items: animationSchema
                                 }
                             }
@@ -956,7 +950,7 @@ export function getButtonSchema(options = {}) {
 
             ranges_attribute: {
                 type: 'string',
-                description: 'Entity attribute to use as the numeric value for ALL state-based range conditions (above:/below:/between: keys) across the entire card — icon_style.icon, icon_style.color, text color, background, border, and config.ranges preset switching. Use "brightness_pct" for a computed 0-100 light brightness value. Defaults to evaluating the raw entity state string.',
+                description: 'Entity attribute to use as the numeric value for ALL state-based range conditions (above:/below:/between: keys) across the entire card: icon_style.icon, icon_style.color, text color, background, border, and config.ranges preset switching. Use "brightness_pct" for a computed 0-100 light brightness value. Defaults to evaluating the raw entity state string.',
                 examples: ['brightness_pct', 'brightness', 'temperature', 'percentage', 'current_position'],
                 'x-ui-hints': {
                     label: 'Range Attribute',
@@ -1030,4 +1024,20 @@ export function getButtonSchema(options = {}) {
             grid_options: gridOptionsSchema
         }
     };
+    // The Voyager D-pad and bracket components take the same per-segment config as the D-pad.
+    const dpad = /** @type {any} */ (schema.properties).dpad;
+    for (const [key, ids] of [
+        ['dpad_voyager', 'every shape of the artwork, e.g. center, up_arrow, down_arrow, left_arrow, right_arrow, up_left, up_right, down_left, down_right, up_ring, ring_up_1, top_bar_1, accent_1'],
+        ['brackets', 'left, right'],
+    ]) {
+        /** @type {any} */ (schema.properties)[key] = {
+            ...dpad,
+            description: `${key} component configuration`,
+            properties: {
+                ...dpad.properties,
+                segments: { ...dpad.properties.segments, description: `Segment configurations. Use "default" for all segments; other keys are segment IDs (${ids}).` },
+            },
+        };
+    }
+    return schema;
 }

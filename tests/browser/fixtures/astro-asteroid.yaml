@@ -1,0 +1,11 @@
+# AC1 asteroid: one rock lit from a star point to its left (-x); the left half of the
+# rock is bright, the right half dark (astrometrics.spec.js compares the halves).
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 0, distance: 30 }
+points:
+  - { id: star, xyz: [-200, 0, 0] }
+objects:
+  - { type: asteroid, id: rock, size: 14, seed: 3, tumble: 0, light: star }

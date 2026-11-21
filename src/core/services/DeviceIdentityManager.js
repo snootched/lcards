@@ -41,6 +41,9 @@ import {
     URL_PARAM_DEVICE_NAME,
 } from './ScopedSettingsConstants.js';
 
+/** `_readFromBackend()` result when the record belongs to another user. */
+const READ_REFUSED = Symbol('device-record-refused');
+
 /**
  * Generate a RFC 4122 v4 UUID with multi-tier fallback.
  *
@@ -86,6 +89,10 @@ export class DeviceIdentityManager extends BaseService {
 
         /** @private — human-readable display name (mutable) */
         this._displayName = null;
+
+        /** @private — the ?lcards_device= name of this page load, if any (wins over the stored name) */
+        /** @type {string|null} */
+        this._urlName = null;
 
         /** @private — ISO timestamp of last successful heartbeat */
         this._lastSeen = null;
@@ -182,9 +189,19 @@ export class DeviceIdentityManager extends BaseService {
         // Read whatever is already stored so we don't clobber a user-set name.
         // On the very first load of a new device there will be nothing stored,
         // so we fall through to the seeded display name.
-        const existing = await this._readFromBackend();
+        let existing = await this._readFromBackend();
+        if (existing === READ_REFUSED) {
+            // The record belongs to the user last signed in on this browser.
+            // Writing takes it over (the backend makes the caller the owner),
+            // then the stored name can be read and kept.
+            await this._writeToBackend({ [DEVICE_KEY_LAST_SEEN]: now, [DEVICE_KEY_USER_AGENT]: navigator.userAgent });
+            existing = await this._readFromBackend();
+        }
+        if (existing === READ_REFUSED) existing = null;
         const storedName = existing?.[DEVICE_KEY_DISPLAY_NAME];
-        if (storedName) {
+        // ?lcards_device= names the device every time (a kiosk bookmark renames it);
+        // only without it does the stored name win over the seeded one
+        if (storedName && !this._urlName) {
             // Honour the stored name; keep local state in sync.
             this._displayName = storedName;
         }
@@ -214,6 +231,7 @@ export class DeviceIdentityManager extends BaseService {
 
         // Apply URL parameter override, if present
         const urlName = _readUrlParam();
+        this._urlName = urlName;
         if (urlName) {
             this._displayName = urlName;
             lcardsLog.info(
@@ -248,7 +266,7 @@ export class DeviceIdentityManager extends BaseService {
             if (!id) {
                 id = generateUUID();
                 localStorage.setItem(LOCALSTORAGE_DEVICE_ID, id);
-                lcardsLog.info(`[DeviceIdentityManager] New device UUID generated → ${id}`);
+                lcardsLog.debug(`[DeviceIdentityManager] New device UUID generated → ${id}`);
             } else {
                 lcardsLog.debug(`[DeviceIdentityManager] Device UUID loaded from localStorage → ${id}`);
             }
@@ -284,8 +302,10 @@ export class DeviceIdentityManager extends BaseService {
 
     /**
      * Read this device's full backend storage object.
-     * Returns null if the integration is unavailable or the read fails.
-     * @returns {Promise<Object|null>}
+     * Returns null if the integration is unavailable or the read fails, and
+     * READ_REFUSED when the record belongs to another user (the one last
+     * signed in on this browser).
+     * @returns {Promise<Object|null|typeof READ_REFUSED>}
      * @private
      */
     async _readFromBackend() {
@@ -299,6 +319,7 @@ export class DeviceIdentityManager extends BaseService {
             });
             return result?.value ?? null;
         } catch (err) {
+            if (/** @type {any} */ (err)?.code === 'unauthorized') return READ_REFUSED;
             lcardsLog.warn('[DeviceIdentityManager] Backend read failed:', err);
             return null;
         }

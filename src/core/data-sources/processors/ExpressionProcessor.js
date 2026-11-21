@@ -17,7 +17,7 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
  * ```yaml
  * processor_name:
  *   type: expression
- *   from: source_processor  # Optional: single source
+ *   input_source: source_processor  # Optional: single source
  *   sources:                 # Optional: multiple sources
  *     - processor1
  *     - processor2
@@ -25,7 +25,7 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
  * ```
  *
  * Context available in expressions:
- * - value, v: Current value (from 'from' source or input)
+ * - value, v: Current value (the input_source processor's output, else the raw value)
  * - timestamp, t: Current timestamp
  * - sources: Array of values (if 'sources' configured)
  * - Math: Full Math library
@@ -51,6 +51,11 @@ export class ExpressionProcessor extends Processor {
     }
 
     lcardsLog.trace(`[ExpressionProcessor] ${this.key}: ${this.expression}`);
+  }
+
+  /** input_source and every processor in sources: they must run first. */
+  getDependencies() {
+    return [...new Set([...super.getDependencies(), ...this.sources])];
   }
 
   _doProcess(value, timestamp, mainBuffer, processingResults) {
@@ -150,13 +155,11 @@ export class ExpressionProcessor extends Processor {
   }
 
   /**
-   * Get dependency (override to handle multi-source case)
+   * The processor whose output is `value` (input_source), else null for the raw
+   * value. The sources are ordering dependencies only: see getDependencies().
    * @returns {string|null} Dependency key
    */
   getDependency() {
-    // If sources array is configured, we depend on those
-    // For now, return null (we'll handle multi-dependency later)
-    // If 'from' is configured, use that
     return this._dependency || null;
   }
 }

@@ -1,0 +1,48 @@
+# Astrometrics asteroid (AC1 part 2): one rock up close, lit from a moving star; seeds and colours side by side.
+title: Astrometrics asteroid
+path: astro-asteroid
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLOSE, show: true } }
+        tap_action: { action: fly-to, card: astro_asteroid_1, view: close }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: FAR, show: true } }
+        tap_action: { action: fly-to, card: astro_asteroid_1, view: far }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_asteroid_1
+        height: 650
+        camera:
+          view: close
+          buttons: true
+          views:
+            close: { target: [ 0, 0, 0 ], yaw: 30, tilt: 12, distance: 36 }
+            far: { target: [ 0, 0, 0 ], yaw: 30, tilt: 20, distance: 15000 }
+        backdrop: { stars: true }
+        points:
+          # the star goes round the rock, so the lit side sweeps round it
+          - { id: sun, polar: [ 200, 280 ], object: sun_orbit }
+          - { id: rock_label, xyz: [ 0, 10, 0 ], label: 433 EROS, style: minor }
+        objects:
+          - { type: ring, id: sun_orbit, radius: 200, spin: 6, opacity: 0 }
+          - { type: glow, at: sun, size: 30, color: var(--lcars-yellow) }
+          - { type: asteroid, id: eros, size: 16, seed: 4, tumble: 6, light: sun }
+        grid_options: { columns: full }
+      - type: custom:lcards-astrometrics-card
+        height: 450
+        camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 0, tilt: 10, distance: 60 } }, buttons: true }
+        points:
+          - { id: sun, xyz: [ -200, 60, 40 ] }
+        objects:
+          - { type: asteroid, at: [ -24, 0, 0 ], size: 12, seed: 1, light: sun }
+          - { type: asteroid, at: [ 0, 0, 0 ], size: 14, seed: 7, light: sun, color: var(--lcards-yellow-dark) }
+          - { type: asteroid, at: [ 24, 0, 0 ], size: 10, seed: 12, light: sun, color: var(--lcards-gray-medium) }
+        grid_options: { columns: full }

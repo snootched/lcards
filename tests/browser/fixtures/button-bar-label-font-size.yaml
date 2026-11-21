@@ -1,0 +1,10 @@
+# bar-label-left sizes its label to the bar (font_size_percent: 100); an explicit
+# font_size in the YAML wins over that
+type: custom:lcards-button
+preset: bar-label-left
+height: 48
+min_height: 0
+text:
+  label:
+    content: MISSION OPS
+    font_size: 20

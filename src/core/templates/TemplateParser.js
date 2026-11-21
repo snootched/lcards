@@ -307,7 +307,7 @@ export class TemplateParser {
     // Match {token} but NOT {{jinja2}}, {% jinja2 %}, {# comment #}, {datasource:...}, or {msd.datasource}
     const domainPattern = msdDomains.join('\\.|') + '\\.';
     const tokenRegex = new RegExp(
-      `\\{(?!\\{)(?!%)(?!#)(?!datasource:)(?!${domainPattern})([^{}]+)\\}`,
+      `(?<!\\{)\\{(?!\\{)(?!%)(?!#)(?!datasource:)(?!${domainPattern})([^{}]+)\\}`,
       'g'
     );
 
@@ -514,7 +514,7 @@ export class TemplateParser {
     if (/^\.\d+f$/.test(spec)) {
       return {
         type: 'float',
-        precision: parseInt(spec.match(/\d+/)[0]),
+        precision: parseInt(/** @type {RegExpMatchArray} */ (spec.match(/\d+/))[0]), // the test above guarantees digits
         options: {}
       };
     }

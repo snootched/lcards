@@ -1,0 +1,17 @@
+# The built-in starbases (astro-model.spec.js): all three load from the model
+# library with their own materials; points on their parts (DS9's Ops, the
+# drydock's berth, Spacedock's space doors) sit on them.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: all
+  views:
+    all: { target: [0, 0, 0], yaw: 15, tilt: 12, distance: 330 }
+points:
+  - { id: ops, object: ds9, part: ops, label: OPS, marker: dot }
+  - { id: doors, object: dock, part: space_doors, label: SPACE DOORS, marker: dot }
+  - { id: berth, object: dry, part: berth, label: BERTH, marker: dot }
+objects:
+  - { type: model, id: ds9, src: builtin:deep_space_nine, at: [-110, 0, 0], size: 90, material: original }
+  - { type: model, id: dock, src: builtin:earth_spacedock, size: 100, material: original }
+  - { type: model, id: dry, src: builtin:utopia_planitia_drydock, at: [110, 0, 0], size: 80, material: original }

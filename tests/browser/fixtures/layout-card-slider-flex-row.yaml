@@ -1,0 +1,33 @@
+# gauge-basic sliders in a flexible minmax(0, 1fr) row and in a fixed px row, each beside a button:
+# the slider sits at the top of its cell like the button (design pilot, 2026-11-11: about 14 px low)
+type: custom:lcards-layout-card
+layout:
+  height: 160px
+  grid-gap: 6px
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)
+  grid-template-rows: minmax(0, 1fr) 60px
+cards:
+  - type: custom:lcards-slider
+    entity: input_number.demo_level
+    preset: gauge-basic
+    view_layout:
+      grid-column: '1'
+      grid-row: '1'
+  - type: custom:lcards-button
+    preset: panel-dark
+    min_height: 0
+    view_layout:
+      grid-column: '2'
+      grid-row: '1'
+  - type: custom:lcards-slider
+    entity: input_number.demo_level
+    preset: gauge-basic
+    view_layout:
+      grid-column: '1'
+      grid-row: '2'
+  - type: custom:lcards-button
+    preset: panel-dark
+    min_height: 0
+    view_layout:
+      grid-column: '2'
+      grid-row: '2'

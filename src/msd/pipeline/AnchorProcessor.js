@@ -16,7 +16,7 @@ export class AnchorProcessor {
   /**
    * Process anchors from SVG + user config + pack defaults
    *
-   * @param {string} svgContent - SVG content string (null for base_svg: "none")
+   * @param {string|null} svgContent - SVG content string (null for base_svg: "none")
    * @param {Object} userAnchors - User-defined anchors from config
    * @param {Array} viewBox - SVG viewBox [x, y, width, height]
    * @param {Object} [computedAnchors] - Algorithmically-derived anchors (SvgStructureAnalyzer),
@@ -72,7 +72,7 @@ export class AnchorProcessor {
    * Extract anchor points from SVG content
    * Uses existing window.lcards.findSvgAnchors() helper
    *
-   * @param {string} svgContent - SVG content string
+   * @param {string|null} svgContent - SVG content string (null skips extraction)
    * @returns {Object} Extracted anchors { anchorName: [x, y] }
    * @private
    */
@@ -97,7 +97,6 @@ export class AnchorProcessor {
    * @param {Object} anchors - Anchors with possibly percentage coordinates
    * @param {Array} viewBox - SVG viewBox [minX, minY, width, height]
    * @returns {Object} Anchors with resolved absolute coordinates
-   * @private
    */
   static _resolvePercentages(anchors, viewBox) {
     if (!anchors || Object.keys(anchors).length === 0) {

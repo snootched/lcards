@@ -1,0 +1,34 @@
+# Astrometrics own models (model sources): one model file reached the three
+# ways the Studio's Src picker offers: the asset library (builtin:), a custom
+# path, and the Home Assistant media browser (media-source://lcards/..., the
+# same route as the My models folder). Only bundled files, so the view works
+# on any install; a user's own .glb in /config/www/lcards/models shows under
+# LCARdS, My models in the same picker.
+title: Astrometrics own models
+path: astro-own-models
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        id: astro_own_models_1
+        grid_options: { columns: full }
+        height: 620
+        camera:
+          view: all
+          buttons: true
+          views:
+            all: { target: [ 0, 0, 0 ], yaw: 20, tilt: 14, distance: 300 }
+        backdrop:
+          stars: { count: 1500 }
+        points:
+          - { id: library, xyz: [ -110, 0, 0 ], label: "ASSET LIBRARY", style: minor, offset: [ 0, 55, 0 ] }
+          - { id: path, xyz: [ 0, 0, 0 ], label: "CUSTOM PATH", style: minor, offset: [ 0, 55, 0 ] }
+          - { id: media, xyz: [ 110, 0, 0 ], label: "MEDIA BROWSER", style: minor, offset: [ 0, 55, 0 ] }
+          - { id: ops, object: from_media, part: ops, marker: dot, label: OPS, style: tiny }
+        objects:
+          - { type: model, id: from_library, src: builtin:deep_space_nine, at: library, size: 90, material: original, spin: 4 }
+          - { type: model, id: from_path, src: /lcards/models/deep-space-nine.glb, at: path, size: 90, spin: 4 }
+          - { type: model, id: from_media, src: media-source://lcards/models/deep-space-nine.glb, at: media, size: 90, material: original, spin: 4 }

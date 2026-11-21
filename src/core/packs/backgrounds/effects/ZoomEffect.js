@@ -42,6 +42,9 @@ export class ZoomEffect {
     this.opacityFadeIn = config.opacityFadeIn ?? 10; // percentage
     this.opacityFadeOut = config.opacityFadeOut ?? 80; // percentage
 
+    // Cycle clock multiplier; the background's animatable `speed` sets it (warp)
+    this.speed = 1;
+
     // Track time for animation
     this._elapsedTime = 0;
     this._isActive = true;
@@ -49,8 +52,10 @@ export class ZoomEffect {
     // Off-screen frame buffer: base effect is rendered here once per frame,
     // then stamped N times (once per zoom layer) via drawImage instead of
     // re-executing the full baseEffect.draw() for every layer.
+    /** @type {HTMLCanvasElement | null} */
     this._frameCanvas = null;
-    this._frameCtx = null;
+    /** @type {CanvasRenderingContext2D} buffer context, created with _frameCanvas before any draw */
+    this._frameCtx = /** @type {any} */ (null);
 
     lcardsLog.debug('[ZoomEffect] Created zoom effect wrapper', {
       layers: this.layers,
@@ -80,7 +85,7 @@ export class ZoomEffect {
    */
   update(deltaTime, canvasWidth, canvasHeight) {
     // Update elapsed time
-    this._elapsedTime += deltaTime / 1000; // Convert to seconds
+    this._elapsedTime += (deltaTime / 1000) * this.speed; // Convert to seconds
 
     // Update the base effect
     if (this.baseEffect.update) {
@@ -105,7 +110,7 @@ export class ZoomEffect {
       this._frameCanvas = document.createElement('canvas');
       this._frameCanvas.width  = canvasWidth;
       this._frameCanvas.height = canvasHeight;
-      this._frameCtx = this._frameCanvas.getContext('2d');
+      this._frameCtx = /** @type {CanvasRenderingContext2D} */ (this._frameCanvas.getContext('2d'));
     } else if (this._frameCanvas.width !== canvasWidth || this._frameCanvas.height !== canvasHeight) {
       this._frameCanvas.width  = canvasWidth;
       this._frameCanvas.height = canvasHeight;
@@ -178,6 +183,6 @@ export class ZoomEffect {
       this.baseEffect.destroy();
     }
     this._frameCanvas = null;
-    this._frameCtx = null;
+    this._frameCtx = /** @type {any} */ (null);
   }
 }

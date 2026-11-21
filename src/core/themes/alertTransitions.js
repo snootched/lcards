@@ -185,7 +185,7 @@ async function effect_static(mainView, accent, applyFn) {
     ].join(';');
     document.body.appendChild(canvas);
 
-    const ctx = canvas.getContext('2d');
+    const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
     const DURATION = 460;
     const start    = performance.now();
     let applied    = false;
@@ -220,14 +220,14 @@ async function effect_static(mainView, accent, applyFn) {
                 applied = true;
                 applyFn().then(() => {
                     canvas.remove();
-                    resolve();
+                    resolve(undefined);
                 });
                 return;
             }
 
             if (elapsed >= DURATION) {
                 canvas.remove();
-                resolve();
+                resolve(undefined);
                 return;
             }
 
@@ -287,7 +287,7 @@ export const TRANSITION_STYLE_OPTIONS = ['off', ...Object.keys(TRANSITION_EFFECT
  * Passing style='off' or omitting mainView skips animation and calls applyColorsFn directly.
  *
  * @param {string}       style          - Transition key from TRANSITION_STYLE_OPTIONS
- * @param {Element|null} mainView       - home-assistant-main element
+ * @param {Element|null|undefined} mainView - home-assistant-main element
  * @param {string}       mode           - Incoming alert mode (for accent colour)
  * @param {Function}     applyColorsFn  - Async function that swaps CSS colour variables
  * @returns {Promise<void>}

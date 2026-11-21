@@ -1,0 +1,20 @@
+# Gallery video for picard-console.yaml: blocks and tabs light up as lights, doors and shields switch, the gauges move.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/picard-console.yaml --video
+steps:
+- {wait: 800}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_doors}]
+- {wait: 1200}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_toggle}]
+- {wait: 1200}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 40}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 90}]
+- {wait: 1500}
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_lights}]
+- {wait: 1200}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 82}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 64}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_doors}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_toggle}]
+- {wait: 800}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_lights}]
+tail: 1500

@@ -1,0 +1,12 @@
+# plasma on WebGL vs its Canvas2D version, scrolling stopped (background-webgl.spec.js)
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+height: 160
+background_animation:
+  - preset: plasma
+    config:
+      color_a: 'rgba(80, 0, 255, 0.9)'
+      color_b: 'rgba(255, 40, 120, 0.9)'
+      scroll_speed_x: 0
+      scroll_speed_y: 0

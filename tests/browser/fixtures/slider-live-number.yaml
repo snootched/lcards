@@ -1,0 +1,5 @@
+# Live update is off for every other domain: an input_number is set once, on release
+# (slider-live.spec.js)
+type: custom:lcards-slider
+entity: input_number.demo_level
+preset: pills-left-border

@@ -1,0 +1,170 @@
+# D2 batch 5: the core fixes the docs audit found. ALERT SWITCH (lcards_test_toggle) and
+# LIGHTS (lcards_test_lights) drive the rules below.
+title: D2 batch 5 core fixes
+path: d2-batch5-core-fixes
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          name:
+            content: ALERT SWITCH
+            show: true
+        tap_action:
+          action: toggle
+        grid_options:
+          columns: 8
+          rows: 1
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        text:
+          name:
+            content: LIGHTS
+            show: true
+        tap_action:
+          action: toggle
+        grid_options:
+          columns: 8
+          rows: 1
+
+  - type: grid
+    column_span: 4
+    cards:
+      # rules now reach a slider (by its id and its tags) and an elbow
+      - type: custom:lcards-slider
+        id: d2b5_slider
+        entity: input_number.lcards_test_power
+        tags: [d2b5_deck]
+        text:
+          name:
+            content: POWER (RULE PULSE BY TAG)
+            show: true
+        grid_options:
+          columns: 6
+          rows: 1
+      # the slider's value
+      - type: custom:lcards-button
+        entity: input_number.lcards_test_power
+        preset: lozenge
+        text:
+          name:
+            content: POWER
+            show: true
+          state:
+            show: true
+        grid_options:
+          columns: 8
+          rows: 1
+      - type: custom:lcards-elbow
+        id: d2b5_elbow
+        entity: input_boolean.lcards_test_toggle
+        elbow:
+          type: header-left
+        text:
+          label:
+            content: ELBOW
+        grid_options:
+          columns: 6
+          rows: 2
+      # two rules loop on one button: turning ALERT SWITCH off stops only its pulse,
+      # the LIGHTS rule's glow keeps going
+      - type: custom:lcards-button
+        id: d2b5_two_rules
+        preset: lozenge
+        text:
+          name:
+            content: TWO RULES
+            show: true
+        grid_options:
+          columns: 8
+          rows: 1
+      # a disabled rule (enabled: false) never applies
+      - type: custom:lcards-button
+        id: d2b5_disabled
+        preset: lozenge
+        text:
+          name:
+            content: DISABLED RULE (STAYS GREY)
+            show: true
+        grid_options:
+          columns: 8
+          rows: 1
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name:
+            content: "ICON AREA TEMPLATE"
+            show: true
+        entity: input_boolean.lcards_test_lights
+        icon: mdi:lightbulb
+        show_icon: true
+        icon_area: left
+        # the template is evaluated (it reached the SVG fill as text)
+        icon_area_background: "[[[ return entity.state === 'on' ? 'var(--lcars-orange)' : 'var(--lcars-blue)' ]]]"
+        grid_options:
+          columns: 8
+          rows: 1
+        rules:
+          - id: d2b5_alert_pulse
+            when:
+              entity: input_boolean.lcards_test_toggle
+              state: "on"
+            apply:
+              animations:
+                - tag: d2b5_deck
+                  preset: pulse
+                  loop: true
+                - overlay: d2b5_elbow
+                  preset: glow
+                  loop: true
+                - overlay: d2b5_two_rules
+                  preset: pulse
+                  loop: true
+          - id: d2b5_lights_glow
+            when:
+              entity: input_boolean.lcards_test_lights
+              state: "on"
+            apply:
+              animations:
+                - overlay: d2b5_two_rules
+                  preset: glow
+                  loop: true
+          - id: d2b5_disabled_rule
+            enabled: false
+            when:
+              entity: input_boolean.lcards_test_toggle
+              state: "on"
+            apply:
+              overlays:
+                d2b5_disabled:
+                  style:
+                    card:
+                      color:
+                        background:
+                          default: var(--lcars-alert-red)
+      # the background zoom runs faster with a fixed speed, as an animated one does
+      - type: custom:lcards-button
+        preset: outline
+        text:
+          name:
+            content: ZOOM AT SPEED 3
+            show: true
+        background_animation:
+          - preset: grid
+            zoom:
+              layers: 3
+            config:
+              speed: 3
+              color: alpha(var(--lcars-blue), 0.5)
+        grid_options:
+          columns: 6
+          rows: 2

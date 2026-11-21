@@ -1,0 +1,27 @@
+# Astrometrics actions (astrometrics.spec.js): a top-down orthographic map, so
+# points sit at known screen positions. svc: tap calls a service, hold opens
+# more-info. hop: no tap_action (selects and flies to itself). box: tap flies
+# to the named view "top". Static scene: nothing draws while idle.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: top
+  views:
+    top: { target: [0, 0, 0], tilt: 90, distance: 200, projection: orthographic }
+    side: { target: [0, 0, 0], yaw: 90, tilt: 20, distance: 260 }
+points:
+  - id: svc
+    xyz: [-60, 0, 0]
+    marker: square
+    label: SERVICE
+    tap_action: { action: perform-action, perform_action: light.turn_on, target: { entity_id: light.demo } }
+    hold_action: { action: more-info, entity: switch.demo_switch }
+  - { id: hop, xyz: [60, 0, 0], marker: diamond, label: HOP }
+objects:
+  - { type: grid, id: floor, shape: plane, size: [240, 160], line_spacing: 20 }
+  - type: volume
+    id: box
+    shape: box
+    at: [0, 0, 50]
+    size: [30, 10, 20]
+    tap_action: { action: fly-to, view: side }

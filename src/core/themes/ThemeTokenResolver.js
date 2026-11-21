@@ -15,6 +15,7 @@
 import { ColorUtils } from './ColorUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { getBaselineColors, GREEN_ALERT_PALETTE } from './paletteInjector.js';
+import { isComputedColor, isCssColor } from './color-syntax.js';
 
 /**
  * ThemeTokenResolver - Resolves design tokens to values
@@ -24,7 +25,7 @@ export class ThemeTokenResolver {
    * Create token resolver
    *
    * @param {Object} tokens - Theme token object
-   * @param {Element} [rootElement=null] - Root element for CSS variable access
+   * @param {Element|null} [rootElement=null] - Root element for CSS variable access
    */
   constructor(tokens, rootElement = null) {
     this.tokens = tokens || {};
@@ -65,6 +66,9 @@ export class ThemeTokenResolver {
     // Handle null/undefined paths
     if (!path) return fallback;
 
+    // Config values carry a `theme:` prefix; the token tree does not.
+    if (typeof path === 'string' && path.startsWith('theme:')) path = path.slice(6);
+
     // Handle direct values (not token references)
     if (this._isDirectValue(path)) {
       return path;
@@ -101,6 +105,72 @@ export class ThemeTokenResolver {
   }
 
   /**
+   * How a token path resolves, step by step, for provenance: the same route
+   * resolve() takes (overrides, the token tree, references, computed tokens),
+   * ending at a value or a CSS variable. A CSS variable's concrete value
+   * depends on the element, so the caller reads it (ColorUtils.resolveCssVariable).
+   *
+   * Steps: { step: 'override', path, value, scope } | { step: 'lookup' | 'reference', path, value }
+   *   | { step: 'computed', expression } | { step: 'css-var', variable, value }
+   *   | { step: 'missing', path } | { step: 'circular', path }
+   *
+   * @param {string} path - Token path (no 'theme:' prefix)
+   * @param {Object} [context] - As for resolve()
+   * @returns {{path: string, value: *, steps: Array<Object>}}
+   */
+  explain(path, context = {}) {
+    const steps = [];
+    const seen = new Set();
+    let current = path;
+    let value;
+    for (let hop = 0; hop < 16; hop++) {
+      if (typeof current !== 'string' || !current) {
+        value = current;
+        break;
+      }
+      if (this._isComputedToken(current)) {
+        steps.push({ step: 'computed', expression: current });
+        value = this._resolveComputedToken(current, context);
+        break;
+      }
+      if (this._overrides?.has(current)) {
+        const overridden = this._overrides.get(current);
+        steps.push({ step: 'override', path: current, value: overridden, scope: this._overrideScopes?.[current] });
+        value = overridden;
+        break;
+      }
+      if (hop > 0 && this._isDirectValue(current)) {
+        value = current;
+        break;
+      }
+      if (seen.has(current)) {
+        steps.push({ step: 'circular', path: current });
+        value = undefined;
+        break;
+      }
+      seen.add(current);
+      const raw = this._getNestedValue(this.tokens, current);
+      if (raw === undefined || raw === null) {
+        steps.push({ step: 'missing', path: current });
+        value = undefined;
+        break;
+      }
+      steps.push({ step: steps.length ? 'reference' : 'lookup', path: current, value: raw });
+      if (typeof raw === 'string' && (this._isTokenReference(raw) || this._isComputedToken(raw))) {
+        current = raw;
+        continue;
+      }
+      value = this._resolveValue(raw, context);
+      break;
+    }
+    if (typeof value === 'string') {
+      const cssVar = /^var\((--[\w-]+)/.exec(value.trim());
+      if (cssVar) steps.push({ step: 'css-var', variable: cssVar[1], value });
+    }
+    return { path, value, steps };
+  }
+
+  /**
    * Create component-scoped resolver
    *
    * Automatically prefixes token paths with component namespace.
@@ -114,20 +184,20 @@ export class ThemeTokenResolver {
    * // Resolves: 'components.text.defaultColor'
    */
   forComponent(componentName) {
-    return (path, fallback = null, context = {}) => {
-      // If path doesn't start with component name, prefix it
-      if (!path.startsWith(`components.${componentName}.`) &&
-          !path.startsWith('colors.') &&
-          !path.startsWith('typography.') &&
-          !path.startsWith('spacing.') &&
-          !path.startsWith('borders.') &&
-          !path.startsWith('effects.') &&
-          !path.startsWith('animations.')) {
-        path = `components.${componentName}.${path}`;
-      }
+    return (path, fallback = null, context = {}) => this.resolve(this.componentPath(componentName, path), fallback, context);
+  }
 
-      return this.resolve(path, fallback, context);
-    };
+  /**
+   * The token path forComponent() resolves: a path outside the shared categories
+   * is taken as relative to components.<componentName>.
+   * @param {string} componentName
+   * @param {string} path
+   * @returns {string}
+   */
+  componentPath(componentName, path) {
+    if (typeof path !== 'string' || isComputedColor(path) || isCssColor(path)) return path;
+    const shared = ['colors.', 'typography.', 'spacing.', 'borders.', 'effects.', 'animations.', `components.${componentName}.`];
+    return shared.some(prefix => path.startsWith(prefix)) ? path : `components.${componentName}.${path}`;
   }
 
   /**
@@ -146,8 +216,9 @@ export class ThemeTokenResolver {
    * (device wins).  Call clearCache() is handled internally.
    *
    * @param {Object|Map<string,*>|null} overrides - Flat token-path → value map, or null to clear.
+   * @param {Object<string,string>} [scopes] - Token path → the scope that set it ('global' | 'user' | 'device'), for explain()
    */
-  setOverrides(overrides) {
+  setOverrides(overrides, scopes = {}) {
     if (overrides === null || overrides === undefined) {
       this._overrides = null;
     } else if (overrides instanceof Map) {
@@ -155,8 +226,37 @@ export class ThemeTokenResolver {
     } else {
       this._overrides = new Map(Object.entries(overrides));
     }
+    this._overrideScopes = scopes || {};
     this.clearCache();
     lcardsLog.debug('[ThemeTokenResolver] Overrides updated', { count: this._overrides?.size ?? 0 });
+  }
+
+  /**
+   * Resolve a token path as the theme defines it, ignoring the active overrides.
+   *
+   * Runs against private, throwaway caches so the un-overridden results never
+   * reach the live resolutionCache / computedCache that cards read from.
+   *
+   * @param {string} path - Token path
+   * @param {*} [fallback=null] - Value when the path does not resolve
+   * @returns {*} Resolved value without overrides
+   */
+  resolveDefault(path, fallback = null) {
+    const saved = {
+      overrides: this._overrides,
+      resolutionCache: this.resolutionCache,
+      computedCache: this.computedCache,
+    };
+    this._overrides = null;
+    this.resolutionCache = new Map();
+    this.computedCache = new Map();
+    try {
+      return this.resolve(path, fallback);
+    } finally {
+      this._overrides = saved.overrides;
+      this.resolutionCache = saved.resolutionCache;
+      this.computedCache = saved.computedCache;
+    }
   }
 
   /**
@@ -275,19 +375,12 @@ export class ThemeTokenResolver {
     if (typeof value !== 'string') return true;
 
     // Check for computed tokens first (they may contain var() but need processing)
-    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
-    if (computedFunctions.some(fn => value.startsWith(`${fn}(`))) {
+    if (isComputedColor(value)) {
       return false; // Not a direct value - needs computed token processing
     }
 
-    // CSS variables are direct values
-    if (value.includes('var(')) return true;
-
-    // Hex colors are direct values
-    if (value.startsWith('#')) return true;
-
-    // RGB/RGBA colors are direct values
-    if (value.startsWith('rgb')) return true;
+    // CSS variables (anywhere in the value) and any CSS colour syntax
+    if (value.includes('var(') || isCssColor(value)) return true;
 
     // Numbers as strings are direct values
     if (!isNaN(Number(value))) return true;
@@ -318,8 +411,7 @@ export class ThemeTokenResolver {
    */
   _isComputedToken(value) {
     // Computed tokens look like: 'darken(colors.accent.primary, 0.2)'
-    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
-    return computedFunctions.some(fn => value.startsWith(`${fn}(`));
+    return isComputedColor(value);
   }
 
   /**
@@ -338,7 +430,9 @@ export class ThemeTokenResolver {
     // Also disable caching when an element context is provided: different card
     // elements may be in different HA sections/views with different section-scoped
     // theme vars, so the result is context-dependent and must not be shared.
-    const isCacheable = !expression.includes('var(') && !context?.element;
+    // base() reads the alert baseline snapshot, which is captured after the
+    // theme loads, so it is never cached either.
+    const isCacheable = !expression.includes('var(') && !expression.includes('base(') && !context?.element && !context?.materialize;
 
     if (isCacheable && this.computedCache.has(expression)) {
       return this.computedCache.get(expression);
@@ -361,7 +455,7 @@ export class ThemeTokenResolver {
       // live (potentially mutated) DOM value instead of the captured snapshot.
       // -----------------------------------------------------------------------
       if (functionName === 'base') {
-        const arg = argsStr.trim();
+        const arg = argsStr.trim().replace(/^theme:/, '');
         let cssVarName = null;
 
         if (this._isTokenReference(arg)) {
@@ -394,31 +488,43 @@ export class ThemeTokenResolver {
 
         // Fallback: materialise via live DOM (better than returning the expression literal).
         lcardsLog.debug(`[ThemeTokenResolver] base(): no baseline snapshot found for '${arg}' — falling back to live DOM value`);
-        const fallbackArg = arg.includes('var(') ? arg : (arg.startsWith('--') ? `var(${arg})` : arg);
-        return ColorUtils.resolveCssVariable(fallbackArg, fallbackArg);
+        const fallbackArg = this._isTokenReference(arg) ? this.resolve(arg, arg, context)
+          : arg.startsWith('--') ? `var(${arg})` : arg;
+        return ColorUtils.resolveCssVariable(fallbackArg, fallbackArg, context?.element || null);
       }
 
       // Parse arguments (handle nested parentheses for token references)
       const args = this._parseComputedArgs(argsStr);
 
       // Resolve each argument
-      const resolvedArgs = args.map(arg => {
-        // If argument is a theme: token reference, resolve it
+      // CSS variables stay live by default: ColorUtils then emits color-mix(),
+      // which the browser re-evaluates when the variable changes (alert modes
+      // rewrite the palette variables without re-rendering cards). Callers that
+      // need a concrete colour (Canvas2D, anime.js, ApexCharts) pass
+      // context.materialize (see resolveColor()). saturate/desaturate have no
+      // color-mix() equivalent, so they always read the current value.
+      const materialize = !!context?.materialize || functionName === 'saturate' || functionName === 'desaturate';
+      const concrete = (value) => (materialize && typeof value === 'string' && value.includes('var(')
+        ? ColorUtils.resolveCssVariable(value, value, context?.element || null)
+        : value);
+
+      const resolvedArgs = args.map(rawArg => {
+        const arg = typeof rawArg === 'string' && rawArg.startsWith('theme:') ? rawArg.slice(6) : rawArg;
+        // Nested computed expression: alpha(base(colors.ui.primary), 0.5), darken(lighten(#f00, .2), .2)
+        if (isComputedColor(arg)) {
+          return concrete(this._resolveComputedToken(arg, context));
+        }
+        // If argument is a token reference, resolve it
         if (this._isTokenReference(arg)) {
           const resolved = this.resolve(arg, arg, context);
           // Warn if token reference didn't resolve (returned unchanged)
           if (resolved === arg) {
             lcardsLog.warn(`[ThemeTokenResolver] Token reference in computed expression not found: '${arg}' in '${expression}'`);
           }
-          return resolved;
+          return concrete(resolved);
         }
-        // If argument is a CSS variable, resolve it to a concrete value so
-        // that ColorUtils receives a hex/rgb string rather than var(--name).
-        // e.g. lighten(var(--lcards-green), 0.3) — Canvas / anime.js cannot
-        // use color-mix() output, so we must materialise the value here.
-        // Pass element from context so section-scoped theme vars are visible.
         if (typeof arg === 'string' && arg.includes('var(')) {
-          return ColorUtils.resolveCssVariable(arg, arg, context?.element || null);
+          return concrete(arg);
         }
         // If argument is a number string (possibly with %), parse it
         const trimmedArg = typeof arg === 'string' ? arg.trim() : arg;
@@ -554,13 +660,14 @@ export class ThemeTokenResolver {
  * Global token resolver instance
  * Initialized by MSD system on startup
  */
+/** @type {ThemeTokenResolver | null} */
 export let themeTokenResolver = null;
 
 /**
  * Initialize global token resolver
  *
  * @param {Object} tokens - Theme tokens
- * @param {Element} [rootElement=null] - Root element for CSS variables
+ * @param {Element|null} [rootElement=null] - Root element for CSS variables
  */
 export function initializeTokenResolver(tokens, rootElement = null) {
   themeTokenResolver = new ThemeTokenResolver(tokens, rootElement);

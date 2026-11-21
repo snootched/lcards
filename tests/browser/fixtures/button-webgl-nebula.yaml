@@ -1,0 +1,12 @@
+# nebula with volumetric: true (WebGL), same clouds as the plain nebula (background-webgl.spec.js)
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+height: 160
+background_animation:
+  - preset: nebula
+    config:
+      seed: 4
+      cloud_count: 5
+      colors: ['#8000ff', '#ff0080']
+      volumetric: true

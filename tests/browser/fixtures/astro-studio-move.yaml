@@ -1,0 +1,18 @@
+# Astrometrics Studio ST1 (astro-studio.spec.js): the selected object drags by
+# the point it stands at (a body at a point always did, through the point's
+# reach; a line object like the pad only once selected); an object at
+# coordinates does not drag; F and Frame selected fly to the selection.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: top
+  views:
+    top: { target: [0, 0, 0], tilt: 90, distance: 200, projection: orthographic }
+points:
+  - { id: dock, xyz: [-40, 0, 0], marker: dot, label: DOCK }
+  - { id: pad_at, xyz: [0, 0, -50], marker: none }
+objects:
+  - { type: grid, id: floor, shape: plane, size: [240, 160], line_spacing: 20 }
+  - { type: sphere, id: planet, at: dock, radius: 12 }
+  - { type: sphere, id: rock, at: [50, 0, 20], radius: 12 }
+  - { type: grid, id: pad, shape: disc, radius: 14, line_spacing: 7, at: pad_at }

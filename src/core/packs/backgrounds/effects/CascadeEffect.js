@@ -14,6 +14,8 @@
 import { BaseEffect } from './BaseEffect.js';
 import { ColorUtils } from '../../../themes/ColorUtils.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
+import { decorativeValue, DECORATIVE_FORMATS } from '../../../../data-grid/data-grid-model.js';
 
 /**
  * CascadeEffect - LCARS data-waterfall colour-cycling background animation
@@ -63,6 +65,8 @@ export class CascadeEffect extends BaseEffect {
    * Base:
    * @param {number} [config.opacity=1] - Overall opacity (0-1, from BaseEffect)
    */
+  static recolorFields = ['colorStart', 'colorText', 'colorEnd'];
+
   constructor(config = {}) {
     super(config);
 
@@ -103,8 +107,10 @@ export class CascadeEffect extends BaseEffect {
     this._cellHeight   = 0;
 
     // Per-row timing arrays (computed lazily)
-    this._rowDurations   = null;   // ms per row
-    this._rowPhaseOffsets = null;  // ms phase offset per row
+    /** @type {Float64Array} ms per row, built by the row setup before any draw */
+    this._rowDurations   = /** @type {any} */ (null);
+    /** @type {Float64Array} ms phase offset per row */
+    this._rowPhaseOffsets = /** @type {any} */ (null);
 
     // Resolved colours cache (refreshed each draw frame)
     this._resolvedStart = null;
@@ -124,46 +130,17 @@ export class CascadeEffect extends BaseEffect {
   }
 
   // ============================================================================
-  // Data generators (matches lcards-data-grid._generateRandomGrid)
+  // Data generators (the data grid's decorative values)
   // ============================================================================
 
   /**
-   * Generate a single cell value according to the configured format.
-   * The 'mixed' case inlines all sub-generators to avoid mutating this.format.
+   * Generate a single cell value according to the configured format
+   * (an unknown format: hex).
    * @private
    * @returns {string}
    */
   _generateCell() {
-    switch (this.format) {
-      case 'digit':
-        return Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      case 'float':
-        return (Math.random() * 100).toFixed(2);
-      case 'alpha': {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        return chars.charAt(Math.floor(Math.random() * chars.length)) +
-               chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      case 'hex':
-        return Math.floor(Math.random() * 65535).toString(16).toUpperCase().padStart(4, '0');
-      case 'mixed': {
-        // Inline all sub-cases to avoid mutating this.format (re-entrancy risk)
-        const pick = Math.floor(Math.random() * 4);
-        if (pick === 0) {
-          return Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-        } else if (pick === 1) {
-          return (Math.random() * 100).toFixed(2);
-        } else if (pick === 2) {
-          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-          return chars.charAt(Math.floor(Math.random() * chars.length)) +
-                 chars.charAt(Math.floor(Math.random() * chars.length));
-        } else {
-          return Math.floor(Math.random() * 65535).toString(16).toUpperCase().padStart(4, '0');
-        }
-      }
-      default:
-        return Math.floor(Math.random() * 65535).toString(16).toUpperCase().padStart(4, '0');
-    }
+    return decorativeValue(DECORATIVE_FORMATS.includes(this.format) ? this.format : 'hex');
   }
 
   /**
@@ -380,15 +357,8 @@ export class CascadeEffect extends BaseEffect {
 
     if (!this._cellData || this._computedRows === 0 || this._computedCols === 0) return;
 
-    // Resolve colour values once per frame.
-    // Step 1: ThemeTokenResolver handles computed expressions like darken(var(--x), 0.3)
-    //         and token references — mirrors the pattern in state-color-resolver.js.
-    // Step 2: resolveCssVariable materialises any remaining var() to a concrete hex/rgb
-    //         value that Canvas2D fillStyle can accept.
-    const _resolver = window.lcards?.core?.themeManager?.resolver;
-    const _resolve = (c) => ColorUtils.resolveCssVariable(
-      (_resolver ? _resolver.resolve(c, c) : c), c
-    );
+    // Resolve colour values once per frame (concrete: Canvas2D fillStyle).
+    const _resolve = (c) => resolveColor(c, { concrete: true });
     this._resolvedStart = _resolve(this.colorStart);
     this._resolvedText  = _resolve(this.colorText);
     this._resolvedEnd   = _resolve(this.colorEnd);
@@ -451,8 +421,8 @@ export class CascadeEffect extends BaseEffect {
    */
   destroy() {
     this._cellData        = null;
-    this._rowDurations    = null;
-    this._rowPhaseOffsets = null;
+    this._rowDurations = /** @type {any} */ (null);
+    this._rowPhaseOffsets = /** @type {any} */ (null);
     super.destroy();
   }
 }

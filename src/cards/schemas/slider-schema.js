@@ -8,7 +8,8 @@
  * Editor UI is defined separately in lcards-slider-editor.js config.
  */
 
-import { dataSourcesSchema, simpleColorSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, actionSchema, animationSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema } from './common-schemas.js';
+import { PICARD_OPTIONS, DEMO_OPTIONS } from '../../core/packs/components/sliders/component-options.js';
+import { dataSourcesSchema, simpleColorSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, actionSchema, animationSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema, cardLevelProperties } from './common-schemas.js';
 
 // value_tween.ease options: every anime.js v4 named easing that takes no extra
 // params (same set offered in lcards-animation-editor.js), plus 'spring' — the
@@ -72,6 +73,42 @@ const _valueTweenEaseOptions = [
  * @param {Array<string>} [options.positionEnum] - Available position values for text fields
  * @returns {Object} Complete slider schema
  */
+/**
+ * Top-level keys a slider component reads for itself (its `configurableOptions`
+ * with no dot in the key, e.g. Picard's show_animation): the editor's Component
+ * options tab writes them, so the schema must know them. A key several
+ * components share is listed once, naming every component that reads it.
+ * @returns {Record<string, any>}
+ */
+function componentOptionProperties() {
+    /** @type {Record<string, any>} */
+    const props = {};
+    for (const [name, options] of /** @type {[string, any[]][]} */ ([['picard', PICARD_OPTIONS], ['demo', DEMO_OPTIONS]])) {
+        for (const opt of options) {
+            if (!opt.key || opt.key.includes('.')) continue;
+            if (props[opt.key]) {
+                props[opt.key]['x-components'].push(name);
+                continue;
+            }
+            const num = opt.selector?.number ?? opt['x-ui-hints']?.selector?.number;
+            props[opt.key] = {
+                type: opt.type === 'color' ? 'string' : opt.type,
+                ...(opt.default !== undefined ? { default: opt.default } : {}),
+                ...(opt.enum ? { enum: opt.enum } : {}),
+                ...(num?.min !== undefined ? { minimum: num.min } : {}),
+                ...(num?.max !== undefined ? { maximum: num.max } : {}),
+                description: opt.description,
+                'x-components': [name]
+            };
+        }
+    }
+    for (const prop of Object.values(props)) {
+        prop.description = `${prop.description}. Used by component: ${prop['x-components'].join(', ')}.`;
+        delete prop['x-components'];
+    }
+    return props;
+}
+
 export function getSliderSchema(options = {}) {
     const {
         availablePresets = [],
@@ -86,6 +123,10 @@ export function getSliderSchema(options = {}) {
         description: 'Complete configuration schema for lcards-slider custom card',
         type: 'object',
         properties: {
+            // rules, sounds, variables, zones, debug_zones (LCARdSCard base); card entries below win.
+            ...cardLevelProperties,
+            // component options (Picard show_animation, animation_speed, ...)
+            ...componentOptionProperties(),
             // ============================================================================
             // HOME ASSISTANT REQUIRED PROPERTIES
             // ============================================================================
@@ -239,18 +280,27 @@ export function getSliderSchema(options = {}) {
                     },
                     attribute: {
                         type: 'string',
-                        description: 'Entity attribute to control (default varies by domain)',
-                        examples: ['brightness', 'temperature', 'position', 'percentage']
+                        description: 'Entity attribute the slider shows and sets. Default per domain: light brightness, cover current_position, fan percentage, climate and water_heater temperature, media_player volume_level, humidifier humidity, valve current_valve_position; input_number and number use their state. Also settable: light color_temp_kelvin, cover current_tilt_position, climate target_temp_low, target_temp_high and humidity. Any other attribute is shown read-only.',
+                        examples: ['brightness', 'color_temp_kelvin', 'current_tilt_position', 'target_temp_high']
                     },
                     locked: {
                         type: 'boolean',
-                        description: 'Whether slider is read-only (auto-determined by domain)',
+                        description: 'true: the slider only shows the value. Default false when the slider can set its attribute (see attribute), else true; a slider that can set nothing stays read-only even with false.',
                         examples: [true, false]
+                    },
+                    live_update: {
+                        type: 'boolean',
+                        description: 'The entity follows the handle while it is dragged, not only when it is let go: one call at a time, at most five a second, the last value always sent on release. Default true for a light (brightness, colour temperature and any other light attribute), false for every other domain (a thermostat, a cover motor or an automation on an input_number would get a burst of changes). A light is not switched off mid-drag at the bottom of the brightness range; letting go there does.',
+                        examples: [true, false],
+                        'x-ui-hints': {
+                            label: 'Live update',
+                            helper: 'The entity follows the slider while you drag it (lights by default)'
+                        }
                     },
                     invert_value: {
                         type: 'boolean',
                         default: false,
-                        description: 'Invert value mapping (flip min↔max). When true, slider at min position sends max value to entity.',
+                        description: 'Swap the ends: the slider at its minimum position sets the maximum, so dragging right (or up) lowers the value. The drag badge and the scale still show the entity\'s own value.',
                         examples: [false, true]
                     }
                 }
@@ -384,7 +434,7 @@ export function getSliderSchema(options = {}) {
                             invert_fill: {
                                 type: 'boolean',
                                 default: false,
-                                description: 'Invert visual fill direction. When true, fills from opposite end (right/top instead of left/bottom).',
+                                description: 'Turn the track round: the fill, the drag direction and the scale start from the other end (right, or top when upright) instead of left or bottom.',
                                 examples: [false, true]
                             },
                             segments: {
@@ -400,8 +450,7 @@ export function getSliderSchema(options = {}) {
                                         type: 'number',
                                         minimum: 2,
                                         maximum: 200,
-                                        default: 15,
-                                        description: 'Number of pill segments (or "auto" to calculate based on size)'
+                                        description: 'Number of pills, stretched to fill the track. Unset: as many pills of size.width (or size.height upright) as fit.'
                                     },
                                     gap: {
                                         oneOf: [
@@ -433,8 +482,7 @@ export function getSliderSchema(options = {}) {
                                                         type: 'number',
                                                         minimum: 0,
                                                         maximum: 50,
-                                                        default: 4,
-                                                        description: 'Border radius in pixels'
+                                                        description: 'Pill corner radius in pixels (the pills presets use 0).'
                                                     },
                                                     {
                                                         type: 'string',
@@ -667,8 +715,8 @@ export function getSliderSchema(options = {}) {
                                                     enabled: { type: 'boolean' },
                                                     interval: {
                                                         type: 'number',
-                                                        minimum: 1,
-                                                        description: 'Interval for major tick marks'
+                                                        exclusiveMinimum: 0,
+                                                        description: 'Value units between major tick marks (default 10); fractions such as 0.5 work for small ranges, and the labels show as many decimals as the interval. Widened to fit when the range is too large for the track'
                                                     },
                                                     color: stateColorSchema,
                                                     height: { type: 'number' },
@@ -681,8 +729,8 @@ export function getSliderSchema(options = {}) {
                                                     enabled: { type: 'boolean' },
                                                     interval: {
                                                         type: 'number',
-                                                        minimum: 1,
-                                                        description: 'Interval for minor tick marks'
+                                                        exclusiveMinimum: 0,
+                                                        description: 'Value units between minor tick marks (default 2); fractions such as 0.5 work for small ranges. Widened to fit when the range is too large for the track'
                                                     },
                                                     color: stateColorSchema,
                                                     height: { type: 'number' },
@@ -706,8 +754,13 @@ export function getSliderSchema(options = {}) {
                                                 examples: ['°C', '%', 'lux']
                                             },
                                             color: stateColorSchema,
-                                            font_size: { type: 'number' },
-                                            padding: { type: 'number' }
+                                            font_size: { type: 'number', minimum: 1, default: 14, description: 'Label size, px.' },
+                                            padding: { type: 'number', default: 3, description: 'Space between a tick and its label, px.' },
+                                            align: {
+                                                type: 'string', enum: ['start', 'end'], default: 'end',
+                                                description: 'Where the labels sit across the track: end at the far edge (right of an upright gauge, bottom of a level one), start beside the ticks, so a narrow gauge stays one column in a wide card.',
+                                                enumDescriptions: { start: 'Beside the ticks', end: 'At the far edge' }
+                                            }
                                         }
                                     }
                                 }
@@ -809,8 +862,8 @@ export function getSliderSchema(options = {}) {
                                     align: {
                                         type: 'string',
                                         enum: ['start', 'center', 'end'],
-                                        default: 'center',
-                                        description: 'Cross-axis alignment within the track zone. start=left edge (vertical)/top (horizontal), center=middle, end=right/bottom. Use start on Picard to pin the marker to the tick column regardless of card width.',
+                                        default: 'start',
+                                        description: 'Cross-axis alignment within the track zone. start (default)=left edge (vertical)/top (horizontal), center=middle, end=right/bottom. On a ring each marker type has its own default (line start, triangle end, round center).',
                                         'x-ui-hints': {
                                             label: 'Cross-axis Align',
                                             helper: 'Where to pin the marker along the non-value axis (start = tick-edge on Picard)',
@@ -833,7 +886,7 @@ export function getSliderSchema(options = {}) {
                                         minimum: -180,
                                         maximum: 180,
                                         default: 180,
-                                        description: 'Rotation in degrees (default: 180 — triangle points toward ticks)',
+                                        description: 'Rotation in degrees (default: 180, triangle points toward ticks)',
                                         'x-ui-hints': {
                                             selector: { number: { mode: 'slider', min: -180, max: 180, step: 1, unit_of_measurement: '°' } }
                                         }
@@ -873,17 +926,17 @@ export function getSliderSchema(options = {}) {
                                     },
                                     {
                                         type: 'string',
-                                        description: 'CSS variable or px/rem value for uniform corner radius — resolved at render time',
+                                        description: 'CSS variable or px/rem value for uniform corner radius, resolved at render time',
                                         examples: [
-                                            'var(--ha-card-border-radius)',
-                                            'var(--ha-card-border-radius, 12px)',
+                                            'var(--ha-card-border-radius, var(--ha-border-radius-lg))',
+                                            'var(--ha-border-radius-lg)',
                                             '12px',
                                             '0.75rem'
                                         ]
                                     },
                                     {
                                         type: 'object',
-                                        description: 'Per-corner radius — use to round only specific corners (e.g. only the free end on a bordered LCARS slider). Each corner also accepts a CSS variable string.',
+                                        description: 'Per-corner radius: use to round only specific corners (e.g. only the free end on a bordered LCARS slider). Each corner also accepts a CSS variable string.',
                                         properties: {
                                             top_left:     { oneOf: [ { type: 'number', minimum: 0 }, { type: 'string' } ] },
                                             top_right:    { oneOf: [ { type: 'number', minimum: 0 }, { type: 'string' } ] },
@@ -892,12 +945,12 @@ export function getSliderSchema(options = {}) {
                                         }
                                     }
                                 ],
-                                description: 'Corner radius — number or CSS variable string for uniform rounding, or per-corner object. Supports var(--ha-card-border-radius), px values, and rem values.',
+                                description: 'Corner radius: number or CSS variable string for uniform rounding, or per-corner object. Supports var(--ha-card-border-radius), px values, and rem values.',
                                 examples: [
                                     12,
-                                    'var(--ha-card-border-radius)',
-                                    'var(--ha-card-border-radius, 12px)',
-                                    { top_left: 0, bottom_left: 0, top_right: 'var(--ha-card-border-radius)', bottom_right: 'var(--ha-card-border-radius)' }
+                                    'var(--ha-card-border-radius, var(--ha-border-radius-lg))',
+                                    'var(--ha-border-radius-lg)',
+                                    { top_left: 0, bottom_left: 0, top_right: 'var(--ha-card-border-radius, var(--ha-border-radius-lg))', bottom_right: 'var(--ha-card-border-radius, var(--ha-border-radius-lg))' }
                                 ],
                                 'x-ui-hints': {
                                     label: 'Corner Radius',
@@ -978,9 +1031,10 @@ export function getSliderSchema(options = {}) {
                         properties: {
                             border: {
                                 type: 'object',
-                                description: 'Range track border styling',
+                                description: 'Picard: the lines between the range bands in its range column.',
                                 properties: {
-                                    color: { ...stateColorSchema, description: 'Range border colour (default: theme:components.slider.range.border.color)' }
+                                    color: { ...stateColorSchema, description: 'Colour of the lines between the bands (default: theme:components.slider.range.border.color).' },
+                                    gap: { type: 'number', minimum: 0, default: 2, description: 'Width of those lines, px.' }
                                 }
                             },
                             frame: {
@@ -1020,18 +1074,18 @@ export function getSliderSchema(options = {}) {
 
                     ranges: {
                         type: 'array',
-                        description: 'Colour-coded value ranges and point markers.\n\nTwo item types:\n• Band range (min+max): coloured background zone — rect in gauge mode, segment overrides in pills mode.\n• Value marker (value): live point indicator — triangle on gauge ticks, highlighted pill in pills mode.\n\nmin/max/value resolve static numbers, {entity.state}/{entity.attributes.x}/{states.domain.object_id.state} tokens, {datasource:name}, {config.x}/{variables.x} tokens, theme token references, and [[[JS]]] — evaluated synchronously (no Jinja2; see range.label.text for full Jinja2/DataSource async support on the label caption).',
+                        description: 'Colour-coded value ranges and point markers.\n\nTwo item types:\n• Band range (min+max): coloured background zone, rect in gauge mode, segment overrides in pills mode.\n• Value marker (value): live point indicator, triangle on gauge ticks, highlighted pill in pills mode.\n\nmin/max/value resolve static numbers, {entity.state}/{entity.attributes.x}/{states.domain.object_id.state} tokens, {datasource:name}, {config.x}/{variables.x} tokens, theme token references, and [[[JS]]], evaluated synchronously (no Jinja2; see range.label.text for full Jinja2/DataSource async support on the label caption).',
                         items: {
                             type: 'object',
                             properties: {
                                 min: {
                                     type: ['number', 'string'],
-                                    description: 'Range start value (in display space). Supports static numbers or templates: {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, [[[JS return expr]]]. (Synchronous only — no Jinja2.)',
+                                    description: 'Range start value (in display space). Supports static numbers or templates: {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, [[[JS return expr]]]. (Synchronous only; no Jinja2.)',
                                     examples: [0, 18, 80, '{entity.attributes.min_temp}', '{states.input_number.low.state}', '{datasource:low_threshold}', '[[[return Number(entity.state) - 5]]]']
                                 },
                                 max: {
                                     type: ['number', 'string'],
-                                    description: 'Range end value (in display space). Supports static numbers or templates: {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, [[[JS return expr]]]. (Synchronous only — no Jinja2.)',
+                                    description: 'Range end value (in display space). Supports static numbers or templates: {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, [[[JS return expr]]]. (Synchronous only; no Jinja2.)',
                                     examples: [20, 24, 100, '{entity.attributes.max_temp}', '{states.input_number.high.state}', '{datasource:high_threshold}', '[[[return Number(entity.state) + 5]]]']
                                 },
                                 color: stateColorSchema,
@@ -1040,26 +1094,25 @@ export function getSliderSchema(options = {}) {
                                     minimum: 0,
                                     maximum: 1,
                                     default: 0.3,
-                                    description: 'Background opacity (0=transparent, 1=solid, default: 0.3)'
+                                    description: 'Band opacity (0=transparent, 1=solid). Default 0.3 in gauge mode, 1 for the shaped and ring components.'
                                 },
                                 value: {
                                     type: ['string', 'number'],
-                                    description: 'Numeric value or template resolving to a position on the track. When present (instead of min/max), renders a point marker rather than a coloured band. Supports {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, and [[[JS]]] templates. (Synchronous only — no Jinja2.)',
+                                    description: 'Numeric value or template resolving to a position on the track. When present (instead of min/max), renders a point marker rather than a coloured band. Supports {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, and [[[JS]]] templates. (Synchronous only; no Jinja2.)',
                                     'x-ui-hints': {
                                         label: 'Marker Value',
-                                        helper: 'Template or number — places a visual marker at this value rather than drawing a coloured band'
+                                        helper: 'Template or number: places a visual marker at this value rather than drawing a coloured band'
                                     }
                                 },
                                 indicator: {
                                     type: 'object',
-                                    description: 'Gauge mode: per-marker indicator shape override. Fallback chain: this block → style.gauge.marker_indicator (preset default) → hardcoded defaults (triangle 20×20, rotation 180, no border). Values not specified here inherit from the next level in the chain.',
+                                    description: 'Per-marker indicator shape. Gauge mode: fallback chain this block → style.gauge.marker_indicator (preset default) → hardcoded defaults (triangle 20×20, rotation 180, no border). Ring (component: ring): type line (default, a radial line from the inner edge past the ring), triangle (outside the ring, pointing at it) or round (a dot on the band); align start/center/end anchors it at the inner edge, the band middle or the outer edge; size, color, border and offset.y (radial shift, positive outward) apply; rotation follows the ring.',
                                     properties: {
-                                        type: { type: 'string', enum: ['line', 'round', 'triangle'], description: 'Indicator shape type (default: triangle)' },
+                                        type: { type: 'string', enum: ['line', 'round', 'triangle'], description: 'Indicator shape type (default: triangle on a gauge, line on a ring)' },
                                         align: {
                                             type: 'string',
                                             enum: ['start', 'center', 'end'],
-                                            default: 'center',
-                                            description: 'Cross-axis alignment: start=left/top edge, center=middle, end=right/bottom. Overrides the preset marker_indicator.align for this range only.'
+                                            description: 'Cross-axis alignment: start=left/top edge, center=middle, end=right/bottom. Overrides the preset marker_indicator.align for this range only. Default: marker_indicator.align (start) on a gauge; on a ring per type (line start, triangle end, round center).'
                                         },
                                         color: { ...stateColorSchema, description: 'Indicator fill color (defaults to range color). Supports state-object syntax ({ active, inactive, above:N, … }) and theme:/var()/computed colour tokens.' },
                                         size: {
@@ -1080,9 +1133,9 @@ export function getSliderSchema(options = {}) {
                                         border: {
                                             type: 'object',
                                             properties: {
-                                                enabled: { type: 'boolean', default: true },
-                                                color: stateColorSchema,
-                                                width: { type: 'number' }
+                                                enabled: { type: 'boolean', default: false, description: 'Draw an outline on the marker (default false)' },
+                                                color: { ...stateColorSchema, description: 'Outline colour. Default theme:components.slider.indicator.border.color.' },
+                                                width: { type: 'number', description: 'Outline width in pixels (default 1)' }
                                             }
                                         }
                                     }
@@ -1102,14 +1155,14 @@ export function getSliderSchema(options = {}) {
                                 },
                                 label: {
                                     type: 'object',
-                                    description: 'Optional text caption shown next to the marker (gauge mode) or highlighted pill (pills mode).',
+                                    description: 'Optional text caption shown next to the marker (gauge mode), the highlighted pill (pills mode) or outside the ring beyond the marker (ring).',
                                     properties: {
                                         text: {
                                             type: 'string',
-                                            description: 'Label text. Supports the full template system: {entity.attributes.xxx} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], and {datasource:name} references — or a plain static string.',
+                                            description: 'Label text. Supports the full template system: {entity.attributes.xxx} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], and {datasource:name} references, or a plain static string.',
                                             'x-ui-hints': {
                                                 label: 'Label Text',
-                                                helper: 'Static text or a template — {entity.attributes.x} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], or {datasource:name} are all supported.'
+                                                helper: 'Static text or a template: {entity.attributes.x} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], or {datasource:name} are all supported.'
                                             }
                                         },
                                         color: { ...stateColorSchema, description: 'State-based colour of the label text. Falls back to theme:components.slider.indicator.label.color.' },
@@ -1144,6 +1197,139 @@ export function getSliderSchema(options = {}) {
                     },
 
                     // ====================================================================
+                    // RING COMPONENT CONFIGURATION
+                    // ====================================================================
+
+                    ring: {
+                        type: 'object',
+                        description: 'Ring gauge configuration (used with component: ring). Angles are in degrees, 0 = top, clockwise; the value arc fills from start_angle to end_angle.',
+                        properties: {
+                            start_angle: {
+                                type: 'number',
+                                default: -135,
+                                description: 'Angle where the ring starts (the minimum), in degrees: 0 = top, 90 = right, -90 = left. Default -135.',
+                                'x-ui-hints': {
+                                    label: 'Start Angle',
+                                    selector: { number: { min: -360, max: 360, step: 5, mode: 'box', unit_of_measurement: '°' } }
+                                }
+                            },
+                            end_angle: {
+                                type: 'number',
+                                default: 135,
+                                description: 'Angle where the ring ends (the maximum), in degrees, clockwise from start_angle. An end at or before the start wraps round; equal angles draw a full ring. Default 135 (a 270 degree sweep with the gap at the bottom).',
+                                'x-ui-hints': {
+                                    label: 'End Angle',
+                                    selector: { number: { min: -360, max: 360, step: 5, mode: 'box', unit_of_measurement: '°' } }
+                                }
+                            },
+                            thickness: {
+                                oneOf: [
+                                    { type: 'number', minimum: 1, description: 'Thickness in pixels' },
+                                    { type: 'string', pattern: '^\\d+(\\.\\d+)?(%|px)$', description: 'Percentage of the ring diameter (e.g. 12%) or pixels (e.g. 14px)' }
+                                ],
+                                default: '12%',
+                                description: 'Ring band thickness: a percentage of the ring diameter (e.g. 12%) or pixels (a number or e.g. 14px). Default 12%.',
+                                examples: ['12%', '20%', 14],
+                                'x-ui-hints': {
+                                    label: 'Thickness',
+                                    helper: 'Percent of the ring diameter (12%) or pixels (14)',
+                                    selector: { text: {} }
+                                }
+                            },
+                            cap: {
+                                type: 'string',
+                                enum: ['round', 'flat'],
+                                default: 'round',
+                                description: 'Ends of the track and value arcs: round or flat. Default round.',
+                                enumDescriptions: ['Rounded ends', 'Square-cut ends'],
+                                'x-ui-hints': { label: 'Arc Ends' }
+                            },
+                            track: {
+                                type: 'object',
+                                description: 'The unfilled ring (the whole sweep, under the value arc)',
+                                properties: {
+                                    color: {
+                                        ...stateColorSchema,
+                                        description: 'Track colour. Supports state-object syntax and theme:/var()/computed colour tokens. Default theme:components.slider.ring.track.color.'
+                                    }
+                                }
+                            },
+                            fill: {
+                                type: 'object',
+                                description: 'The value arc',
+                                properties: {
+                                    color: {
+                                        ...stateColorSchema,
+                                        description: 'Value arc colour. Supports state-object syntax ({ active, inactive, above:N, ... }) and theme:/var()/computed colour tokens. Default theme:components.slider.ring.fill.color.'
+                                    }
+                                }
+                            },
+                            scale: {
+                                type: 'object',
+                                description: 'Ticks and value labels outside the ring: the same keys as style.gauge.scale. A tick level, or the labels, shows when its block is set.',
+                                properties: {
+                                    tick_marks: {
+                                        type: 'object',
+                                        description: 'Major and minor tick marks at value intervals',
+                                        properties: {
+                                            major: {
+                                                type: 'object',
+                                                description: 'Major ticks. Shown when this block is set (enabled defaults to true).',
+                                                properties: {
+                                                    enabled: { type: 'boolean', default: true, description: 'Show the major ticks (default true once the block is set)' },
+                                                    interval: { type: 'number', exclusiveMinimum: 0, default: 10, description: 'Value units between major ticks, counted from the display minimum (default 10). Widened to fit when the range is too large (at most 60 major ticks)' },
+                                                    height: { type: 'number', minimum: 1, default: 8, description: 'Tick length in pixels, outward from the ring (default 8)' },
+                                                    width: { type: 'number', minimum: 0.5, default: 2, description: 'Tick line width in pixels (default 2)' },
+                                                    color: { ...stateColorSchema, description: 'Major tick colour. Default theme:components.slider.gauge.tick.major.color.default.' }
+                                                }
+                                            },
+                                            minor: {
+                                                type: 'object',
+                                                description: 'Minor ticks. Shown when this block is set (enabled defaults to true).',
+                                                properties: {
+                                                    enabled: { type: 'boolean', default: true, description: 'Show the minor ticks (default true once the block is set)' },
+                                                    interval: { type: 'number', exclusiveMinimum: 0, default: 2, description: 'Value units between minor ticks, counted from the display minimum (default 2). Widened to fit when the range is too large (at most 240 minor ticks)' },
+                                                    height: { type: 'number', minimum: 1, default: 4, description: 'Tick length in pixels, outward from the ring (default 4)' },
+                                                    width: { type: 'number', minimum: 0.5, default: 1, description: 'Tick line width in pixels (default 1)' },
+                                                    color: { ...stateColorSchema, description: 'Minor tick colour. Default theme:components.slider.gauge.tick.minor.color.default.' }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    labels: {
+                                        type: 'object',
+                                        description: 'Value labels at the major tick interval (tick_marks.major.interval, default 10). Shown when this block is set.',
+                                        properties: {
+                                            enabled: { type: 'boolean', default: true, description: 'Show the labels (default true once the block is set)' },
+                                            show_unit: { type: 'boolean', default: true, description: 'Add the unit to each label. Set false to hide it even when the entity has a unit.' },
+                                            unit: { type: 'string', description: 'Unit suffix for the labels. Takes priority over the display unit and the entity unit_of_measurement.', examples: ['%', '°C'] },
+                                            color: { ...stateColorSchema, description: 'Label colour. Default theme:components.slider.gauge.label.color.default.' },
+                                            font_size: { type: 'number', minimum: 1, default: 12, description: 'Label font size in pixels (default 12)' },
+                                            padding: { type: 'number', minimum: 0, default: 3, description: 'Gap between the ticks and the labels in pixels (default 3)' }
+                                        }
+                                    }
+                                }
+                            },
+                            focus_ring: {
+                                type: 'boolean',
+                                default: false,
+                                description: 'Outline the ring while it has keyboard focus (default false: most rings are used by touch). Keyboard control works either way.',
+                                'x-ui-hints': { label: 'Show Focus Outline' }
+                            },
+                            padding: {
+                                type: 'number',
+                                minimum: 0,
+                                description: 'Room left outside the ring for the scale, value markers and their labels, in pixels. Worked out from them when unset; set it to line up several rings or to give long labels more room.',
+                                'x-ui-hints': {
+                                    label: 'Outside Padding',
+                                    helper: 'Leave empty to size it from the scale and marker labels',
+                                    selector: { number: { min: 0, max: 200, mode: 'box', unit_of_measurement: 'px' } }
+                                }
+                            }
+                        }
+                    },
+
+                    // ====================================================================
                     // SHAPED COMPONENT CONFIGURATION
                     // ====================================================================
 
@@ -1163,7 +1349,7 @@ export function getSliderSchema(options = {}) {
                             },
                             radius: {
                                 type: 'number',
-                                description: 'Corner radius in pixels — lozenge auto = min(w,h)/2, rounded default = 8',
+                                description: 'Corner radius in pixels: lozenge auto = min(w,h)/2, rounded default = 8',
                                 examples: [8, 20, 40],
                                 'x-ui-hints': {
                                     label: 'Corner Radius',
@@ -1326,14 +1512,161 @@ export function getSliderSchema(options = {}) {
                             track: {
                                 type: 'boolean',
                                 default: true,
-                                description: 'Tween the gauge/shaped fill or the pills opacity sweep, whichever the card\'s track type uses.',
+                                description: 'Tween the gauge/shaped fill, the ring\'s value arc or the pills opacity sweep, whichever the card\'s track type uses.',
                                 'x-ui-hints': { label: 'Track', selector: { boolean: {} } }
                             },
                             markers: {
                                 type: 'boolean',
                                 default: true,
-                                description: 'Tween threshold/range marker position (and, in pills mode, which pill is highlighted). Applies to `gauge` and `pills` track types — `shaped` never renders markers at all.',
+                                description: 'Tween threshold/range marker position (and, in pills mode, which pill is highlighted). Applies to `gauge`, `pills` and the ring: `shaped` never renders markers at all.',
                                 'x-ui-hints': { label: 'Markers', selector: { boolean: {} } }
+                            }
+                        }
+                    }
+                }
+            },
+
+            // ============================================================================
+            // DRAG VALUE BADGE
+            // ============================================================================
+
+            drag_badge: {
+                type: 'object',
+                description: 'Live value badge that follows the drag position while the slider is being actively dragged by the user (never shown for entity-driven/external state changes). Mirrors Home Assistant\'s native slider drag badge.',
+                examples: [
+                    { enabled: true },
+                    { enabled: true, format: { decimals: 0, show_unit: true }, release: { behavior: 'instant' } }
+                ],
+                properties: {
+                    enabled: {
+                        type: 'boolean',
+                        default: false,
+                        description: 'Show a live value badge that tracks the drag position while dragging',
+                        'x-ui-hints': {
+                            label: 'Enable Value Badge',
+                            selector: { boolean: {} }
+                        }
+                    },
+                    format: {
+                        type: 'object',
+                        description: 'Number formatting for the badge text',
+                        properties: {
+                            decimals: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 4,
+                                description: 'Fixed number of decimal places. Leave blank to use locale-default formatting.',
+                                'x-ui-hints': {
+                                    label: 'Decimal Places',
+                                    helper: 'Leave blank for locale-default formatting',
+                                    selector: { number: { mode: 'box', min: 0, max: 4, step: 1 } }
+                                }
+                            },
+                            show_unit: {
+                                type: 'boolean',
+                                default: true,
+                                description: 'Show the unit suffix on the badge',
+                                'x-ui-hints': {
+                                    label: 'Show Unit',
+                                    selector: { boolean: {} }
+                                }
+                            },
+                            unit: {
+                                type: 'string',
+                                description: 'Unit suffix override. Leave blank to use the track\'s display unit (style.track.display.unit / entity unit_of_measurement).',
+                                examples: ['°C', '%', 'lux'],
+                                'x-ui-hints': {
+                                    label: 'Unit Override',
+                                    helper: 'Leave blank to use the track\'s display unit'
+                                }
+                            }
+                        }
+                    },
+                    font_size: {
+                        type: 'number',
+                        minimum: 8,
+                        maximum: 48,
+                        default: 14,
+                        description: 'Badge text size in pixels',
+                        'x-ui-hints': {
+                            label: 'Font Size',
+                            selector: { number: { mode: 'box', min: 8, max: 48, unit_of_measurement: 'px' } }
+                        }
+                    },
+                    offset: {
+                        type: 'object',
+                        description: 'Pixel offset from the default anchor point (below the track in horizontal orientation, beside it in vertical).',
+                        properties: {
+                            x: { type: 'number', description: 'Horizontal offset in pixels' },
+                            y: { type: 'number', description: 'Vertical offset in pixels' }
+                        }
+                    },
+                    color: { ...stateColorSchema, description: 'Badge text colour. Falls back to theme:components.slider.drag_badge.text.color.' },
+                    background: {
+                        type: 'object',
+                        description: 'Badge background chip',
+                        properties: {
+                            enabled: {
+                                type: 'boolean',
+                                default: true,
+                                description: 'Show a background chip behind the badge text',
+                                'x-ui-hints': { label: 'Show Background', selector: { boolean: {} } }
+                            },
+                            color: { ...stateColorSchema, description: 'Badge background colour. Falls back to a theme-aware translucent surface colour.' }
+                        }
+                    },
+                    border: {
+                        type: 'object',
+                        description: 'Badge border',
+                        properties: {
+                            enabled: {
+                                type: 'boolean',
+                                default: true,
+                                description: 'Show a border around the badge',
+                                'x-ui-hints': { label: 'Show Border', selector: { boolean: {} } }
+                            },
+                            width: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 10,
+                                default: 1,
+                                description: 'Border width in pixels'
+                            },
+                            color: { ...stateColorSchema, description: 'Badge border colour. Falls back to theme:components.slider.border.color.default.' }
+                        }
+                    },
+                    release: {
+                        type: 'object',
+                        description: 'What happens to the badge when the drag is released (pointer-up), before the entity commit.',
+                        properties: {
+                            behavior: {
+                                type: 'string',
+                                enum: ['fade', 'instant'],
+                                default: 'fade',
+                                description: 'fade = fade out over release.duration; instant = hide immediately on release. Automatically forced to instant when prefers-reduced-motion is active.',
+                                'x-ui-hints': {
+                                    label: 'Release Behaviour',
+                                    selector: {
+                                        select: {
+                                            mode: 'dropdown',
+                                            options: [
+                                                { value: 'fade', label: 'Fade out (default)' },
+                                                { value: 'instant', label: 'Hide instantly' }
+                                            ]
+                                        }
+                                    }
+                                }
+                            },
+                            duration: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 2000,
+                                default: 500,
+                                description: 'Fade-out duration in milliseconds (only used when behavior = fade)',
+                                'x-ui-hints': {
+                                    label: 'Fade Duration',
+                                    selector: { number: { mode: 'box', min: 0, max: 2000, step: 50, unit_of_measurement: 'ms' } }
+                                }
                             }
                         }
                     }

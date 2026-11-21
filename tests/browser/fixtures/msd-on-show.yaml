@@ -1,0 +1,17 @@
+# on_show on an MSD line overlay (on-show.spec.js)
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 400, 200]
+  anchors:
+    a: [40, 40]
+    b: [360, 160]
+  overlays:
+    - id: line_ab
+      type: line
+      anchor: a
+      attach_to: b
+      route: auto
+      animations:
+        - trigger: on_show
+          preset: draw
+          params: {duration: 300}

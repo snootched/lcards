@@ -68,7 +68,7 @@ export class DataSourceValidator {
   validate(config, context = {}) {
     const result = {
       errors: [],
-      warnings: []
+      warnings: /** @type {any[]} */ ([])
     };
 
     if (!this.dataSourceManager) {

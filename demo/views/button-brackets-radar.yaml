@@ -1,0 +1,43 @@
+# Brackets (D1c): the round button component. The brackets frame a reading of
+# TEMPERATURE, and recolour part by part (the radar component was removed 2026-11-13:
+# a radar scope is the astrometrics Radar scope starter).
+title: Brackets
+path: button-brackets-radar
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_temperature
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: TEMPERATURE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        component: brackets
+        entity: input_number.lcards_test_temperature
+        text:
+          label:
+            # rounded: a bracket reading is a short code, and a decimal does not fit the gap
+            content: "[[[ return Math.round(Number(entity.state)) + '°C' ]]]"
+            show: true
+            position: center
+            font_size: 32
+            color: theme:colors.ui.tertiary
+        grid_options: { columns: 12, rows: 5 }
+      # Brackets in another colour round a fixed number
+      - type: custom:lcards-button
+        component: brackets
+        brackets:
+          segments:
+            left: { style: { fill: var(--lcards-blue) } }
+            right: { style: { fill: var(--lcards-blue) } }
+        text:
+          label: { content: "42", show: true, position: center, font_size: 48, color: theme:colors.ui.secondary }
+        grid_options: { columns: 12, rows: 5 }

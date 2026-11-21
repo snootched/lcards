@@ -28,6 +28,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { editorWidgetStyles } from './editor-widget-styles.js';
 import '../shared/lcards-form-section.js';
+import { createDialogFooter, mountDialogNearHomeAssistant, onDialogClosed } from '../../../utils/lcards-shared-helpers.js';
 
 export class LCARdSIconSection extends LitElement {
 
@@ -196,15 +197,15 @@ export class LCARdSIconSection extends LitElement {
                     margin-left: 8px;
                 }
 
+                /* ha-icon-button (WebAwesome) draws its icon in currentColor */
                 .editor-item-actions ha-icon-button {
                     --ha-icon-button-size: 40px;
                     --mdc-icon-size: 20px;
-                    --md-icon-button-icon-color: var(--primary-text-color);
-                    --md-icon-button-hover-icon-color: var(--error-color);
+                    color: var(--primary-text-color);
                 }
 
                 .editor-item-actions ha-icon-button:hover {
-                    --md-icon-button-icon-color: var(--error-color);
+                    color: var(--error-color);
                 }
 
                 /* Expand icon spacing */
@@ -315,15 +316,15 @@ export class LCARdSIconSection extends LitElement {
                         • <strong>default</strong> → fallback for all other states
                         <br><br>
                         Numeric states (e.g. counts, sensor values):<br>
-                        • <strong>zero</strong> → entity state is exactly 0 — higher priority than ranges<br>
-                        • <strong>above:N</strong> → value &gt; N — e.g. <code>above:50</code><br>
-                        • <strong>at_least:N</strong> → value ≥ N — e.g. <code>at_least:50</code><br>
-                        • <strong>below:N</strong> → value &lt; N — e.g. <code>below:20</code><br>
-                        • <strong>at_most:N</strong> → value ≤ N — e.g. <code>at_most:20</code><br>
-                        • <strong>between:N:M</strong> → N ≤ value ≤ M — e.g. <code>between:20:80</code><br>
-                        • <strong>between_exclusive:N:M</strong> → N &lt; value &lt; M — e.g. <code>between_exclusive:20:80</code><br>
+                        • <strong>zero</strong> → entity state is exactly 0, higher priority than ranges<br>
+                        • <strong>above:N</strong> → value &gt; N, e.g. <code>above:50</code><br>
+                        • <strong>at_least:N</strong> → value ≥ N, e.g. <code>at_least:50</code><br>
+                        • <strong>below:N</strong> → value &lt; N, e.g. <code>below:20</code><br>
+                        • <strong>at_most:N</strong> → value ≤ N, e.g. <code>at_most:20</code><br>
+                        • <strong>between:N:M</strong> → N ≤ value ≤ M, e.g. <code>between:20:80</code><br>
+                        • <strong>between_exclusive:N:M</strong> → N &lt; value &lt; M, e.g. <code>between_exclusive:20:80</code><br>
                         When multiple ranges match, the most specific one wins (narrowest / highest above/at_least / lowest below/at_most).<br>
-                        • <strong>non_zero</strong> → any non-zero number — catch-all when no range matched<br>
+                        • <strong>non_zero</strong> → any non-zero number, catch-all when no range matched<br>
                     </div>
                     ` : ''}
                 </div>
@@ -572,7 +573,7 @@ export class LCARdSIconSection extends LitElement {
 
     /**
      * Handle custom state input change
-     * @param {Event} e
+     * @param {CustomEvent} e
      * @private
      */
     _handleCustomStateInput(e) {
@@ -616,7 +617,7 @@ export class LCARdSIconSection extends LitElement {
         this._addState(stateName);
         this._customStateInput = '';
 
-        lcardsLog.info('[IconSection] Added custom state', { state: stateName });
+        lcardsLog.debug('[IconSection] Added custom state', { state: stateName });
     }
 
     _handleRangeOperatorChange(e) {
@@ -674,7 +675,7 @@ export class LCARdSIconSection extends LitElement {
         this._rangeMin = '';
         this._rangeMax = '';
 
-        lcardsLog.info('[IconSection] Added range condition', { key });
+        lcardsLog.debug('[IconSection] Added range condition', { key });
     }
 
     /**
@@ -697,7 +698,7 @@ export class LCARdSIconSection extends LitElement {
         this._expandedStates.add(state);
         this.requestUpdate();
 
-        lcardsLog.info('[IconSection] Added state', { state });
+        lcardsLog.debug('[IconSection] Added state', { state });
     }
 
     /**
@@ -723,7 +724,7 @@ export class LCARdSIconSection extends LitElement {
         this._expandedStates.delete(state);
         this.requestUpdate();
 
-        lcardsLog.info('[IconSection] Deleted state', { state });
+        lcardsLog.debug('[IconSection] Deleted state', { state });
     }
 
     // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -762,9 +763,7 @@ export class LCARdSIconSection extends LitElement {
     async _showDialog(title, message, type = 'info') {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            // @ts-ignore
             dialog.headerTitle = title;
-            // @ts-ignore
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -773,26 +772,23 @@ export class LCARdSIconSection extends LitElement {
             dialog.appendChild(content);
 
             const closeButton = document.createElement('ha-button');
-            closeButton.slot = 'footer';
             closeButton.textContent = 'OK';
+            closeButton.autofocus = true;
             closeButton.addEventListener('click', () => {
-                // @ts-ignore
                 dialog.open = false;
-                resolve();
+                resolve(undefined);
             });
 
-            dialog.appendChild(closeButton);
-            dialog.addEventListener('closed', () => dialog.remove());
-            document.body.appendChild(dialog);
+            dialog.appendChild(createDialogFooter({ primary: [closeButton] }));
+            onDialogClosed(dialog, () => dialog.remove());
+            mountDialogNearHomeAssistant(dialog, this);
         });
     }
 
     async _showConfirmDialog(title, message) {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            // @ts-ignore
             dialog.headerTitle = title;
-            // @ts-ignore
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -804,8 +800,8 @@ export class LCARdSIconSection extends LitElement {
             const cancelButton = document.createElement('ha-button');
             cancelButton.textContent = 'Cancel';
             cancelButton.setAttribute('appearance', 'plain');
+            cancelButton.autofocus = true;
             cancelButton.addEventListener('click', () => {
-                // @ts-ignore
                 dialog.open = false;
                 resolve(false);
             });
@@ -814,19 +810,14 @@ export class LCARdSIconSection extends LitElement {
             confirmButton.textContent = 'Delete';
             confirmButton.setAttribute('variant', 'danger');
             confirmButton.addEventListener('click', () => {
-                // @ts-ignore
                 dialog.open = false;
                 resolve(true);
             });
 
-            const footerDiv = document.createElement('div');
-            footerDiv.slot = 'footer';
-            footerDiv.appendChild(cancelButton);
-            footerDiv.appendChild(confirmButton);
-            dialog.appendChild(footerDiv);
+            dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [confirmButton] }));
 
-            dialog.addEventListener('closed', () => dialog.remove());
-            document.body.appendChild(dialog);
+            onDialogClosed(dialog, () => dialog.remove());
+            mountDialogNearHomeAssistant(dialog, this);
         });
     }
 }

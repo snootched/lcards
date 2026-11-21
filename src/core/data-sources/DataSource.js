@@ -1,34 +1,81 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { onStateChanged } from '../state-change-hub.js';
 import { haFormatNumber } from '../../utils/ha-entity-display.js';
 
 /**
  * [DataSource] Data source implementation - provides real-time Home Assistant entity subscriptions
- * 📈 Features coalescing/throttling, history preload, rolling buffer management, and unified processing pipeline
+ * 📈 Features emit throttling (min_emit_ms / coalesce_ms / max_delay_ms), history preload, rolling buffer management, and unified processing pipeline
  */
 
 import { RollingBuffer } from './RollingBuffer.js';
+import { fetchDataSourceHistory, historySettings } from './history-fetch.js';
 import { ProcessorManager } from './ProcessorManager.js';
+import { toNumericValue, normalizeAttribute } from './ha-history-utils.js';
 
-// Node.js polyfills for test environment
-const isNode = typeof window === 'undefined';
-const requestAnimationFrame = isNode
-  ? (callback) => setTimeout(callback, 16) // 60fps approximation
-  : window.requestAnimationFrame;
-const cancelAnimationFrame = isNode
-  ? (id) => clearTimeout(id)
-  : window.cancelAnimationFrame;
+/**
+ * Parse a time window string to milliseconds: "60s", "5m", "2h", "1d".
+ * @param {string} windowStr
+ * @returns {number} Milliseconds, or NaN if invalid
+ */
+export function parseTimeWindowMs(windowStr) {
+  if (typeof windowStr !== 'string') return NaN;
+
+  const match = windowStr.match(/^(\d+(?:\.\d+)?)\s*(s|sec|m|min|h|hr|d|day)s?$/i);
+  if (!match) return NaN;
+
+  const value = parseFloat(match[1]);
+  const unit = match[2].toLowerCase();
+
+  switch (unit) {
+    case 's':
+    case 'sec':
+      return value * 1000;
+    case 'm':
+    case 'min':
+      return value * 60 * 1000;
+    case 'h':
+    case 'hr':
+      return value * 60 * 60 * 1000;
+    case 'd':
+    case 'day':
+      return value * 24 * 60 * 60 * 1000;
+    default:
+      return NaN;
+  }
+}
+
+/**
+ * Rolling window and main buffer capacity of a data source, from `window_seconds`
+ * (seconds or a string like "5m"; default 60 s): about 10 points per second of
+ * window, at least 60 (RollingBuffer caps it at 1000). The processor preview uses
+ * the same size so window-based processors see what a live data source would.
+ * @param {Object} cfg - Data source config
+ * @returns {{windowSeconds: number, capacity: number}}
+ */
+export function dataSourceBufferSize(cfg = {}) {
+  const windowCfg = cfg.window_seconds ?? cfg.windowSeconds;
+  let windowSeconds = 60;
+  if (typeof windowCfg === 'number' && isFinite(windowCfg)) {
+    windowSeconds = Math.max(1, windowCfg);
+  } else if (typeof windowCfg === 'string') {
+    const ms = parseTimeWindowMs(windowCfg);
+    if (Number.isFinite(ms)) windowSeconds = Math.max(1, Math.floor(ms / 1000));
+  }
+  return { windowSeconds, capacity: Math.max(60, Math.floor(windowSeconds * 10)) };
+}
 
 export class DataSource {
   /**
    * Create a new DataSource for a Home Assistant entity
    * @param {object} cfg - DataSource configuration
    * @param {string} cfg.entity - Entity ID to monitor
-   * @param {number} [cfg.windowSeconds=60] - Rolling window size in seconds
-   * @param {number} [cfg.minEmitMs=100] - Minimum time between emits
-   * @param {number} [cfg.sampleMs] - Alias for minEmitMs (legacy)
-   * @param {number} [cfg.coalesceMs] - Coalescing window for rapid updates
-   * @param {number} [cfg.maxDelayMs] - Maximum delay before forced emit
-   * @param {boolean} [cfg.emitOnSameValue=true] - Emit even when value unchanged
+   * @param {number|string} [cfg.window_seconds=60] - Rolling window size in seconds (or '5m', '1h')
+   * @param {number} [cfg.min_emit_ms=100] - Minimum time between emits
+   * @param {number} [cfg.coalesce_ms] - Coalescing window for rapid updates
+   * @param {number} [cfg.max_delay_ms] - Maximum delay before forced emit
+   * @param {boolean} [cfg.emit_on_same_value=true] - Emit even when value unchanged
+   *   The older camelCase spellings (windowSeconds, minEmitMs, sampleMs,
+   *   coalesceMs, maxDelayMs, emitOnSameValue) are still read; snake_case wins.
    * @param {Object} [cfg.processing] - Processor configuration
    * @param {Object} [cfg.history] - History preload configuration
    * @param {Object} [cfg.metadata] - Metadata overrides
@@ -44,40 +91,45 @@ export class DataSource {
       this.cfg.entity = '';
     }
 
+    // `attribute: 'state'` (written by older editors) means the entity state,
+    // not an attribute named "state". Normalise once so every read site agrees.
+    const attribute = normalizeAttribute(this.cfg.attribute);
+    if (attribute) {
+      this.cfg.attribute = attribute;
+    } else {
+      delete this.cfg.attribute;
+    }
+
     // This allows expressions to access entity attributes
     this._lastOriginalState = null;
 
-    // PORT: Complete buffer sizing logic from original
-    let wsSec = 60; // Default window
-    if (typeof cfg.windowSeconds === 'number' && isFinite(cfg.windowSeconds)) {
-      wsSec = Math.max(1, cfg.windowSeconds);
-    } else if (typeof cfg.windowSeconds === 'string') {
-      const ms = this._parseTimeWindowMs(cfg.windowSeconds);
-      if (Number.isFinite(ms)) {
-        wsSec = Math.max(1, Math.floor(ms / 1000));
-      }
-    }
+    // Timing keys are snake_case; the older camelCase spellings still work.
+    const pick = (...keys) => keys.map(k => cfg[k]).find(v => v !== undefined && v !== null);
 
-    // Buffer capacity: aim for ~10 points per second for the window
-    const capacity = Math.max(60, Math.floor(wsSec * 10));
+    // Buffer sizing from the window (shared with the processor preview)
+    const { windowSeconds, capacity } = dataSourceBufferSize(cfg);
+    /** Resolved rolling window in seconds */
+    this.windowSeconds = windowSeconds;
     this.buffer = new RollingBuffer(capacity);
 
     // PORT: Complete timing configuration from original - MADE MORE AGGRESSIVE
-    const minEmitMs = Number.isFinite(cfg.minEmitMs) ? cfg.minEmitMs
-      : Number.isFinite(cfg.sampleMs) ? cfg.sampleMs : 100;
+    const minEmitCfg = pick('min_emit_ms', 'minEmitMs', 'sampleMs');
+    const minEmitMs = Number.isFinite(minEmitCfg) ? minEmitCfg : 100;
 
     this.minEmitMs = Math.max(10, minEmitMs);
 
     // MORE AGGRESSIVE coalescing by default
-    this.coalesceMs = Number.isFinite(cfg.coalesceMs)
-      ? Math.max(20, cfg.coalesceMs)  // Reduced from 30 to 20
+    const coalesceCfg = pick('coalesce_ms', 'coalesceMs');
+    this.coalesceMs = Number.isFinite(coalesceCfg)
+      ? Math.max(20, coalesceCfg)  // Reduced from 30 to 20
       : Math.max(20, Math.round(this.minEmitMs * 0.4));  // Reduced from 0.6 to 0.4
 
-    this.maxDelayMs = Number.isFinite(cfg.maxDelayMs)
-      ? Math.max(this.minEmitMs, cfg.maxDelayMs)
+    const maxDelayCfg = pick('max_delay_ms', 'maxDelayMs');
+    this.maxDelayMs = Number.isFinite(maxDelayCfg)
+      ? Math.max(this.minEmitMs, maxDelayCfg)
       : Math.max(this.minEmitMs, this.coalesceMs * 3);  // Reduced from 4 to 3
 
-    this.emitOnSameValue = cfg.emitOnSameValue !== false; // Default true
+    this.emitOnSameValue = pick('emit_on_same_value', 'emitOnSameValue') !== false; // Default true
 
     // Subscription management
     this.subscribers = new Set();
@@ -86,23 +138,28 @@ export class DataSource {
     // REFACTORED: Unified processor manager (replaces transformations/aggregations split)
     this.processorManager = null; // Will be initialized in _initializeProcessors()
 
-    // PORT: Complete internal timing state from original
+    // Emit throttle state (see _queueEmit)
     this._lastEmitTime = 0;
+    /** @type {number|null} */
     this._lastEmittedValue = null;
-    /** @type {any} */
-    this._pendingRaf = 0;
+    /** @type {ReturnType<typeof setTimeout>|null} Trailing emit timer */
+    this._emitTimer = null;
+    /** @type {{t: number, v: number}|null} Latest value waiting for the trailing emit */
+    this._pendingPoint = null;
     this._pending = false;
     this._pendingFirstTs = 0;
-    this._pendingCount = 0;
 
     // Performance statistics
+    /** @type {Record<string, any>} */
     this._stats = {
       emits: 0,
       coalesced: 0,
       skipsSameValue: 0,
       received: 0,
       invalid: 0,
-      historyLoaded: 0
+      historyLoaded: 0,
+      updates: 0,
+      lastUpdate: null
     };
 
     // Lifecycle state
@@ -176,30 +233,6 @@ export class DataSource {
   }
 
   /**
-   * Getter for backward compatibility - redirects to ProcessorManager
-   * @deprecated Use this.processorManager.processors instead
-   */
-  get transformations() {
-    return this.processorManager ? this.processorManager.processors : new Map();
-  }
-
-  /**
-   * Getter for backward compatibility - redirects to ProcessorManager
-   * @deprecated Use this.processorManager.processors instead
-   */
-  get aggregations() {
-    return this.processorManager ? this.processorManager.processors : new Map();
-  }
-
-  /**
-   * Getter for backward compatibility - redirects to ProcessorManager
-   * Provides unified access to all processors
-   */
-  get processing() {
-    return this.processorManager ? this.processorManager.processors : new Map();
-  }
-
-  /**
    * Start the data source with proper initialization sequence
    * @returns {Promise} Resolves when fully initialized
    */
@@ -214,50 +247,36 @@ export class DataSource {
         await this._preloadHistory();
       }
 
-      // STEP 2: Initialize with current HASS state if available
-      if (this.hass.states && this.hass.states[this.cfg.entity]) {
-        const currentState = this.hass.states[this.cfg.entity];
-
-        // ✅ NEW: Extract metadata from initial state
+      // STEP 2: Initialize with current HASS state if available. This is the
+      // source's first value: the manager does not replay it again.
+      const currentState = this.hass.states?.[this.cfg.entity];
+      if (currentState) {
         this._extractMetadata(currentState);
+        this._lastOriginalState = currentState;
+        if (currentState.attributes?.unit_of_measurement) {
+          this.cfg.unit_of_measurement = currentState.attributes.unit_of_measurement;
+        }
 
         lcardsLog.trace(`[DataSource] 🔄 Loading initial state for ${this.cfg.entity}:`, currentState.state);
-
-      // ENHANCED: Capture unit_of_measurement from initial state
-      if (currentState.attributes?.unit_of_measurement) {
-        this.cfg.unit_of_measurement = currentState.attributes.unit_of_measurement;
-        lcardsLog.trace(`[DataSource] 📊 Captured initial unit_of_measurement for ${this.cfg.entity}: "${this.cfg.unit_of_measurement}"`);
-      }
-
-      // FIXED: Use current timestamp for initial state
-      const currentTimestamp = Date.now();
-      const rawValue = this.cfg.attribute ? currentState.attributes?.[this.cfg.attribute] : currentState.state;
-      const value = this._toNumber(rawValue);
-
-      if (value !== null) {
-        lcardsLog.trace(`[DataSource] Adding current state: ${value} at ${currentTimestamp}`);
-        this.buffer.push(currentTimestamp, value);
-        this._stats.currentValue = value;
-
-        // REFACTORED: Process initial value through unified processor pipeline
-        if (this.processorManager) {
-          try {
-            this.processorManager.process(value, currentTimestamp, this.buffer);
-          } catch (error) {
-            lcardsLog.warn('[DataSource] Processor pipeline failed for initial state:', error);
-          }
+        const currentTimestamp = Date.now();
+        const value = this._toNumber(this._readRawValue(currentState));
+        if (value !== null) {
+          this.buffer.push(currentTimestamp, value);
+          this._stats.currentValue = value;
+          this._processValue(currentTimestamp, value);
+          // Subscribers get this value at once (initial emission / hydration), so
+          // emit_on_same_value compares the first live update against it.
+          this._lastEmittedValue = value;
         }
       }
-    }
 
       // STEP 3: Setup real-time subscriptions
-      this.haUnsubscribe = await this.hass.connection.subscribeEvents((event) => {
-        if (event.event_type === 'state_changed' &&
-            event.data?.entity_id === this.cfg.entity) {
-          lcardsLog.trace(`[DataSource] 📊 HA event received for ${this.cfg.entity}:`, event.data.new_state?.state);
-          this._handleStateChange(event.data);
-        }
-      }, 'state_changed');
+      // Through the page's one shared state_changed subscription (#408): one per
+      // source sent every state change in Home Assistant once per source.
+      this.haUnsubscribe = onStateChanged(this.hass.connection, this.cfg.entity, (data) => {
+        lcardsLog.trace(`[DataSource] 📊 HA event received for ${this.cfg.entity}:`, data.new_state?.state);
+        this._handleStateChange(data);
+      }, this.hass.states?.[this.cfg.entity]);
 
       this._started = true;
       lcardsLog.trace(`[DataSource] ✅ Full initialization complete for ${this.cfg.entity} - Buffer: ${this.buffer.size()} points`);
@@ -316,25 +335,7 @@ export class DataSource {
       const lastValue = this.buffer.last()?.v;
 
       if (lastValue !== null && lastValue !== undefined) {
-        const emitData = {
-          t: timestamp,
-          v: lastValue,
-          buffer: this.buffer,
-          stats: { ...this._stats },
-          processing: this._getProcessingData(),
-          entity: this.cfg.entity,
-          unit_of_measurement: this.cfg.unit_of_measurement,
-          historyReady: this._stats.historyLoaded > 0,
-          isPeriodicUpdate: true
-        };
-
-        this.subscribers.forEach((callback) => {
-          try {
-            callback(emitData);
-          } catch (error) {
-            lcardsLog.error(`[DataSource] Periodic update callback failed:`, error);
-          }
-        });
+        this._notify({ ...this._buildEmitData({ t: timestamp, v: lastValue }), isPeriodicUpdate: true });
       }
     }, updateInterval);
   }
@@ -357,239 +358,52 @@ export class DataSource {
    * @private
    */
   _emitInitialData() {
-    if (this.subscribers.size > 0) {
-      const lastPoint = this.buffer.last();
-      if (lastPoint) {
-        lcardsLog.trace(`[DataSource] 📤 Emitting initial data for ${this.cfg.entity} to ${this.subscribers.size} subscribers`);
-        const emitData = {
-          t: lastPoint.t,
-          v: lastPoint.v,
-          buffer: this.buffer,
-          stats: { ...this._stats },
-          processing: this._getProcessingData(),  // REFACTORED: Unified processing // Convert Map to Object
-          // (removed - now in processing)
-          entity: this.cfg.entity,
-          unit_of_measurement: this.cfg.unit_of_measurement,
-          historyReady: this._stats.historyLoaded > 0,
-          isInitialEmission: true // NEW: Flag to indicate this is initial data
-        };
-
-        this.subscribers.forEach(callback => {
-          try {
-            callback(emitData);
-          } catch (error) {
-            lcardsLog.error(`[DataSource] Initial callback error for ${this.cfg.entity}:`, error);
-          }
-        });
-      } else {
-        // Even if no buffer data, emit initial structure for consistency
-        lcardsLog.trace(`[DataSource] 📤 Emitting initial empty data structure for ${this.cfg.entity} to ${this.subscribers.size} subscribers`);
-        const emitData = {
-          t: null,
-          v: null,
-          buffer: this.buffer,
-          stats: { ...this._stats },
-          processing: this._getProcessingData(),  // REFACTORED: Unified processing
-          // (removed - now in processing)
-          entity: this.cfg.entity,
-          unit_of_measurement: this.cfg.unit_of_measurement,
-          historyReady: this._stats.historyLoaded > 0,
-          isInitialEmission: true
-        };
-
-        this.subscribers.forEach(callback => {
-          try {
-            callback(emitData);
-          } catch (error) {
-            lcardsLog.error(`[DataSource] Initial callback error for ${this.cfg.entity}:`, error);
-          }
-        });
-      }
-    }
+    if (this.subscribers.size === 0) return;
+    const lastPoint = this.buffer.last();
+    lcardsLog.trace(`[DataSource] 📤 Emitting initial data for ${this.cfg.entity} to ${this.subscribers.size} subscribers`);
+    // Even with no buffered point, subscribers get the structure (t and v null).
+    this._notify({ ...this._buildEmitData(lastPoint ?? { t: null, v: null }), isInitialEmission: true });
   }
 
   /**
-   * Preload historical data for the entity
-   * Attempts statistics API first (faster), falls back to state history via WebSocket
+   * Preload history: the same points the editor's processor preview fetches
+   * (history-fetch.js: hourly statistics, else state history, else REST).
    * @private
-   * @async
    */
   async _preloadHistory() {
     if (!this.hass?.connection || !this.cfg.entity) {
       lcardsLog.warn('[DataSource] ⚠️ No HASS connection or entity for history preload');
       return;
     }
-
-    const hours = Math.max(1, Math.min(168, this.cfg.history?.hours || 6)); // 1-168 hours
-    const endTime = new Date();
-    const startTime = new Date(endTime.getTime() - hours * 3600000);
+    if (!historySettings(this.cfg).enabled) return;
 
     lcardsLog.trace(`[DataSource] 🔄 Preloading history for ${this.cfg.entity}`);
-
-    try {
-      // Use modern WebSocket call for statistics (preferred)
-      const statisticsData = await this.hass.connection.sendMessagePromise({
-        type: 'recorder/statistics_during_period',
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
-        statistic_ids: [this.cfg.entity],
-        period: 'hour'
-      });
-
-      if (statisticsData && statisticsData[this.cfg.entity]) {
-        const statistics = statisticsData[this.cfg.entity];
-        lcardsLog.trace(`[DataSource] 📊 Got statistics points`,statistics);
-
-        for (const stat of statistics) {
-          const timestamp = new Date(stat.start).getTime();
-          const value = this._extractStatisticValue(stat);
-
-          if (value !== null) {
-            this.buffer.push(timestamp, value);
-            this._processValue(timestamp, value);
-            this._stats.historyLoaded++;
-          }
-        }
-
-        lcardsLog.trace(`[DataSource] ✅ Loaded statistics points`);
-        return; // Success with statistics
-      }
-    } catch (error) {
-      lcardsLog.warn('[DataSource] ⚠️ Statistics failed, trying state history:', error.message);
-    }
-
-    // Fallback: try state history via WebSocket
-    await this._preloadStateHistoryWS(startTime, endTime);
+    const { points, method } = await fetchDataSourceHistory(this.hass, this.cfg);
+    this._loadHistoryPoints(points);
+    lcardsLog.trace(`[DataSource] ✅ Loaded ${points.length} history points (${method})`);
   }
 
   /**
-   * Preload history using WebSocket state_history API
+   * Push preloaded history points into the buffer and processors.
    * @private
-   * @async
-   * @param {Date} startTime - Start time for history query
-   * @param {Date} endTime - End time for history query
+   * @param {Array<{t: number, v: number}>} points
    */
-  async _preloadStateHistoryWS(startTime, endTime) {
-    try {
-      lcardsLog.trace(`[DataSource] 📚 Trying WebSocket state history for ${this.cfg.entity}`);
-
-      // Use modern WebSocket call for history
-      const historyData = await this.hass.connection.sendMessagePromise({
-        type: 'history/history_during_period',
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
-        entity_ids: [this.cfg.entity],
-        minimal_response: true,
-        no_attributes: true
-      });
-
-      if (historyData && historyData[0]) {
-        const states = historyData[0];
-        lcardsLog.trace(`[DataSource] 📊 Got history states`);
-
-        for (const state of states) {
-          const timestamp = new Date(state.last_changed || state.last_updated).getTime();
-
-          // ✅ ENHANCED: Support nested attribute paths
-          let rawValue;
-          if (this.cfg.attribute_path) {
-            rawValue = this._extractNestedAttribute(state.attributes, this.cfg.attribute_path);
-          } else if (this.cfg.attribute) {
-            rawValue = state.attributes?.[this.cfg.attribute];
-          } else {
-            rawValue = state.state;
-          }
-
-          const value = this._toNumber(rawValue);
-
-          if (value !== null) {
-            this.buffer.push(timestamp, value);
-            this._processValue(timestamp, value);
-            this._stats.historyLoaded++;
-          }
-        }
-
-        lcardsLog.trace(`[DataSource] ✅ Loaded history points`);
-      } else {
-        // Debug only: Entity may not have history yet (new entity, HA just started, or history not enabled)
-        lcardsLog.trace('[DataSource] No history data returned from WebSocket call (may be unavailable)');
-      }
-    } catch (error) {
-      lcardsLog.error('[DataSource] ❌ WebSocket state history also failed:', error);
-
-      // Final fallback: try direct REST API if available
-      await this._preloadHistoryREST(startTime, endTime);
+  _loadHistoryPoints(points) {
+    for (const { t, v } of points) {
+      this.buffer.push(t, v);
+      this._processValue(t, v);
+      this._stats.historyLoaded++;
     }
   }
 
   /**
-   * Preload history using REST API (fallback method)
-   * @private
-   * @async
-   * @param {Date} startTime - Start time for history query
-   * @param {Date} endTime - End time for history query
-   */
-  async _preloadHistoryREST(startTime, endTime) {
-    try {
-      lcardsLog.debug(`[DataSource] 🌐 Trying REST API history for ${this.cfg.entity}`);
-
-      const startParam = startTime.toISOString();
-      const url = `/api/history/period/${startParam}?filter_entity_id=${this.cfg.entity}&minimal_response&no_attributes`;
-
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${this.hass.auth?.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const historyData = await response.json();
-
-      if (historyData && historyData[0]) {
-        const states = historyData[0];
-        lcardsLog.trace(`[DataSource] 📊 Got history states`);
-
-        for (const state of states) {
-          const timestamp = new Date(state.last_changed || state.last_updated).getTime();
-
-          // ✅ ENHANCED: Support nested attribute paths
-          let rawValue;
-          if (this.cfg.attribute_path) {
-            rawValue = this._extractNestedAttribute(state.attributes, this.cfg.attribute_path);
-          } else if (this.cfg.attribute) {
-            rawValue = state.attributes?.[this.cfg.attribute];
-          } else {
-            rawValue = state.state;
-          }
-
-          const value = this._toNumber(rawValue);
-
-          if (value !== null) {
-            this.buffer.push(timestamp, value);
-            this._processValue(timestamp, value);
-            this._stats.historyLoaded++;
-          }
-        }
-
-        lcardsLog.trace(`[DataSource] ✅ Loaded history points`);
-      }
-    } catch (error) {
-      lcardsLog.error('[DataSource] ❌ REST history fallback also failed:', error);
-    }
-  }
-
-  /**
-   * Handle state change from Home Assistant
+   * Handle a state change from Home Assistant. Every accepted value goes into the
+   * buffer and the processors; subscribers are notified through the emit throttle
+   * (_queueEmit).
    * @private
    * @param {Object} eventData - State change event data
    */
-    // Enhanced _handleStateChange method
   _handleStateChange(eventData) {
-
     if (!eventData?.new_state || this._destroyed) {
       return;
     }
@@ -600,97 +414,156 @@ export class DataSource {
       return;
     }
 
-    // ✅ NEW: Update metadata on state changes (before storing original state)
     this._extractMetadata(eventData.new_state);
 
     // Store the original state object before any conversion
     this._lastOriginalState = eventData.new_state;
 
-    // ENHANCED: Capture and store unit_of_measurement from the entity
     if (eventData.new_state.attributes?.unit_of_measurement) {
       this.cfg.unit_of_measurement = eventData.new_state.attributes.unit_of_measurement;
     }
 
-    // FIXED: Use current timestamp instead of state timestamp
+    // Arrival time, not the state's last_changed (attribute updates keep that)
     const timestamp = Date.now();
+    const rawValue = this._readRawValue(eventData.new_state);
+    const value = this._toNumber(rawValue);
+    this._stats.received++;
 
-    let rawValue;
+    if (value === null) {
+      this._stats.invalid++;
+      lcardsLog.debug(`[DataSource] ⚠️ Skipping state change - invalid value:`, { rawValue, entity: this.cfg.entity });
+      return;
+    }
 
+    this.buffer.push(timestamp, value);
+    this._processValue(timestamp, value);
+    this._stats.updates++;
+    this._stats.lastUpdate = timestamp;
+
+    this._queueEmit(timestamp, value);
+  }
+
+  /**
+   * Raw value for this source from a state object: `attribute_path` (nested),
+   * `attribute`, or the entity state.
+   * @private
+   * @param {Object} stateObj - Home Assistant state object
+   * @returns {*}
+   */
+  _readRawValue(stateObj) {
     if (this.cfg.attribute_path) {
-      // New nested path syntax
-      rawValue = this._extractNestedAttribute(
-        eventData.new_state.attributes,
-        this.cfg.attribute_path
-      );
-
-      if (rawValue === null && this.cfg.debug) {
+      const value = this._extractNestedAttribute(stateObj.attributes, this.cfg.attribute_path);
+      if (value === null && this.cfg.debug) {
         lcardsLog.debug(
           `[DataSource] ${this.cfg.entity}: Nested attribute path "${this.cfg.attribute_path}" returned null`
         );
       }
-    } else if (this.cfg.attribute) {
-      // Legacy single attribute access
-      rawValue = eventData.new_state.attributes?.[this.cfg.attribute];
-    } else {
-      // Entity state
-      rawValue = eventData.new_state.state;
+      return value;
     }
-
-    const value = this._toNumber(rawValue);
-
-    if (value !== null) {
-    // Store in raw buffer
-    this.buffer.push(timestamp, value);
-
-    // REFACTORED: Process through unified processor pipeline
-    if (this.processorManager) {
-      try {
-        this.processorManager.process(value, timestamp, this.buffer);
-      } catch (error) {
-        lcardsLog.warn('[DataSource] Processor pipeline failed:', error);
-      }
+    if (this.cfg.attribute) {
+      return stateObj.attributes?.[this.cfg.attribute];
     }
-
-    // Update statistics
-    this._stats.updates++;
-    this._stats.lastUpdate = timestamp;
-
-      // Emit to subscribers
-      lcardsLog.trace(`[DataSource] 📤 Emitting to subscribers:`, value);
-
-      const emitData = {
-        t: timestamp,
-        v: value,
-        buffer: this.buffer,
-        stats: { ...this._stats },
-        processing: this._getProcessingData(),  // REFACTORED: Unified processing
-        entity: this.cfg.entity,
-        unit_of_measurement: this.cfg.unit_of_measurement, // NEW: Include unit info
-        historyReady: this._stats.historyLoaded > 0
-      };
-
-      this.subscribers.forEach((callback, index) => {
-        try {
-          callback(emitData);
-        } catch (error) {
-          lcardsLog.error(`[DataSource] ❌ Subscriber ${index} callback FAILED for ${this.cfg.entity}:`, error);
-        }
-      });
-    } else {
-      lcardsLog.debug(`[DataSource] ⚠️ Skipping state change - invalid value:`, { rawValue, entity: this.cfg.entity });
-    }
+    return stateObj.state;
   }
 
   /**
-   * Update all configured aggregations with new data
+   * Emit throttle. A value arriving at least `min_emit_ms` after the last emit (and
+   * with no trailing emit pending) goes out at once, so sparse updates have no added
+   * delay. Otherwise it waits: the trailing emit fires `coalesce_ms` after the latest
+   * value (each new value restarts that wait), never sooner than `min_emit_ms` after
+   * the last emit and never later than `max_delay_ms` after the first waiting value.
+   * Only the latest waiting value is sent.
    * @private
-   * @param {number} timestamp - Current timestamp
-   * @param {number} value - Raw value
-   * @param {Object} transformedData - Transformed values from this update
+   * @param {number} t - Timestamp (ms)
+   * @param {number} v - Value
    */
+  _queueEmit(t, v) {
+    const now = Date.now();
+    if (!this._pending && now - this._lastEmitTime >= this.minEmitMs) {
+      this._pendingPoint = { t, v };
+      this._flushEmit();
+      return;
+    }
+
+    if (this._pending) {
+      this._stats.coalesced++;
+    } else {
+      this._pending = true;
+      this._pendingFirstTs = now;
+    }
+    this._pendingPoint = { t, v };
+
+    const due = Math.min(
+      Math.max(this._lastEmitTime + this.minEmitMs, now + this.coalesceMs),
+      this._pendingFirstTs + this.maxDelayMs
+    );
+    if (this._emitTimer) clearTimeout(this._emitTimer);
+    this._emitTimer = setTimeout(() => {
+      this._emitTimer = null;
+      this._flushEmit();
+    }, Math.max(0, due - now));
+  }
+
   /**
-   * REFACTORED: Process value through unified processor pipeline
-   * Replaces old _applyTransformations and _updateAggregations
+   * Send the waiting value to subscribers, unless `emit_on_same_value: false` and
+   * it equals the last value sent.
+   * @private
+   */
+  _flushEmit() {
+    const point = this._pendingPoint;
+    this._pendingPoint = null;
+    this._pending = false;
+    if (!point || this._destroyed) return;
+
+    if (!this.emitOnSameValue && point.v === this._lastEmittedValue) {
+      this._stats.skipsSameValue++;
+      return;
+    }
+
+    this._lastEmitTime = Date.now();
+    this._lastEmittedValue = point.v;
+    this._stats.emits++;
+    lcardsLog.trace(`[DataSource] 📤 Emitting to subscribers:`, point.v);
+    this._notify(this._buildEmitData(point));
+  }
+
+  /**
+   * The data object subscribers receive (same shape for live, initial and
+   * periodic emits; the latter two add a flag).
+   * @private
+   * @param {{t: number|null, v: number|null}} point
+   * @returns {Object}
+   */
+  _buildEmitData(point) {
+    return {
+      t: point.t,
+      v: point.v,
+      buffer: this.buffer,
+      stats: { ...this._stats },
+      processing: this._getProcessingData(),
+      entity: this.cfg.entity,
+      unit_of_measurement: this.cfg.unit_of_measurement,
+      historyReady: this._stats.historyLoaded > 0
+    };
+  }
+
+  /**
+   * Call every subscriber with `data`; a failing callback does not stop the rest.
+   * @private
+   * @param {Object} data
+   */
+  _notify(data) {
+    this.subscribers.forEach((callback) => {
+      try {
+        callback(data);
+      } catch (error) {
+        lcardsLog.error(`[DataSource] ❌ Subscriber callback failed for ${this.cfg.entity}:`, error);
+      }
+    });
+  }
+
+  /**
+   * Run a value through the processor pipeline
    * @private
    */
   _processValue(timestamp, value) {
@@ -719,9 +592,14 @@ export class DataSource {
     return results;
   }
 
+  /** @returns {Map} Configured processors (empty when none). */
+  _processors() {
+    return this.processorManager ? this.processorManager.processors : new Map();
+  }
+
   /**
-   * Enhanced debug method to show transformation and aggregation data
-   * @returns {Object} Debug information including transformations and aggregations
+   * Enhanced debug method to show processor data
+   * @returns {Object} Debug information including processor outputs
    */
   getDebugInfo() {
     const currentData = this.getCurrentData();
@@ -731,210 +609,13 @@ export class DataSource {
       currentValue: currentData.v,
       timestamp: currentData.t ? new Date(currentData.t).toISOString() : null,
       bufferSize: this.buffer.size(),
-      transformations: {
-        count: this.transformations.size,
-        data: currentData.transformations,
-        processors: Array.from(this.transformations.keys())
-      },
-      aggregations: {
-        count: this.aggregations.size,
-        data: currentData.aggregations,
-        processors: Array.from(this.aggregations.keys())
+      processors: {
+        count: this._processors().size,
+        keys: Array.from(this._processors().keys()),
+        results: currentData.processing
       },
       stats: currentData.stats
     };
-  }
-
-  /**
-   * Check if we should emit data to subscribers based on timing and value rules
-   */
-  _shouldEmit(value, timestamp) {
-    const now = Date.now();
-
-    // Respect minimum emit interval
-    if (this._lastEmitTime && (timestamp - this._lastEmitTime) < this.minEmitMs) {
-      this._stats.coalesced++;
-      return false;
-    }
-
-    // Skip if value hasn't changed (if configured)
-    if (!this.emitOnSameValue && value === this._lastEmittedValue) {
-      this._stats.skipsSameValue++;
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Emit data to all subscribers
-   */
-  _emit(data) {
-    const now = Date.now();
-    this._lastEmitTime = now;
-    this._lastEmittedValue = data.v;
-    this._stats.emits++;
-
-    lcardsLog.trace(`[DataSource] 📤 Emitting to subscribers:`, data.v);
-
-    // Call all subscribers
-    this.subscribers.forEach(callback => {
-      try {
-        callback(data);
-      } catch (error) {
-        lcardsLog.warn(`[DataSource] ⚠️ Subscriber callback error:`, error);
-      }
-    });
-  }
-
-  /**
-   * Subscribe to live state changes from Home Assistant via WebSocket
-   * Sets up event subscription for the configured entity
-   * @private
-   * @async
-   */
-  async _subscribeLive() {
-    if (!this.hass?.connection?.subscribeEvents || !this.cfg.entity) return;
-
-    const entityId = this.cfg.entity;
-
-    try {
-      this.haUnsubscribe = await this.hass.connection.subscribeEvents((event) => {
-        const newState = event?.data?.new_state;
-        if (!newState || newState.entity_id !== entityId) return;
-
-        const timestamp = new Date(newState.last_changed || newState.last_updated || Date.now()).getTime();
-        const rawValue = this.cfg.attribute ? newState.attributes?.[this.cfg.attribute] : newState.state;
-        const value = this._toNumber(rawValue);
-
-        this._onRawEventValue(timestamp, value);
-      }, 'state_changed');
-
-    } catch (error) {
-      lcardsLog.warn('[DataSource] ⚠️ Failed to subscribe to HA events:', error.message);
-    }
-  }
-
-  /**
-   * Handle raw event value with coalescing and throttling
-   * Implements intelligent value change detection to reduce unnecessary updates
-   * @private
-   * @param {number} timestamp - Event timestamp in milliseconds
-   * @param {number} value - Numeric value to process
-   */
-  _onRawEventValue(timestamp, value) {
-    if (value === null) {
-      this._stats.invalid++;
-      return;
-    }
-
-    // ENHANCED: Check for rapid-fire identical values and skip some
-    const now = isNode ? Date.now() : performance.now();
-
-    // Store in buffer - buffer now handles its own coalescing
-    this.buffer.push(timestamp, value);
-    this._stats.received++;
-
-    // FIXED: More aggressive coalescing logic for stress scenarios
-    if (!this._pending) {
-      this._pending = true;
-      this._pendingFirstTs = now;
-      this._pendingCount = 1;
-
-      // For stress tests: delay first emission slightly to allow coalescing
-      if (this._stats.received > 10) {
-        // High-frequency scenario - be more patient
-        setTimeout(() => this._ensureScheduleEmit(), 5);
-      } else {
-        // Normal scenario - immediate response for first subscription
-        if (this.subscribers.size > 0 && this._stats.emits === 0) {
-          this._emit();
-        } else {
-          this._ensureScheduleEmit();
-        }
-      }
-    } else {
-      this._pendingCount++;
-      const timeSinceFirst = now - this._pendingFirstTs;
-
-      if (timeSinceFirst >= this.coalesceMs) {
-        // Coalescing window expired - emit and start new window
-        this._emit();
-
-        // Start fresh coalescing window
-        this._pending = true;
-        this._pendingFirstTs = now;
-        this._pendingCount = 1;
-        this._ensureScheduleEmit();
-      } else {
-        // Still within coalescing window - increment coalesced counter
-        this._stats.coalesced++;
-      }
-    }
-  }
-
-  /**
-   * Ensure an emit is scheduled on the next animation frame
-   * Uses requestAnimationFrame for optimal timing
-   * @private
-   */
-  _ensureScheduleEmit() {
-    if (this._pendingRaf) return; // Already scheduled
-
-    this._pendingRaf = requestAnimationFrame(() => {
-      this._pendingRaf = 0;
-      this._frameEmitCheck();
-    });
-  }
-
-  /**
-   * Check if pending data should be emitted based on timing constraints
-   * Enforces minEmitMs, coalesceMs, and maxDelayMs policies
-   * @private
-   */
-  _frameEmitCheck() {
-    if (!this._pending || this._destroyed) return;
-
-    const now = isNode ? Date.now() : performance.now();
-    const timeSinceLastEmit = now - this._lastEmitTime;
-    const timeSincePendingStart = now - this._pendingFirstTs;
-
-    // Should we emit now?
-    let shouldEmit = false;
-
-    // Check minimum emit interval
-    if (timeSinceLastEmit >= this.minEmitMs) {
-      // Minimum time passed - check coalescing window
-      if (timeSincePendingStart >= this.coalesceMs) {
-        shouldEmit = true;
-      }
-    }
-
-    // Max delay override - always emit if we've been pending too long
-    if (timeSincePendingStart >= this.maxDelayMs) {
-      shouldEmit = true;
-    }
-
-    if (shouldEmit) {
-      this._emit();
-    } else {
-      // IMPROVED: More precise next check timing
-      const untilMinEmit = Math.max(0, this.minEmitMs - timeSinceLastEmit);
-      const untilCoalesce = Math.max(0, this.coalesceMs - timeSincePendingStart);
-      const untilMaxDelay = Math.max(0, this.maxDelayMs - timeSincePendingStart);
-
-      const nextCheck = Math.min(
-        untilMinEmit || Infinity,
-        untilCoalesce || Infinity,
-        untilMaxDelay || Infinity
-      );
-
-      if (nextCheck < Infinity && nextCheck > 0) {
-        setTimeout(() => {
-          this._ensureScheduleEmit();
-        }, Math.max(1, Math.min(50, nextCheck)));
-      }
-    }
   }
 
   /**
@@ -955,16 +636,7 @@ export class DataSource {
     const lastPoint = this.buffer.last();
     if (lastPoint) {
       try {
-        const currentData = {
-          t: lastPoint.t,
-          v: lastPoint.v,
-          buffer: this.buffer,
-          stats: { ...this._stats },
-          processing: this._getProcessingData(),  // REFACTORED: Unified processing // Convert Map to Object
-          // (removed - now in processing)
-          entity: this.cfg.entity,
-          historyReady: this._stats.historyLoaded > 0
-        };
+        const currentData = this._buildEmitData(lastPoint);
 
         lcardsLog.debug(`[DataSource] Providing immediate hydration for new subscriber:`, {
           entity: this.cfg.entity,
@@ -1037,99 +709,13 @@ export class DataSource {
    * @returns {number|null} Converted number or null if invalid
    */
   _toNumber(raw) {
-    if (raw === null || raw === undefined) {
-      return null;
+    const value = toNumericValue(raw, this.cfg.enum_mapping);
+    if (value === null && typeof raw === 'string' && (this.cfg.debug || this.cfg.enum_mapping_debug)) {
+      lcardsLog.debug(
+        `[DataSource] ${this.cfg.entity}: non-numeric value "${raw}" skipped (consider enum_mapping)`
+      );
     }
-
-    // Handle numeric values
-    if (typeof raw === 'number') {
-      return isNaN(raw) ? null : raw;
-    }
-
-    // Handle string values
-    if (typeof raw === 'string') {
-      // ✅ ENHANCED DEBUG: Log what we're checking
-      if (this.cfg.debug || this.cfg.enum_mapping_debug) {
-        lcardsLog.debug(
-          `[DataSource] ${this.cfg.entity}: _toNumber called with string: "${raw}"\n` +
-          `  Has enum_mapping: ${!!this.cfg.enum_mapping}\n` +
-          `  Enum mapping keys: ${this.cfg.enum_mapping ? Object.keys(this.cfg.enum_mapping).join(', ') : 'none'}`
-        );
-      }
-
-      // Check enum_mapping first (before any other conversion)
-      if (this.cfg.enum_mapping && typeof this.cfg.enum_mapping === 'object') {
-        // ✅ ENHANCED DEBUG: Show the lookup attempt
-        if (this.cfg.debug || this.cfg.enum_mapping_debug) {
-          lcardsLog.debug(
-            `[DataSource] ${this.cfg.entity}: Looking up "${raw}" in enum_mapping\n` +
-            `  Found: ${this.cfg.enum_mapping[raw] !== undefined}\n` +
-            `  Value: ${this.cfg.enum_mapping[raw]}`
-          );
-        }
-
-        if (this.cfg.enum_mapping[raw] !== undefined) {
-          const mappedValue = this.cfg.enum_mapping[raw];
-
-          // Validate mapped value is numeric
-
-          if (typeof mappedValue === 'number' && isFinite(mappedValue)) {
-            lcardsLog.debug(
-              `[DataSource] ${this.cfg.entity}: ✅ Enum mapping "${raw}" → ${mappedValue}`
-            );
-            return mappedValue;
-          } else {
-            lcardsLog.warn(
-              `[DataSource] ${this.cfg.entity}: ❌ Invalid enum mapping value for "${raw}": ${mappedValue} (must be a number)`
-            );
-          }
-        }
-      }
-
-      // Try direct numeric conversion
-      const num = parseFloat(raw);
-      if (!isNaN(num) && isFinite(num)) {
-        return num;
-      }
-
-      // Handle boolean-like strings
-      const lowerRaw = raw.toLowerCase().trim();
-      if (lowerRaw === 'on' || lowerRaw === 'true' || lowerRaw === 'active' || lowerRaw === 'open') {
-        if (this.cfg.debug || this.cfg.enum_mapping_debug) {
-          lcardsLog.debug(`[DataSource] ${this.cfg.entity}: Boolean mapping "${raw}" → 1`);
-        }
-        return 1;
-      }
-
-      if (lowerRaw === 'off' || lowerRaw === 'false' || lowerRaw === 'inactive' || lowerRaw === 'closed') {
-        if (this.cfg.debug || this.cfg.enum_mapping_debug) {
-          lcardsLog.debug(`[DataSource] ${this.cfg.entity}: Boolean mapping "${raw}" → 0`);
-        }
-        return 0;
-      }
-
-      // Handle unavailable/unknown states
-      if (lowerRaw === 'unavailable' || lowerRaw === 'unknown') {
-        return null;
-      }
-
-      // Log unhandled strings
-      if (this.cfg.debug || this.cfg.enum_mapping_debug) {
-        lcardsLog.warn(
-          `[DataSource] ${this.cfg.entity}: ⚠️ Unhandled string value: "${raw}" ` +
-          `(consider adding to enum_mapping)`
-        );
-      }
-
-      return null;
-    }
-
-    // Handle boolean values
-    if (typeof raw === 'boolean') {
-      return raw ? 1 : 0;
-    }
-
-    return null;
+    return value;
   }
 
   /**
@@ -1140,30 +726,7 @@ export class DataSource {
    * @returns {number} Milliseconds or NaN if invalid
    */
   _parseTimeWindowMs(windowStr) {
-    if (typeof windowStr !== 'string') return NaN;
-
-    const match = windowStr.match(/^(\d+(?:\.\d+)?)\s*(s|sec|m|min|h|hr|d|day)s?$/i);
-    if (!match) return NaN;
-
-    const value = parseFloat(match[1]);
-    const unit = match[2].toLowerCase();
-
-    switch (unit) {
-      case 's':
-      case 'sec':
-        return value * 1000;
-      case 'm':
-      case 'min':
-        return value * 60 * 1000;
-      case 'h':
-      case 'hr':
-        return value * 60 * 60 * 1000;
-      case 'd':
-      case 'day':
-        return value * 24 * 60 * 60 * 1000;
-      default:
-        return NaN;
-    }
+    return parseTimeWindowMs(windowStr);
   }
 
   /**
@@ -1175,20 +738,16 @@ export class DataSource {
       ...this._stats,
       config: {
         entity: this.cfg.entity,
-        windowSeconds: this.cfg.windowSeconds,
+        windowSeconds: this.windowSeconds,
         minEmitMs: this.minEmitMs,
         coalesceMs: this.coalesceMs,
         maxDelayMs: this.maxDelayMs
       },
       buffer: this.buffer.getStats(),
       subscribers: this.subscribers.size,
-      transformations: {
-        size: this.transformations.size,
-        keys: Array.from(this.transformations.keys())
-      },
-      aggregations: {
-        size: this.aggregations.size,
-        keys: Array.from(this.aggregations.keys())
+      processors: {
+        size: this._processors().size,
+        keys: Array.from(this._processors().keys())
       },
       state: {
         started: this._started,
@@ -1350,12 +909,13 @@ export class DataSource {
       this.haUnsubscribe = null;
     }
 
-    if (this._pendingRaf) {
-      cancelAnimationFrame(this._pendingRaf);
-      this._pendingRaf = 0;
+    if (this._emitTimer) {
+      clearTimeout(this._emitTimer);
+      this._emitTimer = null;
     }
 
     this._pending = false;
+    this._pendingPoint = null;
   }
 
   /**
@@ -1370,22 +930,6 @@ export class DataSource {
     this.buffer.clear();
   }
 
-  /**
-   * Extract numeric value from statistics API response
-   * Tries various statistics fields (sum, mean, min, max, state)
-   * @private
-   * @param {Object} stat - Statistics object from HA API
-   * @returns {number|null} Extracted numeric value or null
-   */
-  _extractStatisticValue(stat) {
-    // Priority order for statistic values
-    if (Number.isFinite(stat.mean)) return stat.mean;
-    if (Number.isFinite(stat.state)) return stat.state;
-    if (Number.isFinite(stat.sum)) return stat.sum;
-    if (Number.isFinite(stat.max)) return stat.max;
-    if (Number.isFinite(stat.min)) return stat.min;
-    return null;
-  }
 
 
   /**
@@ -1535,7 +1079,9 @@ export class DataSource {
     if (!metadataConfig || typeof metadataConfig !== 'object') return;
 
     // Track which properties have been explicitly set by user
-    this._metadataOverrides = {};
+    /** @type {Record<string, boolean>} */
+    const overrides = {};
+    this._metadataOverrides = overrides;
 
     // Apply overrides for supported properties
     const supportedProperties = [
@@ -1551,7 +1097,7 @@ export class DataSource {
     supportedProperties.forEach(prop => {
       if (metadataConfig.hasOwnProperty(prop)) {
         this.metadata[prop] = metadataConfig[prop];
-        this._metadataOverrides[prop] = true; // Mark as user-overridden
+        overrides[prop] = true; // Mark as user-overridden
         lcardsLog.trace(`[DataSource] Metadata override: ${prop} = ${metadataConfig[prop]}`);
       }
     });

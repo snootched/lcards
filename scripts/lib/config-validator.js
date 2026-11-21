@@ -1,0 +1,953 @@
+/**
+ * @fileoverview Validate LCARdS YAML config: the one checker behind the docs
+ * example validator (scripts/validate-doc-examples.js) and the user-facing CLI
+ * (scripts/lcards-validate.mjs).
+ *
+ * For every LCARdS node in a parsed config (a card, a layout view, the shell
+ * strategy; nested anywhere: views, sections, stacks, MSD control overlays):
+ *   - JSON Schema (ajv) against the real schemas (scripts/lib/card-schemas.js)
+ *   - keys no schema branch declares (most schemas are open, so ajv alone misses
+ *     typos such as `text_fields` or `style.colr`)
+ *   - MSD: a base_svg.source or a view_box
+ *   - charts and data grids: the legacy (pre-sources[]) format
+ *   - names that pass the schema but don't exist: presets, components, animation
+ *     and background presets, filters, sound assets, MSD backgrounds, theme tokens,
+ *     near-miss `var(--lcars-*)` (HA-LCARS) and `var(--lcards-*)` (LCARdS palette) names
+ *     (scripts/lib/registries.js). User packs can add names, so these are warnings.
+ *   - astrometrics: one placement form per point, and every point, object and view id
+ *     a reference names exists in the card (errors: nothing outside the card adds them)
+ *   - animations without the params their built-in preset needs (color-shift without
+ *     color_from / color_to does nothing), values a ` #` comment cut short
+ *     (`color: var(--x, #cc0000)` unquoted reads as `var(--x,`), and actions with
+ *     Home Assistant's older names (call-service, service, service_data): warnings
+ */
+
+import Ajv from 'ajv';
+import { isTemplateString } from '../../src/utils/template-string.js';
+import { migrateChartConfig } from '../../src/charts/chart-config-migration.js';
+import { migrateDataGridConfig } from '../../src/data-grid/data-grid-config-migration.js';
+import { classifyThemePath } from './theme-token-rules.js';
+import { parseAreasString } from '../../src/views/layout-grid-utils.js';
+import { CARD_PLUMBING_KEYS as PLUMBING_KEYS } from '../../src/cards/schemas/card-plumbing.js';
+import { PLACEMENT_FORMS, LABEL_STYLE_NAMES, UNIT_NAMES, SATELLITE_NAMES, SETTING_WORDS } from '../../src/core/astrometrics/names.js';
+import { withNebulaPreset } from '../../src/core/astrometrics/nebula-presets.js';
+import { missingPresetParams } from '../../src/cards/schemas/animation-preset-params-schemas.js';
+import { actionSchema } from '../../src/cards/schemas/common-schemas.js';
+
+/** Keys every card accepts that card schemas don't list (src/cards/schemas/card-plumbing.js). */
+const CARD_PLUMBING_KEYS = new Set(PLUMBING_KEYS);
+
+// ── Schema preparation ─────────────────────────────────────────────────────────
+// Strip `additionalProperties: false` / 'warn' (partial examples would fail it;
+// unknown keys are reported separately below), any `$ref` left in a source
+// schema, and empty `enum: []`. When stripping leaves an empty `{}` branch in a
+// oneOf/anyOf/allOf, drop it: `{}` matches everything and would make `oneOf` fail
+// for values that also satisfy a sibling branch.
+export function stripSchemaRestrictions(node) {
+  if (Array.isArray(node)) return node.map(stripSchemaRestrictions);
+  if (node && typeof node === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(node)) {
+      if (k === 'additionalProperties' && (v === false || v === 'warn')) continue;
+      if (k === '$ref') continue;
+      if (typeof v === 'function') continue;
+      if (k === 'enum' && Array.isArray(v) && v.length === 0) continue;
+      // CoreValidationService's per-property `required: true` becomes the parent's `required` list
+      if (k === 'required' && !Array.isArray(v)) continue;
+      if (k === 'properties' && v && typeof v === 'object') {
+        const own = Object.keys(v).filter(p => v[p]?.required === true);
+        if (own.length) out.required = [...new Set([...(Array.isArray(node.required) ? node.required : []), ...own, ...(out.required ?? [])])];
+      }
+      if ((k === 'oneOf' || k === 'anyOf' || k === 'allOf') && Array.isArray(v)) {
+        const stripped = v
+          .map(stripSchemaRestrictions)
+          .filter(item => !(item && typeof item === 'object' && !Array.isArray(item) && Object.keys(item).length === 0));
+        if (stripped.length > 0) out[k] = stripped;
+        continue;
+      }
+      out[k] = stripSchemaRestrictions(v);
+    }
+    return out;
+  }
+  return node;
+}
+
+/**
+ * A bindable setting: anyOf a number, an `{ entity }` binding and a template
+ * (astrometrics-schema.js `setting()`).
+ * @param {any} schema
+ */
+function isSettingSchema(schema) {
+  const alts = schema?.anyOf;
+  return Array.isArray(alts) && alts.some(b => b?.type === 'number') && alts.some(b => b?.properties?.entity && b?.required?.includes('entity'));
+}
+
+/** `oneOf` read as `anyOf` (CoreValidationService tolerates a value matching several branches). */
+function oneOfAsAnyOf(node) {
+  if (Array.isArray(node)) return node.map(oneOfAsAnyOf);
+  if (!node || typeof node !== 'object') return node;
+  return Object.fromEntries(Object.entries(node).map(([k, v]) => [k === 'oneOf' ? 'anyOf' : k, oneOfAsAnyOf(v)]));
+}
+
+// ── Unknown keys ─────────────────────────────────────────────────────────────
+/** Sub-schema for `key` in `schema`, `undefined` if open/unconstrained, or `false` if unknown. */
+function schemaForKey(schema, key) {
+  if (!schema || typeof schema !== 'object') return undefined;
+  const branches = [schema, ...(schema.anyOf ?? []), ...(schema.oneOf ?? []), ...(schema.allOf ?? [])]
+    .filter(b => b && typeof b === 'object');
+  let declaresProperties = false;
+  for (const b of branches) {
+    if (b !== schema && (b.anyOf || b.oneOf || b.allOf)) {
+      const nested = schemaForKey(b, key);
+      if (nested !== false) return nested;
+      declaresProperties = true;
+      continue;
+    }
+    if (b.properties && Object.prototype.hasOwnProperty.call(b.properties, key)) return b.properties[key];
+    for (const [pattern, sub] of Object.entries(b.patternProperties ?? {})) {
+      if (new RegExp(pattern).test(key)) return sub;
+    }
+    if (b.additionalProperties === true) return undefined;
+    if (b.additionalProperties && typeof b.additionalProperties === 'object') return b.additionalProperties;
+    if (b.properties || b.patternProperties) declaresProperties = true;
+  }
+  return declaresProperties ? false : undefined;
+}
+
+/**
+ * A `discriminatedBy` property's schema for this value, picked by the sibling field in
+ * `parent` (e.g. a background effect's `config` by its `preset`), so its keys are checked
+ * too. An unknown name gets the spec's open `default` (registryIssues reports the name).
+ * Other schemas come back unchanged.
+ */
+function discriminatedSchema(sub, parent) {
+  const spec = sub?.discriminatedBy;
+  if (!spec) return sub;
+  const name = parent?.[spec.field];
+  if (typeof name === 'string' && Object.prototype.hasOwnProperty.call(spec.schemas ?? {}, name)) return spec.schemas[name];
+  return spec.default;
+}
+
+/** Keys a schema node declares by name (all branches), for "did you mean" hints. */
+function declaredKeys(schema, out = new Set()) {
+  if (!schema || typeof schema !== 'object') return out;
+  for (const k of Object.keys(schema.properties ?? {})) out.add(k);
+  for (const b of [...(schema.anyOf ?? []), ...(schema.oneOf ?? []), ...(schema.allOf ?? [])]) declaredKeys(b, out);
+  return out;
+}
+
+/**
+ * Collect `path` strings of keys the schema does not declare. With `hints` (a Map),
+ * also records path -> the closest declared key, when one is close.
+ */
+export function unknownKeys(value, schema, pathPrefix = '', out = [], isCardRoot = false, hints = null) {
+  if (!value || typeof value !== 'object' || !schema) return out;
+  if (Array.isArray(value)) {
+    const items = schema.items ?? [schema, ...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].find(b => b?.items)?.items;
+    value.forEach((v, i) => unknownKeys(v, items, `${pathPrefix}[${i}]`, out, false, hints));
+    return out;
+  }
+  // A oneOf/anyOf keyed by `type` (one branch per type: astrometrics objects): check
+  // against the branch for this value's type, so keys of other types are reported.
+  if (!isCardRoot && typeof value.type === 'string') {
+    const branch = [...(schema.oneOf ?? []), ...(schema.anyOf ?? [])].filter(b => b?.properties?.type?.const === value.type);
+    if (branch.length === 1) schema = branch[0];
+  }
+  // `openWhen: { field: value }`: an object that takes any extra keys when a sibling
+  // field has that value (a fire-dom-event action's integration payload, #407).
+  const open = !!schema.openWhen && Object.entries(schema.openWhen).every(([k, want]) => value[k] === want);
+  for (const [key, v] of Object.entries(value)) {
+    if (isCardRoot && CARD_PLUMBING_KEYS.has(key)) continue;
+    const sub = discriminatedSchema(schemaForKey(schema, key), value);
+    const p = pathPrefix ? `${pathPrefix}.${key}` : key;
+    if (sub === false && open) continue;
+    if (sub === false) {
+      out.push(p);
+      if (hints) {
+        const hint = closest(key, [...declaredKeys(schema)]);
+        if (hint) hints.set(p, hint);
+      }
+      continue;
+    }
+    if (sub) unknownKeys(v, sub, p, out, false, hints);
+  }
+  return out;
+}
+
+// ── Finding LCARdS nodes ───────────────────────────────────────────────────────
+/** `custom:<tag>` of an LCARdS card/view (custom:lcards-*) or strategy (custom:lcars-shell, custom:lcars-shell-picard, the custom:lcars-* sections). */
+export function lcardsTag(type) {
+  if (typeof type !== 'string') return null;
+  const m = /^custom:(lcards-[a-z0-9-]+|lcars-shell(?:-picard)?|lcars-(?:readings|gauges|controls|blocks))$/.exec(type.trim());
+  return m ? m[1] : null;
+}
+
+/**
+ * Every LCARdS node in a parsed config, with its path: cards at any depth (views,
+ * sections, stacks, conditional cards, MSD control overlays), views, strategies.
+ * @returns {{node: object, path: string, tag: string}[]}
+ */
+export function collectLcardsNodes(root, path = '', out = []) {
+  if (Array.isArray(root)) {
+    root.forEach((item, i) => collectLcardsNodes(item, `${path}[${i}]`, out));
+  } else if (root && typeof root === 'object') {
+    const tag = lcardsTag(root.type);
+    if (tag) out.push({ node: root, path, tag });
+    for (const [k, v] of Object.entries(root)) collectLcardsNodes(v, path ? `${path}.${k}` : k, out);
+  }
+  return out;
+}
+
+// ── Registry checks ────────────────────────────────────────────────────────────
+const isLiteral = (v) => typeof v === 'string' && v.trim() !== '' && !isTemplateString(v);
+
+/** Walk every value under a node, with its dotted path (stops at nested LCARdS nodes). */
+function walk(value, path, visit, isRoot = true) {
+  if (!isRoot && value && typeof value === 'object' && !Array.isArray(value) && lcardsTag(value.type)) return;
+  visit(value, path);
+  if (Array.isArray(value)) value.forEach((v, i) => walk(v, `${path}[${i}]`, visit, false));
+  else if (value && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value)) walk(v, path ? `${path}.${k}` : k, visit, false);
+  }
+}
+
+/**
+ * Names used in one LCARdS node that the built-in registries don't have.
+ * @returns {{path: string, message: string}[]}
+ */
+export function registryIssues(node, tag, reg) {
+  const out = [];
+  const tokenSet = new Set(reg.theme_tokens);
+  const lcarsVars = reg.ha_lcars_vars ? new Set(reg.ha_lcars_vars) : null;
+  const lcardsVars = reg.lcards_palette_vars ? new Set(reg.lcards_palette_vars) : null;
+  const check = (path, value, list, what) => {
+    if (isLiteral(value) && !list.includes(value)) out.push({ path, message: `unknown ${what} "${value}"${suggest(value, list)}` });
+  };
+  // Card-level preset / component. Like CoreConfigManager: a style preset first; with
+  // a component set, an unknown style preset is that component's own preset
+  // (e.g. alert: condition_red).
+  // A component's own presets include the user's `<component>.custom_presets`.
+  const componentPresets = isLiteral(node.component) && reg.component_presets?.[node.component]
+    ? [...reg.component_presets[node.component], ...Object.keys(node[node.component]?.custom_presets ?? {})]
+    : null;
+  if (componentPresets) check('preset', node.preset, [...componentPresets, ...reg.button_presets], `${node.component} component preset or button preset`);
+  else if (['lcards-button', 'lcards-elbow', 'lcards-select-menu'].includes(tag)) check('preset', node.preset, reg.button_presets, 'button preset');
+  // Range-driven presets switch between the component's own presets (no style-preset fallback).
+  if (componentPresets && Array.isArray(node.ranges)) {
+    node.ranges.forEach((range, i) => check(`ranges[${i}].preset`, range?.preset, componentPresets, `${node.component} component preset`));
+  }
+  if (tag === 'lcards-slider') {
+    check('preset', node.preset, reg.slider_presets, 'slider preset');
+    check('component', node.component, reg.components.slider ?? [], 'slider component');
+  }
+  if (tag === 'lcards-button') check('component', node.component, Object.values(reg.components).flat(), 'component');
+  if (tag === 'lcards-msd-card') check('msd.base_svg.source', builtinOnly(node.msd?.base_svg?.source), reg.msd_backgrounds, 'built-in MSD background');
+  if (tag === 'lcards-astrometrics-card' && reg.astrometrics?.builtin_models) {
+    const models = reg.astrometrics.builtin_models;
+    const items = astrometricsItems(node);
+    items.objects.forEach(({ o, at }) => { if (o?.type === 'model') check(`${at}.src`, builtinOnly(o.src), Object.keys(models), 'built-in model'); });
+    const images = reg.astrometrics.builtin_images ?? [];
+    items.objects.forEach(({ o, at }) => {
+      if (o?.type === 'image') check(`${at}.src`, builtinOnly(o.src), images, 'built-in image');
+      if (o?.type === 'sphere' || o?.type === 'ring') check(`${at}.image`, builtinOnly(o.image), images, 'built-in image');
+    });
+    // A NORAD id the snapshot does not have: it needs a live entity (a group member can have none)
+    const shipped = reg.astrometrics.satellite_ids;
+    if (Array.isArray(shipped)) {
+      const noOrbit = (path, ref, hint) => {
+        if (!(typeof ref === 'number' || (typeof ref === 'string' && /^\d+$/.test(ref.trim())))) return;
+        if (!shipped.includes(Number(ref))) out.push({ path, message: `LCARdS ships no orbit for satellite ${ref}${hint}` });
+      };
+      items.points.forEach(({ p, at }) => {
+        if (!(typeof p?.entity === 'string' && p.entity !== '')) noOrbit(`${at}.satellite`, p?.satellite, ': give the point an entity with its latitude and longitude');
+      });
+      items.objects.forEach(({ o, at }) => { if (o?.type === 'satellites' && Array.isArray(o.satellites)) o.satellites.forEach((r, i) => noOrbit(`${at}.satellites[${i}]`, r, ' (a point with satellite: and an entity can follow it live)')); });
+    }
+    // A part on a built-in model must be one of its parts
+    items.points.forEach(({ p, at }) => {
+      if (!isLiteral(p?.part) || !isLiteral(p?.object)) return;
+      const host = items.objects.map(({ o }) => o).find((o) => o?.type === 'model' && String(o.id) === p.object);
+      const parts = host && typeof host.src === 'string' ? models[host.src] : undefined;
+      if (parts) check(`${at}.part`, p.part, parts, `part of ${host.src}`);
+    });
+  }
+
+  walk(node, '', (value, path) => {
+    if (typeof value === 'string') {
+      for (const m of value.matchAll(/theme:([a-zA-Z][a-zA-Z0-9._-]*)/g)) {
+        if (classifyThemePath(m[1], tokenSet) === 'unknown') out.push({ path, message: `unknown theme token "theme:${m[1]}"${themeSuggestion(m[1], reg.theme_tokens)}` });
+      }
+      // CSS variables: HA-LCARS `--lcars-*` and the LCARdS palette `--lcards-*`. A user
+      // theme can add more, so only near-misses are reported (`--lcars-ui-primery`), and
+      // a palette name under the other prefix (`--lcars-moonlight` for `--lcards-moonlight`).
+      for (const m of value.matchAll(/var\(\s*--((lcars|lcards)-([a-z0-9-]+))/g)) {
+        const [, name, prefix, rest] = m;
+        const own = prefix === 'lcars' ? lcarsVars : lcardsVars;
+        const other = prefix === 'lcars' ? lcardsVars : lcarsVars;
+        if (!own || own.has(name)) continue;
+        const swapped = `${prefix === 'lcars' ? 'lcards' : 'lcars'}-${rest}`;
+        const best = other?.has(swapped) ? swapped : closest(name, prefix === 'lcars' ? reg.ha_lcars_vars : reg.lcards_palette_vars);
+        const what = prefix === 'lcars' ? 'HA-LCARS variable' : 'LCARdS palette variable';
+        if (best) out.push({ path, message: `unknown ${what} "--${name}" (did you mean "--${best}"?)` });
+      }
+      return;
+    }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    const key = path.replace(/\[\d+\]$/, '').split('.').pop();
+    const inList = /\[\d+\]$/.test(path);
+    if (inList && key === 'animations') check(`${path}.preset`, value.preset, reg.animation_presets, 'animation preset');
+    if (inList && (key === 'background_animation' || key === 'effects')) check(`${path}.preset`, value.preset, reg.background_presets, 'background animation preset');
+    if (inList && key === 'filters') check(`${path}.type`, value.type, reg.filters, 'filter');
+    if (key === 'sounds' && !inList) {
+      for (const [event, asset] of Object.entries(value)) {
+        // a media library id or a file URL plays as is (SoundManager.playSource)
+        if (event === 'enabled' || (typeof asset === 'string' && /^(media-source:\/\/|\/|https?:\/\/)/.test(asset))) continue;
+        check(`${path}.${event}`, asset, reg.sound_assets, 'sound asset');
+      }
+    }
+  });
+  return out;
+}
+
+/**
+ * `action: fly-to` flies an astrometrics card's camera. Outside that card it
+ * names the card in `card` and gives a `view` or a `point`; without them it
+ * does nothing.
+ * @returns {{path: string, message: string}[]}
+ */
+export function flyToIssues(node, tag) {
+  const out = [];
+  walk(node, '', (value, path) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || value.action !== 'fly-to') return;
+    const inAstro = tag === 'lcards-astrometrics-card';
+    if (!inAstro && typeof value.card !== 'string') out.push({ path, message: 'fly-to needs card: the id of the astrometrics card to fly' });
+    else if ((!inAstro || value.card !== undefined) && !value.view && !value.point) out.push({ path, message: 'fly-to to another card needs a view or a point' });
+    if (value.point_card !== undefined && !value.point) out.push({ path, message: 'point_card opens a point\'s card: give fly-to a point' });
+  });
+  // point-card: the card (outside it) and the point (except on the astrometrics card's own point)
+  walk(node, '', (value, path) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || value.action !== 'point-card') return;
+    const inAstro = tag === 'lcards-astrometrics-card';
+    const onPoint = inAstro && /^points\[\d+\]\.(tap|hold)_action$|\.points\[\d+\]\.(tap|hold)_action$/.test(path);
+    if (!inAstro && typeof value.card !== 'string') out.push({ path, message: 'point-card needs card: the id of the astrometrics card' });
+    else if (!value.point && !(onPoint && value.card === undefined)) out.push({ path, message: 'point-card needs point: the point whose card opens or closes' });
+  });
+  return out;
+}
+
+/**
+ * An MSD's own rules: a patch for one of its lines or shapes changes only `style`
+ * on the drawn overlay (lcards-msd.js `_applyRulePatches`); other keys (`attach_to`,
+ * `route`, `points` ...) are ignored. Controls are not checked: a rule naming a
+ * control reaches the card inside it, which takes that card's own options.
+ * @returns {{path: string, message: string}[]}
+ */
+export function msdRulePatchIssues(node, tag) {
+  const out = [];
+  if (tag !== 'lcards-msd-card' || !Array.isArray(node?.rules)) return out;
+  const drawn = new Map((node.msd?.overlays ?? [])
+    .filter((o) => o && (o.type === 'line' || o.type === 'shape') && typeof o.id === 'string')
+    .map((o) => [o.id, o.type]));
+  node.rules.forEach((rule, i) => {
+    const overlays = rule?.apply?.overlays;
+    if (!overlays || typeof overlays !== 'object') return;
+    for (const [id, patch] of Object.entries(overlays)) {
+      if (!drawn.has(id) || !patch || typeof patch !== 'object') continue;
+      const other = Object.keys(patch).filter((k) => k !== 'style');
+      if (other.length) {
+        out.push({ path: `rules[${i}].apply.overlays.${id}`, message: `a rule changes only style on an MSD ${drawn.get(id)}; ${other.join(', ')} ${other.length > 1 ? 'are' : 'is'} ignored` });
+      }
+    }
+  });
+  return out;
+}
+
+/**
+ * Animations (card `animations:`, rule `apply.animations`, MSD overlay and
+ * segment animations: every list under an `animations` key) whose built-in
+ * preset is missing a param it needs. The preset reads params from the entry's
+ * top level and `params` alike, so both count (missingPresetParams()).
+ * @returns {{path: string, message: string}[]}
+ */
+export function animationParamIssues(node) {
+  const out = [];
+  walk(node, '', (value, path) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || !/(^|\.)animations\[\d+\]$/.test(path)) return;
+    if (!isLiteral(value.preset)) return;
+    const missing = missingPresetParams(value.preset, value);
+    if (!missing.length) return;
+    const names = missing.map(n => `params.${n}`);
+    const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+    out.push({ path, message: `the ${value.preset} preset needs ${list}; without ${missing.length > 1 ? 'them' : 'it'} the animation does nothing` });
+  });
+  return out;
+}
+
+/**
+ * A plain value YAML cut short at a comment: ` #` starts a comment anywhere in an
+ * unquoted value, so `color: var(--x, #cc0000)` reads as `var(--x,`. Flags a string
+ * that ends in a comma, or that starts as a CSS function (`var(`, `rgba(`,
+ * `drop-shadow(`) and never closes it. Templates are left alone.
+ * @returns {{path: string, message: string}[]}
+ */
+export function cutValueIssues(node) {
+  const out = [];
+  walk(node, '', (value, path) => {
+    if (typeof value !== 'string' || isTemplateString(value)) return;
+    const text = value.trim();
+    const unclosed = /^[a-z][a-z0-9-]*\(/i.test(text) && (text.match(/\(/g) ?? []).length > (text.match(/\)/g) ?? []).length;
+    if (!text.endsWith(',') && !unclosed) return;
+    out.push({ path, message: `"${text}" looks cut off: in YAML a # after a space starts a comment, so the rest of the value was dropped. Put the whole value in quotes, e.g. "var(--name, #cc0000)"` });
+  });
+  return out;
+}
+
+/**
+ * `grid-template-areas` (layout view, layout card, data grid `grid`) where a named
+ * area is not one filled rectangle (an L shape, or split in two). CSS then drops
+ * the whole template and every card lands in the first cell, with no error.
+ * @returns {{path: string, message: string}[]}
+ */
+export function gridAreaIssues(node) {
+  const out = [];
+  walk(node, '', (value, path) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    const text = value['grid-template-areas'];
+    if (typeof text !== 'string' || isTemplateString(text)) return;
+    const grid = parseAreasString(text);
+    /** @type {Map<string, {r0: number, r1: number, c0: number, c1: number, n: number}>} */
+    const boxes = new Map();
+    grid.forEach((row, r) => row.forEach((name, c) => {
+      if (name === '.' || /^\.+$/.test(name)) return;
+      const b = boxes.get(name);
+      if (!b) boxes.set(name, { r0: r, r1: r, c0: c, c1: c, n: 1 });
+      else Object.assign(b, { r0: Math.min(b.r0, r), r1: Math.max(b.r1, r), c0: Math.min(b.c0, c), c1: Math.max(b.c1, c), n: b.n + 1 });
+    }));
+    const bad = [...boxes].filter(([, b]) => b.n !== (b.r1 - b.r0 + 1) * (b.c1 - b.c0 + 1)).map(([name]) => name);
+    if (!bad.length) return;
+    out.push({
+      path: `${path ? `${path}.` : ''}grid-template-areas`,
+      message: `area${bad.length > 1 ? 's' : ''} ${bad.map(n => `"${n}"`).join(', ')} ${bad.length > 1 ? 'are' : 'is'} not a rectangle: the browser then ignores the whole template and every card lands in the first cell. Make each area one rectangle; to overlap cards, place them with view_layout grid-row / grid-column instead`,
+    });
+  });
+  return out;
+}
+
+/** Home Assistant's older action names and what replaces them, from the action schema's `x-legacy` markers */
+const LEGACY_ACTION_VALUES = actionSchema.properties.action['x-legacy-values'] ?? {};
+const LEGACY_ACTION_KEYS = Object.fromEntries(
+  Object.entries(actionSchema.properties).filter(([, p]) => p?.['x-legacy']).map(([k, p]) => [k, p['x-legacy']])
+);
+
+/**
+ * Actions (any object with an `action` LCARdS knows) written with Home Assistant's
+ * older names: `call-service`, `service`, `service_data`. They still run; the
+ * warning gives the current name.
+ * @returns {{path: string, message: string}[]}
+ */
+export function legacyActionIssues(node) {
+  const out = [];
+  const known = new Set(actionSchema.properties.action.enum);
+  walk(node, '', (value, path) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || typeof value.action !== 'string' || !known.has(value.action)) return;
+    const now = LEGACY_ACTION_VALUES[value.action];
+    if (now) out.push({ path: `${path}.action`, message: `${value.action} is Home Assistant's older name; use action: ${now}` });
+    if (value.action !== 'call-service' && value.action !== 'perform-action') return;
+    for (const [key, replacement] of Object.entries(LEGACY_ACTION_KEYS)) {
+      if (key in value) out.push({ path: `${path}.${key}`, message: `${key} is Home Assistant's older name; use ${replacement}` });
+    }
+  });
+  return out;
+}
+
+/**
+ * Home Assistant's code editor (card dialogs, the raw dashboard editor) reads
+ * YAML 1.1 since Home Assistant 2026.8: unquoted on, off, y, n, yes, no (any
+ * case) become true / false. A key `true` or a boolean where text belongs is
+ * almost always that.
+ */
+const YAML11_KEY_HINT = 'Home Assistant\'s code editor reads a bare y, on or yes as true and n, off or no as false: quote the key, as "y": 20';
+const YAML11_VALUE_HINT = 'Home Assistant\'s code editor reads a bare N, no, off, on, Y or yes as true or false: quote the value, as label: "N"';
+
+/**
+ * The value at an ajv instancePath (/a/0/b).
+ * @param {any} node
+ * @param {string} path
+ */
+/**
+ * A value that may also be given reactively: anyOf the plain field (branch 0) and only
+ * the reactive forms (a template string, { template, default }, { map_range }), as
+ * background effect configs (_reactiveAware) and rule animation params (_mapRangeAware) wrap it.
+ */
+function isReactiveWrapper(schema) {
+  const alts = schema?.anyOf;
+  return Array.isArray(alts) && alts.length > 1
+    && alts.slice(1).every(b => b?.properties?.map_range || b?.properties?.template || (b?.type === 'string' && b?.pattern))
+    && alts.slice(1).some(b => b?.properties?.map_range);
+}
+
+/**
+ * One error per wrong reactive-aware value: only the plain field's errors (the messages
+ * the docs checker's friendlyIssues words), not one per reactive form plus the anyOf.
+ * @param {any[]} errors - ajv errors (verbose: they carry parentSchema)
+ */
+export function pruneReactiveErrors(errors) {
+  const drop = new Set();
+  for (const err of errors) {
+    if (err.keyword !== 'anyOf' || !isReactiveWrapper(err.parentSchema)) continue;
+    drop.add(err);
+    // Inside a discriminatedBy schema, match on the path inside that schema
+    const at = err.subSchemaPath ?? err.schemaPath;
+    for (const e of errors) {
+      const path = err.subSchemaPath ? e.subSchemaPath : e.schemaPath;
+      if (e === err || e.instancePath !== err.instancePath || !path?.startsWith(`${at}/`)) continue;
+      if (path.slice(at.length + 1).split('/')[0] !== '0') drop.add(e);
+    }
+  }
+  return errors.filter(e => !drop.has(e));
+}
+
+function valueAt(node, path) {
+  let v = node;
+  for (const part of path.split('/').slice(1)) v = v?.[part.replace(/~1/g, '/').replace(/~0/g, '~')];
+  return v;
+}
+
+/**
+ * Astrometrics references (all card-local): each point has exactly one placement
+ * form, ids are unique, and every id a reference names exists: points (`at`,
+ * `target`, path `points` / `from` / `to`, beam ends, trail `point`, object `at`),
+ * objects (`on`, of a kind that carries the form) and views (`camera.view`, an
+ * action's `view`). Generated label points (`<object>.ring.<deg>`, `.col.`, `.row.`)
+ * count as points. A system's points and objects (`type: system`) are checked
+ * with the card's own: ids are card-wide.
+ * @returns {{path: string, severity: 'error'|'warning', message: string}[]}
+ */
+export function astrometricsIssues(node) {
+  const out = [];
+  const err = (path, message) => out.push({ path, severity: 'error', message });
+  const warn = (path, message) => out.push({ path, severity: 'warning', message });
+  const { points, objects } = astrometricsItems(node);
+  const views = node.camera?.views && typeof node.camera.views === 'object' ? node.camera.views : {};
+
+  /** @type {Map<string, any>} object id -> config (generated ids type#n as the runtime makes them) */
+  const objectIds = new Map();
+  const counts = {};
+  objects.forEach(({ o, at }) => {
+    if (!o || typeof o !== 'object') return;
+    counts[o.type] = (counts[o.type] ?? 0) + 1;
+    const id = o.id === undefined || o.id === null || o.id === '' ? `${o.type}#${counts[o.type]}` : String(o.id);
+    if (objectIds.has(id)) warn(`${at}.id`, `two objects with id "${id}": references use the later one`);
+    objectIds.set(id, o);
+  });
+  const pointIds = new Set();
+  points.forEach(({ p, at }) => {
+    if (!p || typeof p !== 'object' || p.id === undefined) return;
+    const id = String(p.id);
+    if (pointIds.has(id)) err(`${at}.id`, `two points with id "${id}"`);
+    pointIds.add(id);
+  });
+  const generated = /^(.+)\.(ring|col|row)\.[\d.]+$/;
+  // a satellites group's points: <group id>.<NORAD id>
+  const groupPoint = /^(.+)\.(\d+)$/;
+  const isGroupPoint = (ref) => groupPoint.test(ref) && objectIds.get(groupPoint.exec(ref)[1])?.type === 'satellites';
+  const isPoint = (ref) => pointIds.has(ref) || (generated.test(ref) && objectIds.has(generated.exec(ref)[1])) || isGroupPoint(ref);
+  const nearPoint = (ref) => suggest(ref, [...pointIds]);
+  /** A point reference: an id that must exist, or [x, y, z] */
+  /** hide_in_systems: a list names systems that exist */
+  const hideIn = (path, v) => {
+    if (!Array.isArray(v)) return;
+    const systems = [...objectIds].filter(([, x]) => x.type === 'system').map(([id]) => id);
+    v.forEach((id, i) => { if (isLiteral(id) && !systems.includes(id)) err(`${path}[${i}]`, `no system "${id}"${suggest(id, systems)}`); });
+  };
+  const pointRef = (path, ref) => {
+    if (isLiteral(ref) && !isPoint(ref)) err(path, `no point "${ref}"${nearPoint(ref)}`);
+  };
+  /** A satellite by name: a built-in one, or digits (a NORAD id; registryIssues checks the snapshot has it) */
+  const satelliteName = (path, ref) => {
+    if (typeof ref !== 'string' || /^\d+$/.test(ref.trim())) return;
+    if (!SATELLITE_NAMES.includes(/** @type {any} */ (ref.trim().toLowerCase()))) err(path, `no built-in satellite "${ref}" (built-in: ${SATELLITE_NAMES.join(', ')}; or a NORAD number)${suggest(ref, [...SATELLITE_NAMES])}`);
+  };
+  const viewRef = (path, ref) => {
+    if (isLiteral(ref) && !Object.prototype.hasOwnProperty.call(views, ref)) err(path, `no view "${ref}" in camera.views${suggest(ref, Object.keys(views))}`);
+  };
+  const actionViews = (path, cfg) => {
+    for (const key of ['tap_action', 'hold_action']) {
+      if (cfg?.[key]?.view !== undefined) viewRef(`${path}.${key}.view`, cfg[key].view);
+    }
+  };
+  const userStyles = node.labels?.styles && typeof node.labels.styles === 'object' ? Object.keys(node.labels.styles) : [];
+  const styleNames = [...LABEL_STYLE_NAMES, ...userStyles];
+  const isStyle = (name) => styleNames.includes(name);
+  const isDome = (o) => o?.type === 'grid' && (o.shape === 'dome' || o.shape === 'sphere');
+  const isGlobe = (o) => o?.type === 'sphere' || (o?.type === 'grid' && o.shape === 'sphere');
+  /** A distance range that can never show (points and objects) */
+  const rangeIssues = (at, c) => {
+    const lo = Number(c.min_distance);
+    const hi = Number(c.max_distance);
+    if (c.min_distance !== undefined && c.max_distance !== undefined && Number.isFinite(lo) && Number.isFinite(hi) && lo >= hi) {
+      warn(`${at}.min_distance`, `min_distance (${lo}) is not below max_distance (${hi}): it never shows`);
+    }
+    if (Array.isArray(c.fade) && c.fade.length === 2 && Number(c.fade[0]) > Number(c.fade[1])) warn(`${at}.fade`, 'fade is [start, end]: start nearer than end');
+  };
+
+  points.forEach(({ p, at }) => {
+    if (!p || typeof p !== 'object') return;
+    const forms = PLACEMENT_FORMS.filter(f => p[f] !== undefined);
+    if (forms.length === 0 && p.part === undefined) err(at, `point "${p.id}" has no position (one of ${PLACEMENT_FORMS.join(', ')}, or part)`);
+    if (p.part !== undefined && forms.some((f) => f !== 'xyz')) err(`${at}.part`, `part places the point on a model part (xyz is an offset from it); drop ${forms.filter((f) => f !== 'xyz').join(', ')}`);
+    if (forms.length > 1) err(at, `point "${p.id}" has more than one position (${forms.join(', ')}); use one`);
+    if (p.at !== undefined) pointRef(`${at}.at`, p.at);
+    hideIn(`${at}.hide_in_systems`, p.hide_in_systems);
+    for (const f of ['xyz', 'polar', 'latlon', 'altaz']) {
+      const b = p[f];
+      if (b && typeof b === 'object' && !Array.isArray(b) && !b.entity && !p.entity) {
+        err(`${at}.${f}`, `${f} reads an entity: give it entity:, or the point an entity`);
+      }
+    }
+    if (typeof p.style === 'string' && !isStyle(p.style)) {
+      warn(`${at}.style`, `no label style "${p.style}" (built-in: ${LABEL_STYLE_NAMES.join(', ')}; or declare it in labels.styles)${suggest(p.style, styleNames)}`);
+    }
+    if (p.object !== undefined && isLiteral(p.object)) {
+      const host = objectIds.get(p.object);
+      if (!host) err(`${at}.object`, `no object "${p.object}"${suggest(p.object, [...objectIds.keys()])}`);
+      else if ((p.latlon !== undefined || p.satellite !== undefined) && !isGlobe(host)) warn(`${at}.object`, `${p.satellite !== undefined ? 'satellite' : 'latlon'} stands on a sphere; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+      else if ((p.altaz !== undefined || p.sky !== undefined) && !isDome(host)) warn(`${at}.object`, `${p.sky !== undefined ? 'sky' : 'altaz'} stands on a dome grid; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+      else if (p.part !== undefined && host.type !== 'model') err(`${at}.part`, `part needs a model object; "${p.object}" is a ${host.type}`);
+      else if (p.cell !== undefined && !(host.type === 'grid' && (host.shape ?? 'plane') === 'plane')) err(`${at}.object`, `cell needs a plane grid; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+    } else if (p.cell !== undefined || p.latlon !== undefined || p.altaz !== undefined || p.sky !== undefined || p.part !== undefined || p.satellite !== undefined) {
+      const form = ['cell', 'latlon', 'altaz', 'sky', 'part', 'satellite'].find(f => p[f] !== undefined);
+      err(at, `${form} needs object: (the object it stands on)`);
+    }
+    satelliteName(`${at}.satellite`, p.satellite);
+    if (p.heights !== undefined && p.satellite === undefined) warn(`${at}.heights`, 'heights is for a satellite point (satellite:)');
+    rangeIssues(at, p);
+    actionViews(at, p);
+  });
+
+  objects.forEach(({ o, at, system }) => {
+    if (!o || typeof o !== 'object') return;
+    if (o.at !== undefined) pointRef(`${at}.at`, o.at);
+    hideIn(`${at}.hide_in_systems`, o.hide_in_systems);
+    if (typeof o.face === 'string' && o.face !== 'motion') pointRef(`${at}.face`, o.face);
+    if (o.face === 'motion' && !(typeof o.at === 'string' && o.at !== '')) warn(`${at}.face`, 'face: motion turns the object along its point\'s travel: give it at: a point id');
+    // the shapes and dust are drawn only by the raymarched gas
+    if (o.type === 'nebula') {
+      // a preset's own keys under the config's (a Badlands preset is volume and layers)
+      const n = withNebulaPreset(o);
+      if (n.render !== 'volume') {
+        const only = ['shape', 'dust', 'lightning'].filter((k) => o[k] !== undefined && !(k === 'shape' && o.shape === 'clouds') && !(k === 'lightning' && o.lightning === false));
+        if (Array.isArray(o.clouds) && o.clouds.some((/** @type {any} */ c) => c?.dust === true)) only.push('clouds[].dust');
+        for (const k of only) warn(`${at}.${k}`, `${k} applies only with render: volume (this nebula draws puffs)`);
+      }
+      // the layers' parts
+      if (n.render === 'volume' && n.shape !== 'layers') {
+        for (const k of ['gap', 'veins', 'band', 'columns']) {
+          if (o[k] !== undefined && o[k] !== false) warn(`${at}.${k}`, `${k} applies only with shape: layers`);
+        }
+      }
+      // the whirlpool's parts
+      if (n.shape !== 'whirlpool') {
+        for (const k of ['arms', 'thickness']) if (o[k] !== undefined) warn(`${at}.${k}`, `${k} applies only with shape: whirlpool`);
+      }
+      // the wake's parts
+      if (n.render === 'volume' && n.shape !== 'wake') {
+        for (const k of ['ribbon', 'wake']) {
+          if (o[k] !== undefined && o[k] !== false) warn(`${at}.${k}`, `${k} applies only with shape: wake`);
+        }
+      }
+      const lt = n.lightning && typeof n.lightning === 'object' ? n.lightning : null;
+      if (lt && o.lightning && typeof o.lightning === 'object') {
+        const lmode = lt.mode ?? 'strike';
+        if (lmode === 'crawl' && n.shape !== 'wake') warn(`${at}.lightning.mode`, 'crawl runs along the ribbon of shape: wake (this nebula has none; it strikes instead)');
+        for (const k of ['count', 'reach', 'speed']) if (o.lightning[k] !== undefined && lmode !== 'crawl') warn(`${at}.lightning.${k}`, `${k} is for mode: crawl (strikes come one at a time, timed by rate and flash)`);
+        for (const k of ['rate', 'flash']) if (o.lightning[k] !== undefined && lmode === 'crawl') warn(`${at}.lightning.${k}`, `${k} times strikes (mode: crawl keeps its discharges going)`);
+      }
+      const cols = n.columns && typeof n.columns === 'object' ? n.columns : null;
+      const kind = cols?.kind ?? 'fire';
+      if (cols && o.columns && typeof o.columns === 'object') {
+        if (o.columns.waist !== undefined && kind !== 'vortex') warn(`${at}.columns.waist`, `waist shapes a vortex (this column kind is ${kind})`);
+        if (o.columns.width !== undefined && kind === 'lightning') warn(`${at}.columns.width`, 'width sets fire and vortex columns (lightning columns take the bolt width of their own)');
+        if (o.columns.glow !== undefined && kind !== 'lightning') warn(`${at}.columns.glow`, `glow is for lightning columns (this column kind is ${kind})`);
+        if (o.columns.speed !== undefined && kind !== 'lightning') warn(`${at}.columns.speed`, `speed is for lightning columns (this column kind is ${kind}; fire and vortex move with drift)`);
+      }
+    }
+    if (o.type === 'lightning') {
+      const mode = o.mode ?? 'strike';
+      if (mode === 'column') for (const k of ['rate', 'flash']) if (o[k] !== undefined) warn(`${at}.${k}`, `${k} times strikes (mode: column holds its bolts)`);
+      if (mode === 'strike' && o.count !== undefined) warn(`${at}.count`, 'count is how many columns (mode: column); strikes come one at a time');
+      if (mode === 'strike' && o.speed !== undefined) warn(`${at}.speed`, 'speed sets how fast held columns crawl (mode: column); strikes are timed by rate and flash');
+    }
+    if (o.type === 'ring' && isLiteral(o.satellite)) {
+      const ref = String(o.satellite);
+      const sp = points.find(({ p }) => p && String(p.id) === ref)?.p;
+      if (!isPoint(ref)) err(`${at}.satellite`, `no point "${ref}"${nearPoint(ref)}`);
+      else if (sp && sp.satellite === undefined) err(`${at}.satellite`, `point "${ref}" is not a satellite (give it satellite:)`);
+    }
+    if (o.type === 'satellites') {
+      if (o.group === undefined && !(Array.isArray(o.satellites) && o.satellites.length)) err(at, 'satellites draws a group or a list: give it group: or satellites:');
+      if (Array.isArray(o.satellites)) o.satellites.forEach((ref, i) => satelliteName(`${at}.satellites[${i}]`, ref));
+      if (isLiteral(o.object)) {
+        const host = objectIds.get(o.object);
+        if (!host) err(`${at}.object`, `no object "${o.object}"${suggest(o.object, [...objectIds.keys()])}`);
+        else if (!isGlobe(host)) warn(`${at}.object`, `satellites go round a sphere; "${o.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+      }
+    }
+    if (o.type === 'system') {
+      if (system !== undefined) err(at, `a system cannot hold another system (one level: "${system.id ?? 'system'}" holds "${o.id ?? 'system'}")`);
+      else if (o.scale === undefined && typeof o.units === 'string' && UNIT_NAMES.includes(o.units) && node.units === undefined) {
+        err(`${at}.units`, `units: ${o.units} needs the card's own units (units: ly at the top of the card), or give the system a scale`);
+      }
+    }
+    // UX1 P6c: a model's real size needs units where it is
+    if (o.type === 'model') {
+      const units = system ? (system.units ?? (system.scale === undefined ? node.units : undefined)) : node.units;
+      for (const key of ['length', 'file_units']) {
+        if (o[key] === undefined) continue;
+        if (o.size !== undefined) warn(`${at}.${key}`, `${key} sets the real size: size is set, so it does nothing (leave size out for the real size)`);
+        else if (key === 'file_units' && o.length !== undefined) warn(`${at}.file_units`, 'file_units sets the real size from what the file measures: length is set, so it does nothing');
+        else if (!UNIT_NAMES.includes(units)) warn(`${at}.${key}`, `${key} needs units for a real size: give the ${system ? 'system or the card' : 'card'} units (km, au, ly); without them the model is drawn at 50`);
+      }
+    }
+    // E6 effects: settings that silently do nothing
+    if (o.type === 'sphere' && o.fill?.effect && o.image !== undefined) warn(`${at}.image`, 'fill.effect paints the body: image is not shown');
+    const dashSpeed = o.dash && typeof o.dash === 'object' && !Array.isArray(o.dash) ? o.dash : null;
+    if (['ring', 'path', 'trail'].includes(o.type) && dashSpeed?.speed && !o.pulse && !Array.isArray(dashSpeed.pattern)) {
+      warn(`${at}.dash.speed`, 'dash.speed moves dashes or pulses: this line has neither (add dash.pattern or pulse)');
+    }
+    for (const key of ['ring_labels', 'axis_labels']) {
+      const st = o[key]?.style;
+      if (typeof st === 'string' && !isStyle(st)) warn(`${at}.${key}.style`, `no label style "${st}" (built-in: ${LABEL_STYLE_NAMES.join(', ')}; or declare it in labels.styles)${suggest(st, styleNames)}`);
+    }
+    if (o.type === 'path' || o.type === 'beam') {
+      for (const key of ['from', 'to']) if (o[key] !== undefined) pointRef(`${at}.${key}`, o[key]);
+    }
+    if (o.type === 'trail' && o.point !== undefined) pointRef(`${at}.point`, o.point);
+    if (o.type === 'path' && Array.isArray(o.points)) o.points.forEach((r, k) => pointRef(`${at}.points[${k}]`, r));
+    if (o.type === 'path' && o.object !== undefined && isLiteral(o.object) && !objectIds.has(o.object)) err(`${at}.object`, `no object "${o.object}"${suggest(o.object, [...objectIds.keys()])}`);
+    rangeIssues(at, o);
+    actionViews(at, o);
+  });
+
+  for (const [name, v] of Object.entries(views)) {
+    if (v?.target !== undefined) pointRef(`camera.views.${name}.target`, v.target);
+  }
+  if (node.camera?.view !== undefined) viewRef('camera.view', node.camera.view);
+  const warps = node.camera?.warp === true || Object.values(views).some((v) => v?.warp === true)
+    || points.some(({ p }) => p?.view?.warp === true) || objects.some(({ o }) => o?.view?.warp === true);
+  if (warps && !node.backdrop?.stars && !node.backdrop?.dust) warn('backdrop', 'warp streaks the stars and dust: add backdrop.stars or backdrop.dust');
+  // a number that follows an entity takes any state as a key (playing: 1), so a misspelt
+  // word (smoth: 800) reads as a state: say so
+  const STATE_WORDS = new Set(['active', 'inactive', 'unavailable', 'zero', 'non_zero']);
+  const bindingTypos = (/** @type {any} */ v, /** @type {string} */ at) => {
+    if (!v || typeof v !== 'object') return;
+    if (Array.isArray(v)) { v.forEach((x, i) => bindingTypos(x, `${at}[${i}]`)); return; }
+    if (typeof v.entity === 'string') {
+      for (const [k, x] of Object.entries(v)) {
+        if (typeof x !== 'number' || /** @type {readonly string[]} */ (SETTING_WORDS).includes(k) || STATE_WORDS.has(k) || /^(above|at_least|below|at_most|between|between_exclusive):/.test(k)) continue;
+        const best = closest(k, SETTING_WORDS.filter((w) => w !== 'entity'));
+        if (best) warn(`${at}.${k}`, `"${k}" is read as a state named ${k}: did you mean ${best}?`);
+      }
+      return;
+    }
+    for (const [k, x] of Object.entries(v)) bindingTypos(x, `${at}.${k}`);
+  };
+  points.forEach(({ p, at }) => bindingTypos(p, at));
+  objects.forEach(({ o, at }) => bindingTypos(o, at));
+  return out;
+}
+
+/**
+ * Every point and object of an astrometrics card with its path: the card's
+ * own and each system's (`objects[2].points[0]`), and the system holding it.
+ * @returns {{ points: { p: any, at: string, system?: any }[], objects: { o: any, at: string, system?: any }[] }}
+ */
+export function astrometricsItems(node) {
+  const points = [];
+  const objects = [];
+  (Array.isArray(node.points) ? node.points : []).forEach((p, i) => points.push({ p, at: `points[${i}]` }));
+  const walkObjects = (list, base, system) => {
+    list.forEach((o, i) => {
+      const at = `${base}objects[${i}]`;
+      objects.push({ o, at, ...(system ? { system } : {}) });
+      if (o?.type !== 'system') return;
+      (Array.isArray(o.points) ? o.points : []).forEach((p, k) => points.push({ p, at: `${at}.points[${k}]`, system: o }));
+      walkObjects(Array.isArray(o.objects) ? o.objects : [], `${at}.`, o);
+    });
+  };
+  walkObjects(Array.isArray(node.objects) ? node.objects : [], '', undefined);
+  return { points, objects };
+}
+
+/** Only `builtin:` sources are checked against the registry (paths and media IDs are the user's). */
+function builtinOnly(source) {
+  return typeof source === 'string' && source.startsWith('builtin:') ? source : undefined;
+}
+
+/** ` (did you mean "x"?)` for a close match, else ''. */
+/** Like suggest(), for a theme token: the suggestion keeps its `theme:` prefix. */
+function themeSuggestion(value, list) {
+  const best = closest(value, list);
+  return best ? ` (did you mean "theme:${best}"?)` : '';
+}
+
+function suggest(value, list) {
+  const best = closest(value, list);
+  return best ? ` (did you mean "${best}"?)` : '';
+}
+
+/** The entry of `list` closest to `value`, when it is close enough to be a typo; else null. */
+function closest(value, list) {
+  let best = null;
+  let bestScore = Infinity;
+  for (const candidate of list) {
+    const d = distance(value.toLowerCase(), candidate.toLowerCase());
+    if (d < bestScore) { bestScore = d; best = candidate; }
+  }
+  return best && bestScore <= Math.max(2, Math.floor(value.length / 4)) ? best : null;
+}
+
+function distance(a, b) {
+  const row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return row[b.length];
+}
+
+// ── The validator ──────────────────────────────────────────────────────────────
+/**
+ * @typedef {{ path: string, tag: string, severity: 'error'|'warning', code: string, message: string }} Issue
+ *   code: schema | unknown-key | msd-canvas | legacy-format | registry | reference | missing-param | cut-value | legacy-action
+ */
+
+/**
+ * @param {{ entries: {tag: string, schema: object}[], registries?: object }} opts
+ * @returns {{ tags: string[], validateConfig: (config: any) => Issue[] }}
+ */
+export function createConfigValidator({ entries, registries = null }) {
+  // validateFormats: false silences HA-specific formats (entity, font-family, color).
+  // discriminator: a oneOf keyed by `type` (astrometrics objects) reports only the matching branch.
+  const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false, discriminator: true, verbose: true });
+  // Template strings are evaluated at render time, so `pattern` only applies to literal values
+  // (the same rule as CoreValidationService).
+  ajv.removeKeyword('pattern');
+  ajv.addKeyword({
+    keyword: 'pattern',
+    type: 'string',
+    schemaType: 'string',
+    validate: (pattern, data) => isTemplateString(data) || new RegExp(pattern, 'u').test(data),
+  });
+  // `discriminatedBy` (CoreValidationService's own keyword): a value's schema picked by a
+  // sibling's value, e.g. an animation's `params` by its `preset`. Unknown names pass
+  // (user packs add presets; registryIssues reports them).
+  const bySchema = new WeakMap();
+  ajv.addKeyword({
+    keyword: 'discriminatedBy',
+    schemaType: 'object',
+    validate: function discriminated(spec, data, _parent, cxt) {
+      const name = cxt?.parentData?.[spec.field];
+      const sub = typeof name === 'string' && Object.prototype.hasOwnProperty.call(spec.schemas ?? {}, name) ? spec.schemas[name] : null;
+      if (!sub) return true;
+      let check = bySchema.get(sub);
+      // The runtime's oneOf passes when any branch matches (_validateOneOf): the same here
+      if (!check) bySchema.set(sub, check = ajv.compile(oneOfAsAnyOf(sub)));
+      if (check(data)) return true;
+      // ajv points schemaPath at this keyword: keep the path inside `sub` (pruneReactiveErrors)
+      discriminated.errors = check.errors.map(e => ({ ...e, instancePath: `${cxt.instancePath}${e.instancePath}`, subSchemaPath: `${cxt.instancePath}:${e.schemaPath}` }));
+      return false;
+    },
+  });
+  const raw = new Map();
+  const compiled = new Map();
+  for (const { tag, schema } of entries) {
+    raw.set(tag, schema);
+    compiled.set(tag, ajv.compile(stripSchemaRestrictions(schema)));
+  }
+
+  /** Issues for one LCARdS node (not its nested LCARdS nodes). */
+  function validateNode(node, tag, at) {
+    const issues = [];
+    const add = (severity, code, path, message) => issues.push({ path: [at, path].filter(Boolean).join('.') || '(root)', tag, severity, code, message });
+
+    if (tag === 'lcards-msd-card' && !node.msd?.base_svg?.source && !Array.isArray(node.msd?.view_box)) {
+      add('error', 'msd-canvas', 'msd', 'MSD has neither msd.base_svg.source nor a view_box [x, y, w, h]');
+    }
+    // A blank canvas has no size of its own: anchors and overlays need a view_box.
+    if (tag === 'lcards-msd-card' && node.msd?.base_svg?.source === 'none' && !Array.isArray(node.msd?.view_box)) {
+      add('error', 'msd-canvas', 'msd.view_box', 'base_svg.source "none" needs a view_box [x, y, w, h]');
+    }
+    const validate = compiled.get(tag);
+    if (!validate) {
+      // A custom:lcards-* type no card, view or strategy registers (e.g. lcards-msd for
+      // lcards-msd-card): Home Assistant shows "Custom element doesn't exist"
+      const known = [...compiled.keys()];
+      const prefixed = known.find(k => k.startsWith(`${tag}-`)); // lcards-msd -> lcards-msd-card
+      add('error', 'unknown-type', 'type', `unknown LCARdS type "custom:${tag}"${prefixed ? ` (did you mean "custom:${prefixed}"?)` : suggest(tag, known)}`);
+      return issues;
+    }
+
+    const migrator = { 'lcards-chart': migrateChartConfig, 'lcards-data-grid': migrateDataGridConfig }[tag];
+    if (migrator) {
+      const { changed, notes } = migrator(node);
+      if (changed) add('warning', 'legacy-format', '', `legacy ${tag === 'lcards-chart' ? 'chart' : 'data grid'} format (still works; ${notes.join('; ') || 'legacy keys'})`);
+    }
+    const hints = new Map();
+    for (const key of unknownKeys(node, raw.get(tag), '', [], true, hints)) {
+      const last = key.split('.').pop();
+      const yaml11 = last === 'true' || last === 'false' ? ` (${YAML11_KEY_HINT})` : '';
+      add('error', 'unknown-key', key, `unknown key (not in the schema)${hints.has(key) ? ` (did you mean "${hints.get(key)}"?)` : ''}${yaml11}`);
+    }
+    if (!validate(node)) {
+      // A bindable number (a number, { entity, ... } or a template: astrometrics settings) that is
+      // none of them: one message instead of one per branch
+      const settingPaths = new Set((validate.errors ?? []).filter(e => e.keyword === 'anyOf' && isSettingSchema(e.parentSchema)).map(e => e.instancePath));
+      for (const err of pruneReactiveErrors(validate.errors ?? [])) {
+        const p = err.instancePath.replace(/^\//, '').replace(/\/(\d+)(?=\/|$)/g, '[$1]').replace(/\//g, '.');
+        if (settingPaths.has(err.instancePath)) {
+          if (err.keyword === 'anyOf') add('error', 'schema', p, 'must be a number, { entity, ... } to follow an entity, or a template');
+          continue;
+        }
+        if (err.keyword === 'discriminator' && err.params?.error === 'mapping') {
+          // A oneOf keyed by type with no branch for this value: name the choices
+          const types = (err.parentSchema?.oneOf ?? []).map(b => b?.properties?.type?.const).filter(Boolean);
+          add('error', 'schema', `${p}.type`, `unknown type "${err.params.tagValue}" (one of ${types.join(', ')})${suggest(String(err.params.tagValue), types)}`);
+          continue;
+        }
+        // A bare N, no, off, on, y or yes arrives as true/false from Home Assistant's code editor
+        const value = valueAt(node, err.instancePath);
+        const wantsBoolean = [err.params?.type].flat().includes('boolean');
+        const yaml11 = err.keyword === 'type' && typeof value === 'boolean' && !wantsBoolean ? ` (${YAML11_VALUE_HINT})` : '';
+        add('error', 'schema', p, `${err.message ?? 'invalid'}${yaml11}`);
+      }
+    }
+    if (registries) {
+      for (const r of registryIssues(node, tag, registries)) add('warning', 'registry', r.path, r.message);
+    }
+    if (tag === 'lcards-astrometrics-card') {
+      for (const r of astrometricsIssues(node)) add(r.severity, 'reference', r.path, r.message);
+    }
+    for (const r of flyToIssues(node, tag)) add('warning', 'reference', r.path, r.message);
+    for (const r of msdRulePatchIssues(node, tag)) add('warning', 'rule-patch', r.path, r.message);
+    for (const r of animationParamIssues(node)) add('warning', 'missing-param', r.path, r.message);
+    for (const r of cutValueIssues(node)) add('warning', 'cut-value', r.path, r.message);
+    for (const r of legacyActionIssues(node)) add('warning', 'legacy-action', r.path, r.message);
+    for (const r of gridAreaIssues(node)) add('error', 'grid-areas', r.path, r.message);
+    return issues;
+  }
+
+  return {
+    tags: [...compiled.keys()],
+    /** Issues for every LCARdS node in a parsed config (a card, a view, a whole dashboard). */
+    validateConfig(config) {
+      return collectLcardsNodes(config).flatMap(({ node, path, tag }) => validateNode(node, tag, path));
+    },
+    validateNode,
+  };
+}

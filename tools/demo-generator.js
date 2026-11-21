@@ -388,7 +388,7 @@ export const chartSchema = {
     console.log(`  2. Add tab content: src/editor/cards/lcards-chart-editor.js`);
     console.log(`  3. Create card class: src/cards/lcards-chart.js`);
     console.log(`  4. Import editor in card class`);
-    console.log(`  5. Register card in src/lcards.js`);
+    console.log(`  5. Register card in src/lcards-main.js`);
     console.log(`  6. Test: npm run build && reload HA\n`);
     
     // Show file statistics

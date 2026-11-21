@@ -1,0 +1,77 @@
+# An MSD next to a button whose rule patches only that button (Tier 3 item 11,
+# 2026-11-17): the rule's patch reaches every card's rules callback, and the MSD
+# used to redraw all its lines for it.
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: none
+  view_box: [0, 0, 800, 400]
+  overlays:
+    - id: hub
+      type: control
+      position: [360, 170]
+      size: [80, 60]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        text:
+          name:
+            content: HUB
+            show: true
+    - id: line_1
+      type: line
+      anchor: [40, 40]
+      attach_to: hub
+      attach_side: left
+      route: auto
+      style:
+        color: var(--lcards-orange)
+        width: 4
+      animations:
+        - trigger: on_load
+          preset: march
+    - id: line_2
+      type: line
+      anchor: [40, 360]
+      attach_to: hub
+      attach_side: left
+      route: auto
+      style:
+        color: var(--lcards-blue)
+        width: 4
+    - id: line_3
+      type: line
+      anchor: [760, 40]
+      attach_to: hub
+      attach_side: right
+      route: auto
+      style:
+        color: var(--lcards-orange)
+        width: 4
+    - id: line_4
+      type: line
+      anchor: [760, 360]
+      attach_to: hub
+      attach_side: right
+      route: auto
+      style:
+        color: var(--lcards-blue)
+        width: 4
+    - id: line_5
+      type: line
+      anchor: [400, 20]
+      attach_to: hub
+      attach_side: top
+      route: auto
+      style:
+        color: var(--lcards-orange)
+        width: 4
+    - id: line_6
+      type: line
+      anchor: [400, 380]
+      attach_to: hub
+      attach_side: bottom
+      route: auto
+      style:
+        color: var(--lcards-blue)
+        width: 4

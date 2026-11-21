@@ -72,18 +72,7 @@ export class LCARdSFontSelector extends LitElement {
             }
 
             .toggle-button {
-                padding: 8px 12px;
-                background: var(--secondary-background-color, #fafafa);
-                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 12px;
-                white-space: nowrap;
-            }
-
-            .toggle-button:hover {
-                background: var(--primary-color, #03a9f4);
-                color: white;
+                flex-shrink: 0;
             }
 
             .preview {
@@ -97,7 +86,7 @@ export class LCARdSFontSelector extends LitElement {
             }
 
             .input-label {
-                font-size: 12px;
+                font-size: var(--ha-font-size-s);
                 font-weight: 500;
                 color: var(--secondary-text-color, #727272);
                 padding: 0 8px;
@@ -105,13 +94,13 @@ export class LCARdSFontSelector extends LitElement {
             }
 
             .helper-text {
-                font-size: 12px;
+                font-size: var(--ha-font-size-s);
                 color: var(--secondary-text-color, #727272);
                 padding: 0 8px;
             }
 
             .migration-notice {
-                font-size: 11px;
+                font-size: var(--ha-font-size-s);
                 color: var(--warning-color, #ff9800);
                 padding: 4px 8px;
                 font-style: italic;
@@ -177,17 +166,19 @@ export class LCARdSFontSelector extends LitElement {
                     <div class="selector-main">
                         ${this._isCustomMode ? this._renderCustomInput() : this._renderDropdown()}
                     </div>
-                    <button
+                    <ha-button
                         class="toggle-button"
+                        appearance="plain"
+                        size="s"
                         @click=${this._toggleMode}
                         ?disabled=${this.disabled}>
-                        ${this._isCustomMode ? '📋 Use Preset' : '🔧 Custom'}
-                    </button>
+                        ${this._isCustomMode ? 'Use preset' : 'Custom'}
+                    </ha-button>
                 </div>
 
                 ${showMigrationNotice ? html`
                     <div class="migration-notice">
-                        ⚠️ Migrated from legacy name: ${this.value}
+                        Migrated from legacy name: ${this.value}
                     </div>
                 ` : ''}
 
@@ -206,7 +197,6 @@ export class LCARdSFontSelector extends LitElement {
 
         return html`
             <ha-selector
-                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{
                     select: {
@@ -229,7 +219,6 @@ export class LCARdSFontSelector extends LitElement {
     _renderCustomInput() {
         return html`
             <ha-selector
-                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ text: {} }}
                 .value=${this._displayValue || ''}

@@ -30,7 +30,7 @@ export const SUPPORTED_SHAPES = [
  * Each receives `(x, y, w, h, options)` and returns the inner SVG element
  * string (without the wrapping `<clipPath>` — that is added by `buildClipPath`).
  *
- * @type {Object.<string, function(number, number, number, number, Object): string>}
+ * @type {Object.<string, function(number, number, number, number, Object=): string>}
  */
 const SHAPE_BUILDERS = {
     /**

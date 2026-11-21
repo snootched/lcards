@@ -1,0 +1,269 @@
+# Concept A, classic TNG: thick pastel sweeps top and bottom, labelled segments,
+# a sidebar of code blocks, the title and byline, a number cascade.
+type: custom:lcards-layout-card
+layout:
+  height: 300px
+  grid-gap: 6px
+  grid-template-columns: 150px 110px minmax(0, 1fr) 300px
+  grid-template-rows: 44px minmax(0, 1fr) minmax(0, 1fr) 30px
+  grid-template-areas: |
+    "corner corner bar bar"
+    "side codes title readout"
+    "side codes byline readout"
+    "fcorner fcorner fbar fbar"
+cards:
+  - type: custom:lcards-elbow
+    view_layout:
+      grid-area: corner
+    elbow:
+      type: header-left
+      segment:
+        bar_width: 150
+        bar_height: 44
+        color: var(--lcars-almond)
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: bar
+    layout:
+      grid-gap: 6px
+      grid-template-columns: 3fr 1fr 4fr 2fr
+      grid-template-rows: 44px
+    cards:
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            content: LCARDS
+            position: bottom-right
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-almond)
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            content: "2026"
+            position: bottom-right
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-red)
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            content: HOME ASSISTANT
+            position: bottom-right
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-african-violet)
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            content: 47-2201
+            position: bottom-right
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-bluey)
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: side
+    layout:
+      grid-gap: 6px
+      grid-template-columns: minmax(0, 1fr)
+      grid-template-rows: 1fr 2fr 1fr
+    cards:
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            content: 01-2356
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-african-violet)
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            content: 02-4156
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-almond)
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            content: 03-4124
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-red)
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: codes
+    layout:
+      grid-gap: 6px
+      grid-template-columns: minmax(0, 1fr)
+      grid-template-rows: repeat(3, minmax(0, 1fr))
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        min_height: 0
+        text:
+          label:
+            content: LIGHTS
+            show: true
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-red)
+      - type: custom:lcards-button
+        preset: lozenge
+        min_height: 0
+        text:
+          label:
+            content: DOORS
+            show: true
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-bluey)
+      - type: custom:lcards-button
+        preset: lozenge
+        min_height: 0
+        text:
+          label:
+            content: SHIELDS
+            show: true
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-almond)
+  - type: custom:lcards-button
+    view_layout:
+      grid-area: title
+    preset: text-only
+    min_height: 0
+    text:
+      label:
+        content: LCARdS
+        show: true
+        text_transform: none
+        position: bottom-center
+        font_size: 92
+        color: var(--lcars-orange)
+  - type: custom:lcards-button
+    view_layout:
+      grid-area: byline
+    preset: text-only
+    min_height: 0
+    text:
+      label:
+        content: LCARS CARDS FOR HOME ASSISTANT
+        show: true
+        position: top-center
+        font_size: 28
+        color: var(--lcars-african-violet)
+  - type: custom:lcards-data-grid
+    view_layout:
+      grid-area: readout
+    data_mode: decorative
+    format: mixed
+    grid:
+      grid-template-rows: repeat(6, auto)
+      grid-template-columns: repeat(5, minmax(0, 1fr))
+      gap: 0px
+    style:
+      padding: 0px
+      font_size: 18px
+    animations:
+      - trigger: on_load
+        preset: cascade-color
+  - type: custom:lcards-elbow
+    view_layout:
+      grid-area: fcorner
+    elbow:
+      type: footer-left
+      segment:
+        bar_width: 150
+        bar_height: 30
+        color: var(--lcars-almond)
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: fbar
+    layout:
+      grid-gap: 6px
+      grid-template-columns: 2fr 5fr 1fr 2fr
+      grid-template-rows: 30px
+    cards:
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            content: PRIMARY
+            position: bottom-right
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-african-violet)
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            content: AUXILIARY CONTROL
+            position: bottom-right
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-almond)
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            content: "08"
+            position: bottom-right
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-red)
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            content: 4301-795
+            position: bottom-right
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-almond)

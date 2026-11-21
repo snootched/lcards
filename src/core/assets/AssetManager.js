@@ -13,6 +13,7 @@
 import { BaseService } from '../BaseService.js';
 import { sanitizeSvg } from '../../utils/lcards-svg-helpers.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { bundleUrl } from '../../utils/bundle-url.js';
 
 /** How long a resolved `media-source://…` URL is trusted before re-resolving. */
 const MEDIA_SOURCE_CACHE_TTL_MS = 15 * 60 * 1000;
@@ -35,11 +36,22 @@ const ASSET_TYPES = {
    * as `builtin:<key>` just like MSD SVGs use `builtin:<key>`.
    */
   image: {
-    description: 'Raster and SVG image files (URL registry — no content fetch)',
+    description: 'Raster and SVG image files (URL registry, no content fetch)',
     sanitize: false,
     cache: false,  // no content to cache — ImageLoader handles its own cache
     lazyLoad: false,
     urlOnly: true  // marker: only url metadata is stored; get() returns null by design
+  },
+  /**
+   * 3D models (glTF / GLB): URL-only like images. The astrometrics card
+   * fetches the file itself (`builtin:<key>` in a `model` object's `src`).
+   */
+  model: {
+    description: '3D model files, glTF / GLB (URL registry, no content fetch)',
+    sanitize: false,
+    cache: false,
+    lazyLoad: false,
+    urlOnly: true
   },
   font: {
     description: 'Custom font files',
@@ -177,7 +189,7 @@ export class AssetManager extends BaseService {
       this.registries.set(type, new AssetRegistry(type, config));
     });
 
-    lcardsLog.info('[AssetManager] Ready - supported types:', Object.keys(this.config));
+    lcardsLog.debug('[AssetManager] Ready - supported types:', Object.keys(this.config));
   }
 
   /**
@@ -288,7 +300,8 @@ export class AssetManager extends BaseService {
     lcardsLog.debug(`[AssetManager] Loading external ${type}: ${key} from ${url}`);
 
     try {
-      const response = await fetch(url);
+      // built-in /lcards/... URLs resolve against the bundle folder
+      const response = await fetch(bundleUrl(url));
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -395,6 +408,21 @@ export class AssetManager extends BaseService {
       });
     }
 
+    // Model assets (URL-only registry, like images)
+    if (packDef.model_assets) {
+      Object.entries(packDef.model_assets).forEach(([key, def]) => {
+        if (def.url) {
+          this.register('model', key, null, {
+            pack: packName,
+            url: def.url,
+            description: def.description,
+            label: def.label,
+            parts: def.parts
+          });
+        }
+      });
+    }
+
     // Audio assets
     if (packDef.audio_assets) {
       Object.entries(packDef.audio_assets).forEach(([key, def]) => {
@@ -414,10 +442,11 @@ export class AssetManager extends BaseService {
       svg:   packDef.svg_assets   ? Object.keys(packDef.svg_assets).length   : 0,
       font:  packDef.font_assets  ? Object.keys(packDef.font_assets).length  : 0,
       audio: packDef.audio_assets ? Object.keys(packDef.audio_assets).length : 0,
-      image: packDef.image_assets ? Object.keys(packDef.image_assets).length : 0
+      image: packDef.image_assets ? Object.keys(packDef.image_assets).length : 0,
+      model: packDef.model_assets ? Object.keys(packDef.model_assets).length : 0
     };
 
-    lcardsLog.info(`[AssetManager] Preloaded from pack ${packName}:`, assetCounts);
+    lcardsLog.debug(`[AssetManager] Preloaded from pack ${packName}:`, assetCounts);
   }
 
   /**
@@ -470,10 +499,25 @@ export class AssetManager extends BaseService {
     try {
       // Check the image registry first
       const imageAsset = this.getRegistry('image').assets.get(key);
-      if (imageAsset?.url) return imageAsset.url;
+      if (imageAsset?.url) return bundleUrl(imageAsset.url);
       // Fall back: SVG assets (ships, backgrounds, etc.) are also usable as <img> sources
       const svgAsset = this.getRegistry('svg').assets.get(key);
-      return svgAsset?.url ?? null;
+      return svgAsset?.url ? bundleUrl(svgAsset.url) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
+   * Resolve a model asset key (`builtin:<key>` without the prefix) to its URL
+   * (no I/O); null when not registered.
+   * @param {string} key
+   * @returns {string|null}
+   */
+  resolveModelUrl(key) {
+    try {
+      const url = this.getRegistry('model').assets.get(key)?.url;
+      return url ? bundleUrl(url) : null;
     } catch (_) {
       return null;
     }
@@ -585,6 +629,40 @@ export class AssetManager extends BaseService {
   }
 
   /**
+   * The SVG registry key for a `base_svg`-style source.
+   *
+   * - `builtin:<name>`: `<name>` (pack-registered keys)
+   * - a path (`/local/...`, `/hacsfiles/...`) or `http(s)://` URL: the whole
+   *   source, trimmed, so files with the same name in different folders, or
+   *   named like a built-in, get their own entries
+   * - `media-source://...`: the content ID itself (see loadSvgFromMediaSource)
+   * - anything else: taken as an already registered key
+   *
+   * Sync readers (MSD render, anchor helpers, editor previews) use this to find
+   * what loadSvg() registered.
+   *
+   * @param {string|null|undefined} source
+   * @returns {string|null} Registry key, or null for an empty / 'none' source
+   */
+  svgKeyForSource(source) {
+    if (typeof source !== 'string') return null;
+    const s = source.trim();
+    if (!s || s === 'none') return null;
+    if (s.startsWith('builtin:')) return s.slice('builtin:'.length) || null;
+    return s;
+  }
+
+  /**
+   * True for a source (or key) loadSvg() fetches from a URL itself.
+   * @private
+   * @param {string} source
+   * @returns {boolean}
+   */
+  _isSvgPathSource(source) {
+    return source.startsWith('/') || /^https?:\/\//.test(source);
+  }
+
+  /**
    * Load SVG from source with auto-registration
    * Handles builtin, /local/, and external URLs automatically
    *
@@ -605,28 +683,22 @@ export class AssetManager extends BaseService {
       return null;
     }
 
-    let key;
-    let url;
+    const key = this.svgKeyForSource(source);
 
-    if (source.startsWith('builtin:')) {
-      // Builtin SVGs are pre-registered by packs
-      key = source.replace('builtin:', '');
-    } else if (source.startsWith('/local/') || source.startsWith('http')) {
-      // External/user SVGs: derive key from filename
-      key = source.split('/').pop().replace('.svg', '');
-      url = source;
+    if (key && key === source.trim() && this._isSvgPathSource(key)) {
+      // a path Home Assistant serves (/local/ is the www folder) or a full URL:
+      // keyed by the whole source, so it never collides with another folder's
+      // file of the same name or with a built-in pack key
+      const url = key;
 
       // Auto-register if not already registered
       if (!this.getRegistry('svg').has(key)) {
         this.register('svg', key, null, {
           url,
-          source: source.startsWith('http') ? 'external' : 'user'
+          source: key.startsWith('/') ? 'user' : 'external'
         });
         lcardsLog.debug(`[AssetManager] Auto-registered SVG: ${key} from ${url}`);
       }
-    } else {
-      // Assume it's already a registered key
-      key = source;
     }
 
     if (!key) {
@@ -685,7 +757,7 @@ export class AssetManager extends BaseService {
       const link = document.createElement('link');
       link.id = linkId;
       link.rel = 'stylesheet';
-      link.href = fontAsset.url;
+      link.href = bundleUrl(fontAsset.url);
       document.head.appendChild(link);
 
       lcardsLog.debug(`[AssetManager] Loaded font: ${migratedKey} from ${fontAsset.url}`);
@@ -707,7 +779,7 @@ export class AssetManager extends BaseService {
     // Find font by legacy name
     for (const [key, asset] of fontRegistry.assets.entries()) {
       if (asset.metadata.legacyName === fontKey) {
-        lcardsLog.info(`[AssetManager] Migrating font: ${fontKey} → ${key}`);
+        lcardsLog.debug(`[AssetManager] Migrating font: ${fontKey} → ${key}`);
         return key;
       }
     }

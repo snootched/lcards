@@ -1,0 +1,11 @@
+# Two opaque layers: the first entry is the bottom, so the second shows (background-animation.spec.js)
+type: custom:lcards-button
+entity: switch.demo_switch
+preset: lozenge
+background_animation:
+  - preset: solid
+    config:
+      color: 'rgb(255, 0, 0)'
+  - preset: solid
+    config:
+      color: 'rgb(0, 0, 255)'

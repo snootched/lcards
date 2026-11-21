@@ -1,0 +1,1371 @@
+# The demo boards (npm run demo:push): the views in demo/views/, grouped by release,
+# newest first. Every view file is listed exactly once (tests/docs/demo-dashboard.test.js).
+# Per view: title (optional: the view file's own title otherwise), summary (index line), description (header text), session (dev board only),
+# docs (a docs page path, optional), public (also on the public board and the docs site's
+# live demo; false for checks, benchmarks and comparisons) and heavy (the docs Live Demo
+# mounts it only on a click: many WebGL scenes at once) and max_width (px: the docs Live Demo shows the view no wider, e.g. a phone layout).
+# The header and the index are generated from this file (scripts/lib/demo-dashboard.js).
+title: LCARdS Demo
+# The topic tree: the index's and the docs Live Demo's blocks, in this order. Each
+# topic lists its views directly or in named groups; every view is in exactly one.
+topics:
+  - id: dashboards
+    title: Dashboards
+    groups:
+      - title: Everyday
+        views: [gallery/bridge, gallery/engineering, gallery/environmental, gallery/security, gallery/alert, gallery/picard-operations, gallery/sciences]
+      - title: Design guide, Picard
+        views: [gallery/picard-console, gallery/picard-display, gallery/picard-split, gallery/picard-portrait, gallery/picard-tiles]
+      - title: Design guide, classic
+        views: [gallery/classic-console, gallery/classic-data, gallery/classic-bracket, gallery/classic-list, gallery/classic-wings]
+  - id: buttons
+    title: Buttons and elbows
+    groups:
+      - title: Buttons
+        views: [button-presets, button-states, button-components, button-dpad-voyager, button-brackets-radar, actions-confirmation, text-fit]
+      - title: Elbows
+        views: [elbows]
+      - title: LCARS patterns
+        views: [lcars-patterns-picard, lcars-patterns-readouts, lcars-patterns-classic, lcars-shapes-check]
+      - title: Docs audit fixes
+        views: [d2-batch1-fixes, d2-batch4-msd-fixes, d2-batch5-core-fixes, b1-banners-red, b1-banners-blue]
+      - title: Checks
+        views: [perf-regression]
+  - id: msd
+    title: MSD
+    views: [msd-basics, msd-routing, msd-routing-lab, msd-shapes, msd-leader-lines, msd-lineart]
+  - id: astrometrics
+    title: Astrometrics
+    groups:
+      - title: Start here
+        views: [astro-showcase, astro-starters, astro-star-trek, astro-real-sol, astro-solar-orbits, astro-satellites, astro-wells-cards, astro-radar]
+      - title: Objects
+        views: [astro-objects, astro-planets, astro-belt, astro-asteroid, astro-comet, astro-galaxy, astro-crystalline, astro-cube, astro-wormhole, astro-deformed-grids]
+      - title: Ships and starbases
+        views: [astro-ships, astro-starbases, astro-own-models, astro-cards-models, astro-real-size]
+      - title: Nebulae and effects
+        views: [astro-effects, astro-nebula-volume, astro-nebula-shapes, astro-badlands, astro-nexus]
+      - title: Scale
+        views: [astro-dive, astro-distance, astro-true-scale, astro-true-solar, astro-units]
+      - title: Camera and motion
+        views: [astro-camera, astro-navigation, astro-face, astro-trail]
+      - title: Looks and colours
+        views: [astro-diagram-forms, astro-recolor]
+      - title: Live data
+        views: [astro-points-data, astro-bindings, astro-colours]
+      - title: Studio
+        views: [astro-studio-starters, astro-studio-objects, astro-studio-forms, astro-studio-move, astro-prism-outline]
+  - id: backgrounds
+    title: Backgrounds
+    groups:
+      - title: WebGL
+        views: [webgl-scenes, webgl-fields, holo-sphere, nebula-volumetric, warp-spectrum, zoom-webgl]
+      - title: Grids
+        views: [grid-views, grid-surfaces, grid-surfaces-inside, grid-polar, grid-wells, grid-motion]
+      - title: Renderer parity
+        views: [webgl-scenes-parity, webgl-fields-parity, holo-sphere-parity, warp-spectrum-parity, zoom-webgl-parity, grid-views-parity, grid-polar-parity]
+  - id: cards
+    title: Cards
+    groups:
+      - title: Slider
+        views: [slider-presets, slider-picard-shapes, slider-labels-tween, slider-drag-badge, slider-invert, ring-gauge, slider-ring-fit]
+      - title: Select menu
+        views: [select-menu]
+      - title: Layouts
+        views: [layouts]
+      - title: Chart
+        views: [chart-sources, chart-types, chart-styling, chart-timeline]
+      - title: Data grid
+        views: [datagrid-data, datagrid-decorative]
+      - title: Section strategies
+        views: [sections-strategies, section-bracket-ratios]
+  - id: data
+    title: Data and rules
+    views: [rules, templates, data-sources]
+  - id: alerts
+    title: Alerts and animation
+    groups:
+      - title: Alerts
+        views: [alert-modes, alert-band, borg, alert-recolour, alert-overlay-edit]
+      - title: Animation
+        views: [anim-classic, anim-triggers, anim-presets]
+  - id: benchmarks
+    title: Benchmarks
+    views: [bench-12, bench-20, bench-stars-500-instances, bench-stars-500-shader, bench-stars-2000-instances, bench-stars-2000-shader, bench-stars-5000-instances, bench-stars-5000-shader]
+releases:
+  - version: "2026.11.0"
+    views:
+      - file: perf-regression
+        summary: "Perf regression check: one card per optimisation of the 2026-11-17 performance review"
+        description:
+          - "Walk through by hand after a performance change (test list in reports/perf-review-2026-11-17.md, Manual check)."
+          - "1: drag HUE and LEVEL and toggle LAMP POWER: MATCH LIGHT, the pill slider and BRIGHTNESS RANGE (green over 50 %) follow the test lamp."
+          - "2: drag VALUE: the Jinja number and the fitted label follow."
+          - "3: the dpad's segments step VALUE and toggle LIGHTS and DOORS; the alert symbols stay in their cells."
+          - "4: the Picard lights pulse, the texture pulses (scroll away and back), the moon image shows, the missing image leaves an empty block."
+          - "5: the dashed line marches; TOGGLE recolours it."
+          - "6: STATIC and PIXELATE cover the screen until CLEAR EFFECT; RED ALERT recolours everything until CLEAR ALERT."
+        session: "Perf review 2026-11-17"
+        public: false
+      - file: slider-invert
+        summary: "Inverted sliders: a blind that fills from the top, with its real numbers"
+        description:
+          - "Four upright gauges on VALUE, each with a red range (0 to 20, faint under a fill) and a marker at 75."
+          - "Set VALUE to 90 with SET VALUE; every badge reads the VALUE button's number while you drag."
+          - "BLIND (control.invert_value and style.track.invert_fill, for a blind: the fill is the lowered part, drag up to open): 100 at the top, the fill a tenth from the top, the red range at the bottom, the marker between 80 and 70."
+          - "INVERT FILL: 0 at the top, the fill from the top down to 90, the red range at the top."
+          - "INVERT VALUE: 0 at the top, the fill a tenth at the bottom (ending at 90), the red range at the top."
+          - "NORMAL: 0 at the bottom, the fill up to 90."
+          - "In all four the scale, the badge, the range and the marker use VALUE's own numbers."
+        session: "Issue 411, 2026-11-18"
+        docs: /cards/slider-card/control#control-options
+        public: true
+      - file: chart-timeline
+        summary: "Chart timelines and state bands: states as bars, or shaded behind a line"
+        description:
+          - "chart_type: rangeBar."
+          - "Toggle LIGHTS and DOORS or pick a MODE: the bar on the right grows while a state holds and a change starts a new one; hover a bar for its state, times and how long it lasted."
+          - "Top: the theme's state colours, as Home Assistant's history draws them."
+          - "Middle: your own colours by state, only the lights' active runs, changes under 30 seconds hidden."
+          - "Bottom: state_bands shade the lights (orange) and doors (blue) behind VALUE while they are on; drag VALUE to move the line."
+          - "All three share a sync_group: hover one and a dashed line marks the same moment on the others."
+        session: "E1.2 rangeBar timeline, E1.1 state bands, E1.3 sync_group"
+        docs: /cards/chart/types#timelines
+        public: true
+      - file: text-fit
+        summary: "Text fit: long text shrinks, wraps, then ends in an ellipsis inside its zone"
+        description:
+          - "Each pair shows a long label without fit and with fit: true."
+          - "A block's label shrinks and wraps to two lines; with max_lines: 1 it shrinks to its minimum and ends in an ellipsis; a lozenge and a Picard gauge cap keep a long name inside."
+          - "Toggle WARP TRAVEL or drag a gauge: the text stays fitted."
+        session: "D text fit"
+        docs: /core/text-fields-style#fit
+        public: true
+      - file: sections-strategies
+        summary: "LCARS section strategies: readings, gauges and controls that fill themselves, classic or Picard, framed or not"
+        description:
+          - "Three automatic sections, each built from a target (here test helpers; usually an area)."
+          - "Rows: classic, classic with a frame, Picard, Picard with a frame, then the other readings modes (a classic table, Picard numbers) and controls with wider spacing."
+          - "The framed classic levels and the spaced controls show codes on the blocks of the bracket's side."
+          - "The last row gives readings, gauges and controls the same item_height, so their rows line up."
+          - "Drag a gauge or toggle a control."
+          - "In edit mode, Create section then Automatic section lists them under Community sections; the Strategy tab sets the look, frame, codes, items per row and their height, readings mode and spacing."
+        session: "S5 section strategies"
+        docs: /getting-started/section-strategies
+        # dev board only: the docs Live Demo page renders cards without Home Assistant's strategies
+        public: false
+      - file: section-bracket-ratios
+        summary: "Classic bracket ratios: the controls bracket built in pieces, six sizes (review)"
+        description:
+          - "The classic controls section's bracket built in pieces like the demo board's frames: a top sweep with the title in its bar, a break, a bar down the left, a break, a closing sweep."
+          - "A: the default (72 px side, 28 px top bar, 14 px foot)."
+          - "B: demo-like (90 / 28 / 12)."
+          - "C: slim (56 / 24 / 12)."
+          - "D: even bars (72 / 28 / 28)."
+          - "E and F: wider and tighter padding and header gap."
+        session: "J section strategies"
+        docs: /getting-started/section-strategies
+        public: false
+      - file: actions-confirmation
+        summary: "Actions that ask first: Home Assistant's confirmation on any action"
+        description:
+          - "LIGHTS asks Home Assistant's own question before it toggles (confirmation: true)."
+          - "AIRLOCK sets its own heading, question and buttons (Cycle, Stay)."
+          - "RED ALERT names the action in the question from Home Assistant's translations; hold it to clear the alert without being asked."
+          - "Stay, Esc or a tap outside runs nothing."
+        session: "E2 action confirmation"
+        docs: /core/actions#confirmation
+        public: true
+      - file: astro-wells-cards
+        summary: "Astrometrics: a wormhole that opens and closes, thick model edges, cards opened from other cards"
+        description:
+          - "APERTURE opens the wormhole and closes it into a point at its centre (well.morph toward a needle, eased in place) while its gas (a whirlpool nebula: 3D clouds wound into spiral arms) blooms out and draws back in; DEPTH sinks it; the twist and swirl follow the new shape."
+          - "Two ships: edges as hairlines and at edges.width 2.5."
+          - "Cards on points: OPEN and CLOSE RELAY run point-card actions, FLY TO OUTPOST flies there and opens its card (fly-to point_card); both cards draw a leader to their point, the outpost's has a fixed height."
+        session: "F2 astrometrics leftovers"
+        docs: /cards/astrometrics/objects/surfaces#opening-and-closing
+        public: true
+      - file: astro-radar
+        summary: "Astrometrics radar scope: range rings, a turning sweep and contacts"
+        description:
+          - "The Radar scope starter: range rings with their distances, cross hairs, a clockwise sweep with a fading afterglow and contacts placed by distance and bearing (give one polar: { entity } to follow an entity)."
+          - "SCOPE looks straight down, TILTED sees it in perspective; SWEEP SPEED sets how fast the sweep turns, from 30 to 180 degrees a second."
+          - "It replaces the button card's decorative radar component."
+        session: "G1 radar scope"
+        docs: /cards/astrometrics/starters#radar-scope
+        public: true
+      - file: astro-satellites
+        summary: "Astrometrics satellites: the ISS, GPS, Galileo and the weather satellites where they are now"
+        description:
+          - "Real Earth satellites round an Earth turned as it really does, from orbits shipped with LCARdS (nothing is downloaded)."
+          - "Top: the Earth orbit starter at diagram heights: the ISS, Tiangong and Hubble with their orbits, the GPS and Galileo constellations and the named geostationary weather satellites."
+          - "ORBITS, EARTH and ISS fly the camera; LIVE runs the clock in real time, 2 MIN / S speeds it up."
+          - "Bottom: the same at real heights, the ISS skimming the surface and the weather satellites almost six Earth radii out."
+        session: "F1 Earth satellites"
+        docs: /cards/astrometrics/scale#earth-satellites
+        public: true
+      - file: msd-routing-lab
+        summary: "MSD routing lab: one small scene per routing situation, each checked by a test"
+        description:
+          - "A check of the line router, not a feature view: each MSD is one situation (converging, fanning out, a bundle round a corner, crossing bundles, a forced channel, obstacles, tight and wide lanes, corner radii, stacked targets)."
+          - "The note above each says what it should look like; tests/routing/routing-lab.test.js routes the same scenes and checks that no lines touch or cross unless the scene says so, routing settles and nested corners widen outward."
+          - "Generated from tests/routing/lab-scenes.js by scripts/make-routing-lab.mjs."
+        session: "Routing lab"
+        docs: /cards/msd/routing
+        public: false
+      - file: msd-leader-lines
+        summary: "MSD leader lines: side exits, sweeps, tight bends, brackets and angled runs"
+        description:
+          - "Labels joined to their parts the canon way, one leader style per MSD."
+          - "Before: lines dropping from the middle of wide label boxes with square corners."
+          - "Picard: every label leaves from its side with a tight bend (the fault only takes the accent)."
+          - "Picard bracket style: a thin bar on every label, its line leaving the bar's top corner."
+          - "Classic: a column of labels whose lines sweep round into their parts and nest."
+          - "Last: the variants side by side (sweep and tight, bracket corners, route: angled)."
+        session: "MSD leader lines"
+        docs: /getting-started/lcars-patterns#labelled-schematic
+        public: false
+      - file: msd-lineart
+        summary: "MSD line art: a Galaxy class blueprint drawn in your theme's colour, with named parts"
+        description:
+          - "builtin:galaxy-class-lineart: a Galaxy class from the side in line art, drawn from the built-in model (outline and panel lines) with a cutaway inside (decks, the warp core, nacelle coils)."
+          - "Its anchors name the main parts (bridge, saucer, deflector, warp_core, shuttle_bay, bussard, nacelle, pylon...), so labels join them by name."
+          - "Top: the drawing alone."
+          - "Middle: Picard tight labels."
+          - "Bottom: Picard bracket labels, angled."
+        session: "C2 MSD line art"
+        docs: /cards/msd/background#built-in-blueprints
+        public: true
+      - file: gallery/picard-tiles
+        title: "Picard tile wall"
+        summary: "Picard tile wall: nine framed section tiles, readings, slots and controls"
+        description:
+          - "The tile wall from the design guide: nine sections of the Enterprise, each a framed tile with a readings table, a slot (gauges, a big number, a chart, readout bars, a selector, transporter pads, the one number cascade) and a control row."
+          - "A tile lights while its section is active; switch the index blocks on the right, open the bay doors or engage warp."
+        session: "LCARS samples rollout"
+        docs: /getting-started/dashboard-gallery#picard-tile-wall
+        public: true
+      - file: gallery/classic-wings
+        title: "Classic wings"
+        summary: "Classic wings: port and starboard nacelles mirrored round a shared centre"
+        description:
+          - "The wings layout from the design guide: port (wheat) and starboard (blue) nacelles as the same module mirrored, each with its flow, pill rows led by live numbers, its own readings and a flow slider, round a centre chart of both flows, shared readings and warp pills."
+          - "In Home Assistant the view uses the LCARS Nemesis Blue theme; here it shows the default colours."
+        session: "LCARS samples rollout"
+        docs: /getting-started/dashboard-gallery#classic-wings
+        public: true
+      - file: gallery/classic-data
+        title: "Classic data screen"
+        summary: "Classic data screen: a readings table, one cascade, a long range scan"
+        description:
+          - "The classic data screen from the design guide: an upper band with a sweep, a table of labelled readings (temperature, humidity, ambient, lights, doors) beside one small number cascade, a big title and a pill group led by big numbers; segmented divider bars; a sidebar of blocks beside a long range scan with a bearing scale and a table of systems readings."
+          - "Every number is a labelled reading except the one cascade."
+          - "Drag POWER past 90 to turn it red."
+          - "In Home Assistant the view uses the LCARS Default theme; here it shows the default colours."
+        session: "Design review R3"
+        docs: /getting-started/dashboard-gallery#classic-data-screen
+        public: true
+      - file: lcars-shapes-check
+        summary: "LCARS shapes check: open frame ends, even thin corners, the column gauge"
+        description:
+          - "The shapes changed in the design review, drawn large."
+          - "DISPLAY SWEEP: a frame with its right side off ends its bars square, and its thin bars keep one width round the corners."
+          - "The utility bracket ends square on its open side."
+          - "CONCENTRIC SWEEP: the thin band keeps an even width with no curve set."
+          - "The column gauges show the value on top and the entity's name below (the last one a code of its own); drag the helpers."
+          - "Last, a closed thin frame and an open-top frame whose corner rounds its bar end on purpose."
+        session: "Design review R2"
+        docs: /getting-started/lcars-patterns
+        public: false
+      - file: astro-showcase
+        heavy: true
+        summary: "Astrometrics showcase: the Star Trek galaxy down to Deep Space 9"
+        description:
+          - "Every astrometrics feature in one card, in an LCARS frame."
+          - "The stops on the left fly from the galaxy (the quadrants and the powers) to Federation space and the real Sol system on today's date (Spacedock at Earth, the Utopia Planitia yards over Mars, Jupiter, Saturn, Pluto)."
+          - "CRYSTALLINE ENTITY shows it beside the Enterprise, NEXUS the white-hot ribbon."
+          - "The Bajor system has Deep Space 9 and its shields, the wormhole, a nebula, the BADLANDS and a Borg cube."
+          - "IDRAN is the wormhole's Gamma Quadrant end, DELTA BADLANDS the Badlands as Voyager drew them."
+          - "Along the bottom: orbits and planet grids on or off, a Borg incursion, WARP TRAVEL (the stars streak on every fly-to), the shields, the wormhole's power and the date's rate."
+          - "ALERT sets the alert status, LOOK picks DIAGRAM, REALISTIC or MIXED, CRYSTAL sets the Crystalline Entity's colour."
+          - "STARFIELD WARP: ENGAGE streams the stars, FACTOR sets the warp factor."
+          - "Last, the date itself and the guided tour (PLAY TOUR steps through every stop)."
+        session: "R4d"
+        docs: /cards/astrometrics/
+        public: true
+      - file: astro-nebula-volume
+        summary: "Astrometrics nebula you can fly into (render: volume)"
+        description:
+          - "A nebula drawn as one body of gas (render: volume) round a disc grid, with a planet inside it: the planet hides the gas behind it, the gas in front still shows."
+          - "OUTSIDE, FLY IN and PLANET fly the camera; from inside there is gas all round."
+          - "Under the scene, every tunable setting has a slider: DENSITY and DRIFT change in place; TURBULENCE, DETAIL (noise_scale), CLOUDS (count) and SIZE (the box it fills) rebuild the gas."
+          - "Further down: the same seeded clouds as puffs and as a volume."
+        session: "E6 volume"
+        docs: /cards/astrometrics/effects#gas-you-can-fly-into
+        public: true
+      - file: astro-badlands
+        summary: "Astrometrics Badlands: layered plasma, fire, vortex and lightning columns, strikes"
+        description:
+          - "The Badlands, both ways the shows drew them."
+          - "DS9: the badlands preset, two sheets of liquid fire with an orange band glowing between them and fire columns thick and thin, Deep Space Nine inside."
+          - "VOYAGER: the badlands_voyager preset, mauve layers with held pink lightning columns and strikes that light the gas round them."
+          - "VORTEX: twisting funnels joined into columns (columns kind vortex, waist 0.4)."
+          - "STORM: a lightning object striking inside a cloud nebula, each strike lighting the clouds round it."
+          - "The OUTSIDE buttons show the gas from afar; fly in and around with the mouse."
+        session: "NB2c"
+        docs: /cards/astrometrics/effects#the-badlands-layers-columns-and-lightning
+        public: true
+      - file: astro-nexus
+        summary: "Astrometrics Nexus: a white-hot ribbon, its wake, crawling discharges"
+        description:
+          - "The Nexus from Star Trek Generations (the nexus preset): a white-hot ribbon waving across space, a wake of pink and red gas streaming out from it, and small discharges crawling off it that light the gas."
+          - "FAR, SIDE, CLOSE and BELOW fly round it; WAVE SPEED sets how fast its waves run."
+          - "TRAVEL: a second Nexus on a wide orbit, its wake trailing behind (face: motion with rotation)."
+        session: "NB3"
+        docs: /cards/astrometrics/effects#the-nexus-a-ribbon-and-its-wake
+        public: true
+      - file: astro-crystalline
+        summary: "Astrometrics Crystalline Entity: crystal branches round a starburst core"
+        description:
+          - "The Crystalline Entity from Star Trek: The Next Generation (type: crystalline): a glowing spine, a pulsing starburst core and branches that fork down to thorns, 3 km tall, with the Galaxy-class Enterprise-D beside it at its real 642.5 m."
+          - "SIDE, CLOSE, BELOW and SHIP fly round it, FAR shows it as a dot, SECOND a second one in the show's lavender."
+          - "Under the scene, CORE GLOW, FADE and SPIN change it in place; BLUE, LAVENDER and ORANGE set its colour; BRANCHES sets how many times its branches fork; FIRE fires its beam on the ship."
+        session: "CE1"
+        docs: /cards/astrometrics/objects/space#crystalline
+        public: true
+      - file: slider-ring-fit
+        summary: "Slider rings fit their arc: a half ring fills a wide cell"
+        description:
+          - "A ring slider is as large as its arc lets it be in its cell: a half ring fills a wide cell with its value above the cut, a quarter ring sits in its corner, the default three-quarter ring is centred on its own shape, a full ring fills the smaller side."
+          - "PICARD HALF: a Picard ring as a half ring across three quarters of a row."
+          - "Each follows the same helper."
+        session: "Backlog clean-up"
+        docs: /cards/slider-card/components#ring-gauge
+        public: false
+      - file: d2-batch1-fixes
+        summary: "D2 batch 1 fixes: buttons, elbows and select menus the docs audit fixed"
+        description:
+          - "One card per fix from the docs audit of the button, elbow and select menu pages."
+          - "ALERT SWITCH drives the rules, the inner elbow segment and the OFFLINE text; LIGHTS the outer segment."
+          - "Buttons: a d-pad with segments.default (orange) and its own up (blue), alert bars in their own colour, a partial border, a free icon in the top-right corner, icon padding_left, OFFLINE in orange from style.text, the level texture filled to the humidity, the pulse texture."
+          - "Elbows: per-segment entities and actions (tap the outer to toggle LIGHTS, hold the inner for more info), a segmented frame's inner ring in the outer ring's colour, frame bars in CSS lengths, an open header's symbiont inside its arms, a texture clipped to the segments, segments sized by the theme."
+          - "Select menus: a rule turning the options red, dimmed unselected options, letter spacing and size, grid rows and centring, styles merged key by key, an option labelled from its own variable."
+        session: "D2 batch 1"
+        docs: /cards/button/
+        public: false
+      - file: d2-batch4-msd-fixes
+        summary: "D2 batch 4 fixes: MSD rules, filters, anchors and routing the docs audit fixed"
+        description:
+          - "ALERT SWITCH drives a rule that dims the blueprint with apply.base_svg filters (with a red drop-shadow, now valid CSS) and turns the line tagged power red (tag: selectors reach MSD overlays; the colour stays on the visible line)."
+          - "The line starts 16 units off the BRIDGE control (anchor_gap) and ends in an arrow (marker_end as a string)."
+          - "Below: anchors as percentages of the view box, a control placed by anchor name with no size as an obstacle, and two lines through a channel with line_spacing 20."
+        session: "D2 batch 4"
+        docs: /cards/msd/
+        public: false
+      - file: b1-banners-red
+        summary: "B1 banner candidates, Red Accent profile"
+        description:
+          - "The four banner candidates (Badlands A and B, wormhole A and B) at 1200 x 300 in the LCARS Picard [LCARdS Red Accent] theme."
+        session: "B1"
+        public: false
+      - file: b1-banners-blue
+        summary: "B1 banner candidates, Blue Accent profile"
+        description:
+          - "The four banner candidates (Badlands A and B, wormhole A and B) at 1200 x 300 in the LCARS Picard [LCARdS Blue Accent] theme."
+        session: "B1"
+        public: false
+      - file: d2-batch5-core-fixes
+        summary: "D2 batch 5 fixes: rules, animations and backgrounds the core docs audit fixed"
+        description:
+          - "ALERT SWITCH starts rule animations on a slider (by its tags), an elbow and a button; the button also glows from a LIGHTS rule, and switching ALERT SWITCH off stops only its own pulse."
+          - "The DISABLED RULE card stays grey (enabled: false)."
+          - "The icon area colour comes from a template, and the zoomed grid runs faster with a fixed speed."
+        session: "D2 batch 5"
+        docs: /core/rules/
+        public: false
+      - file: astro-diagram-forms
+        summary: "Astrometrics diagram forms: each object type's LCARS wireframe for the diagram look"
+        description:
+          - "LOOK switches the scene between DIAGRAM (each object as an LCARS wireframe in its own colour), REALISTIC and MIXED (the bodies as configured)."
+          - "A glow becomes a ring marker facing the camera, a Borg cube and a box their edges and a grid on each face, an asteroid its rock's edges, tumbling with it, a belt its inner and outer edges."
+          - "A comet shows its nucleus, a ring round the coma and each tail as a line; a galaxy its spiral arms, rim, bulge ring and bar; the Crystalline Entity its spine and branches with a ring round the core; the volume nebulae a ball's three rings and a box's edges."
+          - "Orbits and routes show in the diagram and mixed looks only; the planet's banded ring stays in every look."
+          - "The colour select recolours the wireframes too."
+        session: "Astro polish"
+        docs: /cards/astrometrics/scene#looks-diagram-and-realistic
+        public: true
+      - file: astro-recolor
+        summary: "Astrometrics colours in place: colours and alert modes crossfade, nothing rebuilds"
+        description:
+          - "Many object types in one scene (a grid, a glow, a ring, a sphere, a belt, the Crystalline Entity, a Borg cube, a volume nebula, a cloud nebula and a galaxy), each colour following the BLUE / LAVENDER / ORANGE select."
+          - "A new colour, or GREEN / YELLOW / RED alert, crossfades every object to its new colours over a moment, with nothing built again: the spins, drift and pulse carry on through the change."
+        session: "Astro polish"
+        docs: /cards/astrometrics/data#colours-from-entities
+        public: true
+      - file: astro-solar-orbits
+        summary: "Astrometrics Solar system orbits: Pluto and every orbit at its real tilt"
+        description:
+          - "The Solar system starter: Pluto and each orbit ring tilted to its planet's real inclination about its ascending node, the planets going round in those planes."
+          - "SYSTEM is the starter's view, TOP looks down, EDGE looks along the ecliptic so the tilts show (Pluto's 17 degrees most of all), PLUTO flies to Pluto."
+        session: "Astro polish"
+        docs: /cards/astrometrics/starters#solar-system
+        public: true
+      - file: astro-units
+        summary: "Astrometrics units: parts sized for the scene they go into"
+        description:
+          - "The Solar system starter (scene units) with the Nexus, a comet and the Badlands added from the Studio: each sized to fit the scene instead of arriving at its own 2000, 175 or 500."
+          - "Below, a scene in light years with the same parts at their real sizes: the Badlands 10 ly across, the Nexus 1 ly long, on a 5 ly grid."
+        session: "U1"
+        docs: /cards/astrometrics/scale#units
+        public: false
+      - file: astro-nebula-shapes
+        summary: "Astrometrics nebula shapes, dust and colour"
+        description:
+          - "Volume nebulae in the forms of real ones: a shell (the Ring nebula), an hourglass (bipolar, the Butterfly), filaments (the Veil) and a cavity open toward you (Orion's blister), and below them a long band of drawn-out clouds with a pale core colour and dust lanes."
+          - "The buttons fly to each (BAND to the band); STRETCH draws the seeded clouds out, DUST lays 0 to 4 dark lanes across the band."
+        session: "NB1"
+        docs: /cards/astrometrics/effects#shapes-dust-and-colour
+        public: true
+      - file: astro-comet
+        summary: "Astrometrics comet: tails away from its star"
+        description:
+          - "type: comet: a dark nucleus, a glowing coma and two tails pointing away from its star (light): a straight blue ion tail and a pale dust tail that bends back along the comet's path."
+          - "On an orbit centred off the star, with activity.mode: distance it grows and brightens as it swings in and fades as it swings out."
+          - "COMET flies to it, SYSTEM back out."
+          - "Second card: TAIL, COMA and GLOW follow sliders and ease in place."
+        session: "AC1"
+        docs: /cards/astrometrics/objects/space#comet
+        public: true
+      - file: astro-wormhole
+        summary: "Astrometrics wormhole: its mouth and the regions inside it"
+        description:
+          - "The Bajoran wormhole starter."
+          - "Realistic look: a swirl of blue and violet gas pouring into the funnel round a warm rippled heart, a soft shaft of light and wisps trailing off."
+          - "Diagram look: the entrance disc and funnel, the pipeline (three twisted strands drawn as lit tubes), the negative and positive CTL regions, the ring and point singularities and the verteron membrane."
+          - "OVERVIEW, MOUTH, INSIDE and MEMBRANE fly the camera round it."
+          - "POWER opens the mouth and wobbles the regions; the look menu switches between them."
+        session: "W1"
+        docs: /cards/astrometrics/starters#bajoran-wormhole
+        public: true
+      - file: astro-asteroid
+        summary: "Astrometrics asteroid: one rock up close"
+        description:
+          - "type: asteroid: one rock with lumps and craters, tumbling, lit from its star (light: a point id)."
+          - "The star here goes round it, so day and night sweep across it."
+          - "FAR shows it from thousands of units away, where it is a dot."
+          - "Second card: three seeds and colours, all lit from one star."
+        session: "AC1"
+        docs: /cards/astrometrics/objects/space#asteroid
+        public: true
+      - file: astro-studio-forms
+        summary: "Astrometrics Studio forms: a card to open in the Studio"
+        description:
+          - "Open this card's editor, then its Studio."
+          - "The scene is in light years with a star system in astronomical units, and number fields say so."
+          - "The look is a switch, the stars sit behind a switch, the nebula's colours are a colour list and the labels pick a font."
+          - "The route hides inside the system, the shield's opacity follows SHIELDS, and the camera's first view is a guided tour on STAGE."
+        session: "UX1"
+        docs: /cards/astrometrics/start#the-studio
+        public: false
+      - file: astro-studio-starters
+        summary: "Astrometrics Studio starters: try a scene, keep it or undo it"
+        description:
+          - "A new card with no scene."
+          - "Open its editor, then its Studio: it opens on the Starters gallery."
+          - "Open a starter to see what it adds and change its settings, try it in the preview, keep or discard it, and undo with Ctrl+Z or the toolbar."
+        session: "UX1"
+        docs: /cards/astrometrics/start#the-studio
+        public: false
+      - file: astro-studio-objects
+        summary: "Astrometrics Studio objects: add by picture, parts into a system"
+        description:
+          - "A galaxy in light years with Sol as a system in km."
+          - "In the Studio: Add object is a gallery by group, shapes are picked by picture, the system row has Open, and with the system open Starters adds parts into it at real sizes."
+        session: "UX1"
+        docs: /cards/astrometrics/start#the-studio
+        public: false
+      - file: astro-studio-move
+        summary: "Astrometrics Studio: drag objects by their point, measure, quick views, hold, isolate"
+        description:
+          - "Open this card's editor, then its Studio."
+          - "Drag the planet and its point moves with it; select the ring or the relay pad first, then drag it."
+          - "The survey grid is placed by coordinates and does not drag."
+          - "Select anything and press F to fly to it."
+          - "The toolbar also measures between two taps, steps through flat top, front and side views, and (preview only) switches the look, holds all motion and shows the selected object alone."
+        session: "ST1"
+        docs: /cards/astrometrics/start#the-studio
+        public: false
+      - file: astro-real-size
+        summary: "Astrometrics real size: starbases and ships in proportion"
+        description:
+          - "Five built-in models with no size in a scene in km, so each is drawn at its real size from its file: Deep Space 9 (1.45 km) with a refit Constitution-class ship (305 m) beside it, Earth Spacedock (5.5 km tall) and a Utopia Planitia drydock (760 m) with a ship in its berth."
+          - "The buttons fly to each."
+          - "From ALL the ships are specks: the REAL SIZE button under the camera pad (or the V key) switches to VISIBLE SIZE, which draws each small model at least 40 px across, and back."
+        session: "UX1"
+        docs: /cards/astrometrics/objects/ships#real-size
+        public: true
+      - file: astro-prism-outline
+        summary: "Astrometrics prism outlines: edit a territory's border on the preview"
+        description:
+          - "Two territories as prism volumes over a map."
+          - "In the card's Studio, Objects, open a territory: its outline is a row per corner, and Edit on preview puts the corners on the map to drag (snapped to the map's 5, Shift for free), a + between corners adds one, Delete removes the selected one; Draw new outline taps a new border, closing on its first corner."
+          - "Each change is one undo step."
+        session: "UX1"
+        docs: /cards/astrometrics/start#the-studio
+        public: false
+      - file: chart-sources
+        summary: "Charts: entity history, long-term statistics and data sources"
+        description:
+          - "Every series is one entry of sources."
+          - "Top left, entity history: move POWER and SHIELDS and the lines follow."
+          - "Top right, an LCARdS data source smoothing the same power value beside its raw history."
+          - "Below, a week of hourly means from Home Assistant's long-term statistics, and TOGGLE plotted as on/off steps."
+        session: "R3"
+        docs: /cards/chart/series#where-the-data-comes-from
+        public: true
+      - file: chart-types
+        summary: "Chart types on the same four values"
+        description:
+          - "Area, grouped columns, radial bars, donut, radar, polar area, treemap and heatmap, all drawn from the same four helpers."
+          - "The round charts, the radar and the treemap show each series' latest value: drag a slider and they change at once; the time charts add the new value to their history."
+        session: "R3"
+        docs: /cards/chart/#chart-types
+        public: true
+      - file: chart-styling
+        summary: "Chart styling: gradients, reference lines, labels and formatters"
+        description:
+          - "Drag SHIELDS across the Nominal and Critical reference lines."
+          - "Below, a real temperature sensor: two days as a gradient area with its 30-minute peak and tooltip and axis formatters, a week of daily highs as labelled rounded columns from statistics, and three days as a low-to-high range band."
+        session: "R3"
+        docs: /cards/chart/styling
+        public: true
+      - file: datagrid-data
+        summary: "Data grid: live entity cells, colours and tap actions"
+        description:
+          - "Write rows of cells and each cell works out what it is (text, an entity, an attribute, a Home Assistant template, a JavaScript template or a data source value)."
+          - "Drag POWER, SHIELDS and TEMPERATURE and each reading pulses when it changes."
+          - "POWER turns yellow over 60 and red over 85, beside its smoothed value; SHIELDS under 25 turns its cell red and the note to CRITICAL; TEMPERATURE shows beside the helper's maximum."
+          - "Tap a LIGHTS or DOORS cell, or the buttons, to toggle it."
+        session: "R3"
+        docs: /cards/data-grid/data
+        public: true
+      - file: datagrid-decorative
+        summary: "Data grid decorative mode: the LCARS number wall"
+        description:
+          - "Decorative mode makes up its values: hex with digit columns trickling in and pulsing, floats refreshing faster, and a mixed wall under the cascade animation."
+          - "Nothing to control: no entities."
+        session: "R3"
+        docs: /cards/data-grid/data#decorative-mode
+        public: true
+      - file: astro-navigation
+        summary: "Astrometrics navigation: follow a moving ship, touchpad pan, a time slider, buttons that fade"
+        description:
+          - "Tap ENTERPRISE, SHUTTLE or PROBE (the name or its marker): the camera flies to it and stays on it round its orbit, and the wheel or a pinch zooms straight in on it; a tap on blank space lets go (a pan or a fly forward keeps following, offset)."
+          - "On a touchpad a two-finger swipe pans and a pinch zooms; with a mouse the wheel zooms and a middle-drag pans."
+          - "The on-card D-pad pans (arms), zooms (left corners), flies forward and back (right corners) and resets (centre); the slider under it slows the motion down, holds it or speeds it up."
+          - "The on-card buttons fade after a few seconds and come back when the pointer moves."
+          - "The buttons above the card fly to the system views (SYSTEM, TOP), or to a ship and follow it."
+          - "Click the scene and press W or S (Page Up, Page Down) to fly forward and back through it: camera and target move together."
+        session: "N1"
+        docs: /cards/astrometrics/camera#following-a-point
+        public: true
+      - file: astro-face
+        summary: "Astrometrics face motion: ships nose first along their orbits"
+        description:
+          - "Two starships share a tilted patrol orbit: the one with face: motion flies nose first and tips with the tilt, the other slides along sideways."
+          - "The small ship circles a planet that is itself on an orbit, so its heading follows both motions."
+          - "Under reduced motion they hold still, facing along their orbits."
+          - "The buttons fly to the views, or to a ship and follow it."
+        session: "M3"
+        docs: /cards/astrometrics/objects#facing-the-way-it-goes
+        public: true
+      - file: astro-star-trek
+        summary: "Astrometrics Star Trek galaxy: the quadrants, the powers, Federation space"
+        description:
+          - "The Star Trek galaxy starter with its three optional parts: the minor powers, the Delta Quadrant powers and the Borg transwarp network."
+          - "The Milky Way cut into the four quadrants along the line from Sol to the core; the Federation, Klingon, Romulan and Cardassian regions, the Dominion and the Borg; the Bajoran wormhole to Idran, Voyager's route home and the Great Barrier."
+          - "GALAXY, QUADRANTS, BAJOR, GAMMA QUADRANT, DELTA QUADRANT and GREAT BARRIER fly to each stop; FEDERATION and SOL NEIGHBOURS fly in to the capitals and nearby stars: Vulcan, Andoria and Tellar at their real stars (40 Eridani, Procyon, 61 Cygni), the others at the distances the reference charts give."
+          - "The galaxy view sizes the empires to be seen, so the two scales do not overlay exactly."
+        session: "R4c2"
+        docs: /cards/astrometrics/starters#star-trek-galaxy
+        public: true
+      - file: astro-galaxy
+        summary: "Astrometrics galaxy: a procedural Milky Way, and a prism territory"
+        description:
+          - "The galaxy object: the Milky Way built from its real structure (the central bar, the Scutum-Centaurus and Perseus arms from its ends, Sagittarius and Norma between them, the Orion spur), each star at its own place, so flying in shows parallax."
+          - "SOL sits 26,000 light years out with a prism territory round it, a border drawn as any outline."
+          - "GALAXY, FROM ABOVE and SOL fly the camera."
+          - "Below, a generic two-arm galaxy with no bar, turning."
+        session: "R4c1"
+        docs: /cards/astrometrics/objects/space#galaxy
+        public: true
+      - file: astro-bindings
+        summary: "Astrometrics settings from entities: shields, power and a guided tour"
+        description:
+          - "Any number on a point or object can follow an entity."
+          - "SHIELDS sets the shield bubble's opacity round the station (it eases to each new value)."
+          - "POWER opens the wormhole: its throat grows, its wobble follows a template, its glow brightens, the ring spins faster and debris gathers round it (a belt whose rock count follows the power, a whole number)."
+          - "PREVIOUS STOP and NEXT STOP step the stage helper, and the camera flies through four views; the last one holds the scene clock."
+          - "STAGE goes back to the start."
+        session: "R4b"
+        docs: /cards/astrometrics/data#settings-from-entities
+        public: true
+      - file: astro-colours
+        summary: "Astrometrics colours from entities: state maps and templates on object colours"
+        description:
+          - "Any object colour can follow an entity or a template."
+          - "TOGGLE turns the deck grid's lines orange (active and inactive)."
+          - "POWER over 80 turns the deck's edges red (an above:80 key) and the shield bubble too (a template)."
+          - "BLUE, LAVENDER and ORANGE pick the nebula's second colour and the comet's ion tail (a colour per input_select option)."
+          - "Each change rebuilds that one object."
+        session: "NB2b"
+        docs: /cards/astrometrics/data#colours-from-entities
+        public: true
+      - file: astro-real-sol
+        summary: "Astrometrics real Sol: the planets and moons where they are today"
+        description:
+          - "The Solar system (real positions) starter: the Sun, the planets, Pluto, Ceres and the major moons in km where they really are at the scene date, on their real orbits, with real tilts and spins, Saturn's rings in its equator, and the main and Kuiper belts."
+          - "The buttons above the card fly the camera; those below set the scene date and its speed (NOW, PAUSE, an hour, a day, a month or a year a second, REWIND, the Apollo 11 landing)."
+          - "The date slider on the card does the same, and its clock button switches to the speed slider."
+        session: "R4a"
+        docs: /cards/astrometrics/scale#the-real-solar-system
+        public: true
+      - file: astro-true-solar
+        summary: "Astrometrics true-scale starter: the Sun and eight planets in km"
+        description:
+          - "The Sun and the eight planets in km, every planet at its real distance and size, so from the whole system they are dots on their orbits."
+          - "SYSTEM shows it all, INNER the inner planets."
+          - "Tap EARTH, JUPITER or SATURN to fly in to it."
+        session: "E10"
+        docs: /cards/astrometrics/scale
+        public: false
+      - file: astro-dive
+        summary: "Astrometrics star systems: a galaxy in light years with Sol in km inside it"
+        description:
+          - "One card from the galaxy down to a station: the galaxy disc in light years, the Sol system in km at its real place 26,000 ly from the core, and Deep Space 9 in orbit round Earth."
+          - "Tap SOL, then EARTH, then STATION, or GALAXY to fly from the station straight back out."
+          - "The buttons above a scene fly its camera to each of its named views."
+        session: "E10"
+        docs: /cards/astrometrics/scale#star-systems
+        public: true
+      - file: astro-true-scale
+        summary: "Astrometrics at true scale: the Sun, Earth, the Moon and Deep Space 9 in km"
+        description:
+          - "A scene built with real numbers: fly from the whole inner system (planets are dots at this scale) to Earth and to Deep Space 9, 1.5 km across, with Earth filling the sky behind it."
+          - "Depth slices, scene-sized zoom limits and a log-distance fly-to make it hold."
+          - "The buttons above a scene fly its camera to each of its named views."
+        session: "E10"
+        docs: /cards/astrometrics/scale#one-scene-in-real-units
+        public: false
+      - file: astro-distance
+        summary: "Astrometrics distance: objects that appear as you zoom in"
+        description:
+          - "min_distance and max_distance on objects: zoom in and a galaxy sector gives way to a star system, then the Earth's Moon; Deep Space 9 is a starbase marker far away and its model close up; a ship marker hands over to the ship's model, and the asteroid belt's rocks are dots from far away."
+          - "The buttons above a scene fly its camera to each of its named views."
+        session: "E9"
+        docs: /cards/astrometrics/objects#distance
+        public: true
+      - file: astro-cube
+        summary: "Astrometrics Borg cube: the screen effect's cube in the scene"
+        description:
+          - "type: cube: the Borg cube with carved machinery, its rail lattice and pulsing glow spots, closing on a starship with a tractor beam (the Borg encounter starter); below, the styles side by side: borg, detail off and plain."
+          - "The buttons above a scene fly its camera to each of its named views."
+        session: "E8"
+        docs: /cards/astrometrics/objects/ships#cube
+        public: true
+      - file: astro-trail
+        summary: "Astrometrics trails: where moving points have been"
+        description:
+          - "type: trail: fading lines behind two planets and a comet marker on their orbits, built while the card is open, and a starship model riding an orbit with a dashed wake."
+          - "The buttons above a scene fly its camera to each of its named views."
+        session: "E8"
+        docs: /cards/astrometrics/objects/lines#trail
+        public: true
+      - file: astro-own-models
+        summary: "Astrometrics own models: one model file from the library, a path and the media browser"
+        description:
+          - "The same Deep Space 9 file reached the three ways the Studio's Src picker offers: the asset library (builtin:), a custom path, and the Home Assistant media browser under LCARdS (the route your own models take from the My models folder, /config/www/lcards/models)."
+          - "The middle one shows as a hologram, the default for any model."
+        session: "M2b"
+        docs: /cards/astrometrics/models
+        public: true
+      - file: astro-ships
+        summary: "Astrometrics ships: the NCC-1701-A and the NCC-1701-D"
+        description:
+          - "The two built-in starships made in code after the on-screen designs: the refit Constitution class (USS Enterprise NCC-1701-A, 305 m) and the Galaxy class (USS Enterprise NCC-1701-D, 642.5 m), side by side at the same scale as holograms with their parts labelled, each turning in its own materials, and the Galaxy class in its Utopia Planitia drydock."
+          - "The buttons above the first scene fly its camera to each ship."
+        session: "M2b"
+        docs: /cards/astrometrics/objects/ships#built-in-models
+        public: true
+      - file: astro-starbases
+        summary: "Astrometrics starbases: Deep Space 9, Earth Spacedock, Utopia Planitia"
+        description:
+          - "Three built-in starbase models made in code after the on-screen designs: Deep Space 9 by the wormhole with Ops and its pylons marked, the Utopia Planitia drydocks over Mars with a starship in one, a starship approaching Earth Spacedock's space doors, and all three as holograms."
+          - "The buttons above a scene fly its camera to each of its named views."
+        session: "E8"
+        docs: /cards/astrometrics/objects/ships#built-in-models
+        public: true
+      - file: astro-belt
+        summary: "Astrometrics asteroid belt: rocks round a star"
+        description:
+          - "type: belt: a band of low-poly rocks round the Sun, the inner ones going round faster (period) and each tumbling, lit from the Sun, grey and tan rocks from a colors list (each rock takes one)."
+          - "CLOSE flies in for a close look, SYSTEM back out."
+          - "Second card: a ring of small rocks round a planet."
+          - "Third card: the band follows sliders and eases in place round the same rocks (INNER EDGE and OUTER + ROCKS move each edge, the second also adds rocks; THICKNESS spreads them up and down)."
+          - "The buttons above a scene fly its camera to each of its named views."
+        session: "E8"
+        docs: /cards/astrometrics/objects/space#belt
+        public: true
+      - file: astro-planets
+        summary: "Astrometrics planets: maps, planet types, Saturn's rings"
+        description:
+          - "The built-in planet maps (NASA and USGS, public domain), eight fill.effect planet types (gas giant, ringed giant, ice giant, storm giant, clouds, lava, ice and terran), Saturn with its ring band, and a gas giant preset with its own keys on top (fewer belts, stormier, churning)."
+        session: "E8"
+        docs: /cards/astrometrics/objects/surfaces#built-in-planet-maps
+        public: true
+      - file: astro-starters
+        heavy: true
+        summary: "Astrometrics starters: a selection of scenes and parts"
+        description:
+          - "A selection of the Astrometrics Studio's starter scenes with their defaults (galaxy, sector map, sky dome, an earlier solar system without Pluto, Federation map, starbase approach), and four parts placed round one star: a planet with a moon, an asteroid belt, territories and a nebula."
+          - "The buttons above a scene fly its camera to each of its named views."
+        session: "E7"
+        docs: /cards/astrometrics/starters
+        public: true
+      - file: astro-objects
+        summary: "Astrometrics objects: grids, volumes, spheres, rings and paths"
+        description:
+          - "One card per object type: grid, volume, sphere (plain and textured), and rings with a path."
+        session: "E2b"
+        docs: /cards/astrometrics/objects
+        public: true
+      - file: astro-points-data
+        summary: "Points, labels, live data, globe and sky"
+        description:
+          - "Placement forms, label styles, point actions, a point following an entity, templates, a globe with your home on it (zone.home) and the sky from your location (sun.sun)."
+          - "The buttons above a scene fly its camera to each of its named views."
+          - "LIGHTS and TOGGLE switch the helpers the points beside them follow; SOL ALERT puts the Sun in the sky on alert (labelled SOL ALERT) and hides the Moon's track."
+        session: "E3a"
+        docs: /cards/astrometrics/points
+        public: true
+      - file: astro-camera
+        summary: "Camera controls and fly-to from other cards"
+        description:
+          - "Drag to orbit, shift-drag, middle-drag, two fingers or a touchpad swipe to pan, wheel or pinch to zoom to the pointer, double-tap blank space to fly in (shift: out), the on-card buttons, and fly-to from other cards (the buttons above it name the card by its id)."
+          - "The second card is a map: a one-finger drag pans."
+        session: "E3b"
+        docs: /cards/astrometrics/camera#controls
+        public: true
+      - file: astro-effects
+        summary: "Nebula, scans, flows, fills, warp and dust in 3D"
+        description:
+          - "Background effects in 3D space: nebula, scan bands, moving dashes and pulses, animated surface fills, warp and dust."
+          - "NEBULA DRIFT moves the first nebula; FAR and NEAR fly the last card out and back in, the flight to NEAR at warp."
+        session: "E6"
+        docs: /cards/astrometrics/effects
+        public: true
+      - file: astro-cards-models
+        summary: "Cards and 3D models in the scene"
+        description:
+          - "The built-in starship as a hologram with points on its parts, LCARdS cards pinned to points (always shown, or opened with a tap on BRIDGE), labels hiding behind the hull, the ship with its own materials, and a see-through orange hologram."
+          - "The buttons above a scene fly its camera to each of its named views."
+          - "TOGGLE, LIGHTS and POWER drive the cards pinned on the ship (TOGGLE also lights BRIDGE ALERT)."
+        session: "E4"
+        docs: /cards/astrometrics/objects/ships#model
+        public: true
+      - file: astro-deformed-grids
+        summary: "Deformed grids, wells and a wormhole"
+        description:
+          - "A jelly cylinder, a tornado (a twisted well whose bend circles), a wormhole with a ripple, a whirlpool disc, and a sector map on rolling noise with its cells and points riding the surface."
+          - "The buttons above a scene fly its camera to each of its named views."
+        session: "E5"
+        docs: /cards/astrometrics/objects/surfaces#deformed-grids
+        public: true
+      - file: webgl-scenes
+        summary: "WebGL background scenes, alone and stacked"
+        description:
+          - "three.js background scenes: the warp starfield, grid floor and noise presets, alone and stacked."
+          - "The sliders are bound with the card's entity and map_range: WARP SPEED drives card 1, FLOOR TILT tilts card 3."
+        session: "C2"
+        docs: /core/effects/background-animations#webgl-presets
+        public: true
+      - file: webgl-scenes-parity
+        summary: "WebGL scenes, renderer parity"
+        description:
+          - "The webgl-scenes cards with their twins: warp starfield with instances and with the shader, the warp on red alert, and the Canvas2D starfield zoom for comparison."
+        session: "C2"
+        public: false
+      - file: webgl-fields
+        summary: "Noise presets on the GPU"
+        description:
+          - "contour-field, plasma, fluid and the other noise presets on the GPU."
+          - "FILL LEVEL raises the waterline and noise scale of card 6; DRIFT moves the plasma and fluid (3 and 4)."
+        session: "C3"
+        docs: /core/effects/background-animations/preset-reference#contour-field
+        public: true
+      - file: webgl-fields-parity
+        summary: "Noise presets, WebGL against Canvas2D"
+        description:
+          - "Each noise preset (contour-field, plasma, fluid) twice: WebGL and renderer: canvas side by side, plus the fill level glide against the Canvas re-bake."
+        session: "C3"
+        public: false
+      - file: holo-sphere
+        summary: "The holographic planet"
+        description:
+          - "The holographic planet: lines, scan band, rotation and tilt."
+          - "TURN + SIZE drives card 3, TILT leans the sphere in card 1; tap card 4 to tilt it."
+        session: "C3"
+        docs: /core/effects/background-animations/preset-reference#holo-sphere
+        public: true
+      - file: holo-sphere-parity
+        summary: "Holo-sphere, WebGL against Canvas2D"
+        description:
+          - "The holo-sphere views with the tilted sphere on WebGL and on Canvas2D side by side, and the dense sphere on the Canvas renderer."
+        session: "C3"
+        public: false
+      - file: nebula-volumetric
+        summary: "The nebula, flat and volumetric"
+        description:
+          - "The nebula preset on WebGL, flat and volumetric."
+          - "TURBULENCE stirs 1A and 1B (volumetric and plain side by side), DRIFT moves card 2."
+        session: "C3"
+        docs: /core/effects/background-animations/preset-reference#nebula
+        public: true
+      - file: warp-spectrum
+        summary: "Doppler-shifted warp streaks"
+        description:
+          - "spectrum: true splits each streak into colour, a Doppler shift of the star's own colour (violet toward the tail)."
+          - "White stars show the whole rainbow (card 1), coloured stars a part of it (card 2: orange, blue and violet stars); reverse puts violet at the head (card 3), and card 4 has the spectrum off."
+          - "Card 5 warps on red alert and drops to dots when it clears: the colour fades in as the dots stretch."
+          - "STREAK stretches cards 1 to 4 together, BANK turns the camera of card 6."
+        session: "warp-starfield spectrum"
+        docs: /core/effects/background-animations/preset-reference#warp-starfield
+        public: true
+      - file: warp-spectrum-parity
+        summary: "Warp spectrum, with the plain streak"
+        description:
+          - "The warp-spectrum cards, with the plain white streak beside the spectrum streaks for comparison."
+        session: "warp-starfield spectrum"
+        public: false
+      - file: grid-views
+        summary: "Grid floors, camera and line widths"
+        description:
+          - "grid, grid-diagonal and grid-hexagonal on WebGL: flat and floor views, camera, line widths, scan line."
+          - "LINE WIDTH drives the floors 3, 4 and 7; CAMERA tilts floor 8 and banks the warp in card 10."
+        session: "C3"
+        docs: /core/effects/background-animations/preset-reference#grid-views-and-camera
+        public: true
+      - file: grid-views-parity
+        summary: "Grid views, WebGL against Canvas2D"
+        description:
+          - "Grid majors, hexagonal grid and holo-sphere line width, each on WebGL and on Canvas2D side by side, with the floors and camera cards."
+        session: "C3"
+        public: false
+      - file: grid-surfaces
+        summary: "Grids on cylinders, domes and spheres"
+        description:
+          - "Grids wrapped round a cylinder, dome or sphere, with rims."
+          - "TURN spins the cylinders and the sphere (1, 3, 4, 5) about their axis, CAMERA TILT the dome and the unbounded cylinder."
+          - "Cards 9 to 11 look from inside: a tunnel (TURN runs it), a planetarium dome and a sphere (CAMERA TILT looks up)."
+        session: "C4"
+        docs: /core/effects/background-animations/preset-reference#grid-surfaces
+        public: true
+      - file: grid-surfaces-inside
+        summary: "Grid surfaces seen from inside"
+        description:
+          - "The camera inside a cylinder, dome or sphere."
+          - "SPEED flies through the tunnel, LOOK UP tilts the camera inside the dome and the sphere."
+        session: "C4"
+        docs: /core/effects/background-animations/preset-reference#grid-surfaces
+        public: false
+      - file: grid-polar
+        summary: "Polar grids"
+        description:
+          - "pattern: polar, flat, as a floor and on surfaces."
+          - "SPOKES sets the spoke count of 1, 5 and 6; CAMERA TILT the floors 2 and 7."
+        session: "C5"
+        docs: /core/effects/background-animations/preset-reference#polar-pattern
+        public: true
+      - file: grid-polar-parity
+        summary: "Polar grids, WebGL against Canvas2D"
+        description:
+          - "The polar grid views plus the flat polar grid on renderer: canvas, to compare with card 1 on WebGL."
+        session: "C5"
+        public: false
+      - file: grid-wells
+        summary: "Grid wells, morph and ripple"
+        description:
+          - "surface: well: funnels of any profile, morph and ripple."
+          - "THROAT opens and closes the wells 1, 4 and 9; CAMERA TILT turns 6 and 10."
+        session: "C5"
+        docs: /core/effects/background-animations/preset-reference#grid-wells
+        public: true
+      - file: grid-motion
+        summary: "Camera roll and surface rotation"
+        description:
+          - "camera_roll and the surface_rotate_* keys: surfaces facing any way, animated."
+          - "RIPPLE and RIPPLE SPEED drive the waves of cards 4 and 6; the rest animate on their own."
+        session: "C5"
+        docs: /core/effects/background-animations/preset-reference#grid-surfaces
+        public: true
+      - file: zoom-webgl
+        summary: "The zoom wrapper over WebGL"
+        description:
+          - "The zoom wrapper over three WebGL grids: a square grid, a polar grid and a hexagonal grid, each zooming through its layers."
+        session: "C5"
+        docs: /core/effects/background-animations/stacking-and-zoom#zoom-wrapper
+        public: true
+      - file: zoom-webgl-parity
+        summary: "Zoom wrapper, WebGL against Canvas2D"
+        description:
+          - "The zoom wrapper over a grid on WebGL and on Canvas2D side by side, with the polar and hexagonal zooms."
+        session: "C5"
+        public: false
+      - file: alert-recolour
+        summary: "Backgrounds through alert modes"
+        description:
+          - "Every background should keep moving without a jump when the alert mode changes (press the alert buttons)."
+        session: "F1"
+        docs: /core/effects/background-animations
+        public: false
+      - file: anim-presets
+        summary: "Animation presets: boot sequence, text decode, tap ripple, sensor sweep, morph"
+        description:
+          - "Animation presets: boot-sequence (tap a card to boot it again), text-decode (tap to decode, or drag the slider beside it), tap-ripple (tap a cell), sensor-sweep and morph on MSD overlays."
+        session: "A4, B1"
+        docs: /core/animations/preset-reference
+        public: true
+      - file: ring-gauge
+        summary: "The slider's ring gauge"
+        description:
+          - "The slider's ring component: full and partial rings, value markers and centre text."
+          - "The rings follow the test value; drag one, or the slider below, to change it."
+          - "The set point ring is a thermostat on the test temperature, its NOW marker follows the test value."
+          - "Below, rings sized to their cells: a half ring fills a wide cell with its value above the cut (HALF, PICARD HALF), a quarter ring sits in its corner, the default three-quarter ring is centred on its own shape, a full ring fills the smaller side; they follow the test power."
+        session: "slider component: ring"
+        docs: /cards/slider-card/components#ring-gauge
+        public: true
+      - file: alert-band
+        summary: "The alert band"
+        description:
+          - "Press YELLOW ALERT: display: band shows a row of dashes across the screen with the alert symbol in the middle, and the dashboard stays usable."
+          - "YELLOW ALERT shows the band (the symbol's bars sweep in, the dashes carry it out); RED ALERT keeps the full-screen overlay."
+          - "Click the symbol to dismiss, or press CLEAR."
+        session: "alert overlay display: band"
+        docs: /cards/alert-overlay/band
+        public: true
+      - file: alert-overlay-edit
+        summary: "The alert overlay in edit mode"
+        description:
+          - "Two alert overlays: in edit mode the first says Active, the second Duplicate."
+          - "Open the first in the card editor: its preview is a plain info box, not a duplicate, and the editor is a launcher: Open Alert Studio holds every setting, with a mock screen of each condition (pick Red to Gray in its toolbar) that never changes the alert mode."
+          - "Overlay size and band settings show only for conditions that use them, the info guides have diagrams, and each condition picks Alert symbol, Customise the symbol (the button's own editor, saving only the changes) or Your own card."
+          - "RED ALERT shows the message set for every condition (alert_button on the card); YELLOW ALERT its own message in white."
+          - "Raise an alert while editing (another tab, or the lcards.red_alert action): nothing shows until you leave edit mode, then the alert shows and resets to green 15 seconds later."
+        session: "Backlog clean-up"
+        docs: /cards/alert-overlay/#limitations
+        public: false
+      - file: borg
+        summary: "Borg assimilation: the detailed cube and Borg sounds"
+        description:
+          - "ASSIMILATE plays the WebGL intro with the detailed Borg cube (it dismisses itself after 30 seconds, or click it)."
+          - "CLASSIC CUBE shows the wireframe cube."
+          - "WITH SOUND FILE plays /local/sounds/borg.mp3, so it needs that file in your own Home Assistant (the www/sounds folder of its configuration)."
+          - "DEASSIMILATE ends it."
+          - "Assign your own sound to the Borg assimilation and Borg deassimilation events in the sound overrides to hear them on every assimilation."
+        session: "F2"
+        docs: /core/borg
+        public: true
+      - file: gallery/bridge
+        title: "Bridge"
+        summary: "Bridge: classic display over controls, a chart, a status table and pill groups"
+        description:
+          - "A classic display over controls in the LCARS TNG theme: a thick sweep with labelled segments and the title, a chart of power and shields beside a ship status table and a live warp factor, and a control deck of pill groups led by big live numbers, a power slider, a shield gauge, main lights, a mode select menu and red alert."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#bridge
+        public: true
+      - file: gallery/engineering
+        title: "Engineering"
+        summary: "Engineering: a Picard master systems display, shield arcs and eight routed callouts"
+        description:
+          - "The master systems display in the Picard look: the NCC-1701-A blueprint as a dimmed schematic, shield arcs that turn yellow below 50% and red below 20% of SHIELDS, and eight callouts joined to the ship's markers by routed lines (four switch helpers, their labels carry live readings)."
+          - "Round it: a code-block column with gauges, utility pills, a systems table with flagged blocks, a mode selector and toggle tabs over readings tables."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#engineering
+        public: true
+      - file: gallery/environmental
+        title: "Environmental"
+        summary: "Environmental: a Picard data screen, readings tables, a temperature trace, a humidity gauge"
+        description:
+          - "A data screen in the Picard look: climate and life support readings tables and the title over toggle tabs and a shaped set point slider, then a 24-hour temperature trace beside a humidity gauge column with dry, nominal and humid bands and a sidebar of code blocks with gauges."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#environmental
+        public: true
+      - file: gallery/security
+        title: "Security"
+        summary: "Security: a classic sweep console, a D-pad camera group, pill rows, sector tiles"
+        description:
+          - "A classic sweep console in the LCARS Classic theme: a thick header sweep, a sidebar of toggle blocks, the mode select menu in the title row, a D-pad camera group led by the pan value (a helper standing in for a camera pan), pill rows for doors, lights, intruder alert, camera presets and alert actions, four sector tiles that light while their sector is active, a sector status table and one number cascade."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#security
+        public: true
+      - file: gallery/alert
+        title: "Alert mode"
+        summary: "Alert mode: alert buttons in a classic frame; the themed view recolours under the overlay"
+        description:
+          - "A classic display with side columns in the LCARS Modern theme (set on the view)."
+          - "The left arm's blocks raise and clear an alert mode through the lcards.* actions; between the arms, a chart, a ship status table and deck control pills."
+          - "Press RED ALERT or YELLOW ALERT: the whole view recolours, its own theme included, and the alert overlay covers it; STAND DOWN ends it."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#alert-mode
+        public: true
+      - file: gallery/picard-operations
+        title: "Operations"
+        summary: "Operations (Picard): a switchable display, a power chart, the Enterprise, a tactical plot"
+        description:
+          - "The switchable display in the Picard look: the frame, columns and strips stay while a select menu along the bottom swaps the centre between an EPS power chart, a hologram of the Enterprise with live callouts and a tactical polar plot (each a card with a visibility condition)."
+          - "Round it: code blocks with toggles, a status table over a gauge bank, readout bars and utility pills."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#operations
+        public: true
+      - file: gallery/sciences
+        title: "Sciences"
+        summary: "Sciences (Picard): a bracket screen, a temperature history, ring gauges, a sensor log"
+        description:
+          - "A bracket screen in the Picard look: capped bars in segments and a numbered sidebar of code blocks round a 24-hour temperature history with its hourly mean and a readings table, four ring gauges that set levels, a sensor log and hourly means as columns."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#sciences
+        public: true
+      - file: gallery/picard-console
+        title: "Picard console"
+        summary: "Picard console: a display sweep round a deck plan, code-block columns, column gauges"
+        description:
+          - "A Titan.DS-style deck plan built from the design guide as modules with slots: utility pills in a bracket open on the left, one display sweep whose header bar turns down over a code-block column, a dimmed ship schematic with leader lines, three picard-gauge-column gauges beside flagged readings, and toggle tabs with readout rows along the bottom."
+          - "Every colour is a theme role, so on this page it shows the default colours."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#picard-display-with-side-columns
+        public: true
+      - file: gallery/picard-display
+        title: "Picard display over controls"
+        summary: "Picard display over controls: a labelled ship in a display sweep over a deck of small parts"
+        description:
+          - "One display sweep, open on the right, round a large ship side profile with bracket-style leader lines (three are live readings, one a fault); the LEADERS block switches them between angled lines and level lines from two label columns."
+          - "Under it a deck of small parts: a code-block column, a gauge bank, toggle tabs, two readings tables, one number cascade, a selector strip, flagged blocks and utility pills."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#picard-display-over-controls
+        public: true
+      - file: gallery/picard-split
+        title: "Picard split screen"
+        summary: "Picard split screen: segmented elbows facing across a cut"
+        description:
+          - "A split header in the Picard style: two segmented elbows face each other across a cut through the screen, each band running on as thin segments, with utility pills in the upper curve, flagged blocks in the lower, a readings table, thin readout bars, a gauge pair beside toggle blocks, a labelled ship schematic, fleet tiles and toggle tabs."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#picard-split-screen
+        public: true
+      - file: gallery/picard-portrait
+        max_width: 600
+        title: "Picard portrait panel"
+        summary: "Picard portrait panel: for a phone or an upright tablet"
+        description:
+          - "For a phone or an upright tablet: a header bar with the title, a sweep down the left edge into a segmented closing bar, a labelled ship schematic, code blocks beside a condition readings table, a gauge bank beside signal readings, utility pills and toggle tabs."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#picard-portrait-panel
+        public: true
+      - file: gallery/classic-console
+        title: "Classic sweep console"
+        summary: "Classic sweep console: facing sweeps, pill groups led by live numbers, a chart and readings"
+        description:
+          - "A helm-style console: two thick sweeps facing across the top, their arms running down the middle as stacked coded blocks; pill groups led by big numbers (live levels the pills set, toggles, a warp slider); the title, a framed chart, a readings table and one number cascade."
+          - "In Home Assistant the view uses the LCARS Default theme; here it shows the default colours."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#classic-sweep-console
+        public: true
+      - file: gallery/classic-bracket
+        title: "Classic bracket screen"
+        summary: "Classic bracket screen: coded segments, a labelled shuttlecraft cutaway, readings and gauges"
+        description:
+          - "A bracket round a shuttlecraft cutaway, its top bar running on as short coded segments, a thick sidebar of coded blocks, seven labels on leader lines (five live), a readings table, three thin gauges that set helpers and a pill group led by numbers."
+          - "In Home Assistant the view uses the LCARS Zeldaar theme."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#classic-bracket-screen
+        public: true
+      - file: gallery/classic-list
+        title: "Classic list"
+        summary: "Classic list: a split header, readings tables, a duty roster, labelled counts"
+        description:
+          - "A split header whose two bars continue as segments, three short readings tables, a duty roster coloured by shift (the medical officer's status follows a helper), labelled counts and four pill rows whose first pills are toggles."
+          - "In Home Assistant the view uses the LCARS Nemesis Blue theme."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#classic-list
+        public: true
+      - file: button-brackets-radar
+        summary: "Brackets: the round button component"
+        description:
+          - "component: brackets frames a reading between two arcs, here TEMPERATURE's value (drag the slider)."
+          - "Each arc is a segment with its own style: the second card has blue brackets round a fixed number."
+        session: "D1c"
+        docs: /cards/button/components#brackets
+        public: true
+      - file: slider-drag-badge
+        summary: "Slider drag badge: the value a drag will set, shown as you drag"
+        description:
+          - "drag_badge shows the value a drag will set while you drag, like Home Assistant's own sliders: drag any of these."
+          - "DEFAULT is the plain badge, STYLED an orange one with one decimal and no unit that goes at once on release, and the Picard and shaped sliders show it beside the track."
+        session: "D1c"
+        docs: /cards/slider-card/control#drag-value-badge
+        public: true
+      - file: lcars-patterns-picard
+        summary: "LCARS patterns, Picard: columns, tabs, sweeps, frames and bars"
+        description:
+          - "The Picard-era patterns from the LCARS design guide, one per frame, every colour from a theme role: a code-block column, a toggle tab strip, facing sweeps with a title, a display sweep (open on the right, square bar ends), utility pills in a bracket frame, a concentric sweep, controls inside a wide arm, a header bar with a title, slanted bars, flagged blocks and dot rows."
+          - "The toggle tabs and the third code block follow LIGHTS and DOORS (tap them); RED ALERT raises one."
+        session: "D1c"
+        docs: /getting-started/lcars-patterns
+        public: true
+      - file: lcars-patterns-readouts
+        summary: "LCARS patterns, readouts: status rows, gauges, lists and scopes"
+        description:
+          - "The design guide's patterns for readings, one per frame: status rows, readout rows and a gauge bank (picard-gauge-column) on the power, shields, value, temperature and humidity helpers (drag them), a selector strip on the colour select, a tile wall, a list, fleet tiles, brackets and scopes, a number cascade to fill a spare area, and a readings table of labelled values (power turns red past 90)."
+        session: "D1c"
+        docs: /getting-started/lcars-patterns
+        public: true
+      - file: lcars-patterns-classic
+        summary: "LCARS patterns, classic: segmented bars, pill grids, bracket frames, split headers"
+        description:
+          - "The classic patterns from the design guide, one per frame: a sweep that continues as labelled segments, a pill grid led by big numbers, a bracket frame with a header, sidebar and footer, and the split header whose two blocks sweep into their bars."
+        session: "D1c"
+        docs: /getting-started/lcars-patterns
+        public: true
+  - version: "2026.09.0"
+    views:
+      - file: slider-labels-tween
+        summary: "Slider marker labels and value tween"
+        description:
+          - "The POWER buttons set the value at once, so the sliders ease to it instead of jumping (value_tween): the default 500 ms, a slow bounce, the pills sweeping, and one with the tween off for comparison."
+          - "Dragging stays instant."
+          - "At the bottom, value markers with labels: one follows SHIELDS (drag its slider at the top), one marks a fixed limit at 80."
+        session: "D1c"
+        docs: /cards/slider-card/control#value-tween
+        public: true
+  - version: "2026.08.0"
+    views:
+      - file: button-dpad-voyager
+        summary: "Voyager D-pad: 56 segments, each its own button"
+        description:
+          - "component: dpad_voyager, the D-pad drawn as on Voyager's consoles, with every shape of it a segment of its own."
+          - "The four arrows step VALUE up and down (watch the slider); the centre and the top two corners toggle the lights, doors and toggle helpers and light up while they are on."
+        session: "D1c"
+        docs: /cards/button/components#dpad-voyager
+        public: true
+      - file: msd-routing
+        summary: "MSD routing: bundled lines, channels, manual waypoints"
+        description:
+          - "How MSD lines find their way, on cards with no blueprint."
+          - "Top: four lines from A to D, round the obstacle in the middle: A, B and C bundle into one trunk over it (lanes 10 apart) and fan out into a row of points, each turning inside the one before; D goes under it."
+          - "Next: the orange line is forced through a channel (the orange band), the blue one routes freely."
+          - "Below: one pair of points joined four ways: manual waypoints through the white point (orange), manhattan with one bend (dashed), direct (dotted) and auto with round corners (blue)."
+        session: "D1c"
+        docs: /cards/msd/routing
+        public: true
+      - file: msd-shapes
+        summary: "MSD shapes and the shield bubble"
+        description:
+          - "Shape overlays drawn on an MSD."
+          - "Top: a shield bubble round the ship, four arcs that turn orange under 50 and red under 20 as you drag SHIELDS (MSD Studio's Suggest Shield Bubble draws them from the hull)."
+          - "Below: the three shape kinds, a room (rect) that lights with LIGHTS, a field (circle) that turns red with DOORS, a dashed conduit (polyline with bevelled corners), and a line from the room to the conduit's middle point."
+        session: "D1c"
+        docs: /cards/msd/shape-overlay
+        public: true
+  - version: "Before 2026.08"
+    views:
+      - file: button-presets
+        summary: "Button presets: every built-in button style"
+        description:
+          - "Every button preset."
+          - "Top: the standard shapes (lozenge, bullet, capped, barrel, filled, outline, each also facing right, then icon and text-only), all on the lights helper, so a tap on any toggles it and they all change colour with it."
+          - "Middle: the panels and toggle tab, which follow the lights too."
+          - "Bottom: the bar labels, text bars in every end style."
+        session: "D1c"
+        docs: /cards/button/#standard-buttons
+        public: true
+      - file: button-states
+        summary: "Button states: colours, borders and text by state and range"
+        description:
+          - "Colour maps keyed by state."
+          - "The first row follows LIGHTS (tap any of them): a background, a border and a text colour for on and off."
+          - "The second follows VALUE (drag the slider): red at 0 and under 20, yellow under 50, green above; orange only between 40 and 60; the name red under 20 and yellow above 90."
+        session: "D1c"
+        docs: /core/colours/state-maps
+        public: true
+      - file: button-components
+        summary: "Button components: the D-pad and the alert symbol"
+        description:
+          - "component: dpad gives each of its nine segments its own entity and action: up and down step VALUE, left and right toggle the lights and doors, the centre toggles the lights and lights up with them. component: alert draws the Starfleet alert symbol; its ranges switch it to yellow from 50 and red from 80 as you drag VALUE."
+          - "Below, the other alert presets: blue, green, grey and black."
+        session: "D1c"
+        docs: /cards/button/components#dpad
+        public: true
+      - file: elbows
+        summary: "Elbows: every type, both styles, the outer curve modes"
+        description:
+          - "Every elbow type, each named in its black space: the headers and footers (left, right, contained, open), the diagonal caps, the slanted bars and the frame."
+          - "Then a simple elbow beside a segmented one (an outer sweep wrapped round a thinner inner one)."
+          - "Last, the outer curve modes: auto, from the arm's height, its larger or smaller side, filling the arm, and a fixed 12 px."
+        session: "D1c"
+        docs: /cards/elbow/#elbow-types
+        public: true
+      - file: slider-presets
+        summary: "Slider presets: pills, gauges, shaped and Picard"
+        description:
+          - "Every slider preset but the rings (they have their own view): pills and gauges plain (the top two, with no room for a name), with a left border and rounded; the shaped component across and upright; the Picard vertical gauge; and a gauge with coloured bands, red under 20, green to 80, orange above."
+          - "Drag any of them: sliders on the same helper move together."
+        session: "D1c"
+        docs: /cards/slider-card/#presets
+        public: true
+      - file: slider-picard-shapes
+        summary: "Picard slider shapes: the console and the Titan column, with ranges and markers"
+        description:
+          - "The picard component's two shapes side by side."
+          - "Left: console (picard-gauge-vertical) plain, with ranges, with value markers and with both."
+          - "Right: column (picard-gauge-column), the narrow Titan gauge with number caps: plain, ranges, markers, both, scale numbers at the far edge, no scanning lights, inverted, a small temperature range and a wide card."
+          - "Drag any of them."
+        session: "J section strategies"
+        docs: /cards/slider-card/components#picard-component
+        public: false
+      - file: select-menu
+        summary: "Select menu: one button per option, the selected one lit"
+        description:
+          - "The select menu shows an input_select's options as buttons and lights the selected one; tap one to select it."
+          - "Top: the six rates in a row of capped tiles, then lozenge, bullet, outline and toggle-tab columns on the look and colour selects (menus on the same select change together)."
+          - "Below, the options list renaming and reordering the colours, and one showing only two of the six rates."
+        session: "D1c"
+        docs: /cards/select-menu/
+        public: true
+      - file: layouts
+        summary: "Layouts: a grid of cards in one card"
+        description:
+          - "The layout card places cards in a CSS grid by area name."
+          - "Top left: three buttons beside a number wall."
+          - "Top right: a layout card inside a frame elbow, holding a 2 by 2 grid of sliders and buttons."
+          - "Bottom left: areas coloured on their own (layout.areas), even where no card sits."
+          - "Bottom right: three columns on a wide window and one on a narrow one (mediaquery): resize the window."
+          - "The Dashboards topic shows whole layout views."
+        session: "D1c"
+        docs: /cards/layout-card/
+        public: true
+      - file: msd-basics
+        summary: "MSD basics: a ship blueprint, cards on it, lines to the ship"
+        description:
+          - "A master systems display: a ship blueprint with cards placed on it, each joined to a point on the ship by a routed line."
+          - "BRIDGE toggles the lights, WARP CORE the toggle helper, SHUTTLE BAY the doors."
+          - "Below, the same ship faded and dimmed with base_svg filters, with dashed orange lines to two labels."
+        session: "D1c"
+        docs: /cards/msd/
+        public: true
+      - file: rules
+        summary: "Rules: cards recoloured and blinking while a condition holds"
+        description:
+          - "Rules watch entities and patch the cards they target while their condition holds."
+          - "Drag POWER: above 80 the three panels tagged together turn red and blink, below 20 yellow, in between their usual colour."
+          - "SHIELDS LOW turns red only while LIGHTS is on and SHIELDS is under 30 (two conditions)."
+        session: "D1c"
+        docs: /core/rules/
+        public: true
+      - file: templates
+        summary: "Templates: tokens, JavaScript, Jinja2 and data source values"
+        description:
+          - "The four kinds of template, each in a card's text and all reading POWER (drag it)."
+          - "TOKEN puts the state in with its unit; JAVASCRIPT turns it into a word and a colour (red when CRITICAL); JINJA2 is Home Assistant's own template language; DATA SOURCE shows a smoothed copy that lags behind."
+          - "The bar at the bottom reads LIGHTS as well as POWER (tap LIGHTS)."
+        session: "D1c"
+        docs: /core/templates/
+        public: true
+      - file: data-sources
+        summary: "Data sources: one entity through a chain of processors"
+        description:
+          - "A data source follows POWER and runs it through processors, each kept under its own name."
+          - "Drag POWER and watch the table: scaled to 0 to 1, smoothed, rounded, clamped between 20 and 80, the change from the last value, the trend, a threshold at 50, an expression in megawatts and the highest value since the page opened."
+          - "The chart plots the raw steps against the smoothed curve."
+        session: "D1c"
+        docs: /core/datasources/
+        public: true
+      - file: anim-classic
+        summary: "Animation presets: tap a button to play its preset"
+        description:
+          - "One button per animation preset; tap one to play it (an on_tap animation)."
+          - "The presets that loop by default run three times here, the one-way ones go out and back, so each card ends as it started."
+          - "Motion: pulse, glow, shake, bounce, rotate, blink, strobe, skew, fade, slide, scale and a spring."
+          - "Effects and colour: flicker, glitch, ripple, shimmer and colour shift."
+          - "Text: reveal, scramble, glitch and typewriter."
+          - "The effect presets (boot sequence, decode, sensor sweep, tap ripple, morph) are in Animation effects."
+        session: "D1c"
+        docs: /core/animations/preset-reference
+        public: true
+      - file: anim-triggers
+        summary: "Animation triggers: hover, hold, double tap, entity changes, on show"
+        description:
+          - "What starts an animation."
+          - "HOVER glows while the pointer is over it, HOLD shakes on a long press, DOUBLE TAP bounces, ON SHOW slides in each time the card appears (open the view again)."
+          - "Below, entity changes: a bounce each time LIGHTS turns on, a pulse that runs only while LIGHTS is on, and a strobe while POWER is above 80 (drag it)."
+        session: "D1c"
+        docs: /core/animations/triggers
+        public: true
+      - file: alert-modes
+        summary: "Alert modes: the six levels recolour every card"
+        description:
+          - "The six alert levels, each a button on its lcards action: red, yellow, blue, gray, black and clear."
+          - "Every card takes its colours from the theme, so the whole page recolours at once: the panel below (elbows, blocks, a button and two sliders on POWER), the header and the frames."
+          - "On the Home Assistant boards this sets the alert for every screen."
+        session: "D1c"
+        docs: /core/alert-mode#alert-levels
+        public: true
+  - version: Benchmarks
+    views:
+      - file: bench-12
+        summary: "12 WebGL backgrounds"
+        description:
+          - "Frame cost with 12 WebGL backgrounds on one view."
+        session: "C2"
+        public: false
+      - file: bench-20
+        summary: "20 WebGL backgrounds"
+        description:
+          - "Frame cost with 20 WebGL backgrounds on one view."
+        session: "C2"
+        public: false
+      - file: bench-stars-500-instances
+        summary: "500 stars, instanced"
+        description:
+          - "warp-starfield drawn with instanced quads, 500 stars."
+        session: "C2"
+        public: false
+      - file: bench-stars-500-shader
+        summary: "500 stars, one shader"
+        description:
+          - "warp-starfield drawn in one shader, 500 stars."
+        session: "C2"
+        public: false
+      - file: bench-stars-2000-instances
+        summary: "2000 stars, instanced"
+        description:
+          - "warp-starfield drawn with instanced quads, 2000 stars."
+        session: "C2"
+        public: false
+      - file: bench-stars-2000-shader
+        summary: "2000 stars, one shader"
+        description:
+          - "warp-starfield drawn in one shader, 2000 stars."
+        session: "C2"
+        public: false
+      - file: bench-stars-5000-instances
+        summary: "5000 stars, instanced"
+        description:
+          - "warp-starfield drawn with instanced quads, 5000 stars."
+        session: "C2"
+        public: false
+      - file: bench-stars-5000-shader
+        summary: "5000 stars, one shader"
+        description:
+          - "warp-starfield drawn in one shader, 5000 stars."
+        session: "C2"
+        public: false

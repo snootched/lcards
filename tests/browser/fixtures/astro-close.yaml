@@ -1,0 +1,11 @@
+# A double-tap on a point flies in close to what stands at it (astrometrics.spec.js)
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 20, distance: 400 }
+points:
+  - { id: base, xyz: [40, 0, 0], marker: dot, label: BASE }
+  - { id: empty, xyz: [-60, 0, 0], marker: dot, label: EMPTY }
+objects:
+  - { type: sphere, id: base_body, at: base, radius: 2 }

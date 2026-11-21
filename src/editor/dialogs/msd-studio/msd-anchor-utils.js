@@ -89,7 +89,6 @@ export function getBaseSvgAnchors(config, dialogShadowRoot) {
     const msdCard = cardContainer.querySelector('lcards-msd-card');
     if (!msdCard) return {};
 
-    // @ts-ignore - TS2339: auto-suppressed
     const resolvedAnchors = msdCard._msdPipeline?.getResolvedModel?.()?.anchors || {};
 
     // Filter out any anchors that are overridden by user (shown separately

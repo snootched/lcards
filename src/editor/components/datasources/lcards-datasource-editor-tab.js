@@ -22,6 +22,9 @@ import './lcards-global-datasources-panel.js';
 import '../../dialogs/lcards-datasource-studio-dialog.js';
 import './lcards-datasource-browser.js';
 import '../shared/lcards-message.js';
+import { messageStyles } from '../../base/surface-styles.js';
+import { renderLauncher, launcherStyles } from '../shared/launcher.js';
+import { showConfirmDeleteDialog } from '../../../views/layout-edit-dialogs.js';
 
 export class LCARdSDataSourceEditorTab extends LitElement {
   static get properties() {
@@ -47,76 +50,42 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     this._dialogMode = 'add';
     this._editingSource = null;
     this._browserOpen = false;
+    /** @type {import('lit/directives/ref.js').Ref<import('./lcards-datasource-browser.js').LCARdSDataSourceBrowser>} */
     this._browserRef = createRef();
   }
 
   static get styles() {
     return [
       editorStyles,
+      messageStyles,
+      launcherStyles,
       css`
         :host {
           display: block;
-          padding: 8px 0;
         }
 
-      .tabs-container {
-        display: flex;
-        gap: 0;
-        padding: 0;
-        background: transparent;
-        border-bottom: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
-        overflow-x: auto;
-        scrollbar-width: thin;
-      }
+        ha-tab-group {
+          display: block;
+          margin-top: var(--ha-space-4);
+        }
 
-      .tabs-container::-webkit-scrollbar {
-        height: 4px;
-      }
+        ha-tab-group-tab ha-icon {
+          --mdc-icon-size: 18px;
+          margin-right: var(--ha-space-2);
+        }
 
-      .tabs-container::-webkit-scrollbar-thumb {
-        background: var(--primary-color, #03a9f4);
-        border-radius: 2px;
-      }
-
-      /* HA native tab styling (Issue #82) */
-      ha-tab-group {
-        display: block;
-        margin-bottom: 12px;
-      }
-
-      ha-tab-panel {
-        padding: 16px;
-      }
-
-      .card-sources-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-      }
-
-      .header-actions {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-      }
-
-      .add-source-button {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        cursor: pointer;
-      }
-
-      mwc-button {
-        cursor: pointer;
-      }
+        .card-sources-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: var(--ha-space-3);
+          margin: var(--ha-space-3) 0;
+        }
       `
     ];
   }
 
   render() {
-    // @ts-ignore - TS2339: auto-suppressed
     const cardSources = this.editor?.config?.data_sources || {};
     const cardSourceCount = Object.keys(cardSources).length;
 
@@ -125,55 +94,37 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     const globalSourceCount = dsManager?.sources?.size || 0;
 
     return html`
-      <!-- Launcher Card (above tabs) -->
-      <div class="info-card">
-        <div class="info-card-content">
-          <h3>📊 Data Sources Browser</h3>
-          <p>
-            <strong>${cardSourceCount} card sources</strong> configured
-            <br />
-            <strong>${globalSourceCount} global sources</strong> active
-          </p>
-          <p style="font-size: 13px; color: var(--secondary-text-color);">
-            Browse and manage data sources. View entity subscriptions, transformations, and real-time data.
-          </p>
-        </div>
-        <div class="info-card-actions">
-          <ha-button
-            raised
-            @click=${this._openBrowser}>
-            <ha-icon icon="mdi:database-search" slot="start"></ha-icon>
-            Browse Sources
-          </ha-button>
-        </div>
-      </div>
+      ${renderLauncher({
+        icon: 'mdi:database-search',
+        title: 'Data sources',
+        description: 'Live state of every data source on this page: values, buffers and processors.',
+        stats: [
+          { value: cardSourceCount, label: cardSourceCount === 1 ? 'card source' : 'card sources' },
+          { value: globalSourceCount, label: 'running on this page' },
+        ],
+        actions: [{ label: 'Browse sources', icon: 'mdi:database-search', onClick: () => this._openBrowser() }],
+      })}
 
-      <!-- Tabbed Section -->
-      <div style="margin-top: 16px;">
-        <ha-tab-group @wa-tab-show=${this._handleTabChange}>
-          <ha-tab-group-tab value="card" ?active=${this._activeSubTab === 'card'}>
-            Card Sources
-          </ha-tab-group-tab>
-          <ha-tab-group-tab value="global" ?active=${this._activeSubTab === 'global'}>
-            Global Sources
-          </ha-tab-group-tab>
+      <ha-tab-group @wa-tab-show=${this._handleTabChange}>
+        <ha-tab-group-tab value="card" ?active=${this._activeSubTab === 'card'}>
+          <ha-icon icon="mdi:card-outline"></ha-icon>
+          This card
+        </ha-tab-group-tab>
+        <ha-tab-group-tab value="global" ?active=${this._activeSubTab === 'global'}>
+          <ha-icon icon="mdi:earth"></ha-icon>
+          All on this page
+        </ha-tab-group-tab>
 
-          <ha-tab-panel value="card" ?hidden=${this._activeSubTab !== 'card'}>
-            ${this._activeSubTab === 'card' ? this._renderCardSources() : ''}
-          </ha-tab-panel>
-          <ha-tab-panel value="global" ?hidden=${this._activeSubTab !== 'global'}>
-            ${this._activeSubTab === 'global' ? this._renderGlobalSources() : ''}
-          </ha-tab-panel>
-        </ha-tab-group>
-      </div>
+        <div class="tab-panel">
+          ${this._activeSubTab === 'global' ? this._renderGlobalSources() : this._renderCardSources()}
+        </div>
+      </ha-tab-group>
 
       <lcards-datasource-studio-dialog
-        // @ts-ignore - TS2339: auto-suppressed
         .hass=${this.hass}
         .mode=${this._dialogMode}
         .sourceName=${this._editingSource?.name}
         .sourceConfig=${this._editingSource?.config}
-        // @ts-ignore - TS2339: auto-suppressed
         .cardConfig=${this.editor?.config}
         .open=${this._dialogOpen}
         @save=${this._handleDialogSave}
@@ -182,9 +133,7 @@ export class LCARdSDataSourceEditorTab extends LitElement {
 
       <lcards-datasource-browser
         ${ref(this._browserRef)}
-        // @ts-ignore - TS2339: auto-suppressed
         .hass=${this.hass}
-        // @ts-ignore - TS2339: auto-suppressed
         .cardConfig=${this.editor?.config}
         .open=${this._browserOpen}
         @close=${() => this._browserOpen = false}
@@ -196,25 +145,16 @@ export class LCARdSDataSourceEditorTab extends LitElement {
   _renderCardSources() {
     return html`
       <div class="card-sources-header">
-        <div></div>
-        <div class="header-actions">
-          <ha-button
-            class="add-source-button"
-            variant="brand"
-            appearance="accent"
-            @click=${this._handleAddSource}>
-            <ha-icon slot="start" icon="mdi:plus"></ha-icon>
-            Add Source
-          </ha-button>
-        </div>
+        <span class="hint">Data sources defined in this card's config.</span>
+        <ha-button variant="brand" appearance="accent" @click=${this._handleAddSource}>
+          <ha-icon slot="start" icon="mdi:plus"></ha-icon>
+          Add source
+        </ha-button>
       </div>
 
       <lcards-card-datasources-list
-        // @ts-ignore - TS2339: auto-suppressed
         .editor=${this.editor}
-        // @ts-ignore - TS2339: auto-suppressed
         .config=${this.editor.config}
-        // @ts-ignore - TS2339: auto-suppressed
         .hass=${this.hass}
         @edit-datasource=${this._handleEditRequest}
         @delete-datasource=${this._handleDeleteRequest}
@@ -226,7 +166,6 @@ export class LCARdSDataSourceEditorTab extends LitElement {
   _renderGlobalSources() {
     return html`
       <lcards-global-datasources-panel
-        // @ts-ignore - TS2339: auto-suppressed
         .hass=${this.hass}>
       </lcards-global-datasources-panel>
     `;
@@ -240,8 +179,7 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     // CRITICAL: Stop propagation to prevent bubbling to parent tab handlers
     event.stopPropagation();
 
-    // @ts-ignore - TS2339: auto-suppressed
-    const tab = event.target.activeTab?.getAttribute('value');
+    const tab = /** @type {HaTabGroupElement} */ (event.target).activeTab?.getAttribute('value');
     if (tab) {
       this._setActiveTab(tab);
     }
@@ -264,7 +202,6 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     // Wait for browser to render, then select the datasource
     requestAnimationFrame(() => {
       if (this._browserRef.value) {
-        // @ts-ignore - TS2339: auto-suppressed
         this._browserRef.value.selectDataSource(sourceName);
       }
     });
@@ -280,7 +217,6 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     this._activeSubTab = 'card';
 
     // Get the source config from card config
-    // @ts-ignore - TS2339: auto-suppressed
     const cardSources = this.editor?.config?.data_sources || {};
     const sourceConfig = cardSources[sourceName];
 
@@ -334,60 +270,49 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     // We must directly assign to the config object, then trigger the update.
 
     // Create a new data_sources object without the deleted source
-    // @ts-ignore - TS2339: auto-suppressed
     const updatedDataSources = { ...(this.editor.config.data_sources || {}) };
 
     delete updatedDataSources[name];
 
     // Directly assign to config (bypassing _updateConfig's deep merge)
-    // @ts-ignore - TS2339: auto-suppressed
     this.editor.config.data_sources = updatedDataSources;
 
     // Now fire the config-changed event manually
-    // @ts-ignore - TS2339: auto-suppressed
     fireEvent(this.editor, 'config-changed', { config: this.editor.config });
 
     // Update YAML representation
-    // @ts-ignore - TS2339: auto-suppressed
     if (this.editor._yamlValue !== undefined) {
-      // @ts-ignore - TS2339: auto-suppressed
       this.editor._isUpdatingYaml = true;
       const { configToYaml } = await import('../../utils/yaml-utils.js');
-      // @ts-ignore - TS2339: auto-suppressed
       this.editor._yamlValue = configToYaml(this.editor.config);
       requestAnimationFrame(() => {
-        // @ts-ignore - TS2339: auto-suppressed
         this.editor._isUpdatingYaml = false;
       });
     }
 
     // Remove from tracking AFTER config update
-    // @ts-ignore - TS2339: auto-suppressed
     dsManager.removeCardFromSource(name, this.editor.config.id || this.editor._cardGuid);
 
     // Trigger re-render
-    // @ts-ignore - TS2339: auto-suppressed
     this.editor.requestUpdate();
     this.requestUpdate();
-  }  _handleDialogSave(event) {
+  }
+
+  _handleDialogSave(event) {
     const { name, config } = event.detail;
 
     // Update config via editor - read from editor.config to get the latest state
-    // @ts-ignore - TS2339: auto-suppressed
     const updatedDataSources = { ...(this.editor.config.data_sources || {}) };
     updatedDataSources[name] = config;
 
     // CRITICAL: Cannot use _setConfigValue because deepMerge doesn't delete nested properties
     // Must directly assign to config and fire change event
-    // @ts-ignore - TS2339: auto-suppressed
     this.editor.config = {
-      // @ts-ignore - TS2339: auto-suppressed
       ...this.editor.config,
       data_sources: updatedDataSources
     };
 
     // Fire config change event for HA
-    // @ts-ignore - TS2339: auto-suppressed
     fireEvent(this.editor, 'config-changed', { config: this.editor.config });
 
     // If new datasource, register with manager
@@ -398,7 +323,6 @@ export class LCARdSDataSourceEditorTab extends LitElement {
         dsManager.createDataSource(
           name,
           config,
-          // @ts-ignore - TS2339: auto-suppressed
           this.editor.config.id || this.editor._cardGuid,
           false  // Not auto-created
         );
@@ -412,79 +336,15 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     this.requestUpdate();
   }
 
+  /**
+   * Confirm deleting a source other cards use (they break until reconfigured).
+   * @returns {Promise<boolean>}
+   */
   _showDependencyWarningDialog(sourceName, dependents) {
-    return new Promise((resolve) => {
-      const dialog = document.createElement('ha-dialog');
-      // @ts-ignore - TS2339: auto-suppressed
-      dialog.headerTitle = 'Destructive Action';
-      dialog.setAttribute('prevent-scrim-close', '');
-
-      // Create content div (light DOM, no slot)
-      const content = document.createElement('div');
-      content.style.padding = '0 24px 8px';
-      content.innerHTML = `
-        <ha-alert alert-type="error" style="margin-bottom: 12px;">
-          <strong>⚠️ Warning: This will break other cards!</strong>
-        </ha-alert>
-
-        <p>Deleting datasource <strong>"${sourceName}"</strong> will:</p>
-        <ol style="margin: 8px 0;">
-          <li>Remove it from THIS card's configuration</li>
-          <li>Destroy the global DataSource singleton on page reload</li>
-        </ol>
-
-        <p><strong>The following cards depend on this datasource:</strong></p>
-        <ul style="margin: 8px 0;">
-          ${dependents.map(id => `<li><code>${id}</code></li>`).join('')}
-        </ul>
-
-        <p style="color: var(--error-color); font-weight: 500; margin-top: 16px;">
-          ⚠️ These cards WILL ERROR until you update their configurations.
-          This action cannot be undone.
-        </p>
-      `;
-
-      dialog.appendChild(content);
-
-      // Cancel button (secondary action - plain appearance)
-      const cancelButton = document.createElement('ha-button');
-      cancelButton.setAttribute('slot', 'footer');
-      cancelButton.setAttribute('appearance', 'plain');
-      cancelButton.textContent = 'Cancel';
-      cancelButton.addEventListener('click', () => {
-        lcardsLog.trace('[LCARdS] Delete dialog: Cancel clicked');
-        // @ts-ignore - TS2551: auto-suppressed
-        dialog.close();
-        resolve(false);
-      });
-
-      // Delete button (primary action - warning/destructive style)
-      const deleteButton = document.createElement('ha-button');
-      deleteButton.setAttribute('slot', 'footer');
-      deleteButton.setAttribute('variant', 'warning');
-      deleteButton.setAttribute('appearance', 'accent');
-      deleteButton.textContent = 'Delete and Break Dependencies';
-      deleteButton.addEventListener('click', () => {
-        lcardsLog.trace('[LCARdS] Delete dialog: Delete clicked');
-        // @ts-ignore - TS2551: auto-suppressed
-        dialog.close();
-        resolve(true);
-      });
-
-      dialog.appendChild(cancelButton);
-      dialog.appendChild(deleteButton);
-
-      document.body.appendChild(dialog);
-
-      // Small delay to ensure dialog is in DOM before opening
-      setTimeout(() => {
-        // @ts-ignore - TS2339: auto-suppressed
-        dialog.open = true;
-      }, 0);
-
-      dialog.addEventListener('closed', () => {
-        document.body.removeChild(dialog);
-      }, { once: true });
+    return showConfirmDeleteDialog({
+      title: `Delete ${sourceName}?`,
+      message: `Other cards use it: ${dependents.join(', ')}. They show errors until their configs stop referring to it. This can't be undone.`,
+      confirmText: 'Delete anyway',
     });
   }
 }

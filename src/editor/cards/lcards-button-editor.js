@@ -12,9 +12,10 @@ import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-
 import { editorComponentStyles } from '../base/editor-component-styles.js';
 import { configToYaml } from '../utils/yaml-utils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { getComponentNames, getComponentsForCard } from '../../core/packs/components/index.js';
+import { getComponent, getComponentNames, getComponentsForCard } from '../../core/packs/components/index.js';
 import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
+import { isInteractive } from '../../utils/button-interactive.js';
 // Import shared form components
 import '../components/shared/lcards-form-section.js';
 // Import specialized editor components
@@ -37,10 +38,8 @@ import '../components/dashboard/lcards-rules-dashboard.js';
 import '../components/datasources/lcards-datasource-editor-tab.js';
 // Import template components
 import '../components/templates/lcards-template-evaluation-tab.js';
-import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
 
-// @ts-ignore - TS2417: static side extends - getConfigElement signature
 export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
     constructor() {
@@ -132,8 +131,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         if (wrapper) {
             // Step 2: Cross shadow boundary to get to hui-card-element-editor
             const shadowRoot = wrapper.getRootNode();
-            if (shadowRoot && shadowRoot !== document) {
-                // @ts-ignore - TS2339: auto-suppressed
+            if (shadowRoot instanceof ShadowRoot) {
                 const shadowHost = shadowRoot.host;
 
                 if (shadowHost) {
@@ -172,8 +170,12 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                                 if (!card) {
                                     lcardsLog.warn('[ButtonEditor] Card preview not found in .element-preview');
                                 }
-                            } else {
+                            } else if (editorContainer.classList?.contains('element-editor')) {
+                                // In Home Assistant's card editor dialog the preview should be there
                                 lcardsLog.warn('[ButtonEditor] .element-preview not found in editor dialog');
+                            } else {
+                                // Embedded elsewhere (a studio's inline card editor): no preview pane
+                                lcardsLog.debug('[ButtonEditor] Embedded editor without a preview pane; using the global search');
                             }
                         }
                     }
@@ -258,58 +260,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Render attribute selector dropdown
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderAttributeSelector() {
-        const currentAttribute = this.config?.control?.attribute || '';
-        const entityId = this.config?.entity;
-
-        const isInvalidAttribute = currentAttribute &&
-            entityId &&
-            this.hass?.states?.[entityId] &&
-            !this.hass.states[entityId].attributes?.hasOwnProperty(currentAttribute);
-
-        const attrOpts = entityId && this.hass?.states?.[entityId]
-            ? Object.keys(this.hass.states[entityId].attributes || {}).sort()
-                  .map(attr => ({ value: attr, label: attr }))
-            : [];
-        const options = [{ value: '__none__', label: '— Control entity state' }, ...attrOpts];
-        return html`
-            <ha-selector
-                .hass=${this.hass}
-                .label=${'Attribute'}
-                .helper=${'Entity attribute to control. Select "— Control entity state" to clear.'}
-                .disabled=${!entityId}
-                .selector=${{ select: { mode: 'dropdown', options, custom_value: true } }}
-                .value=${currentAttribute || '__none__'}
-                @value-changed=${this._handleAttributeChange}>
-            </ha-selector>
-            ${isInvalidAttribute ? html`
-                <lcards-message
-                    type="warning"
-                    message="The specified attribute '${currentAttribute}' does not exist on this entity. The button will control entity state instead.">
-                </lcards-message>
-            ` : ''}
-        `;
-    }
-
-    /**
-     * Handle attribute selection change
-     * @param {CustomEvent} e
-     * @private
-     */
-    _handleAttributeChange(e) {
-        const value = (e.detail.value ?? '').trim();
-        if (value && value !== '__none__') {
-            this._setConfigValue('control.attribute', value);
-        } else {
-            this._removeConfigPath('control.attribute');
-        }
-    }
-
-    /**
      * Render a preset dropdown populated from the active component's preset list.
      * Reads available presets via ComponentManager so the options are always in sync
      * with the component definition — no hardcoded lists.
@@ -330,7 +280,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             if (!allPresetNames.includes(name)) allPresetNames.push(name);
         }
 
-        if (allPresetNames.length === 0) return html``;
+        // Only default (brackets, the D-pads): nothing to choose
+        if (allPresetNames.length <= 1 && !this.config?.preset) return html``;
 
         const options = allPresetNames.map(name => ({
             value: name,
@@ -418,7 +369,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _getConfigTabConfig() {
         const mode = this._getMode();
 
-        // @ts-ignore - TS2345: auto-suppressed
         const baseConfig = this._buildConfigTab({
             infoMessage: 'Configure the basic settings for your LCARdS button card. Select an entity to control or leave blank for a static button.',
             showBasicSection: false, // We'll add custom entity section below
@@ -477,7 +427,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                                 render: () => keyed(mode, html`
                                     <ha-selector
                                         .hass=${this.hass}
-                                        .selector=${{ select: { mode: 'dropdown', options: getComponentsForCard('button').map(n => ({ value: n, label: n.charAt(0).toUpperCase() + n.slice(1) })) } }}
+                                        .selector=${{ select: { mode: 'dropdown', options: getComponentsForCard('button').map(n => ({ value: n, label: getComponent(n)?.metadata?.name || n })) } }}
                                         .value=${this.config.component || 'dpad'}
                                         .label=${'Component Type'}
                                         @value-changed=${(e) => this._handleComponentTypeChange(e.detail.value)}>
@@ -519,7 +469,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         baseConfig.splice(2, 0, {
             type: 'section',
             header: 'Entity Configuration',
-            description: 'Entity to control and attributes',
+            description: 'Entity and the attributes that drive colours and ranges',
             icon: 'mdi:home-automation',
             expanded: false,
             outlined: true,
@@ -542,10 +492,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                             }}>
                         </ha-selector>
                     `
-                },
-                {
-                    type: 'custom',
-                    render: () => this._renderAttributeSelector()
                 },
                 {
                     type: 'custom',
@@ -579,7 +525,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         baseConfig.push({
             type: 'section',
             header: 'Sizing',
-            description: 'Override card dimensions — useful in stacks, overlays, or any auto-height container',
+            description: 'Override card dimensions: useful in stacks, overlays, or any auto-height container',
             icon: 'mdi:resize',
             expanded: false,
             outlined: true,
@@ -596,8 +542,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         { type: 'field', path: 'max_width',  label: 'Max Width',  helper: 'Ceiling width. Bare integer = px, or CSS units (e.g. 600px, 80vw).' },
                         { type: 'field', path: 'overflow',   label: 'Overflow',   helper: 'Sets both axes. Use overflow_x / overflow_y to override per axis.' },
                         { type: 'field', path: 'z_index',    label: 'Z-Index',    helper: 'Stacking order. Higher = in front within the same stacking context.' },
-                        { type: 'field', path: 'overflow_x', label: 'Overflow X', helper: 'Horizontal axis — overrides the Overflow setting.' },
-                        { type: 'field', path: 'overflow_y', label: 'Overflow Y', helper: 'Vertical axis — overrides the Overflow setting.' },
+                        { type: 'field', path: 'overflow_x', label: 'Overflow X', helper: 'Horizontal axis: overrides the Overflow setting.' },
+                        { type: 'field', path: 'overflow_y', label: 'Overflow Y', helper: 'Vertical axis: overrides the Overflow setting.' },
                     ]
                 },
                 { type: 'custom', render: () => this._renderLayoutCardHint() }
@@ -697,6 +643,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         if (this.config?.component) {
             const componentDef = window.lcards?.core?.getComponentManager?.()?.getComponent?.(this.config.component);
             availableZones  = { ...(componentDef?.zones || {}) };
+            // the whole symbol, as the card adds it (lcards-button componentFullZone)
+            if (Object.keys(availableZones).length && !availableZones.full) availableZones.full = 'Full (the whole symbol)';
             // Preset field names (excluding 'default') so the editor can offer them as
             // one-click "add" suggestions styled differently from generic quick-add fields.
             const allComponentFields = Object.keys(componentDef?.text || {}).filter(k => k !== 'default');
@@ -753,9 +701,9 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      * Actions tab - uses multi-action editor
      */
     _renderActionsTab() {
-        const isInteractive = this.config.interactive !== false;
+        const interactive = isInteractive(this.config);
         const cursorOptions = [
-            { value: 'pointer',      label: 'Pointer (hand) — default' },
+            { value: 'pointer',      label: 'Pointer (hand), default' },
             { value: 'default',      label: 'Default (arrow)' },
             { value: 'none',         label: 'None (hidden)' },
             { value: 'not-allowed',  label: 'Not allowed' },
@@ -777,9 +725,9 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 <ha-selector
                     .hass=${this.hass}
                     .label=${'Show hover effects (colour change & hover animations)'}
-                    .helper=${'When off, mouse-over does not change the button colour or trigger hover animations. Tap/hold actions are unaffected.'}
+                    .helper=${'When off, mouse-over does not change the button colour or trigger hover animations. Tap/hold actions are unaffected. Left unset, it is on when the button has an action or an entity a tap can toggle.'}
                     .selector=${{ boolean: {} }}
-                    .value=${isInteractive}
+                    .value=${interactive}
                     @value-changed=${(e) => {
                         this._updateConfig({ interactive: e.detail.value !== false });
                     }}>
@@ -810,6 +758,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     hold_action: this.config.hold_action,
                     double_tap_action: this.config.double_tap_action
                 }}
+                .defaults=${{ tap_action: { action: 'toggle' } }}
                 @value-changed=${this._handleActionsChange}>
             </lcards-multi-action-editor>
         `;
@@ -911,17 +860,16 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     ?expanded=${true}
                     ?outlined=${true}>
                     <div class="form-row">
-                        <ha-textarea
+                        <ha-code-editor
+                            mode="yaml"
+                            linewrap
                             .value=${this.config.svg?.content || ''}
-                            @input=${/* @ts-ignore TS2339 */ (e) => this.editor._setConfigValue('svg.content', e.target.value)}
                             placeholder="<svg viewBox='0 0 100 100'>...</svg>"
-                            rows="10"
-                            resize="auto"
-                            style="width: 100%; font-family: monospace;">
-                        </ha-textarea>
+                            @value-changed=${(e) => { e.stopPropagation(); this.editor._setConfigValue('svg.content', e.detail.value); }}>
+                        </ha-code-editor>
                         <div class="helper-text">
                             ${discoveredIds.length > 0
-                                ? `✓ Found ${discoveredIds.length} segment(s): ${discoveredIds.join(', ')}`
+                                ? `Found ${discoveredIds.length} segment(s): ${discoveredIds.join(', ')}`
                                 : 'No segments found. Add id attributes to your SVG elements.'}
                         </div>
                     </div>
@@ -1197,6 +1145,9 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         }));
 
         const ranges = this.config?.ranges || [];
+        // Ranges switch between presets: with only default (brackets, the D-pads)
+        // there is nothing to switch to, unless the config already has ranges
+        if (allPresetNames.length <= 1 && ranges.length === 0) return html``;
 
         const sectionStyle = 'display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px;';
         const emptyStyle = 'text-align: center; padding: 24px 16px; color: var(--secondary-text-color);';
@@ -1215,10 +1166,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     </lcards-message>
                 ` : html`
                     <lcards-message type="info">
-                        Ranges are evaluated top-to-bottom — the first match wins.
-                        Each row maps a value condition to a component preset.
-                        The attribute used for range comparisons is set in
-                        <strong>Entity Configuration → Range Attribute</strong> above.
+                        Ranges run top to bottom; the first match sets the preset. The value compared is the
+                        <strong>Range Attribute</strong> above.
                     </lcards-message>
 
                     <div style="${sectionStyle}">
@@ -1426,7 +1375,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 headerLevel="4">
 
                 <lcards-message type="info"
-                    message="These colors take highest priority — they override both the active preset and the segments settings below. Leave blank to inherit from the active preset.">
+                    message="These colors take highest priority: they override both the active preset and the segments settings below. Leave blank to inherit from the active preset.">
                 </lcards-message>
 
                 <div style="display: flex; flex-direction: column; gap: 8px; padding: 8px 0;">
@@ -1568,7 +1517,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                             </ha-input>
                             ${isOverride ? html`
                                 <div style="font-size: 11px; color: var(--warning-color, orange); margin-top: 4px;">
-                                    ⚠ Overrides built-in preset <strong>${name}</strong>
+                                    Overrides built-in preset <strong>${name}</strong>
                                 </div>
                             ` : ''}
                         </div>
@@ -1807,16 +1756,9 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _renderEffectsTab() {
         return html`
             <div class="tab-content-container">
-                <!-- Card-Level Effects Info -->
                 <lcards-message type="info">
-                    <strong>Card-Level Effects:</strong>
-                    <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                        This tab configures effects for the <strong>entire card</strong>.  You can:
-                        <br/>• Apply <strong>animations</strong> that trigger on card-level events (e.g., on_tap, on_load)
-                        <br/>• Apply <strong>filters</strong> that affect the entire card's appearance.
-                        <br/>• Apply <strong>background animations</strong> that render behind all card content.
-                        <br/>• For <strong>per-segment animations</strong> (e.g., animate only the "up" button), use the <strong>Segments tab</strong> instead
-                    </p>
+                    Effects for the whole card: animations, filters and background animations.
+                    Animations for one segment are on the <strong>Segments</strong> tab.
                 </lcards-message>
 
                 <!-- Animations Section -->

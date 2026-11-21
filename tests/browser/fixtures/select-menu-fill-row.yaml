@@ -1,0 +1,8 @@
+# select menu filling a fixed 30 px row (grid.height '100%'), toggle-tab preset: every label fits the row
+type: custom:lcards-select-menu
+entity: input_select.demo_mode
+preset: toggle-tab
+grid:
+  columns: 4
+  gap: 6px
+  height: '100%'

@@ -14,8 +14,8 @@ export class RollingBuffer {
     this.capacity = Math.min(capacity, 1000);
 
     // Pre-allocate arrays for performance
-    this._timestamps = new Array(capacity);
-    this._values = new Array(capacity);
+    this._timestamps = new Array(this.capacity);
+    this._values = new Array(this.capacity);
 
     // Circular buffer state
     this._head = 0;      // Next write position
@@ -105,15 +105,6 @@ export class RollingBuffer {
   }
 
   /**
-   * Add method (alias for push for compatibility)
-   * @param {number} timestamp - Data timestamp
-   * @param {number} value - Data value
-   */
-  add(timestamp, value) {
-    return this.push(timestamp, value);
-  }
-
-  /**
    * Get data as parallel arrays { t: timestamps[], v: values[] }
    * Returns data in chronological order (oldest first)
    */
@@ -184,7 +175,8 @@ export class RollingBuffer {
     const { t, v } = this.getArrays();
 
     // Find first index where timestamp >= cutoffTime
-    let startIndex = 0;
+    // Default past the end: if every point is older than the window, return none.
+    let startIndex = t.length;
     for (let i = 0; i < t.length; i++) {
       if (t[i] >= cutoffTime) {
         startIndex = i;

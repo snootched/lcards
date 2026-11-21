@@ -1,0 +1,145 @@
+# Astrometrics diagram forms: each object type's LCARS wireframe for the diagram look. LOOK picks
+# DIAGRAM (the wireframes only), REALISTIC (the bodies) or MIXED (the bodies, as before: the new
+# wireframes show in the diagram look only). Batch 1: a glow (a ring marker facing the camera), a
+# Borg cube and a plain box (edges and a grid on each face), an asteroid (its rock's edges,
+# tumbling with it) and a belt (its inner and outer edges). Batch 2: a comet (its nucleus's
+# wireframe, a ring round the coma, each tail as a line), a galaxy (each arm's spiral, the rim, the
+# bulge ring and the bar) and the Crystalline Entity (its spine and branches, a ring round the core).
+# Batch 3: volume nebulae (a ball's three rings, a box's edges), and orbits and routes: a plain
+# ring or path shows in the diagram and mixed looks and hides in the realistic one; a banded ring
+# (the planet's rings, part of the realistic picture) stays in every look.
+# The colour select recolours them all, every colour each object shows.
+title: Astrometrics diagram forms
+path: astro-diagram-forms
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_look
+        preset: toggle-tab
+        grid: { columns: 3 }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_color
+        preset: toggle-tab
+        grid: { columns: 3 }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_diagram_forms
+        height: 620
+        look: { entity: input_select.lcards_test_look }
+        backdrop: { stars: { count: 1200 } }
+        camera:
+          view: overview
+          views:
+            overview: { target: [0, 0, -20], yaw: 25, tilt: 34, distance: 470 }
+        points:
+          - { id: star, xyz: [0, 0, 0], label: GLOW, style: minor }
+          - { id: borg_at, xyz: [-95, 10, 40], label: BORG CUBE, style: minor }
+          - { id: box_at, xyz: [95, 10, -40], label: BOX, style: minor }
+          - { id: rock_at, xyz: [60, 25, 70], label: ASTEROID, style: minor }
+          - { id: comet_at, xyz: [-40, 30, 110], label: COMET, style: minor }
+          - { id: spiral_at, xyz: [0, -30, -170], label: GALAXY, style: minor }
+          - { id: entity_at, xyz: [-150, 30, -90], label: CRYSTALLINE, style: minor }
+          - { id: ball_at, xyz: [170, 20, 80], label: VOLUME BALL, style: minor }
+          - { id: box_neb_at, xyz: [160, 15, -150], label: VOLUME BOX, style: minor }
+          - { id: planet, polar: [205, 300], object: orbit, marker: dot, label: ORBIT, style: minor }
+        objects:
+          - type: glow
+            id: star_glow
+            at: star
+            size: 45
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-yellow-medium), default: var(--lcards-blue-light) }
+          - type: cube
+            id: borg
+            at: borg_at
+            size: 40
+            spin: 6
+            # the hull and the lights (and so the diagram's lines) follow the select
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet, var(--lcards-blue-medium-dark))", ORANGE: var(--lcards-orange-dark), default: var(--lcards-blue-medium-dark) }
+            glow: { color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-light) } }
+          - type: cube
+            id: box
+            at: box_at
+            shape: box
+            size: [40, 25, 30]
+            spin: -5
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet, var(--lcards-blue-medium-dark))", ORANGE: var(--lcards-orange-dark), default: var(--lcards-blue-medium-dark) }
+          - type: asteroid
+            id: rock
+            at: rock_at
+            size: 30
+            seed: 7
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet-creme, var(--lcards-moonlight))", ORANGE: var(--lcards-orange-light), default: var(--lcards-gray-light) }
+          - type: belt
+            id: rocks
+            radius: [120, 150]
+            count: 700
+            seed: 4
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-medium), default: var(--lcards-blue-medium) }
+          # batch 2: the comet (tails away from the glow), a galaxy and the Crystalline Entity
+          - type: comet
+            id: comet
+            at: comet_at
+            light: star
+            tail: { length: 70 }
+            nucleus: { size: 4 }
+            coma: { size: 16, color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet-creme, var(--lcards-moonlight))", ORANGE: var(--lcards-yellow-medium), default: var(--lcards-moonlight) } }
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet-creme, var(--lcards-moonlight))", ORANGE: var(--lcards-yellow-medium), default: var(--lcards-moonlight) }
+            ion_tail: { color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) } }
+          - type: galaxy
+            id: spiral
+            at: spiral_at
+            radius: 70
+            rotation: [65, 0, 0]
+            spin: 2
+            arms: { count: 3, color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-light), default: var(--lcards-blue-light) } }
+            core: { color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet-creme, var(--lcards-moonlight))", ORANGE: var(--lcards-yellow-medium), default: var(--lcards-moonlight) } }
+          - type: crystalline
+            id: crystal
+            at: entity_at
+            size: 50
+            spin: 6
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }
+            core: { color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet-creme, var(--lcards-moonlight))", ORANGE: var(--lcards-yellow-medium), default: var(--lcards-moonlight) } }
+          # batch 3: volume nebulae as their outlines; an orbit ring and a route, hidden in the realistic
+          # look; a banded ring (realistic picture) that stays in every look
+          - type: nebula
+            id: ball
+            at: ball_at
+            render: volume
+            shape: shell
+            radius: 35
+            seed: 5
+            colors: [{ entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-light), default: var(--lcards-blue-light) }, { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet, var(--lcards-blue-medium-dark))", ORANGE: var(--lcards-orange-dark), default: var(--lcards-blue-medium-dark) }]
+          - type: nebula
+            id: slab
+            at: box_neb_at
+            render: volume
+            shape: layers
+            size: [70, 25, 50]
+            seed: 3
+            colors: [{ entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-light), default: var(--lcards-blue-light) }, { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }, { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet, var(--lcards-blue-medium-dark))", ORANGE: var(--lcards-orange-dark), default: var(--lcards-blue-medium-dark) }]
+          - type: ring
+            id: orbit
+            radius: 205
+            spin: 3
+            width: 1.5
+            dash: [6, 4]
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }
+          - type: path
+            id: route
+            points: [star, comet_at, entity_at]
+            arc: 25
+            width: 2
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-light), default: var(--lcards-blue-light) }
+          - type: ring
+            id: banded
+            at: planet
+            radius: 14
+            inclination: 20
+            band: { image: builtin:saturn_rings, inner_radius: 7 }
+        grid_options: { columns: full }

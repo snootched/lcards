@@ -1,7 +1,7 @@
 /**
  * @fileoverview CoreConfigManager - Unified configuration processing facade
  *
- * Orchestrates existing systems (mergePacks, CoreValidationService, StylePresetManager,
+ * Orchestrates existing systems (CoreValidationService, StylePresetManager,
  * ThemeManager) to provide card-type-agnostic config processing with validation,
  * merging, and provenance tracking.
  *
@@ -12,7 +12,6 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { mergePacks } from '../packs/mergePacks.js';
 import { deepMerge, trackFieldSources } from './merge-helpers.js';
 
 /**
@@ -375,8 +374,10 @@ export class CoreConfigManager {
     mergedConfig = deepMerge(mergedConfig, themeDefaults);
     mergedConfig = deepMerge(mergedConfig, presetConfig);
     mergedConfig = deepMerge(mergedConfig, componentConfig);
-    mergedConfig = deepMerge(mergedConfig, userConfig);    // STEP 5: Resolve theme tokens
-    this._resolveThemeTokens(mergedConfig, cardType);
+    mergedConfig = deepMerge(mergedConfig, userConfig);
+
+    // STEP 5: Resolve theme tokens (recording each for provenance)
+    const themeRefs = this._resolveThemeTokens(mergedConfig, cardType);
 
     // STEP 6: Create provenance tracking (now supports both preset and component)
     const provenance = this._createProvenance(
@@ -387,6 +388,7 @@ export class CoreConfigManager {
       userConfig,
       cardType
     );
+    provenance.theme_refs = themeRefs;
 
     // STEP 7: Validate
     const validation = this._validateConfig(mergedConfig, cardType, context);
@@ -401,18 +403,6 @@ export class CoreConfigManager {
       warnings: validation.warnings,
       provenance
     };
-  }
-
-  /**
-   * Four-layer deep merge: behavioral → theme → (preset OR component) → user
-   * @private
-   */
-  _fourLayerMerge(behavioral, theme, presetOrComponent, user) {
-    let result = deepMerge({}, behavioral);
-    result = deepMerge(result, theme);
-    result = deepMerge(result, presetOrComponent);
-    result = deepMerge(result, user);
-    return result;
   }
 
   /**
@@ -535,32 +525,61 @@ export class CoreConfigManager {
    * @private
    */
   _resolveThemeTokens(config, cardType) {
-    if (!this.themeManager || !this.themeManager.resolver) {
-      return;
+    const refs = [];
+    const resolver = this.themeManager?.resolver;
+    if (!resolver) {
+      return refs;
     }
 
-    const resolveToken = this.themeManager.resolver.forComponent(cardType);
+    const resolveToken = resolver.forComponent(cardType);
+    const pathFor = (tokenPath) => resolver.componentPath?.(cardType, tokenPath) ?? tokenPath;
 
-    this._walkAndResolveTokens(config, resolveToken);
+    this._walkAndResolveTokens(config, resolveToken, '', refs, pathFor);
+    return refs;
   }
 
   /**
-   * Walk object tree and resolve 'theme:' tokens
+   * Walk object tree and resolve 'theme:' tokens, recording each in `refs`
+   * ({ field, ref, path, value }) for provenance.
    * @private
    */
-  _walkAndResolveTokens(obj, resolveToken) {
+  _walkAndResolveTokens(obj, resolveToken, prefix = '', refs = [], pathFor = (p) => p) {
     if (!obj || typeof obj !== 'object') return;
 
     for (const [key, value] of Object.entries(obj)) {
+      const field = prefix ? `${prefix}.${key}` : key;
       if (typeof value === 'string' && value.startsWith('theme:')) {
         const tokenPath = value.substring(6); // Remove 'theme:' prefix
         obj[key] = resolveToken(tokenPath, value);
+        refs.push({ field, ref: value, path: pathFor(tokenPath), value: obj[key] });
         this.stats.tokensResolved++;
-      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        this._walkAndResolveTokens(value, resolveToken);
+      } else if (Array.isArray(value)) {
+        // Lists are left for the card to resolve (often with element context),
+        // but their theme: values are recorded for provenance
+        this._recordListTokens(value, field, refs, pathFor);
+      } else if (typeof value === 'object' && value !== null) {
+        this._walkAndResolveTokens(value, resolveToken, field, refs, pathFor);
       }
     }
   }
+
+  /**
+   * Record (without resolving) the theme: values inside a list.
+   * @private
+   */
+  _recordListTokens(list, prefix, refs, pathFor) {
+    const record = (node, field) => {
+      if (typeof node === 'string') {
+        if (node.startsWith('theme:')) refs.push({ field, ref: node, path: pathFor(node.substring(6)), deferred: true });
+      } else if (Array.isArray(node)) {
+        node.forEach((item, i) => record(item, `${field}[${i}]`));
+      } else if (node && typeof node === 'object') {
+        for (const [key, value] of Object.entries(node)) record(value, `${field}.${key}`);
+      }
+    };
+    record(list, prefix);
+  }
+
 
   /**
    * Create provenance tracking for four-layer merge
@@ -570,7 +589,7 @@ export class CoreConfigManager {
   _createProvenance(behavioral, theme, preset, component, user, cardType) {
     const provenance = {
       card_type: cardType,
-      merge_order: [],
+      merge_order: /** @type {any[]} */ ([]),
       field_sources: {},
       timestamp: Date.now()
     };
@@ -655,17 +674,6 @@ export class CoreConfigManager {
   // ============================================================================
   // PRIVATE METHODS - Helpers
   // ============================================================================
-
-  /**
-   * Check if config requires pack-based merging (MSD style)
-   * @private
-   */
-  _usePackMerging(cardType, userConfig) {
-    // DEPRECATED: Pack merging removed in MSD refactor
-    // All packs loaded globally by PackManager, not per-card
-    // MSD now uses standard four-layer merge like other LCARdS cards
-    return false;
-  }
 
   /**
    * Create error result

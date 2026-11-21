@@ -18,8 +18,11 @@
  */
 
 import { LitElement, html, css } from 'lit';
+import { studioDialogStyles } from '../../dialogs/studio-dialog-styles.js';
+import { messageStyles } from '../../base/surface-styles.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { haFormatState, haFormatAttrValue, haFormatAttrName } from '../../../utils/ha-entity-display.js';
+import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 
 export class LCARdSDataSourceBrowser extends LitElement {
   static get properties() {
@@ -36,6 +39,11 @@ export class LCARdSDataSourceBrowser extends LitElement {
 
   constructor() {
     super();
+    // Reactive properties (declared in static properties); typed here for the checker.
+    /** @type {any} */
+    this.hass;
+    /** @type {any} */
+    this.cardConfig;
     this.open = false;
     this._selectedNode = null;
     this._expandedNodes = new Set();
@@ -117,7 +125,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         label: sourceName,
         icon: 'mdi:database',
         data: dataSource,
-        children: []
+        children: /** @type {any[]} */ ([])
       };
 
       // Add entity node
@@ -140,7 +148,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
           label: `Processors (${dataSource.processorManager.processors.size})`,
           icon: 'mdi:cog-outline',
           data: Array.from(dataSource.processorManager.processors.entries()),
-          children: []
+          children: /** @type {any[]} */ ([])
         };
 
         let idx = 0;
@@ -151,7 +159,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
             label: `${key} (${processor.config.type})`,
             icon: 'mdi:function-variant',
             data: { key, processor, type: processor.config.type },
-            children: []
+            children: /** @type {any[]} */ ([])
           });
           idx++;
         });
@@ -166,7 +174,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         label: 'Buffers',
         icon: 'mdi:database-outline',
         data: {},
-        children: []
+        children: /** @type {any[]} */ ([])
       };
 
       // Main buffer
@@ -177,7 +185,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
           label: `Main Buffer (${dataSource.buffer.size()} values)`,
           icon: 'mdi:database-outline',
           data: { buffer: dataSource.buffer, bufferType: 'main' },
-          children: []
+          children: /** @type {any[]} */ ([])
         });
       }
 
@@ -190,7 +198,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
             label: `${key} Buffer (${buffer.size()} values)`,
             icon: 'mdi:database-outline',
             data: { buffer, bufferType: key },
-            children: []
+            children: /** @type {any[]} */ ([])
           });
         });
       }
@@ -307,7 +315,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
       return html`
         <div class="detail-panel-empty">
           <ha-icon icon="mdi:cursor-pointer"></ha-icon>
-          <p>Select a node from the tree to view details</p>
+          <p>Select a data source, entity, processor or buffer on the left.</p>
         </div>
       `;
     }
@@ -319,15 +327,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         <div class="detail-header">
           <ha-icon icon="${this._selectedNode.icon}"></ha-icon>
           <h3>${label}</h3>
-          <ha-assist-chip
-            .label=${type.toUpperCase()}
-            .filled=${true}
-            style="
-              --ha-assist-chip-filled-container-color: var(--primary-color);
-              --md-sys-color-primary: var(--text-primary-color, white);
-              --md-sys-color-on-surface: var(--text-primary-color, white);
-            ">
-          </ha-assist-chip>
+          <span class="type-chip">${type}</span>
         </div>
 
         ${this._renderActionButtons()}
@@ -362,7 +362,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
             variant="neutral"
             @click=${() => this._handleEditSource(label)}>
             <ha-icon icon="mdi:pencil" slot="start"></ha-icon>
-            Edit Source
+            Edit source
           </ha-button>
         ` : ''}
         <ha-button
@@ -370,7 +370,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
           variant="neutral"
           @click=${() => this._handleCopyConfig(label)}>
           <ha-icon icon="mdi:content-copy" slot="start"></ha-icon>
-          Copy Config
+          Copy config
         </ha-button>
       </div>
     `;
@@ -381,7 +381,6 @@ export class LCARdSDataSourceBrowser extends LitElement {
    * @private
    */
   _isCardLocalSource(sourceName) {
-    // @ts-ignore - TS2339: auto-suppressed
     const cardSources = this.cardConfig?.data_sources || {};
     return sourceName in cardSources;
   }
@@ -417,31 +416,13 @@ export class LCARdSDataSourceBrowser extends LitElement {
 
     const configJson = JSON.stringify(config, null, 2);
 
-    try {
-      await navigator.clipboard.writeText(configJson);
-
-      // Show success feedback (using alert for now, can be enhanced with toast)
-      const event = new CustomEvent('show-notification', {
-        detail: {
-          message: `Config for "${sourceName}" copied to clipboard`,
-          type: 'success'
-        },
-        bubbles: true,
-        composed: true
-      });
-      this.dispatchEvent(event);
-    } catch (error) {
-      lcardsLog.error('[DataSourceBrowser] Failed to copy config:', error);
-      const event = new CustomEvent('show-notification', {
-        detail: {
-          message: 'Failed to copy config to clipboard',
-          type: 'error'
-        },
-        bubbles: true,
-        composed: true
-      });
-      this.dispatchEvent(event);
-    }
+    const ok = await copyTextToClipboard(configJson);
+    // HA's toast system listens for hass-notification
+    this.dispatchEvent(new CustomEvent('hass-notification', {
+      detail: { message: ok ? `Config for "${sourceName}" copied to clipboard` : 'Failed to copy config to clipboard' },
+      bubbles: true,
+      composed: true
+    }));
   }
 
   /**
@@ -482,11 +463,11 @@ export class LCARdSDataSourceBrowser extends LitElement {
           </div>
           <div class="detail-item">
             <span class="detail-label">Attribute:</span>
-            <span class="detail-value">${dataSource.cfg?.attribute || '__state__'}</span>
+            <span class="detail-value">${dataSource.cfg?.attribute || 'State'}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Window:</span>
-            <span class="detail-value">${dataSource.cfg?.windowSeconds || 60}s</span>
+            <span class="detail-value">${dataSource.windowSeconds || 60}s</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Min Emit:</span>
@@ -524,7 +505,6 @@ export class LCARdSDataSourceBrowser extends LitElement {
    * @private
    */
   _renderEntityDetail(data) {
-    // @ts-ignore - TS2339: auto-suppressed
     const entity = this.hass?.states?.[data.entityId];
 
     if (!entity) {
@@ -865,100 +845,45 @@ export class LCARdSDataSourceBrowser extends LitElement {
   }
 
   static get styles() {
-    return css`
+    return [studioDialogStyles, messageStyles, css`
       :host {
         display: block;
       }
 
-      /* Dialog styles matching Provenance Inspector */
-      ha-dialog {
-        --ha-dialog-width-md: 90vw;
-        --ha-dialog-min-height: 600px;
+      /* Tree | detail, as a studio's config | preview */
+      .studio-layout {
+        grid-template-columns: minmax(240px, 32%) 1fr;
+        grid-template-rows: minmax(0, 1fr); /* one row at every width (see studio-dialog-styles.js) */
       }
 
-      .dialog-content {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        height: 75vh;
-        max-height: 75vh;
-        overflow: hidden;
-      }
-
-      .dialog-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding-bottom: 12px;
-        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
-        flex-shrink: 0;
-      }
-
-      .dialog-header h2 {
-        margin: 0;
-        font-size: 24px;
+      .tree-head {
+        padding: var(--ha-space-3) var(--ha-space-4);
         font-weight: 600;
         color: var(--primary-text-color);
-      }
-
-      /* Split pane layout */
-      .split-pane-container {
-        display: grid;
-        grid-template-columns: 35% 65%;
-        grid-template-rows: minmax(0, 1fr);
-        gap: 12px;
-        flex: 1;
-        min-height: 0;
-        overflow: hidden;
-      }
-
-      /* Tree pane */
-      .tree-pane {
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        border-right: var(--ha-border-width-sm) solid var(--divider-color);
-        min-height: 0;
-      }
-
-      .tree-pane-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px 16px;
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
-        background: var(--secondary-background-color);
-        flex-shrink: 0;
-      }
-
-      .tree-pane-header span {
-        font-weight: 500;
-        font-size: 14px;
-        color: var(--primary-text-color);
       }
 
       .tree-container {
         flex: 1;
         overflow-y: auto;
-        padding: 12px;
-        background: var(--code-background-color, #1e1e1e);
-        border-radius: 8px;
+        padding: var(--ha-space-2);
+        min-height: 0;
       }
 
-      /* Tree nodes */
-      .tree-node {
-        margin-left: calc(var(--node-level, 0) * 16px);
-        margin-bottom: 4px;
+      .tree-empty {
+        padding: var(--ha-space-6);
+        text-align: center;
       }
 
       .tree-node-content {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px;
-        border-radius: 6px;
+        gap: var(--ha-space-2);
+        padding: var(--ha-space-2);
+        padding-left: calc(var(--ha-space-2) + var(--node-level, 0) * var(--ha-space-4));
+        border-radius: var(--ha-border-radius-sm);
+        color: var(--primary-text-color);
         cursor: pointer;
-        transition: all 0.15s;
         user-select: none;
       }
 
@@ -968,42 +893,37 @@ export class LCARdSDataSourceBrowser extends LitElement {
 
       .tree-node-content.selected {
         background: var(--primary-color);
-        color: var(--text-primary-color, white);
+        color: var(--text-primary-color);
       }
 
       .tree-expander {
         width: 16px;
+        flex: none;
         text-align: center;
         font-size: 12px;
-        transition: transform 0.2s;
       }
 
       .tree-expander.leaf {
-        opacity: 0;
+        visibility: hidden;
       }
 
-      .tree-expander.expanded {
-        transform: rotate(0deg);
+      .tree-node-content ha-icon {
+        --mdc-icon-size: 18px;
+        flex: none;
       }
 
       .node-label {
         flex: 1;
-        font-size: 14px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       /* Detail pane */
-      .detail-pane {
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        min-height: 0;
-      }
-
-      .detail-pane-content {
-        flex: 1;
+      .preview-panel {
         overflow-y: auto;
-        overflow-x: hidden;
-        padding-left: 8px;
+        padding: var(--ha-space-4);
       }
 
       .detail-panel-empty {
@@ -1011,227 +931,169 @@ export class LCARdSDataSourceBrowser extends LitElement {
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: var(--ha-space-3);
         height: 100%;
         color: var(--secondary-text-color);
-        gap: 12px;
       }
 
       .detail-panel-empty ha-icon {
-        --mdc-icon-size: 64px;
-        opacity: 0.3;
-      }
-
-      .detail-panel {
-        height: 100%;
+        --mdc-icon-size: 48px;
+        opacity: 0.5;
       }
 
       .detail-header {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 16px;
-        background: var(--secondary-background-color);
-        border-radius: 8px;
-        margin-bottom: 12px;
+        gap: var(--ha-space-3);
+        margin-bottom: var(--ha-space-3);
       }
 
       .detail-header h3 {
-        margin: 0;
         flex: 1;
+        margin: 0;
         font-size: 18px;
+        font-weight: 600;
+        color: var(--primary-text-color);
       }
 
-      /* Action buttons */
+      .type-chip {
+        padding: 2px var(--ha-space-2);
+        border-radius: var(--ha-border-radius-pill);
+        background: var(--primary-color);
+        color: var(--text-primary-color);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
       .action-buttons {
         display: flex;
-        gap: 12px;
-        padding: 0 16px 16px;
         flex-wrap: wrap;
+        gap: var(--ha-space-2);
+        margin-bottom: var(--ha-space-4);
       }
 
-      .action-buttons ha-icon {
-        --mdc-icon-size: 18px;
-        margin-right: 4px;
-      }
-
-      .detail-content {
-        padding: 0 16px;
-      }
-
+      /* Each block reads like an lcards-form-section card */
       .detail-section {
-        margin-bottom: 12px;
+        margin-bottom: var(--ha-space-3);
+        padding: var(--ha-space-3);
+        border-radius: var(--ha-border-radius-lg);
+        background-color: color-mix(
+          in srgb,
+          var(--secondary-background-color) 30%,
+          color-mix(in srgb, var(--primary-background-color) 25%, transparent)
+        );
       }
 
       .detail-section h4 {
-        margin: 0 0 12px 0;
+        margin: 0 0 var(--ha-space-3);
         font-size: 14px;
         font-weight: 600;
         color: var(--primary-text-color);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
       }
 
-      .detail-grid {
+      .detail-grid,
+      .attributes-table {
         display: grid;
-        gap: 12px;
+        gap: var(--ha-space-1);
       }
 
-      .detail-item {
+      .detail-item,
+      .attribute-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 8px 12px;
-        background: var(--secondary-background-color);
-        border-radius: 6px;
+        gap: var(--ha-space-3);
+        padding: 6px 0;
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
-      .detail-label {
-        font-weight: 500;
-        color: var(--secondary-text-color);
+      .detail-item:last-child,
+      .attribute-row:last-child {
+        border-bottom: none;
       }
 
-      .detail-value {
-        font-family: 'Courier New', monospace;
-        color: var(--primary-text-color);
-      }
-
-      .current-value {
-        padding: 12px;
-        background: var(--code-background-color, #1e1e1e);
-        border-radius: 6px;
-        overflow-x: auto;
-      }
-
-      .current-value code {
-        color: var(--primary-color);
-        font-size: 13px;
-      }
-
-      .config-block {
-        padding: 12px;
-        background: var(--code-background-color, #1e1e1e);
-        border-radius: 6px;
-        overflow-x: auto;
-        color: var(--primary-color);
-        font-size: 13px;
-      }
-
-      .dependency-tree {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding: 12px;
-        background: var(--code-background-color, #1e1e1e);
-        border-radius: 6px;
-      }
-
-      .dependency-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 8px 12px;
-        background: var(--secondary-background-color);
-        border-radius: 4px;
-        font-family: 'Courier New', monospace;
-        font-size: 13px;
-      }
-
-      .dep-source {
-        color: var(--primary-color);
-        font-weight: 500;
-      }
-
-      .dep-arrow {
-        color: var(--secondary-text-color);
-        font-weight: bold;
-      }
-
-      .dep-target {
-        color: var(--accent-color, var(--primary-color));
-        font-weight: 500;
-      }
-
-      .attributes-table {
-        display: grid;
-        gap: 8px;
-      }
-
-      .attribute-row {
-        display: flex;
-        gap: 8px;
-        padding: 8px 12px;
-        background: var(--secondary-background-color);
-        border-radius: 6px;
-      }
-
+      .detail-label,
       .attribute-key {
         font-weight: 500;
         color: var(--secondary-text-color);
-        min-width: 150px;
       }
 
+      .detail-value,
       .attribute-value {
-        font-family: 'Courier New', monospace;
+        font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
         color: var(--primary-text-color);
-        word-break: break-all;
+        text-align: right;
+        overflow-wrap: anywhere;
+      }
+
+      /* Code-like blocks */
+      .current-value,
+      .config-block,
+      .value-display,
+      .dependency-tree,
+      .buffer-table {
+        padding: var(--ha-space-3);
+        border-radius: var(--ha-border-radius-md);
+        background: var(--primary-background-color);
+        font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
+        font-size: 13px;
+        color: var(--primary-text-color);
+        overflow-x: auto;
+      }
+
+      .value-display div {
+        margin: var(--ha-space-1) 0;
+      }
+
+      .dependency-tree,
+      .buffer-table {
+        display: grid;
+        gap: var(--ha-space-1);
       }
 
       .buffer-table {
-        display: grid;
-        gap: 4px;
-        padding: 12px;
-        background: var(--code-background-color, #1e1e1e);
-        border-radius: 8px;
         max-height: 400px;
         overflow-y: auto;
       }
 
+      .dependency-item,
       .buffer-row {
         display: grid;
-        grid-template-columns: 60px 120px 1fr;
-        gap: 12px;
-        padding: 8px 12px;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 4px;
-        font-family: 'Courier New', monospace;
-        font-size: 13px;
         align-items: center;
-        border: var(--ha-border-width-sm) solid rgba(255, 255, 255, 0.1);
+        gap: var(--ha-space-3);
+        padding: 6px var(--ha-space-2);
+        border-radius: var(--ha-border-radius-sm);
+        background: color-mix(in srgb, var(--secondary-background-color) 50%, transparent);
       }
 
-      .buffer-index {
-        color: var(--secondary-text-color);
-        font-weight: bold;
+      .dependency-item {
+        display: flex;
       }
 
-      .buffer-time {
-        color: var(--secondary-text-color);
-        font-size: 12px;
+      .buffer-row {
+        grid-template-columns: 48px 120px 1fr;
       }
 
+      .dep-source,
       .buffer-value {
         color: var(--primary-color);
-        word-break: break-all;
+        overflow-wrap: anywhere;
+      }
+
+      .dep-arrow,
+      .buffer-index,
+      .buffer-time {
+        color: var(--secondary-text-color);
+      }
+
+      .dep-target {
+        color: var(--accent-color, var(--primary-color));
       }
 
       .buffer-note {
-        margin-top: 8px;
-        font-size: 13px;
-        color: var(--secondary-text-color);
-        font-style: italic;
+        margin-top: var(--ha-space-2);
       }
-
-      .value-display {
-        padding: 12px;
-        background: var(--code-background-color, #1e1e1e);
-        border-radius: 8px;
-        font-family: 'Courier New', monospace;
-      }
-
-      .value-display div {
-        margin: 6px 0;
-      }
-    `;
+    `];
   }
 
   render() {
@@ -1242,44 +1104,28 @@ export class LCARdSDataSourceBrowser extends LitElement {
     return html`
       <ha-dialog
         open
-        @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
-        header-title="DataSource Browser">
+        flexcontent
+        @closed=${(/** @type {Event} */ e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._handleClose(); }}
+        header-title="Data Source Browser">
         <div class="dialog-content">
-          <div class="dialog-header">
-            <h2>🔍 DataSource Browser</h2>
-          </div>
-
-          <div class="split-pane-container">
-            <!-- Left Pane: Tree View -->
-            <div class="tree-pane">
-              <div class="tree-pane-header">
-                <span>Data Sources (${this._treeData.length})</span>
-              </div>
+          <div class="studio-layout">
+            <div class="config-panel">
+              <div class="tree-head">Data sources on this page (${this._treeData.length})</div>
               <div class="tree-container">
                 ${this._treeData.length > 0
                   ? this._renderTreeNodes(this._treeData)
-                  : html`<p style="color: var(--secondary-text-color); text-align: center; padding: 24px;">No data sources found</p>`}
+                  : html`<p class="hint tree-empty">No data sources are running on this page.</p>`}
               </div>
             </div>
-
-            <!-- Right Pane: Detail View -->
-            <div class="detail-pane">
-              <div class="detail-pane-content">
-                ${this._renderNodeDetail()}
-              </div>
+            <div class="preview-panel">
+              ${this._renderNodeDetail()}
             </div>
           </div>
         </div>
 
-        <div slot="footer">
-          <ha-button
-            variant="brand"
-            appearance="accent"
-            @click=${this._handleClose}
-            data-dialog="close">
-            Close
-          </ha-button>
-        </div>
+        <ha-dialog-footer slot="footer">
+          <ha-button slot="primaryAction" @click=${this._handleClose} data-dialog="close">Close</ha-button>
+        </ha-dialog-footer>
       </ha-dialog>
     `;
   }

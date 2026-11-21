@@ -1,0 +1,11 @@
+# segments.default beats the component's theme colours, a segment's own style beats default (doc/cards/button/components.md)
+type: custom:lcards-button
+component: dpad
+dpad:
+  segments:
+    default:
+      style:
+        fill: "#ff9900"
+    up:
+      style:
+        fill: "#3366cc"

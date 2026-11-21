@@ -1,0 +1,18 @@
+# Layout card with repeat() tracks and named areas: every area name is kept (regression: rows were cut to their first name)
+type: custom:lcards-layout-card
+layout:
+  height: 150px
+  grid-gap: 8px
+  grid-template-columns: repeat(3, minmax(0, 1fr))
+  grid-template-rows: minmax(0, 1fr) 40px
+  grid-template-areas: |
+    "slider slider slider"
+    "p1 p2 p3"
+cards:
+  - type: custom:lcards-slider
+    view_layout: { grid-area: slider }
+    entity: input_number.demo_level
+    preset: pills-basic
+  - { type: custom:lcards-button, preset: lozenge, min_height: 0, view_layout: { grid-area: p1 }, text: { label: { content: "A", show: true } } }
+  - { type: custom:lcards-button, preset: lozenge, min_height: 0, view_layout: { grid-area: p2 }, text: { label: { content: "B", show: true } } }
+  - { type: custom:lcards-button, preset: lozenge, min_height: 0, view_layout: { grid-area: p3 }, text: { label: { content: "C", show: true } } }

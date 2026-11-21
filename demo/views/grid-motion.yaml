@@ -1,0 +1,215 @@
+# Grid motion (C5). Rescued from reports/c2-review/c5.yaml.
+title: Grid motion
+path: grid-motion
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: RIPPLE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: RIPPLE SPEED } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - animations:
+          - trigger: on_load
+            target: background
+            effect: 0
+            preset: custom
+            params: { camera_roll: [ -15, 15 ], duration: 5000, ease: inOutSine, loop: true, alternate: true }
+        type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                pattern: polar
+                view: floor
+                camera_tilt: 25
+                spoke_count: 24
+                major_row_interval: 4
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: "1 FLOOR POLAR, CAMERA ROLL SWAY", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - animations:
+          - trigger: on_load
+            target: background
+            effect: 0
+            preset: custom
+            params: { surface_rotate_x: [ 0, 360 ], duration: 20000, ease: linear, loop: true }
+        type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                camera_tilt: 10
+                color: var(--lcards-orange)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: 2 WELL TUMBLING (surface_rotate_x), show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - animations:
+          - trigger: on_load
+            target: background
+            effect: 0
+            preset: custom
+            params:
+              surface_rotate_z: [ -30, 30 ]
+              duration: 6000
+              ease: inOutSine
+              loop: true
+              alternate: true
+        type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: 3 WELL LEANING (surface_rotate_z), show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                well_ripple: { map_range: { entity_id: input_number.lcards_test_value, input: [ 0, 100 ], output: [ 0, 0.3 ] } }
+                well_ripple_waves: 3
+                well_ripple_speed: { map_range: { input: [ 0, 100 ], output: [ -2, 2 ] } }
+                pattern: polar
+                spoke_count: 24
+                line_spacing: 20
+                camera_tilt: 40
+                color: var(--lcards-orange)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: 4 GRAVITY WAVES · RIPPLE + SPEED, show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - animations:
+          - trigger: on_load
+            target: background
+            effect: 0
+            preset: custom
+            params: { well_morph: [ 0, 1 ], duration: 5000, ease: inOutSine, loop: true, alternate: true }
+        type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                well_profile: [ 1, 0.35, 0.18, 0.12 ]
+                well_profile_to: [ 1, 0.3, 0.15, 1 ]
+                camera_tilt: 20
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: 5 MORPH TRUMPET TO HOURGLASS, show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                well_profile: [ 1, 1 ]
+                well_ripple: { map_range: { entity_id: input_number.lcards_test_value, input: [ 0, 100 ], output: [ 0, 0.3 ] } }
+                well_ripple_waves: 2
+                well_ripple_speed: { map_range: { input: [ 0, 100 ], output: [ -2, 2 ] } }
+                camera_tilt: 20
+                color: var(--lcards-orange)
+                color_major: var(--lcards-moonlight)
+        text: { label: { content: "6 RIPPLING TUBE [1, 1] · RIPPLE + SPEED", show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - animations:
+          - trigger: on_load
+            target: background
+            effect: 0
+            preset: custom
+            params: { surface_rotate_y: [ 0, 360 ], duration: 15000, ease: linear, loop: true }
+        type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: cylinder
+                surface_rotate_x: 20
+                surface_rotate_z: 25
+                camera_roll: 10
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: "7 CYLINDER, ALL THREE AXES", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - animations:
+          - trigger: on_load
+            target: background
+            effect: 0
+            preset: custom
+            params: { camera_roll: [ -30, 30 ], duration: 6000, ease: inOutSine, loop: true, alternate: true }
+        type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: warp-starfield, config: { camera_yaw: 15 } }
+        text:
+          label: { content: "8 WARP, BANKING (camera_roll)", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }

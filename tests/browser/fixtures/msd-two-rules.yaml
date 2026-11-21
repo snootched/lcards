@@ -1,0 +1,41 @@
+# Two rules patching one MSD line (D2 batch 5): the higher priority's colour
+# wins and the other rule's width still applies (the lowest-priority patch
+# used to replace the rest).
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: none
+  view_box: [0, 0, 600, 300]
+  anchors:
+    a_start: [50, 150]
+    a_end: [550, 150]
+  overlays:
+    - id: line_a
+      type: line
+      anchor: a_start
+      attach_to: a_end
+      style:
+        color: "#ff9900"
+        width: 4
+rules:
+  - id: msd_high
+    priority: 10
+    when:
+      entity: light.demo
+      state: "on"
+    apply:
+      overlays:
+        line_a:
+          style:
+            color: "#ff0000"
+  - id: msd_low
+    priority: 1
+    when:
+      entity: light.demo
+      state: "on"
+    apply:
+      overlays:
+        line_a:
+          style:
+            color: "#0000ff"
+            width: 9

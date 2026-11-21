@@ -1,0 +1,1828 @@
+# MSD routing lab (2026-11-19): written by scripts/make-routing-lab.mjs from
+# tests/routing/lab-scenes.js. Do not edit: change the scenes and run the script.
+title: MSD routing lab
+path: msd-routing-lab
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        min_height: 0
+        text:
+          label:
+            content: >-
+              CONVERGING LINES: Four lines from rows far apart to points close together on the right: each steps across to its own point clear of the others,
+              the lowest under the obstacle.
+            show: true
+            position: center-left
+            font_size: 15
+            color: theme:colors.ui.primary
+            fit: true
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        id: lab_comb_in
+        msd:
+          base_svg:
+            source: none
+          view_box:
+            - 0
+            - 0
+            - 600
+            - 300
+          routing:
+            trunk_line_spacing: 10
+            clearance: 10
+          anchors:
+            a_a:
+              - 40
+              - 50
+            a_b:
+              - 560
+              - 40
+            b_a:
+              - 40
+              - 120
+            b_b:
+              - 560
+              - 60
+            c_a:
+              - 40
+              - 190
+            c_b:
+              - 560
+              - 80
+            d_a:
+              - 40
+              - 260
+            d_b:
+              - 560
+              - 100
+          overlays:
+            - id: ob
+              type: control
+              position:
+                - 330
+                - 170
+              size:
+                - 140
+                - 70
+              obstacle: true
+              card:
+                type: custom:lcards-button
+                preset: panel-dark
+                interactive: false
+                text: {label: {content: OBSTACLE}}
+            - id: a_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 46
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 36
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a
+              type: line
+              anchor: a_a
+              attach_to: a_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-blue)
+                width: 3
+            - id: b_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 116
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 56
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b
+              type: line
+              anchor: b_a
+              attach_to: b_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-orange)
+                width: 3
+            - id: c_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 186
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: c_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 76
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: c
+              type: line
+              anchor: c_a
+              attach_to: c_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-moonlight)
+                width: 3
+            - id: d_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 256
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue-light)
+                fill: var(--lcards-blue-light)
+            - id: d_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 96
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue-light)
+                fill: var(--lcards-blue-light)
+            - id: d
+              type: line
+              anchor: d_a
+              attach_to: d_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-blue-light)
+                width: 3
+        grid_options:
+          columns: 24
+          rows: 6
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        min_height: 0
+        text:
+          label:
+            content: >-
+              FAN OUT INTO A ROW: Three lines run together, then turn down into a row of points, each clear of the next; no outer turn tighter than the one
+              inside it.
+            show: true
+            position: center-left
+            font_size: 15
+            color: theme:colors.ui.primary
+            fit: true
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        id: lab_fan_out
+        msd:
+          base_svg:
+            source: none
+          view_box:
+            - 0
+            - 0
+            - 600
+            - 300
+          routing:
+            trunk_line_spacing: 10
+          anchors:
+            a_a:
+              - 40
+              - 50
+            a_b:
+              - 540
+              - 220
+            b_a:
+              - 40
+              - 60
+            b_b:
+              - 510
+              - 220
+            c_a:
+              - 40
+              - 70
+            c_b:
+              - 480
+              - 220
+          overlays:
+            - id: a_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 46
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 536
+                - 216
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a
+              type: line
+              anchor: a_a
+              attach_to: a_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: top
+              style:
+                color: var(--lcards-blue)
+                width: 3
+            - id: b_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 56
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 506
+                - 216
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b
+              type: line
+              anchor: b_a
+              attach_to: b_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: top
+              style:
+                color: var(--lcards-orange)
+                width: 3
+            - id: c_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 66
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: c_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 476
+                - 216
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: c
+              type: line
+              anchor: c_a
+              attach_to: c_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: top
+              style:
+                color: var(--lcards-moonlight)
+                width: 3
+        grid_options:
+          columns: 24
+          rows: 6
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        min_height: 0
+        text:
+          label:
+            content: >-
+              A BUNDLE TURNING A CORNER: Three lines run right, turn down together and stay in their lanes round the bend, the corners nested. KNOWN: B is
+              pulled 8 units into C's trunk lane though its own row already clears both neighbours: a pointless step near its start.
+            show: true
+            position: center-left
+            font_size: 15
+            color: theme:colors.ui.primary
+            fit: true
+        grid_options:
+          columns: 24
+          rows: 2
+      - type: custom:lcards-msd-card
+        id: lab_l_turn
+        msd:
+          base_svg:
+            source: none
+          view_box:
+            - 0
+            - 0
+            - 600
+            - 300
+          routing:
+            trunk_line_spacing: 12
+          anchors:
+            a_a:
+              - 40
+              - 40
+            a_b:
+              - 460
+              - 280
+            b_a:
+              - 40
+              - 60
+            b_b:
+              - 440
+              - 280
+            c_a:
+              - 40
+              - 80
+            c_b:
+              - 420
+              - 280
+          overlays:
+            - id: a_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 36
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 456
+                - 276
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a
+              type: line
+              anchor: a_a
+              attach_to: a_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: top
+              style:
+                color: var(--lcards-blue)
+                width: 3
+            - id: b_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 56
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 436
+                - 276
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b
+              type: line
+              anchor: b_a
+              attach_to: b_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: top
+              style:
+                color: var(--lcards-orange)
+                width: 3
+            - id: c_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 76
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: c_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 416
+                - 276
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: c
+              type: line
+              anchor: c_a
+              attach_to: c_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: top
+              style:
+                color: var(--lcards-moonlight)
+                width: 3
+        grid_options:
+          columns: 24
+          rows: 6
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        min_height: 0
+        text:
+          label:
+            content: >-
+              TWO BUNDLES CROSSING: A horizontal bundle and a vertical bundle cross once each, square, and nowhere else. KNOWN: H2 and H3 run 15 apart and are
+              pulled into 10-apart lanes and back: a small step at each end.
+            show: true
+            position: center-left
+            font_size: 15
+            color: theme:colors.ui.primary
+            fit: true
+        grid_options:
+          columns: 24
+          rows: 2
+      - type: custom:lcards-msd-card
+        id: lab_cross_bundles
+        msd:
+          base_svg:
+            source: none
+          view_box:
+            - 0
+            - 0
+            - 600
+            - 300
+          routing:
+            trunk_line_spacing: 10
+          anchors:
+            h1_a:
+              - 40
+              - 130
+            h1_b:
+              - 560
+              - 130
+            h2_a:
+              - 40
+              - 145
+            h2_b:
+              - 560
+              - 145
+            h3_a:
+              - 40
+              - 160
+            h3_b:
+              - 560
+              - 160
+            v1_a:
+              - 280
+              - 20
+            v1_b:
+              - 280
+              - 280
+            v2_a:
+              - 300
+              - 20
+            v2_b:
+              - 300
+              - 280
+            v3_a:
+              - 320
+              - 20
+            v3_b:
+              - 320
+              - 280
+          overlays:
+            - id: h1_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 126
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: h1_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 126
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: h1
+              type: line
+              anchor: h1_a
+              attach_to: h1_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-blue)
+                width: 3
+            - id: h2_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 141
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: h2_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 141
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: h2
+              type: line
+              anchor: h2_a
+              attach_to: h2_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-orange)
+                width: 3
+            - id: h3_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 156
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: h3_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 156
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: h3
+              type: line
+              anchor: h3_a
+              attach_to: h3_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-moonlight)
+                width: 3
+            - id: v1_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 276
+                - 16
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue-light)
+                fill: var(--lcards-blue-light)
+            - id: v1_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 276
+                - 276
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue-light)
+                fill: var(--lcards-blue-light)
+            - id: v1
+              type: line
+              anchor: v1_a
+              attach_to: v1_b
+              route: auto
+              corner_style: round
+              anchor_side: bottom
+              attach_side: top
+              style:
+                color: var(--lcards-blue-light)
+                width: 3
+            - id: v2_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 296
+                - 16
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange-light)
+                fill: var(--lcards-orange-light)
+            - id: v2_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 296
+                - 276
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange-light)
+                fill: var(--lcards-orange-light)
+            - id: v2
+              type: line
+              anchor: v2_a
+              attach_to: v2_b
+              route: auto
+              corner_style: round
+              anchor_side: bottom
+              attach_side: top
+              style:
+                color: var(--lcards-orange-light)
+                width: 3
+            - id: v3_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 316
+                - 16
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-gray-medium-light)
+                fill: var(--lcards-gray-medium-light)
+            - id: v3_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 316
+                - 276
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-gray-medium-light)
+                fill: var(--lcards-gray-medium-light)
+            - id: v3
+              type: line
+              anchor: v3_a
+              attach_to: v3_b
+              route: auto
+              corner_style: round
+              anchor_side: bottom
+              attach_side: top
+              style:
+                color: var(--lcards-gray-medium-light)
+                width: 3
+        grid_options:
+          columns: 24
+          rows: 6
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        min_height: 0
+        text:
+          label:
+            content: 'A FORCED CHANNEL: The orange lines are forced through the band and run in its lanes; the blue line routes freely and stays clear of them.'
+            show: true
+            position: center-left
+            font_size: 15
+            color: theme:colors.ui.primary
+            fit: true
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        id: lab_forced_channel
+        msd:
+          base_svg:
+            source: none
+          view_box:
+            - 0
+            - 0
+            - 600
+            - 300
+          channels:
+            bus:
+              bounds:
+                - 200
+                - 120
+                - 220
+                - 30
+              mode: force
+              direction: horizontal
+              line_spacing: 10
+          anchors:
+            f1_a:
+              - 40
+              - 40
+            f1_b:
+              - 560
+              - 260
+            f2_a:
+              - 40
+              - 260
+            f2_b:
+              - 560
+              - 40
+            free_a:
+              - 40
+              - 200
+            free_b:
+              - 560
+              - 200
+          overlays:
+            - id: band_bus
+              type: shape
+              kind: rect
+              position:
+                - 200
+                - 120
+              size:
+                - 220
+                - 30
+              z_index: 10
+              style:
+                color: var(--lcards-orange)
+                width: 1
+                fill: var(--lcards-orange)
+                fill_opacity: 0.2
+            - id: f1_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 36
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: f1_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 256
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: f1
+              type: line
+              anchor: f1_a
+              attach_to: f1_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              route_channels:
+                - bus
+              style:
+                color: var(--lcards-orange)
+                width: 3
+            - id: f2_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 256
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: f2_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 36
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: f2
+              type: line
+              anchor: f2_a
+              attach_to: f2_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              route_channels:
+                - bus
+              style:
+                color: var(--lcards-orange)
+                width: 3
+            - id: free_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 196
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: free_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 196
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: free
+              type: line
+              anchor: free_a
+              attach_to: free_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-moonlight)
+                width: 3
+        grid_options:
+          columns: 24
+          rows: 6
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        min_height: 0
+        text:
+          label:
+            content: 'ROUND TWO OBSTACLES: Each line finds its own way between and round the two blocks, keeping clear of them and of each other.'
+            show: true
+            position: center-left
+            font_size: 15
+            color: theme:colors.ui.primary
+            fit: true
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        id: lab_obstacles
+        msd:
+          base_svg:
+            source: none
+          view_box:
+            - 0
+            - 0
+            - 600
+            - 300
+          routing:
+            clearance: 12
+          anchors:
+            a_a:
+              - 40
+              - 60
+            a_b:
+              - 560
+              - 250
+            b_a:
+              - 40
+              - 250
+            b_b:
+              - 560
+              - 60
+          overlays:
+            - id: o1
+              type: control
+              position:
+                - 220
+                - 110
+              size:
+                - 90
+                - 120
+              obstacle: true
+              card:
+                type: custom:lcards-button
+                preset: panel-dark
+                interactive: false
+                text: {label: {content: BLOCK 1}}
+            - id: o2
+              type: control
+              position:
+                - 400
+                - 190
+              size:
+                - 90
+                - 120
+              obstacle: true
+              card:
+                type: custom:lcards-button
+                preset: panel-dark
+                interactive: false
+                text: {label: {content: BLOCK 2}}
+            - id: a_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 56
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 246
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a
+              type: line
+              anchor: a_a
+              attach_to: a_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-blue)
+                width: 3
+            - id: b_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 246
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 56
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b
+              type: line
+              anchor: b_a
+              attach_to: b_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-orange)
+                width: 3
+        grid_options:
+          columns: 24
+          rows: 6
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        min_height: 0
+        text:
+          label:
+            content: 'TIGHT LANES (6 APART): The same converging bundle with lanes 6 apart: close, but every line still clear of the next.'
+            show: true
+            position: center-left
+            font_size: 15
+            color: theme:colors.ui.primary
+            fit: true
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        id: lab_spacing_tight
+        msd:
+          base_svg:
+            source: none
+          view_box:
+            - 0
+            - 0
+            - 600
+            - 200
+          routing:
+            trunk_line_spacing: 6
+          anchors:
+            a_a:
+              - 40
+              - 30
+            a_b:
+              - 560
+              - 90
+            b_a:
+              - 40
+              - 90
+            b_b:
+              - 560
+              - 100
+            c_a:
+              - 40
+              - 150
+            c_b:
+              - 560
+              - 110
+          overlays:
+            - id: a_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 26
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 86
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a
+              type: line
+              anchor: a_a
+              attach_to: a_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-blue)
+                width: 3
+            - id: b_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 86
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 96
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b
+              type: line
+              anchor: b_a
+              attach_to: b_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-orange)
+                width: 3
+            - id: c_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 146
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: c_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 106
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: c
+              type: line
+              anchor: c_a
+              attach_to: c_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-moonlight)
+                width: 3
+        grid_options:
+          columns: 24
+          rows: 4
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        min_height: 0
+        text:
+          label:
+            content: 'WIDE LANES (20 APART): The same bundle with lanes 20 apart: clearly separate lanes, the bends still smooth.'
+            show: true
+            position: center-left
+            font_size: 15
+            color: theme:colors.ui.primary
+            fit: true
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        id: lab_spacing_wide
+        msd:
+          base_svg:
+            source: none
+          view_box:
+            - 0
+            - 0
+            - 600
+            - 200
+          routing:
+            trunk_line_spacing: 20
+          anchors:
+            a_a:
+              - 40
+              - 30
+            a_b:
+              - 560
+              - 80
+            b_a:
+              - 40
+              - 90
+            b_b:
+              - 560
+              - 100
+            c_a:
+              - 40
+              - 150
+            c_b:
+              - 560
+              - 120
+          overlays:
+            - id: a_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 26
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 76
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a
+              type: line
+              anchor: a_a
+              attach_to: a_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-blue)
+                width: 3
+            - id: b_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 86
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 96
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b
+              type: line
+              anchor: b_a
+              attach_to: b_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-orange)
+                width: 3
+            - id: c_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 146
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: c_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 556
+                - 116
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: c
+              type: line
+              anchor: c_a
+              attach_to: c_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: left
+              style:
+                color: var(--lcards-moonlight)
+                width: 3
+        grid_options:
+          columns: 24
+          rows: 4
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        min_height: 0
+        text:
+          label:
+            content: 'CORNER RADIUS 10, 34 AND 60: Three separate lines with the same shape and different corner_radius: small, default and large rounded corners.'
+            show: true
+            position: center-left
+            font_size: 15
+            color: theme:colors.ui.primary
+            fit: true
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        id: lab_radii
+        msd:
+          base_svg:
+            source: none
+          view_box:
+            - 0
+            - 0
+            - 600
+            - 300
+          anchors:
+            r10_a:
+              - 40
+              - 40
+            r10_b:
+              - 180
+              - 260
+            r34_a:
+              - 220
+              - 40
+            r34_b:
+              - 380
+              - 260
+            r60_a:
+              - 420
+              - 40
+            r60_b:
+              - 580
+              - 260
+          overlays:
+            - id: r10_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 36
+                - 36
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: r10_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 176
+                - 256
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: r10
+              type: line
+              anchor: r10_a
+              attach_to: r10_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: top
+              corner_radius: 10
+              style:
+                color: var(--lcards-blue)
+                width: 3
+            - id: r34_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 216
+                - 36
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: r34_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 376
+                - 256
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: r34
+              type: line
+              anchor: r34_a
+              attach_to: r34_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: top
+              corner_radius: 34
+              style:
+                color: var(--lcards-orange)
+                width: 3
+            - id: r60_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 416
+                - 36
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: r60_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 576
+                - 256
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: r60
+              type: line
+              anchor: r60_a
+              attach_to: r60_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              attach_side: top
+              corner_radius: 60
+              style:
+                color: var(--lcards-moonlight)
+                width: 3
+        grid_options:
+          columns: 24
+          rows: 6
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        min_height: 0
+        text:
+          label:
+            content: >-
+              TARGETS STACKED ON ONE VERTICAL: Four lines to points one above the other, reached from above: known limitation, the lines come down onto the
+              points together. KNOWN: every line descends one shared vertical onto points stacked on it.
+            show: true
+            position: center-left
+            font_size: 15
+            color: theme:colors.ui.primary
+            fit: true
+        grid_options:
+          columns: 24
+          rows: 2
+      - type: custom:lcards-msd-card
+        id: lab_stacked_targets
+        msd:
+          base_svg:
+            source: none
+          view_box:
+            - 0
+            - 0
+            - 600
+            - 300
+          routing:
+            trunk_line_spacing: 10
+            clearance: 10
+          anchors:
+            a_a:
+              - 105
+              - 50
+            a_b:
+              - 570
+              - 110
+            b_a:
+              - 105
+              - 115
+            b_b:
+              - 570
+              - 135
+            c_a:
+              - 105
+              - 185
+            c_b:
+              - 570
+              - 160
+            d_a:
+              - 105
+              - 250
+            d_b:
+              - 570
+              - 185
+          overlays:
+            - id: ob
+              type: control
+              position:
+                - 300
+                - 150
+              size:
+                - 140
+                - 70
+              obstacle: true
+              card:
+                type: custom:lcards-button
+                preset: panel-dark
+                interactive: false
+                text: {label: {content: OBSTACLE}}
+            - id: a_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 101
+                - 46
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 566
+                - 106
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue)
+                fill: var(--lcards-blue)
+            - id: a
+              type: line
+              anchor: a_a
+              attach_to: a_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              style:
+                color: var(--lcards-blue)
+                width: 3
+            - id: b_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 101
+                - 111
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 566
+                - 131
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-orange)
+                fill: var(--lcards-orange)
+            - id: b
+              type: line
+              anchor: b_a
+              attach_to: b_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              style:
+                color: var(--lcards-orange)
+                width: 3
+            - id: c_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 101
+                - 181
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: c_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 566
+                - 156
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-moonlight)
+                fill: var(--lcards-moonlight)
+            - id: c
+              type: line
+              anchor: c_a
+              attach_to: c_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              style:
+                color: var(--lcards-moonlight)
+                width: 3
+            - id: d_a_dot
+              type: shape
+              kind: circle
+              position:
+                - 101
+                - 246
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue-light)
+                fill: var(--lcards-blue-light)
+            - id: d_b_dot
+              type: shape
+              kind: circle
+              position:
+                - 566
+                - 181
+              size:
+                - 8
+                - 8
+              style:
+                color: var(--lcards-blue-light)
+                fill: var(--lcards-blue-light)
+            - id: d
+              type: line
+              anchor: d_a
+              attach_to: d_b
+              route: auto
+              corner_style: round
+              anchor_side: right
+              style:
+                color: var(--lcards-blue-light)
+                width: 3
+        grid_options:
+          columns: 24
+          rows: 6

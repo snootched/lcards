@@ -1,0 +1,6 @@
+# doc/cards/slider-card/index.md: light brightness slider
+type: custom:lcards-slider
+entity: light.demo
+preset: pills-left-border
+control:
+  attribute: brightness

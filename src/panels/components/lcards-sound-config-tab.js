@@ -20,8 +20,11 @@ import { originBadge } from './shared/scoped-field-helpers.js';
 import '../../editor/components/shared/lcards-form-section.js';
 import '../../editor/components/shared/lcards-message.js';
 import '../../editor/components/sound/lcards-sound-source-selector.js';
-import './lcards-preview-chip.js';
 import './shared/lcards-scope-selector.js';
+import { surfaceStyles } from '../../editor/base/surface-styles.js';
+import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
+import { docsUrl, DOCS } from '../../utils/docs-url.js';
+import { canWriteGlobalStorage, GLOBAL_WRITE_REFUSED_MSG } from '../../core/services/storage-permissions.js';
 
 const CATEGORY_LABELS = {
   cards:  'Card Interactions',
@@ -67,15 +70,15 @@ export class LCARdSSoundConfigTab extends LitElement {
     _adminScopeDeviceId:{ type: String,   state: true },
     /** Admin: basic settings (volume/scheme/enabled) for the currently-viewed admin target; null = own */
     _adminTargetBasic:  { type: Object,   state: true },
-    _confirmResetOverrides: { type: Boolean, state: true },
     /** True while the "Save as new scheme" inline form is open */
     _savingScheme:      { type: Boolean,  state: true },
     /** Draft name typed into the "Save as new scheme" form */
     _newSchemeName:     { type: String,   state: true },
     /** Validation/backend error from the last save attempt, if any */
     _saveSchemeError:   { type: String,   state: true },
+    /** Shown when saving/resetting global overrides or a custom scheme failed or was refused. */
+    _overridesError:    { type: String,   state: true },
     /** True while the "delete this custom scheme" inline confirm is open */
-    _confirmDeleteScheme: { type: Boolean, state: true },
     /** True when the Per-Event Overrides table has staged (unsaved) edits —
      * global or the active custom scheme's own mapping, see _setOverride() */
     _overridesDirty:    { type: Boolean,  state: true },
@@ -88,6 +91,8 @@ export class LCARdSSoundConfigTab extends LitElement {
     this._helpers             = [];
     this._audioAssets         = [];
     this._overrides           = {};
+    /** @type {string|undefined} Scheme the shown overrides belong to */
+    this._overridesScheme     = undefined;
     this._schemeNames         = ['none'];
     this._eventTypes          = [];
     this._creatingHelpers     = false;
@@ -108,11 +113,10 @@ export class LCARdSSoundConfigTab extends LitElement {
     this._adminScopeDeviceId = null;
     /** @type {Object|null} Basic settings for admin-selected target; null = own */
     this._adminTargetBasic = null;
-    this._confirmResetOverrides = false;
     this._savingScheme    = false;
     this._newSchemeName   = '';
     this._saveSchemeError = null;
-    this._confirmDeleteScheme = false;
+    this._overridesError = null;
     this._overridesDirty = false;
   }
 
@@ -178,7 +182,10 @@ export class LCARdSSoundConfigTab extends LitElement {
     if (sm) {
       this._schemeNames = sm.getSchemeNames();
       this._eventTypes  = sm.getEventTypes();
-      this._reloadOverridesForActiveScheme();
+      // Every hass update lands here (any entity changing state): keep staged
+      // edits unless the active scheme changed, which discards them on purpose
+      const scheme = this._getHelperValue('sound_scheme') || 'none';
+      if (!this._overridesDirty || scheme !== this._overridesScheme) this._reloadOverridesForActiveScheme();
     }
 
     this.requestUpdate();
@@ -201,6 +208,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     const sm = window.lcards?.core?.soundManager;
     if (!sm) return;
     const schemeValue = this._getHelperValue('sound_scheme') || 'none';
+    this._overridesScheme = schemeValue;
     this._overrides = sm.isCustomScheme(schemeValue)
       ? sm.getSchemeMapping(schemeValue)
       : sm.getOverrides('global');
@@ -436,15 +444,6 @@ export class LCARdSSoundConfigTab extends LitElement {
   }
 
   /**
-   * Load admin user list (from users/list + config/auth/list for display names)
-   * and device list (from devices/list).  Silently no-ops for non-admin.
-   * @deprecated Use <lcards-scope-selector> which handles this internally.
-   */
-  async _loadAdminLists() {
-    // No-op: admin list loading is now owned by <lcards-scope-selector>.
-  }
-
-  /**
    * Load per-event overrides for the currently-viewed scope subject.
    * For own scope: use ScopedSettingsService.
    * For admin-selected subject: use WS users/get or devices/get directly.
@@ -518,15 +517,26 @@ export class LCARdSSoundConfigTab extends LitElement {
   }
 
   /**
+   * ScopedSettingsService target options for the admin-selected user or device
+   * (empty for your own user and device).
+   * @param {'user'|'device'} scope
+   * @returns {{ targetUserId?: string, targetDeviceId?: string }}
+   */
+  _scopedTargetOpts(scope) {
+    if (scope === 'user' && this._adminScopeUserId) return { targetUserId: this._adminScopeUserId };
+    if (scope === 'device' && this._adminScopeDeviceId) return { targetDeviceId: this._adminScopeDeviceId };
+    return {};
+  }
+
+  /**
    * Write a per-event override for the current scope subject.
    * @param {string} eventKey  The event type key
    * @param {string|null} assetKey  Asset key, '__mute__' for null, '__scheme__' to clear
    * @param {'user'|'device'} scope
    */
   async _setScopedOverride(eventKey, assetKey, scope) {
-    const conn = this.hass?.connection;
     const sss  = window.lcards?.core?.scopedSettingsService;
-    if (!sss || !conn) return;
+    if (!sss) return;
 
     // '__scheme__' → clear this event (fall through to scheme default)
     // '__mute__'   → explicit silence (store null)
@@ -542,65 +552,15 @@ export class LCARdSSoundConfigTab extends LitElement {
       existing[eventKey] = value;
     }
 
-    // IMPORTANT: the backend uses deep-merge (async_deep_set) for all writes, so
-    // writing {} has NO effect — it cannot remove existing keys. The correct approach
-    // is delete-then-rewrite:
-    //   1. Delete the entire "sound_overrides" key for this scope (real removal)
-    //   2. Re-write the new object if it contains any entries
-    // This ensures the stored value always reflects exactly what is in `existing`.
-
+    // sss.write replaces the stored map (the backend's replace flag), so writing
+    // the smaller map is enough to remove an override; an empty map clears the key.
+    // The admin target (another user or device) goes through the same calls.
+    const opts = this._scopedTargetOpts(scope);
     try {
-      if (scope === 'user') {
-        const targetId = this._adminScopeUserId;
-        if (targetId) {
-          // Admin path: null-set first (replaces the existing Mapping since null is not
-          // a Mapping, so deep-merge treats it as a scalar replace), then write real value.
-          await conn.sendMessagePromise({
-            type: 'lcards/storage/users/set',
-            user_id: targetId,
-            data: { [STORAGE_KEY_SOUND_OVERRIDES]: null },
-          });
-          if (Object.keys(existing).length > 0) {
-            await conn.sendMessagePromise({
-              type: 'lcards/storage/users/set',
-              user_id: targetId,
-              data: { [STORAGE_KEY_SOUND_OVERRIDES]: existing },
-            });
-          }
-        } else {
-          // Own user: delete the sub-key entirely, then write the new object if non-empty.
-          await sss.clear(STORAGE_KEY_SOUND_OVERRIDES, 'user');
-          if (Object.keys(existing).length > 0) {
-            await sss.write(STORAGE_KEY_SOUND_OVERRIDES, existing, 'user');
-          }
-        }
-      } else {
-        // Device scope
-        const adminTargetId = this._adminScopeDeviceId;
-        if (adminTargetId) {
-          // Admin editing another device — use the devices/set admin command directly
-          // because sss.clear/write always target the own device ID.
-          await conn.sendMessagePromise({
-            type: 'lcards/storage/devices/set',
-            device_id: adminTargetId,
-            data: { [STORAGE_KEY_SOUND_OVERRIDES]: null },
-          });
-          if (Object.keys(existing).length > 0) {
-            await conn.sendMessagePromise({
-              type: 'lcards/storage/devices/set',
-              device_id: adminTargetId,
-              data: { [STORAGE_KEY_SOUND_OVERRIDES]: existing },
-            });
-          }
-        } else {
-          // Own device: sss.clear sends {key: null} via device/set (own device ID).
-          // null is not a Mapping so the subsequent write replaces rather than deep-merges.
-          await sss.clear(STORAGE_KEY_SOUND_OVERRIDES, 'device');
-          if (Object.keys(existing).length > 0) {
-            await sss.write(STORAGE_KEY_SOUND_OVERRIDES, existing, 'device');
-          }
-        }
-      }
+      const ok = Object.keys(existing).length > 0
+        ? await sss.write(STORAGE_KEY_SOUND_OVERRIDES, existing, scope, opts)
+        : await sss.clear(STORAGE_KEY_SOUND_OVERRIDES, scope, opts);
+      if (!ok) lcardsLog.warn(`[SoundConfigTab] Scoped override for ${eventKey} not saved to ${scope}`);
 
       await this._loadScopedOverrides();
       // Keep SoundManager caches in sync so the override takes effect immediately.
@@ -619,39 +579,12 @@ export class LCARdSSoundConfigTab extends LitElement {
 
   /**
    * Clear all per-event overrides for the current scope subject.
-   * Uses a direct delete so deep-merge artifacts are avoided.
    */
   async _clearAllScopedOverrides(scope) {
-    const conn = this.hass?.connection;
     const sss  = window.lcards?.core?.scopedSettingsService;
-    if (!sss || !conn) return;
+    if (!sss) return;
     try {
-      if (scope === 'user') {
-        const targetId = this._adminScopeUserId;
-        if (targetId) {
-          // Admin: null-set the overrides key for the target user
-          await conn.sendMessagePromise({
-            type: 'lcards/storage/users/set',
-            user_id: targetId,
-            data: { [STORAGE_KEY_SOUND_OVERRIDES]: null },
-          });
-        } else {
-          await sss.clear(STORAGE_KEY_SOUND_OVERRIDES, 'user');
-        }
-      } else {
-        // Device scope
-        const targetId = this._adminScopeDeviceId;
-        if (targetId) {
-          // Admin editing another device — use the devices/set admin command.
-          await conn.sendMessagePromise({
-            type: 'lcards/storage/devices/set',
-            device_id: targetId,
-            data: { [STORAGE_KEY_SOUND_OVERRIDES]: null },
-          });
-        } else {
-          await sss.clear(STORAGE_KEY_SOUND_OVERRIDES, 'device');
-        }
-      }
+      await sss.clear(STORAGE_KEY_SOUND_OVERRIDES, scope, this._scopedTargetOpts(scope));
       await this._loadScopedOverrides();
       await window.lcards?.core?.soundManager?.refreshScopedCache();
     } catch (err) {
@@ -662,6 +595,16 @@ export class LCARdSSoundConfigTab extends LitElement {
   /** True if the current user is an HA admin */
   _isAdmin() {
     return this.hass?.user?.is_admin === true;
+  }
+
+  /** True when this user may change the global override layer and custom schemes (admins only). */
+  _canEditGlobal() {
+    return canWriteGlobalStorage(this.hass);
+  }
+
+  /** Error text for a failed global write: the admin message when that is why it failed. */
+  _globalWriteError(fallback) {
+    return this._canEditGlobal() ? (fallback || 'Could not save.') : GLOBAL_WRITE_REFUSED_MSG;
   }
 
   /** True when the user has opted into preview / experimental features. */
@@ -738,13 +681,17 @@ export class LCARdSSoundConfigTab extends LitElement {
       const result = await sm.updateCustomScheme(schemeValue, this._overrides);
       if (!result.ok) {
         lcardsLog.error('[SoundConfigTab] Failed to save custom scheme changes:', result.error);
+        this._overridesError = this._globalWriteError(result.error);
         this.requestUpdate();
         return;
       }
-    } else {
-      await sm.saveGlobalOverrides(this._overrides);
+    } else if (!(await sm.saveGlobalOverrides(this._overrides))) {
+      this._overridesError = this._globalWriteError('Could not save the overrides.');
+      this.requestUpdate();
+      return;
     }
 
+    this._overridesError = null;
     this._overridesDirty = false;
     this.requestUpdate();
   }
@@ -755,14 +702,14 @@ export class LCARdSSoundConfigTab extends LitElement {
     this.requestUpdate();
   }
 
-  _askResetOverrides() {
-    this._confirmResetOverrides = true;
-    this.requestUpdate();
-  }
-
-  _cancelResetOverrides() {
-    this._confirmResetOverrides = false;
-    this.requestUpdate();
+  async _askResetOverrides() {
+    const n = Object.keys(this._overrides).length;
+    const confirmed = await showConfirmDeleteDialog({
+      title: 'Reset to scheme defaults?',
+      message: `This clears all ${n} event override${n !== 1 ? 's' : ''} and restores the scheme's own sounds.`,
+      confirmText: 'Reset all',
+    });
+    if (confirmed) await this._resetOverrides();
   }
 
   /**
@@ -774,10 +721,16 @@ export class LCARdSSoundConfigTab extends LitElement {
   async _resetOverrides() {
     const sm = window.lcards?.core?.soundManager;
     if (!sm) return;
-    await sm.clearAllOverrides('global');
+    if (!(await sm.clearAllOverrides('global'))) {
+      this._overridesError = this._globalWriteError('Could not reset the overrides.');
+      await sm.refreshScopedCache();
+      this._overrides = sm.getOverrides('global');
+      this.requestUpdate();
+      return;
+    }
+    this._overridesError = null;
     this._overrides = sm.getOverrides('global');
     this._overridesDirty = false;
-    this._confirmResetOverrides = false;
     this.requestUpdate();
   }
 
@@ -834,7 +787,7 @@ export class LCARdSSoundConfigTab extends LitElement {
 
     const result = await sm.saveCustomScheme(this._newSchemeName, snapshot);
     if (!result.ok) {
-      this._saveSchemeError = result.error;
+      this._saveSchemeError = this._globalWriteError(result.error);
       this.requestUpdate();
       return;
     }
@@ -856,23 +809,22 @@ export class LCARdSSoundConfigTab extends LitElement {
     this.requestUpdate();
   }
 
-  _askDeleteScheme() {
-    this._confirmDeleteScheme = true;
-    this.requestUpdate();
-  }
-
-  _cancelDeleteScheme() {
-    this._confirmDeleteScheme = false;
-    this.requestUpdate();
+  async _askDeleteScheme() {
+    const schemeName = this._getHelperValue('sound_scheme');
+    const confirmed = await showConfirmDeleteDialog({
+      title: 'Delete custom scheme?',
+      message: `Permanently delete the custom scheme "${String(schemeName).slice(7)}"? This cannot be undone.`,
+    });
+    if (confirmed) await this._deleteScheme(schemeName);
   }
 
   async _deleteScheme(schemeName) {
     const sm = window.lcards?.core?.soundManager;
     if (!sm) return;
     const result = await sm.deleteCustomScheme(schemeName);
-    this._confirmDeleteScheme = false;
     if (!result.ok) {
       lcardsLog.error('[SoundConfigTab] Failed to delete custom scheme:', result.error);
+      this._overridesError = this._globalWriteError(result.error);
       this.requestUpdate();
       return;
     }
@@ -909,6 +861,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     const schemeValue = this._getHelperValue('sound_scheme') || 'none';
     const volumeValue = parseFloat(this._getHelperValue('sound_volume') ?? 0.5);
 
+    const canEditGlobal = this._canEditGlobal();
     return html`
       <div class="studio-layout"><div class="scrollable-body">
 
@@ -929,17 +882,25 @@ export class LCARdSSoundConfigTab extends LitElement {
         <!-- ── BROWSER AUTOPLAY NOTICE ── -->
         <lcards-message
           type="info"
-          .message=${'<strong>Browser audio policy:</strong> Most sounds play after the first user interaction (tap or click). The <em>System Ready</em> startup sound plays on page load — for it to work your browser must allow audio autoplay for this URL. <a href="https://lcards.unimatrix01.ca/configuration/sounds#browser-audio-policy" target="_blank" rel="noopener noreferrer">Browser setup instructions →</a>'}
+          .message=${`Most sounds play after your first tap. <em>System Ready</em> plays on page load only if the browser allows autoplay here. <a href="${docsUrl(DOCS.soundAutoplay)}" target="_blank" rel="noopener noreferrer">Browser setup</a>`}
         ></lcards-message>
 
         <!-- ── GLOBAL SETTINGS GROUP ── -->
         <lcards-form-section
-          header="Global Settings"
+          header=${canEditGlobal ? 'Global Settings' : 'Shared Defaults'}
           icon="mdi:earth"
-          description="Default sound behaviour for all users and devices. Per-user / per-device overrides are in the section below. Note: Sound Categories are global-only."
+          description=${canEditGlobal
+            ? 'Default sound behaviour for all users and devices. Per-user / per-device overrides are in the section below. Note: Sound Categories are global-only.'
+            : 'The sound defaults every user and device starts from.'}
           ?expanded=${true}
           ?outlined=${true}>
           <div class="nested-sections">
+          ${canEditGlobal ? '' : html`
+            <lcards-message
+              type="info"
+              message="An administrator sets these defaults. To change sound for yourself or this device, use Per-User / Per-Device Overrides below."
+            ></lcards-message>
+          `}
 
         <!-- ── MASTER CONTROLS ── -->
         <lcards-form-section
@@ -948,30 +909,26 @@ export class LCARdSSoundConfigTab extends LitElement {
           ?expanded=${true}
           ?outlined=${true}>
 
-          <div class="control-row prominent">
-            <div class="control-label">
-              <strong>Sound Effects Enabled</strong>
-              <span class="hint">Master on/off for all LCARdS sounds</span>
-            </div>
+          <div class="control-row">
             <ha-selector
               .hass=${this.hass}
+              .label=${'Sound effects enabled'}
+              .helper=${'Master on/off for all LCARdS sounds'}
               .selector=${{ boolean: {} }}
               .value=${masterEnabled}
-              ?disabled=${!this._helperExists('sound_enabled')}
+              ?disabled=${!this._helperExists('sound_enabled') || !canEditGlobal}
               @value-changed=${(e) => { e.stopPropagation(); this._setHelperValue('sound_enabled', e.detail.value); }}
             ></ha-selector>
           </div>
 
           <div class="control-row ${!masterEnabled ? 'dimmed' : ''}">
-            <div class="control-label">
-              Volume
-              <span class="hint">Master volume for all sound effects</span>
-            </div>
             <ha-selector
               .hass=${this.hass}
+              .label=${'Volume'}
+              .helper=${'Master volume for all sound effects'}
               .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
               .value=${volumeValue}
-              ?disabled=${!this._helperExists('sound_volume') || !masterEnabled}
+              ?disabled=${!this._helperExists('sound_volume') || !masterEnabled || !canEditGlobal}
               @value-changed=${(e) => this._setHelperValue('sound_volume', e.detail.value)}
             ></ha-selector>
           </div>
@@ -986,21 +943,18 @@ export class LCARdSSoundConfigTab extends LitElement {
           class="${!masterEnabled ? 'dimmed' : ''}">
 
           ${[
-            { key: 'sound_cards_enabled',  icon: 'mdi:gesture-tap',  label: 'Card Interaction Sounds',   hint: 'Button taps, holds, sliders, toggles' },
-            { key: 'sound_ui_enabled',     icon: 'mdi:navigation',   label: 'UI Navigation Sounds',      hint: 'Sidebar, page transitions, menus' },
-            { key: 'sound_alerts_enabled', icon: 'mdi:alert-circle', label: 'Alert & System Sounds',     hint: 'Alert mode changes, system events' },
+            { key: 'sound_cards_enabled',  label: 'Card interaction sounds', hint: 'Button taps, holds, sliders, toggles' },
+            { key: 'sound_ui_enabled',     label: 'UI navigation sounds',    hint: 'Sidebar, page transitions, menus' },
+            { key: 'sound_alerts_enabled', label: 'Alert and system sounds', hint: 'Alert mode changes, system events' },
           ].map(cat => html`
             <div class="control-row">
-              <div class="control-label">
-                <ha-icon icon="${cat.icon}"></ha-icon>
-                ${cat.label}
-                <span class="hint">${cat.hint}</span>
-              </div>
               <ha-selector
                 .hass=${this.hass}
+                .label=${cat.label}
+                .helper=${cat.hint}
                 .selector=${{ boolean: {} }}
                 .value=${this._getHelperValue(cat.key) !== 'off' && this._getHelperValue(cat.key) !== false}
-                ?disabled=${!this._helperExists(cat.key) || !masterEnabled}
+                ?disabled=${!this._helperExists(cat.key) || !masterEnabled || !canEditGlobal}
                 @value-changed=${(e) => { e.stopPropagation(); this._setHelperValue(cat.key, e.detail.value); }}
               ></ha-selector>
             </div>
@@ -1023,22 +977,20 @@ export class LCARdSSoundConfigTab extends LitElement {
           ` : ''}
 
           <div class="control-row">
-            <div class="control-label">
-              Active Scheme
-              <span class="hint">"None (silent)" plays nothing by default — per-event overrides below still apply on top of it</span>
-            </div>
             <div class="scheme-row">
               <ha-selector
                 .hass=${this.hass}
+                .label=${'Active scheme'}
+                .helper=${'"None (silent)" plays nothing by default; per-event overrides below still apply on top of it'}
                 .selector=${{ select: {
                   options: this._schemeNames.map(s => ({
                     value: s,
-                    label: s === 'none' ? 'None (silent)' : (s.startsWith('custom:') ? `🛠️ ${s.slice(7)} (custom)` : s)
+                    label: s === 'none' ? 'None (silent)' : (s.startsWith('custom:') ? `${s.slice(7)} (custom)` : s)
                   })),
                   mode: 'dropdown'
                 }}}
                 .value=${schemeValue}
-                ?disabled=${!this._helperExists('sound_scheme') || !masterEnabled}
+                ?disabled=${!this._helperExists('sound_scheme') || !masterEnabled || !canEditGlobal}
                 @value-changed=${(e) => this._selectScheme(e.detail.value)}
               ></ha-selector>
               ${schemeValue !== 'none' ? html`
@@ -1050,7 +1002,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                   Preview
                 </ha-button>
               ` : ''}
-              ${window.lcards?.core?.soundManager?.isCustomScheme(schemeValue) ? html`
+              ${this._canEditGlobal() && window.lcards?.core?.soundManager?.isCustomScheme(schemeValue) ? html`
                 <ha-button
                   @click=${this._askDeleteScheme}
                   variant="danger"
@@ -1062,16 +1014,6 @@ export class LCARdSSoundConfigTab extends LitElement {
               ` : ''}
             </div>
           </div>
-          ${this._confirmDeleteScheme ? html`
-            <div class="banner warning">
-              <ha-icon icon="mdi:alert"></ha-icon>
-              <span>Permanently delete the custom scheme <strong>${schemeValue.slice(7)}</strong>? This cannot be undone.</span>
-              <div class="confirm-actions">
-                <ha-button class="danger-btn" variant="danger" @click=${() => this._deleteScheme(schemeValue)}>Yes, delete</ha-button>
-                <ha-button @click=${this._cancelDeleteScheme}>Cancel</ha-button>
-              </div>
-            </div>
-          ` : ''}
 
           <!-- ── PER-EVENT OVERRIDES (subsection — reflects whichever scheme is selected above;
                global overrides still apply on top of 'none', which is a genuine empty scheme) ── -->
@@ -1079,8 +1021,8 @@ export class LCARdSSoundConfigTab extends LitElement {
               header="Per-Event Overrides"
               icon="mdi:tune-variant"
               description=${window.lcards?.core?.soundManager?.isCustomScheme(schemeValue)
-                ? `Editing "${schemeValue.slice(7)}" directly — click Save to commit changes to this custom scheme`
-                : 'Override individual events on top of the active (built-in) scheme — click Save to commit changes'}
+                ? `Editing "${schemeValue.slice(7)}" directly: click Save to commit changes to this custom scheme`
+                : 'Override individual events on top of the active (built-in) scheme. Click Save to commit changes'}
               ?expanded=${false}
               ?outlined=${true}
               class="${!masterEnabled ? 'dimmed' : ''}">
@@ -1093,15 +1035,25 @@ export class LCARdSSoundConfigTab extends LitElement {
               ` : ''}
 
               ${this._eventTypes.length > 0 ? html`
-                <lcards-message
-                  type="info"
-                  message="Overrides are stored in LCARdS Integration persistent storage.  See Storage tab for details."
-                ></lcards-message>
+                ${this._canEditGlobal() ? html`
+                  <lcards-message
+                    type="info"
+                    message="Overrides are stored in LCARdS Integration persistent storage.  See Storage tab for details."
+                  ></lcards-message>
+                ` : html`
+                  <lcards-message
+                    type="info"
+                    message="Only an administrator can change these overrides and custom schemes. Set your own sounds under Per-User / Per-Device Overrides below."
+                  ></lcards-message>
+                `}
+                ${this._overridesError ? html`
+                  <lcards-message type="error" .message=${this._overridesError}></lcards-message>
+                ` : ''}
 
                 <!-- ── One dynamic action area — save-scheme form, reset confirm, or the
                      steady-state action row are mutually exclusive, so they share a single slot
                      instead of stacking as separate banners. ── -->
-                ${this._savingScheme ? html`
+                ${!this._canEditGlobal() ? '' : this._savingScheme ? html`
                   <div class="banner info save-scheme-banner">
                     <div class="save-scheme-header">
                       <ha-icon icon="mdi:content-save-plus"></ha-icon>
@@ -1117,16 +1069,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                     ${this._saveSchemeError ? html`<span class="error-text">${this._saveSchemeError}</span>` : ''}
                     <div class="confirm-actions">
                       <ha-button @click=${this._confirmSaveScheme}>Save</ha-button>
-                      <ha-button @click=${this._cancelSaveScheme}>Cancel</ha-button>
-                    </div>
-                  </div>
-                ` : this._confirmResetOverrides ? html`
-                  <div class="banner warning">
-                    <ha-icon icon="mdi:alert"></ha-icon>
-                    <span>This will <strong>clear all ${Object.keys(this._overrides).length} event${Object.keys(this._overrides).length !== 1 ? 's' : ''}</strong> and restore scheme defaults. Are you sure?</span>
-                    <div class="confirm-actions">
-                      <ha-button class="danger-btn" variant="danger" @click=${this._resetOverrides}>Yes, reset all</ha-button>
-                      <ha-button @click=${this._cancelResetOverrides}>Cancel</ha-button>
+                      <ha-button appearance="plain" @click=${this._cancelSaveScheme}>Cancel</ha-button>
                     </div>
                   </div>
                 ` : (this._overridesDirty || Object.keys(this._overrides).length > 0) ? html`
@@ -1180,8 +1123,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                                 .label=${CATEGORY_LABELS[evt.category] || evt.category}
                                 style="
                                   --ha-assist-chip-filled-container-color: ${CATEGORY_CHIP_BG[evt.category] || 'var(--secondary-background-color)'};
-                                  --md-assist-chip-label-text-color: ${CATEGORY_CHIP_FG[evt.category] || 'var(--primary-text-color)'};
-                                  --md-sys-color-on-surface: ${CATEGORY_CHIP_FG[evt.category] || 'var(--primary-text-color)'};
+                                  --ha-assist-chip-label-text-color: ${CATEGORY_CHIP_FG[evt.category] || 'var(--primary-text-color)'};
                                 "
                               ></ha-assist-chip>
                             </td>
@@ -1191,9 +1133,9 @@ export class LCARdSSoundConfigTab extends LitElement {
                                 .value=${overrideValue}
                                 .audioAssets=${this._audioAssets}
                                 .schemeLabel=${window.lcards?.core?.soundManager?.isCustomScheme(schemeValue)
-                                  ? '— Not set in this scheme (silent) —'
-                                  : '— Use scheme default —'}
-                                ?disabled=${!masterEnabled}
+                                  ? '(Not set in this scheme: silent)'
+                                  : '(Use scheme default)'}
+                                ?disabled=${!masterEnabled || !this._canEditGlobal()}
                                 @value-changed=${(e) => this._setOverride(evt.key, e.detail.value)}
                               ></lcards-sound-source-selector>
                             </td>
@@ -1254,8 +1196,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                       .label=${h.exists ? 'Exists' : 'Missing'}
                       style="
                         --ha-assist-chip-filled-container-color: ${h.exists ? 'var(--success-color)' : 'var(--error-color)'};
-                        --md-assist-chip-label-text-color: white;
-                        --md-sys-color-on-surface: white;
+                        --ha-assist-chip-label-text-color: white;
                       "
                     >
                       <ha-icon icon="${h.exists ? 'mdi:check-circle' : 'mdi:alert-circle'}" slot="icon"></ha-icon>
@@ -1297,7 +1238,7 @@ export class LCARdSSoundConfigTab extends LitElement {
           ?outlined=${true}>
           <lcards-message
             type="info"
-            message="Requires the LCARdS integration v1.12+ with scoped storage support. Update the integration to use this feature."
+            message="Needs the LCARdS integration, which stores these overrides per user and per device."
           ></lcards-message>
         </lcards-form-section>
       `;
@@ -1469,7 +1410,7 @@ export class LCARdSSoundConfigTab extends LitElement {
           <div class="scoped-overrides-header">
             <ha-icon icon="mdi:tune"></ha-icon>
             <span>Per-Event Overrides
-              <span class="hint">&nbsp;—&nbsp;override individual events at the ${scope} level</span>
+              <span class="hint">&nbsp;·&nbsp;override individual events at the ${scope} level</span>
             </span>
             ${hasAnyScopedOverride ? html`
               <ha-button
@@ -1508,8 +1449,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                             .label=${CATEGORY_LABELS[evt.category] || evt.category}
                             style="
                               --ha-assist-chip-filled-container-color: ${CATEGORY_CHIP_BG[evt.category] ?? 'transparent'};
-                              --md-assist-chip-label-text-color: ${CATEGORY_CHIP_FG[evt.category] ?? 'inherit'};
-                              --md-sys-color-on-surface: ${CATEGORY_CHIP_FG[evt.category] ?? 'inherit'};
+                              --ha-assist-chip-label-text-color: ${CATEGORY_CHIP_FG[evt.category] ?? 'inherit'};
                             "
                           ></ha-assist-chip>
                         </td>
@@ -1518,7 +1458,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                             .hass=${this.hass}
                             .value=${scopedVal}
                             .audioAssets=${this._audioAssets}
-                            .schemeLabel=${'🎵 Use scheme default'}
+                            .schemeLabel=${'Use scheme default'}
                             ?disabled=${!masterEnabled}
                             @value-changed=${(e) => this._setScopedOverride(evt.key, e.detail.value, scope)}
                           ></lcards-sound-source-selector>
@@ -1549,7 +1489,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     `;
   }
 
-  static styles = css`
+  static styles = [surfaceStyles, css`
     :host {
       flex: 1;
       display: flex;
@@ -1558,47 +1498,8 @@ export class LCARdSSoundConfigTab extends LitElement {
       overflow: hidden;
     }
 
-    .studio-layout {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      background: var(--primary-background-color);
-      min-height: 0;
-      border-radius: var(--ha-card-border-radius, 12px);
-      padding: 16px;
-    }
 
-    .scrollable-body {
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      padding-bottom: 8px;
-      /* Suppress lcards-form-section's own margin-bottom; gap handles spacing */
-      --lcards-section-spacing: 0;
-    }
 
-    .banner {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      border-radius: var(--ha-border-radius-md);
-      font-size: 0.9em;
-    }
-    .banner.warning {
-      background: color-mix(in srgb, var(--warning-color, #ff9800) 15%, transparent);
-      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
-      color: var(--primary-text-color);
-    }
-    .banner.info {
-      background: color-mix(in srgb, var(--info-color, #03a9f4) 15%, transparent);
-      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--info-color, #03a9f4) 40%, transparent);
-      color: var(--primary-text-color);
-    }
     .banner ha-button {
       margin-left: auto;
     }
@@ -1640,29 +1541,13 @@ export class LCARdSSoundConfigTab extends LitElement {
       border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 50%, transparent);
     }
     .control-row:last-child { border-bottom: none; }
-    .control-row.prominent { font-size: 1.05em; }
-
-    .control-label {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-width: 0;
-      gap: 2px;
-      font-size: 0.9em;
-    }
-    .control-label ha-icon {
-      margin-right: 6px;
-      color: var(--primary-color);
-    }
-    .hint {
-      font-size: 0.8em;
-      color: var(--secondary-text-color);
-    }
+    .control-row > ha-selector { flex: 1; min-width: 0; }
 
     .scheme-row {
+      flex: 1;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--ha-space-2);
       min-width: 280px;
     }
     .scheme-row ha-selector {
@@ -1890,7 +1775,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     .scoped-overrides-table {
       font-size: 0.88rem;
     }
-  `;
+  `];
 }
 
 if (!customElements.get('lcards-sound-config-tab')) customElements.define('lcards-sound-config-tab', LCARdSSoundConfigTab);

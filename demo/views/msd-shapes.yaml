@@ -1,0 +1,102 @@
+# MSD shapes and the shield bubble (D1c): shape overlays (rect, circle, polyline)
+# drawn on an MSD, coloured by their entity, with lines attached to them; and a
+# shield bubble round the ship (four polylines) that turns orange, then red, as
+# SHIELDS drops.
+title: MSD shapes and shields
+path: msd-shapes
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SHIELDS } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        tap_action: { action: toggle }
+        text: { name: { content: LIGHTS, show: true } }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_doors
+        preset: lozenge
+        tap_action: { action: toggle }
+        text: { name: { content: DOORS, show: true } }
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      # The shield bubble: four arcs round the hull (MSD Studio's Suggest Shield Bubble draws these)
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:ncc-1701-a-blue
+          view_box: [180, 270, 1600, 720]
+          overlays:
+            - id: shield_fore
+              type: shape
+              kind: polyline
+              entity: input_number.lcards_test_shields
+              corner_style: miter
+              points: [[1526, 431], [1553, 450], [1577, 470], [1598, 491], [1616, 512], [1631, 534], [1643, 556], [1651, 579], [1656, 602], [1658, 625], [1656, 648], [1651, 671], [1643, 694], [1631, 716], [1616, 738], [1598, 759], [1577, 780], [1553, 800], [1526, 819]]
+              style: { width: 6, line_cap: round, color: { default: var(--lcards-blue-light), below:50: var(--lcards-orange), below:20: var(--lcars-alert-red) } }
+            - id: shield_starboard
+              type: shape
+              kind: polyline
+              entity: input_number.lcards_test_shields
+              corner_style: miter
+              points: [[1374, 892], [1334, 905], [1292, 916], [1249, 926], [1204, 935], [1158, 942], [1111, 948], [1064, 952], [1016, 954], [968, 955], [920, 954], [872, 952], [825, 948], [778, 942], [732, 935], [687, 926], [644, 916], [602, 905], [562, 892]]
+              style: { width: 6, line_cap: round, color: { default: var(--lcards-blue-light), below:50: var(--lcards-orange), below:20: var(--lcars-alert-red) } }
+            - id: shield_aft
+              type: shape
+              kind: polyline
+              entity: input_number.lcards_test_shields
+              corner_style: miter
+              points: [[410, 819], [383, 800], [359, 780], [338, 759], [320, 738], [305, 716], [293, 694], [285, 671], [280, 648], [278, 625], [280, 602], [285, 579], [293, 556], [305, 534], [320, 512], [338, 491], [359, 470], [383, 450], [410, 431]]
+              style: { width: 6, line_cap: round, color: { default: var(--lcards-blue-light), below:50: var(--lcards-orange), below:20: var(--lcars-alert-red) } }
+            - id: shield_port
+              type: shape
+              kind: polyline
+              entity: input_number.lcards_test_shields
+              corner_style: miter
+              points: [[562, 358], [602, 345], [644, 334], [687, 324], [732, 315], [778, 308], [825, 302], [872, 298], [920, 296], [968, 295], [1016, 296], [1064, 298], [1111, 302], [1158, 308], [1204, 315], [1249, 324], [1292, 334], [1334, 345], [1374, 358]]
+              style: { width: 6, line_cap: round, color: { default: var(--lcards-blue-light), below:50: var(--lcards-orange), below:20: var(--lcars-alert-red) } }
+        grid_options: { columns: full, rows: 8 }
+      # The three shape kinds: a room (rect) lit by LIGHTS, a containment field
+      # (circle) by DOORS, a conduit (polyline with bevelled corners), and a line
+      # from the room to the conduit's middle point
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg: { source: none }
+          view_box: [0, 0, 600, 300]
+          overlays:
+            - id: room
+              type: shape
+              kind: rect
+              position: [40, 60]
+              size: [180, 120]
+              corner_radius: 12
+              entity: input_boolean.lcards_test_lights
+              style: { color: var(--lcards-orange), width: 2, fill: { active: var(--lcards-orange), inactive: var(--lcards-gray-dark) }, fill_opacity: 0.4 }
+            - id: field
+              type: shape
+              kind: circle
+              position: [440, 40]
+              size: [120, 120]
+              entity: input_boolean.lcards_test_doors
+              style: { color: var(--lcards-blue), width: 2, fill: { active: var(--lcars-alert-red), inactive: var(--lcards-blue-dark) }, fill_opacity: 0.4 }
+            - id: conduit
+              type: shape
+              kind: polyline
+              points: [[260, 240], [380, 240], [380, 200], [560, 200], [560, 280]]
+              corner_style: bevel
+              corner_radius: 16
+              style: { color: var(--lcards-blue-light), width: 4, dash_array: "8,6" }
+            - { id: room-link, type: line, anchor: room, anchor_side: bottom, attach_to: conduit, attach_side: vertex1, route: auto, corner_style: round, style: { color: var(--lcards-moonlight), width: 2 } }
+        grid_options: { columns: 24, rows: 6 }

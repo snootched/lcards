@@ -15,22 +15,65 @@
 
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 import { resolvePresetParams, getResolvedEasing } from '../../../../utils/lcards-anim-helpers.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
+import { resolveColor as resolveConfiguredColor } from '../../../themes/resolve-color.js';
+import { prefersReducedMotion } from '../../../../utils/reduced-motion.js';
 
 /**
  * Tracks the currently-active WAAPI Animation created by 'stagger-flash' for
  * each element, keyed by element so a later re-registration (e.g. a preset
  * switch that re-runs setup() on the SAME still-attached elements, before a
  * fresh SVG render replaces them) can cancel the previous animation instead
- * of leaving two Animations racing on the same property — 'stagger-flash'
- * uses raw element.animate() specifically to get independent per-element
- * looping, which means the returned Animation object isn't visible to
- * AnimationManager's own instance tracking (that only sees the harmless 1ms
- * anime.js stagger-delay vehicle, not the real WAAPI animation) and would
- * otherwise never get cancelled.
+ * of leaving two Animations racing on the same property. AnimationManager
+ * tracks each animation through a staggerFlashHandle (stop, reduced motion,
+ * re-renders); this map is the safety net for a re-registration the manager
+ * did not stop, such as a re-render replaying the animation on the same element.
  * @type {WeakMap<Element, Animation>}
  */
 const _activeStaggerFlashAnimations = new WeakMap();
+
+/**
+ * A handle AnimationManager can track for one element's stagger-flash WAAPI
+ * animation (see _reportPresetInstances in lcards-anim-helpers.js). setup() returns
+ * it at once; the real Animation attaches a tick later, when _applyWapi knows every
+ * element. A stop or a reduced-motion settle that comes first cancels it before it
+ * starts. revert()/cancel() remove the animation's effect (fill: both), restoring the
+ * element; targets lets a card re-render keep it running when the element survives.
+ * @param {Element} element
+ * @param {boolean} loop
+ */
+function staggerFlashHandle(element, loop) {
+  return {
+    targets: [element],
+    /** @type {Animation|null} */
+    animation: null,
+    cancelled: false,
+    completed: false,
+    iterationCount: loop ? Infinity : 1,
+    get currentTime() { return Number(this.animation?.currentTime) || 0; },
+    get speed() { return this.animation?.playbackRate ?? 1; },
+    set speed(v) { if (this.animation) this.animation.playbackRate = v; },
+    seek(time) { if (this.animation) this.animation.currentTime = time; return this; },
+    pause() { this.animation?.pause(); return this; },
+    complete() { this.animation?.finish(); this.cancelled = true; this.completed = true; return this; },
+    cancel() { this.animation?.cancel(); this.cancelled = true; this.completed = true; return this; },
+    revert() { return this.cancel(); },
+  };
+}
+
+/**
+ * The optional anime.js v4 stagger extras a preset passes through to its marker:
+ * reversed order, random jitter (ms, or a [start, end] ramp) and a seed that makes
+ * jitter and from: 'random' the same on every load.
+ * @param {Record<string, any>} p - resolved preset params
+ */
+function staggerExtras(p) {
+  /** @type {Record<string, any>} */
+  const extras = {};
+  if (p.reversed === true) extras.reversed = true;
+  if (p.jitter !== undefined) extras.jitter = p.jitter;
+  if (p.seed !== undefined) extras.seed = p.seed;
+  return extras;
+}
 
 /**
  * Stagger animation presets
@@ -45,12 +88,15 @@ export const STAGGER_PRESETS = {
    *
    * Parameters:
    * - grid (required) - Grid dimensions [cols, rows] (e.g., [6, 1] for alert bars)
-   * - from (default: 'start') - Start position:
-   *   - 'start' - Top-left to bottom-right
-   *   - 'end' - Bottom-right to top-left
+   * - from (default: 'first') - Start position:
+   *   - 'first' (alias 'start') - Top-left to bottom-right
+   *   - 'last' (alias 'end') - Bottom-right to top-left
    *   - 'center' - Center outward
    *   - 'edges' - Edges inward
-   *   - [x, y] - Custom grid position (0-indexed)
+   *   - 'random' - Random order (reproducible with seed)
+   *   - [col, row] - A grid cell (0-indexed)
+   * - axis (optional) - 'x' / 'row' or 'y' / 'column': stagger along one axis only
+   * - reversed, jitter, seed (optional) - see staggerExtras()
    * - delay (default: 100) - Delay between elements in ms
    * - property (default: 'scale') - Property to animate
    * - from_value (default: 0.8) - Starting value
@@ -69,7 +115,6 @@ export const STAGGER_PRESETS = {
   'stagger-grid': (def) => {
     const p = resolvePresetParams(def);
     const grid = p.grid || [1, 1];
-    const from = p.from || 'start';
     const delay = p.delay !== undefined ? p.delay : 100;
     const property = p.property || 'scale';
     const fromValue = p.from_value !== undefined ? p.from_value : 0.8;
@@ -83,6 +128,11 @@ export const STAGGER_PRESETS = {
       lcardsLog.warn('[stagger-grid preset] Invalid grid parameter, expected [cols, rows]');
       return { anime: {}, styles: {} };
     }
+    // anime.js reads an array `from` as 0 to 1 fractions of the grid; this preset
+    // documents a 0-indexed [col, row] cell
+    const from = Array.isArray(p.from)
+      ? p.from.map((cell, i) => (grid[i] > 1 ? cell / (grid[i] - 1) : 0))
+      : (p.from || 'first');
 
     return {
       anime: {
@@ -95,9 +145,70 @@ export const STAGGER_PRESETS = {
           _stagger: true,
           value: delay,
           grid,
-          from
+          from,
+          ...(p.axis !== undefined ? { axis: p.axis } : {}),
+          ...staggerExtras(p)
         }
       },
+      styles: {
+        transformOrigin: 'center',
+        transformBox: 'fill-box'
+      }
+    };
+  },
+
+  /**
+   * Tap Ripple - a wave across a group of targets, starting where it was tapped
+   *
+   * Every target pulses (scale up, dim, and optionally a colour flash) and back, each
+   * one later the further it is from the tap point. Positions come from the layout
+   * (anime.js grid stagger with `grid: true`), so it works on data-grid cells or any
+   * set of buttons or overlays without a [cols, rows]. Triggered by on_tap, on_hold or
+   * on_double_tap; any other trigger starts from the centre.
+   *
+   * Parameters:
+   * - spread (default: 400) - ms for the wave to reach the farthest target. A delay
+   *   range rather than a step: anime.js measures grid distances in units of the
+   *   closest pair of targets, so a step would make a wide, short grid crawl.
+   * - scale (default: 1.08) - peak scale of each target
+   * - opacity_min (default: 0.4) - lowest opacity of each target
+   * - color (optional) - flash colour at the peak (theme token, CSS variable or colour)
+   * - property (default: 'color') - what `color` sets: 'color' for HTML text (data-grid
+   *   cells), 'fill' or 'stroke' for SVG shapes
+   * - from (default: 'pointer') - any stagger from: 'center', 'first', ...
+   * - jitter, seed, reversed (optional) - see staggerExtras()
+   * - duration (default: 500) - one target's pulse, ms
+   * - ease (default: 'outQuad')
+   */
+  'tap-ripple': (def) => {
+    const p = resolvePresetParams(def);
+    const duration = p.duration || 500;
+    const scale = p.scale !== undefined ? p.scale : 1.08;
+    const opacityMin = p.opacity_min !== undefined ? p.opacity_min : 0.4;
+    /** @type {Record<string, any>} */
+    const anime = {
+      scale: [1, scale, 1],
+      opacity: [1, opacityMin, 1],
+      duration,
+      ease: getResolvedEasing(p) || 'outQuad',
+      loop: false,
+      delay: {
+        _stagger: true,
+        value: [0, p.spread !== undefined ? p.spread : 400],
+        from: p.from ?? 'pointer',
+        ...(p.grid !== undefined ? { grid: p.grid } : {}),
+        ...staggerExtras(p)
+      }
+    };
+    if (p.color) {
+      const property = p.property || 'color';
+      const flash = resolveConfiguredColor(p.color, { concrete: true });
+      // Back to the colour the target had before (read when the animation starts)
+      const original = (/** @type {Element} */ el) => getComputedStyle(el).getPropertyValue(property) || flash;
+      anime[property] = [{ to: flash, duration: duration / 2 }, { to: original, duration: duration / 2 }];
+    }
+    return {
+      anime,
       styles: {
         transformOrigin: 'center',
         transformBox: 'fill-box'
@@ -113,7 +224,9 @@ export const STAGGER_PRESETS = {
    *
    * Parameters:
    * - delay (default: 100) - Delay between elements in ms
-   * - direction (default: 'normal') - Wave direction ('normal' or 'reverse')
+   * - reversed (default: false) - Run the wave from the last element
+   * - direction (legacy) - 'reverse' is the same as reversed: true
+   * - jitter, seed (optional) - see staggerExtras()
    * - property (default: 'translateY') - Property to animate
    * - amplitude (default: -20) - Wave amplitude (distance)
    * - duration (default: 800)
@@ -131,7 +244,6 @@ export const STAGGER_PRESETS = {
   'stagger-wave': (def) => {
     const p = resolvePresetParams(def);
     const delay = p.delay !== undefined ? p.delay : 100;
-    const direction = p.direction || 'normal';
     const property = p.property || 'translateY';
     const amplitude = p.amplitude !== undefined ? p.amplitude : -20;
     const duration = p.duration || 800;
@@ -149,7 +261,7 @@ export const STAGGER_PRESETS = {
         delay: {
           _stagger: true,
           value: delay,
-          direction: direction === 'reverse' ? 'reverse' : 'normal'
+          ...staggerExtras({ ...p, reversed: p.reversed === true || p.direction === 'reverse' })
         }
       },
       styles: {}
@@ -163,9 +275,12 @@ export const STAGGER_PRESETS = {
    * Useful for ripple effects and circular layouts.
    *
    * Parameters:
-   * - from (default: 'center') - Start position:
-   *   - 'center' - Center of bounding box
-   *   - [x, y] - Custom position in pixels
+   * - from (default: 'center') - Start position, measured on the targets' layout
+   *   positions (stagger grid: true):
+   *   - 'center' - Center of the group
+   *   - 'first' / 'last' / 'random'
+   *   - [x, y] - A point as fractions of the group (0 to 1, [0, 0] = top-left)
+   * - reversed, jitter, seed (optional) - see staggerExtras()
    * - delay (default: 50) - Base delay between rings in ms
    * - property (default: 'scale') - Property to animate
    * - from_value (default: 0) - Starting value
@@ -200,9 +315,10 @@ export const STAGGER_PRESETS = {
         loop,
         delay: {
           _stagger: true,
-          _radial: true,
           value: delay,
-          from
+          grid: true,  // distances from the targets' real positions
+          from,
+          ...staggerExtras(p)
         }
       },
       styles: {
@@ -260,36 +376,9 @@ export const STAGGER_PRESETS = {
     const trailOpacity = p.trail_opacity !== undefined ? p.trail_opacity : 0.25;
     const loop         = p.loop !== undefined ? p.loop : true;
 
-    // Resolve theme: tokens, computed colour expressions (including those with var() args),
-    // and plain CSS variables at registration time so WAAPI gets concrete hex/rgb values.
-    // Delegates to ThemeTokenResolver (the canonical resolution path) which handles
-    // theme: tokens and computed expressions; falls back to resolveCssVariable for plain var().
-    const resolveColor = (c) => {
-      if (typeof c !== 'string') return c;
-      const resolver = window.lcards?.core?.themeManager?.resolver;
-      if (resolver) {
-        // resolver.resolve() expects the token path WITHOUT the 'theme:' prefix
-        // (it recognises bare 'base(...)'/'darken(...)'/etc. — a still-prefixed
-        // string like 'theme:base(...)' matches none of its checks and falls
-        // through to a token-tree lookup that can't find it, silently returning
-        // the fallback unchanged).
-        const tokenPath = c.startsWith('theme:') ? c.slice(6) : c;
-        const out = resolver.resolve(tokenPath, c);
-        if (out !== c) {
-          // WAAPI keyframes need concrete values — materialise any bare var(...)
-          // the resolver left behind (same requirement as SVG setAttribute()).
-          if (typeof out === 'string' && out.includes('var(')) {
-            return ColorUtils.resolveCssVariable(out, out);
-          }
-          return out;
-        }
-      }
-      // Plain CSS variable (resolver doesn't handle bare var() strings)
-      if (c.includes('var(')) {
-        return ColorUtils.resolveCssVariable(c, c);
-      }
-      return c;
-    };
+    // WAAPI keyframes need concrete colours (theme: tokens, computed
+    // expressions and CSS variables all resolved at registration time).
+    const resolveColor = (c) => resolveConfiguredColor(c, { concrete: true });
 
     const rLead  = resolveColor(leadColor);
     const rTrail = resolveColor(trailColor);
@@ -308,8 +397,16 @@ export const STAGGER_PRESETS = {
     let _timer = null;
 
     const _applyWapi = () => {
+      // AnimationManager settles the handles under reduced motion (they arrive
+      // cancelled); this also covers callers outside the manager.
+      // essential_motion: an alert flash that must play anyway
+      if (prefersReducedMotion() && p.essential_motion !== true) {
+        _pending.length = 0;
+        return;
+      }
       const N = _pending.length;
-      _pending.splice(0).forEach((el, i) => {
+      _pending.splice(0).forEach(({ el, handle }, i) => {
+        if (handle.cancelled) return; // stopped before it started
         let idx;
         if      (from === 'last')   idx = N - 1 - i;
         else if (from === 'center') idx = Math.abs(i - Math.floor((N - 1) / 2));
@@ -331,6 +428,8 @@ export const STAGGER_PRESETS = {
           easing:     'linear'  // overall composite; per-keyframe easing handles the shape
         });
         _activeStaggerFlashAnimations.set(el, animation);
+        handle.animation = animation;
+        animation.addEventListener('finish', () => { handle.completed = true; });
         animation.addEventListener('cancel', () => {
           // Don't clobber a newer animation's entry if this cancel fired
           // asynchronously after another setup() already replaced it.
@@ -352,7 +451,10 @@ export const STAGGER_PRESETS = {
       },
       // Called per-element (DOM order) by the stagger-batch path.
       setup: (element) => {
-        _pending.push(element);
+        const handle = staggerFlashHandle(element, !!loop);
+        _pending.push({ el: element, handle });
+        // Tracked by AnimationManager: stop, reduced motion and re-renders reach it
+        /** @type {any} */ (element)._presetInstances = [handle];
         clearTimeout(_timer);
         _timer = setTimeout(_applyWapi, 0);
       },

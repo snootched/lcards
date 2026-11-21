@@ -104,8 +104,8 @@ body:
       label: What happened?
       description: A clear description of the bug. Include what you expected to happen vs. what actually happened.
       placeholder: |
-        Expected: The button color updates when the entity turns on.
-        Actual: The button stays the default color regardless of entity state.
+        Expected: The button colour updates when the entity turns on.
+        Actual: The button stays the default colour regardless of entity state.
     validations:
       required: true
 
@@ -116,7 +116,7 @@ body:
       placeholder: |
         1. Add an `lcards-button` card with the config below
         2. Turn on the linked entity
-        3. Observe that the button color does not change
+        3. Observe that the button colour does not change
     validations:
       required: true
 

@@ -24,6 +24,7 @@ import '../shared/lcards-message.js';
 import './lcards-multi-action-editor.js';
 import './lcards-color-section-v2.js';
 import '../lcards-animation-editor.js';
+import { showPromptDialog } from '../../../views/layout-edit-dialogs.js';
 
 export class LCARdSUnifiedSegmentEditor extends LitElement {
     static get properties() {
@@ -193,7 +194,6 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
     _deleteSegment(segmentId) {
         const newSegments = { ...this.segments };
         delete newSegments[segmentId];
-        // @ts-ignore - TS2339: auto-suppressed
         this.editor._setConfigValue(`${this._getBasePrefix()}.segments`, newSegments);
     }
 
@@ -201,12 +201,16 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
      * Handle add segment button click
      * @private
      */
-    _handleAddSegment() {
-        const segmentId = prompt('Enter segment ID (must match an element id in your SVG):');
-        if (segmentId && segmentId.trim()) {
+    async _handleAddSegment() {
+        const segmentId = await showPromptDialog({
+            title: 'Add segment',
+            message: 'The segment ID must match an element id in your SVG.',
+            label: 'Segment ID',
+            confirmText: 'Add',
+        });
+        if (segmentId) {
             const basePath = `svg.segments.${segmentId.trim()}`;
             // Create empty segment config to make it appear
-            // @ts-ignore - TS2339: auto-suppressed
             this.editor._setConfigValue(`${basePath}.tap_action`, { action: 'none' });
         }
     }
@@ -257,7 +261,6 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     Applied to all segments unless overridden (${basePath})
                 </div>
                 <lcards-multi-action-editor
-                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .actions=${this._getDefaultActions()}
                     @value-changed=${this._handleDefaultActionsChange}>
@@ -271,9 +274,7 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     ?expanded=${false}>
 
                     <lcards-color-section-v2
-                        // @ts-ignore - TS2339: auto-suppressed
                         .editor=${this.editor}
-                        // @ts-ignore - TS2339: auto-suppressed
                         .config=${this.editor.config}
                         basePath="${basePath}.style.fill"
                         header="Fill"
@@ -284,9 +285,7 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     </lcards-color-section-v2>
 
                     <lcards-color-section-v2
-                        // @ts-ignore - TS2339: auto-suppressed
                         .editor=${this.editor}
-                        // @ts-ignore - TS2339: auto-suppressed
                         .config=${this.editor.config}
                         basePath="${basePath}.style.stroke"
                         header="Stroke"
@@ -297,14 +296,11 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     </lcards-color-section-v2>
 
                     <ha-selector
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .label=${'Stroke Width'}
                         .helper=${'SVG stroke width (number or string)'}
                         .selector=${{ text: {} }}
-                        // @ts-ignore - TS2339: auto-suppressed
                         .value=${this.editor._getConfigValue(`${basePath}.style.stroke-width`) || ''}
-                        // @ts-ignore - TS2339: auto-suppressed
                         @value-changed=${(e) => this.editor._setConfigValue(`${basePath}.style.stroke-width`, e.detail.value)}>
                     </ha-selector>
                 </lcards-form-section>
@@ -323,13 +319,10 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     </lcards-message>
 
                     <lcards-animation-editor
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .animations=${defaultConfig.animations || []}
-                        // @ts-ignore - TS2339: auto-suppressed
                         .cardElement=${this.editor._cardElement}
                         @animations-changed=${(e) => {
-                            // @ts-ignore - TS2339: auto-suppressed
                             this.editor._setConfigValue(`${basePath}.animations`, e.detail.value);
                         }}>
                     </lcards-animation-editor>
@@ -364,15 +357,12 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
         // Update each action
         ['tap_action', 'hold_action', 'double_tap_action'].forEach(key => {
             if (actions[key]?.action !== 'none') {
-                // @ts-ignore - TS2339: auto-suppressed
                 this.editor._setConfigValue(`${basePath}.${key}`, actions[key]);
             } else {
                 // Remove action if set to 'none'
-                // @ts-ignore - TS2339: auto-suppressed
                 const currentConfig = this.editor._getConfigValue(basePath) || {};
                 const updatedConfig = { ...currentConfig };
                 delete updatedConfig[key];
-                // @ts-ignore - TS2339: auto-suppressed
                 this.editor._setConfigValue(basePath, updatedConfig);
             }
         });
@@ -406,14 +396,11 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     <!-- Show manual selector field for custom mode if not auto-discovered -->
                     ${!isPredefined && !isDiscovered ? html`
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'CSS Selector'}
                             .helper=${'Element selector (e.g., #id, .class, [data-segment=\'name\'])'}
                             .selector=${{ text: {} }}
-                            // @ts-ignore - TS2339: auto-suppressed
                             .value=${this.editor._getConfigValue(`${this._getBasePath(segmentId)}.selector`) || ''}
-                            // @ts-ignore - TS2339: auto-suppressed
                             @value-changed=${(e) => this.editor._setConfigValue(`${this._getBasePath(segmentId)}.selector`, e.detail.value)}>
                         </ha-selector>
                     ` : ''}
@@ -422,11 +409,8 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     <div class="form-row">
                         <label>Entity Override</label>
                         <ha-entity-picker
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
-                            // @ts-ignore - TS2339: auto-suppressed
                             .value=${this.editor._getConfigValue(`${this._getBasePath(segmentId)}.entity`) || ''}
-                            // @ts-ignore - TS2339: auto-suppressed
                             @value-changed=${(e) => this.editor._setConfigValue(`${this._getBasePath(segmentId)}.entity`, e.detail.value)}
                             allow-custom-entity>
                         </ha-entity-picker>
@@ -439,7 +423,6 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                         Override default actions for this segment
                     </div>
                     <lcards-multi-action-editor
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .actions=${this._getSegmentActions(segmentId)}
                         @value-changed=${(e) => this._handleSegmentActionsChange(segmentId, e)}>
@@ -510,15 +493,12 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
         // Update each action
         ['tap_action', 'hold_action', 'double_tap_action'].forEach(key => {
             if (actions[key]?.action !== 'none') {
-                // @ts-ignore - TS2339: auto-suppressed
                 this.editor._setConfigValue(`${basePath}.${key}`, actions[key]);
             } else {
                 // Remove action if set to 'none'
-                // @ts-ignore - TS2339: auto-suppressed
                 const currentConfig = this.editor._getConfigValue(basePath) || {};
                 const updatedConfig = { ...currentConfig };
                 delete updatedConfig[key];
-                // @ts-ignore - TS2339: auto-suppressed
                 this.editor._setConfigValue(basePath, updatedConfig);
             }
         });
@@ -537,7 +517,6 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
 
         // Check if this card has component-level animations (system animations).
         // When it does, alert the user so they understand the context.
-        // @ts-ignore - TS2339: auto-suppressed
         const hasComponentAnimations = (this.editor._cardElement?._componentAnimations?.length ?? 0) > 0;
 
         return html`
@@ -549,11 +528,8 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
 
                 ${hasComponentAnimations ? html`
                     <lcards-message type="warning">
-                        <p style="margin: 0; font-size: 13px; line-height: 1.4;">
-                            This component has <strong>card-level animations</strong> defined (visible in the <strong>Effects tab</strong>).
-                            Segment animations are independent and work best for interaction triggers like <em>on_tap</em> or <em>on_hover</em>.
-                            Avoid redefining the same preset here — it will run in parallel, not replace the card-level animation.
-                        </p>
+                        This component has card-level animations (Effects tab). Segment animations run alongside them,
+                        so don't repeat a preset here.
                     </lcards-message>
                 ` : html`
                     <lcards-message type="info">
@@ -564,13 +540,10 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                 `}
 
                 <lcards-animation-editor
-                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .animations=${animations}
-                    // @ts-ignore - TS2339: auto-suppressed
                     .cardElement=${this.editor._cardElement}
                     @animations-changed=${(e) => {
-                        // @ts-ignore - TS2339: auto-suppressed
                         this.editor._setConfigValue(`${basePath}.animations`, e.detail.value);
                     }}>
                 </lcards-animation-editor>
@@ -595,9 +568,7 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                 ?expanded=${false}>
 
                 <lcards-color-section-v2
-                    // @ts-ignore - TS2339: auto-suppressed
                     .editor=${this.editor}
-                    // @ts-ignore - TS2339: auto-suppressed
                     .config=${this.editor.config}
                     basePath="${basePath}.style.fill"
                     header="Fill"
@@ -608,9 +579,7 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                 </lcards-color-section-v2>
 
                 <lcards-color-section-v2
-                    // @ts-ignore - TS2339: auto-suppressed
                     .editor=${this.editor}
-                    // @ts-ignore - TS2339: auto-suppressed
                     .config=${this.editor.config}
                     basePath="${basePath}.style.stroke"
                     header="Stroke"
@@ -621,19 +590,15 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                 </lcards-color-section-v2>
 
                 <ha-selector
-                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .label=${'Stroke Width'}
                     .helper=${'SVG stroke width (overrides default)'}
                     .selector=${{ text: {} }}
-                    // @ts-ignore - TS2339: auto-suppressed
                     .value=${this.editor._getConfigValue(`${basePath}.style.stroke-width`) || ''}
-                    // @ts-ignore - TS2339: auto-suppressed
                     @value-changed=${(e) => this.editor._setConfigValue(`${basePath}.style.stroke-width`, e.detail.value)}>
                 </ha-selector>
 
                 <ha-selector
-                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .label=${'Opacity'}
                     .helper=${'SVG opacity (0.0 = transparent, 1.0 = opaque)'}
@@ -645,9 +610,7 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                             mode: 'box'
                         }
                     }}
-                    // @ts-ignore - TS2339: auto-suppressed
                     .value=${this.editor._getConfigValue(`${basePath}.style.opacity`) || ''}
-                    // @ts-ignore - TS2339: auto-suppressed
                     @value-changed=${(e) => this.editor._setConfigValue(`${basePath}.style.opacity`, e.detail.value)}>
                 </ha-selector>
             </lcards-form-section>

@@ -1,0 +1,15 @@
+# button_template text: label font size, and name/state fields resolve their templates
+type: custom:lcards-select-menu
+entity: input_select.demo_mode
+preset: lozenge
+grid:
+  columns: 2
+  grid-auto-rows: 80px
+button_template:
+  text:
+    label:
+      font_size: 30
+    name:
+      show: true
+    state:
+      show: true

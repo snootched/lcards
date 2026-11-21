@@ -1,0 +1,12 @@
+# Built-in assets follow the bundle folder (bundle-base.spec.js): loaded from
+# /base-test/lcards/, the model, the planet picture and the fonts must come from
+# there too, never from /lcards/ at the site root.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: side
+  views:
+    side: { target: [0, 0, 0], yaw: 90, tilt: 4, distance: 140 }
+objects:
+  - { type: model, id: ship, src: builtin:galaxy_class, size: 70 }
+  - { type: sphere, id: planet, at: [0, 30, -40], radius: 12, image: builtin:mars_viking, line_width: 0.5 }

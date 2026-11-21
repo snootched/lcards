@@ -39,14 +39,34 @@ export const studioDialogStyles = css`
         flex-direction: column;
     }
 
-    /* .dialog-content is the direct light-DOM child slotted into that body —
+    /* Footer: HA lays it out as a flex row aligned to the end (Cancel, then
+       the brand Save). Secondary actions (Documentation, Reset) go in a
+       .footer-start group, which sits at the left. */
+    .footer-start {
+        display: flex;
+        align-items: center;
+        gap: var(--ha-space-3);
+        margin-inline-end: auto;
+    }
+
+    /* The ha-dialog needs the flexcontent attribute: it makes HA's own .body
+       a flex column, so .dialog-content (and the inset) fill the fixed dialog
+       height instead of shrinking to a short tab's content.
+
+       .dialog-content is the direct light-DOM child slotted into that body —
        without its own flex sizing it defaults to its content's natural
        height, which can exceed the body and force the *whole dialog* to
        scroll instead of just .tab-content. Keeping it in the same flex chain
        (flex:1, min-height:0, overflow:hidden) means only .tab-content (which
        opts in below) ever actually scrolls; the tab headers and canvas
-       toolbar stay put. */
+       toolbar stay put.
+
+       font-family: Home Assistant's panel typography (as haStyle and the
+       config panel host). Without it LCARdS text inherits the page's
+       hardcoded Roboto while HA controls follow the theme font (Antonio
+       under HA-LCARS), so one studio showed two fonts. */
     .dialog-content {
+        font-family: var(--ha-font-family-body);
         flex: 1;
         display: flex;
         flex-direction: column;
@@ -75,12 +95,7 @@ export const studioDialogStyles = css`
     }
 
     /* Tab content scrolling */
-    .tab-content {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: hidden;
-        min-height: 0;
-    }
+    /* .tab-content (the scrolling tab body) is defined below with its padding. */
 
     /* Never scrolls — always consumes exactly the space it's given. Overflow
        within the canvas is handled by d3-zoom pan/zoom, not a scrollbar. */
@@ -288,7 +303,9 @@ export const studioDialogStyles = css`
         max-width: 500px;
     }
 
-    /* Responsive */
+    /* Responsive: the default 50/50 layout stacks. A studio that sets its own
+       grid-template-columns must set grid-template-rows too, or it keeps these
+       two rows beside its two columns (tests/editor/studio-layout-css.test.js). */
     @media (max-width: 1024px) {
         .studio-layout {
             grid-template-columns: 1fr;

@@ -6,13 +6,26 @@
 
 import { globalTraceBuffer } from './RuleTraceBuffer.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { onStateChanged } from '../state-change-hub.js';
 import { BaseService } from '../../core/BaseService.js';
 import { compileRule, evalCompiled } from './compileConditions.js';  // ✨ NEW
 import { UnifiedTemplateEvaluator } from '../templates/UnifiedTemplateEvaluator.js';  // ✨ NEW
-import { deepMerge } from '../config-manager/merge-helpers.js';
 import { resolveAnimParam, resolveAnimCommandParams } from '../animation/resolveAnimParams.js';
 
+/** Rules that read the clock (time_between, weekday_in, random_chance) are checked again every minute, on the minute. */
+export const TIME_REFRESH_MS = 60000;
+
+/** Rule config without the engine's source-card metadata, as comparable text. */
+const ruleText = (rule) => {
+  const { _sourceCardId, _sourceCardType, ...own } = rule || {};
+  try { return JSON.stringify(own); } catch { return null; }
+};
+
 export class RulesEngine extends BaseService {
+  /**
+   * @param {Array<Object>} [rules] - Initial rules
+   * @param {Object|null} [dataSourceManager] - Shared DataSourceManager (rule conditions that name a data source)
+   */
   constructor(rules = [], dataSourceManager = null) {
     super();
     this.rules = Array.isArray(rules) ? rules : [];
@@ -20,6 +33,13 @@ export class RulesEngine extends BaseService {
     this.dependencyIndex = null;
     this.dirtyRules = new Set();
     this.lastEvaluation = new Map(); // ruleId -> evaluation result
+    // The latest result of every rule that matches now (ruleId -> result). Every
+    // evaluateDirty() returns the patches of all of these, not only of the rules it
+    // evaluated itself: each card calls it, and only the first call after a change
+    // finds the rules dirty.
+    this._matchedResults = new Map();
+    // evaluateDirty() calls run one at a time (each card's callback calls it at once)
+    this._evalQueue = Promise.resolve();
     this.traceBuffer = globalTraceBuffer;
     this.stopProcessing = new Map(); // overlayId -> Set of stopped rule priorities
 
@@ -36,6 +56,12 @@ export class RulesEngine extends BaseService {
 
     // NEW: HASS subscription management
     this.hassUnsubscribe = null;
+    /** @type {any} The connection rule entities are watched on (setupHassMonitoring) */
+    this._monitorConnection = null;
+    /** @type {Map<string, () => void> | null} One state listener per rule entity */
+    this._ruleEntityListeners = null;
+    /** @type {any} The hass setupHassMonitoring had (rule entities' known states) */
+    this._monitorHass = null;
     this._reEvaluationCallbacks = []; // CHANGED: Array of callbacks for multiple MSD cards
     // dependencyIndex.entityToRules is the live entity→rules map; no separate cache needed
     this._freshStateCache = new Map(); // Cache for fresh states from events (entityId -> state object)
@@ -48,7 +74,28 @@ export class RulesEngine extends BaseService {
 
     // ✨ NEW: Rule-based animation tracking
     // Maps ruleId to Set of overlayIds that have active rule animations
-    this.activeRuleAnimations = new Map(); // ruleId -> Set<overlayId>
+    this.activeRuleAnimations = new Map(); // ruleId -> Map<overlayId, animDef[]> (the looping defs it started)
+
+    // Rules that read the clock, re-checked every minute (see _syncTimeRefresh)
+    /** @type {Set<string>} */
+    this._timeRuleIds = new Set();
+    /** @type {any} */
+    this._timeRefreshTimer = null;
+
+    // Card-owned rules (setCardRules): ruleId -> Map<ownerId, rule>, newest owner last.
+    // The newest owner's definition is the live one; the rule goes when no owner is left.
+    /** @type {Map<string, Map<string, Object>>} */
+    this._ruleOwners = new Map();
+    /** @type {Map<string, Set<string>>} ownerId -> the rule ids it owns */
+    this._ownerRuleIds = new Map();
+    /** @type {any} */
+    this._rulesChangedTimer = null;
+    this._rulesRemovedPending = false; // a rule was removed since the last "rules changed" run
+
+    // DataSourceManager entity-change listener (rules naming a data source)
+    /** @type {(() => void) | null} */
+    this._dataSourceUnsubscribe = null;
+    if (dataSourceManager) this._watchDataSources();
 
     this.buildRulesIndex();
     this.buildDependencyIndex();
@@ -121,6 +168,8 @@ export class RulesEngine extends BaseService {
    */
   _compileRules() {
     const issues = [];
+    // Every rule is compiled again below; a removed rule's tree must not linger
+    this.compiledRules.clear();
 
     lcardsLog.debug(`[RulesEngine] Compiling ${this.rules.length} rules...`);
 
@@ -132,9 +181,7 @@ export class RulesEngine extends BaseService {
         lcardsLog.trace(`[RulesEngine] Compiled rule ${rule.id}:`, {
           hasConditions: !!compiled.tree,
           dependencies: {
-            entities: compiled.deps.entities.size,
-            perf: compiled.deps.perf.size,
-            flags: compiled.deps.flags.size
+            entities: compiled.deps.entities.size
           }
         });
       } catch (error) {
@@ -151,6 +198,253 @@ export class RulesEngine extends BaseService {
     }
 
     lcardsLog.debug(`[RulesEngine] Compiled ${this.compiledRules.size} rules successfully`);
+
+    this._syncTimeRefresh();
+  }
+
+  // ============================================================================
+  // Time-dependent rules: checked again every minute
+  // ============================================================================
+
+  /**
+   * Collect the rules that read the clock and start (or stop) the minute timer.
+   * Entity rules are re-checked on state changes; nothing changes when the clock
+   * passes into a time_between window, so these get a timer of their own.
+   * @private
+   */
+  _syncTimeRefresh() {
+    this._timeRuleIds = new Set();
+    for (const [id, compiled] of this.compiledRules) {
+      if (compiled?.deps?.time) this._timeRuleIds.add(id);
+    }
+    if (this._timeRuleIds.size === 0) {
+      this._clearTimeRefresh();
+    } else if (!this._timeRefreshTimer) {
+      this._scheduleTimeRefresh();
+    }
+  }
+
+  /**
+   * Arm the timer for the start of the next minute (time_between has minute
+   * resolution), a little after it so the clock has passed the boundary.
+   * @private
+   */
+  _scheduleTimeRefresh() {
+    const delay = TIME_REFRESH_MS - (Date.now() % TIME_REFRESH_MS) + 50;
+    const timer = setTimeout(() => {
+      this._timeRefreshTimer = null;
+      this.refreshTimeRules();
+      if (this._timeRuleIds.size > 0) this._scheduleTimeRefresh();
+    }, delay);
+    // Node (tests): never keep the process alive for this timer
+    /** @type {any} */ (timer)?.unref?.();
+    this._timeRefreshTimer = timer;
+  }
+
+  /** @private */
+  _clearTimeRefresh() {
+    if (this._timeRefreshTimer) {
+      clearTimeout(this._timeRefreshTimer);
+      this._timeRefreshTimer = null;
+    }
+  }
+
+  /**
+   * Mark the rules that read the clock dirty and run the re-evaluation callbacks.
+   * Called by the minute timer; entity rules are left alone.
+   * @returns {number} How many rules were marked dirty
+   */
+  refreshTimeRules() {
+    let marked = 0;
+    for (const id of this._timeRuleIds) {
+      if (this.rulesById.has(id)) {
+        this.dirtyRules.add(id);
+        marked++;
+      }
+    }
+    if (marked > 0) {
+      lcardsLog.trace(`[RulesEngine] Minute tick: ${marked} time-dependent rules dirty`);
+      this._runReEvaluationCallbacks('time');
+    }
+    return marked;
+  }
+
+  /**
+   * Run every card's re-evaluation callback (each calls evaluateDirty()).
+   * @param {string} reason - For the log
+   * @private
+   */
+  _runReEvaluationCallbacks(reason) {
+    if (this._reEvaluationCallbacks.length === 0) return;
+    [...this._reEvaluationCallbacks].forEach((callback, index) => {
+      try {
+        callback();
+      } catch (error) {
+        lcardsLog.error(`[RulesEngine] Re-evaluation callback ${index} failed (${reason}):`, error);
+      }
+    });
+  }
+
+  // ============================================================================
+  // Card-owned rules: replaced on config change, removed with the card
+  // ============================================================================
+
+  /**
+   * Set the rules a card owns, replacing what it registered before. A rule the
+   * card no longer lists is removed once no other card lists it; a changed rule
+   * replaces the live one. Two cards listing the same id (the dashboard card and
+   * the editor preview) share it, the newest definition live. An id held by a
+   * pack rule is left alone.
+   *
+   * @param {string} ownerId - The card instance (its GUID), not its config id
+   * @param {Array<Object>} rules - The card's `rules` (each needs an `id`)
+   * @param {{sourceCardId?: string, sourceCardType?: string}} [meta] - Shown with the rule (Rules tab)
+   * @returns {{added: number, replaced: number, removed: number}}
+   */
+  setCardRules(ownerId, rules, meta = {}) {
+    const counts = { added: 0, replaced: 0, removed: 0 };
+    if (!ownerId) return counts;
+    const previous = this._ownerRuleIds.get(ownerId) ?? new Set();
+    /** @type {Set<string>} */
+    const next = new Set();
+
+    for (const rule of Array.isArray(rules) ? rules : []) {
+      if (!rule || typeof rule !== 'object' || !rule.id) {
+        lcardsLog.warn('[RulesEngine] Card rule missing ID, skipping:', rule);
+        continue;
+      }
+      // A pack (or constructor) rule with this id: not the card's to replace
+      if (this.rulesById.has(rule.id) && !this._ruleOwners.has(rule.id)) {
+        lcardsLog.debug(`[RulesEngine] Rule ${rule.id} is a pack rule, card rule skipped`);
+        continue;
+      }
+      next.add(rule.id);
+      // A copy carrying the source-card metadata: Home Assistant freezes card configs
+      const entry = { ...rule, _sourceCardId: meta.sourceCardId ?? ownerId, _sourceCardType: meta.sourceCardType ?? 'card' };
+      let owners = this._ruleOwners.get(rule.id);
+      if (!owners) {
+        owners = new Map();
+        this._ruleOwners.set(rule.id, owners);
+      }
+      const held = owners.get(ownerId);
+      // Unchanged: keep its place, so re-setting the same config never takes the
+      // rule back from a newer owner (the editor preview)
+      if (!held || ruleText(held) !== ruleText(entry)) {
+        owners.delete(ownerId);
+        owners.set(ownerId, entry);
+      }
+    }
+
+    for (const id of previous) {
+      if (!next.has(id)) this._ruleOwners.get(id)?.delete(ownerId);
+    }
+    if (next.size) this._ownerRuleIds.set(ownerId, next);
+    else this._ownerRuleIds.delete(ownerId);
+
+    /** @type {string[]} */
+    const removedIds = [];
+    for (const id of new Set([...previous, ...next])) {
+      const owners = this._ruleOwners.get(id);
+      const live = this.rulesById.get(id);
+      if (!owners || owners.size === 0) {
+        this._ruleOwners.delete(id);
+        if (live) {
+          this.rules = this.rules.filter(r => r !== live);
+          removedIds.push(id);
+          counts.removed++;
+        }
+        continue;
+      }
+      const wanted = [...owners.values()].pop();
+      if (live === wanted) continue;
+      if (!live) {
+        this.rules.push(wanted);
+        counts.added++;
+      } else {
+        this.rules = this.rules.map(r => (r === live ? wanted : r));
+        counts.replaced++;
+      }
+    }
+
+    if (counts.added || counts.replaced || counts.removed) {
+      for (const id of removedIds) {
+        this._matchedResults.delete(id);
+        this.lastEvaluation.delete(id);
+        this.dirtyRules.delete(id);
+        this._stopRuleAnimations(id);
+      }
+      this.buildRulesIndex();
+      this.buildDependencyIndex();
+      this._compileRules();
+      this.markAllDirty();
+      // A removed rule leaves nothing dirty when it was the last one, but the
+      // cards it patched still need a callback to take the patch off
+      if (counts.removed) this._rulesRemovedPending = true;
+      this._scheduleRulesChanged();
+      lcardsLog.debug(`[RulesEngine] Card ${meta.sourceCardId ?? ownerId} rules: +${counts.added} ~${counts.replaced} -${counts.removed} (total ${this.rules.length})`);
+    }
+    return counts;
+  }
+
+  /**
+   * Remove every rule a card owns (unless another card lists it too).
+   * @param {string} ownerId - The card instance (its GUID)
+   * @returns {{added: number, replaced: number, removed: number}}
+   */
+  removeCardRules(ownerId) {
+    return this.setCardRules(ownerId, []);
+  }
+
+  /**
+   * Re-evaluate once after rules were added, replaced or removed (several cards
+   * setting rules in one task run the callbacks once).
+   * @private
+   */
+  _scheduleRulesChanged() {
+    if (this._rulesChangedTimer) return;
+    this._rulesChangedTimer = setTimeout(() => {
+      this._rulesChangedTimer = null;
+      const removed = this._rulesRemovedPending;
+      this._rulesRemovedPending = false;
+      if (this.dirtyRules.size > 0 || removed) this._runReEvaluationCallbacks('rules changed');
+    }, 0);
+  }
+
+  // ============================================================================
+  // Data sources named in conditions
+  // ============================================================================
+
+  /**
+   * Listen for data source updates, so a rule naming a data source
+   * (`entity: my_source` or `my_source.transformations.x`) is checked again when
+   * the source changes.
+   * @private
+   */
+  _watchDataSources() {
+    this._dataSourceUnsubscribe?.();
+    this._dataSourceUnsubscribe = null;
+    const dsm = this.dataSourceManager;
+    if (typeof dsm?.addEntityChangeListener !== 'function') return;
+    this._dataSourceUnsubscribe = dsm.addEntityChangeListener((ids) => this._onDataSourceEntitiesChanged(ids));
+  }
+
+  /**
+   * A data source's entity changed: mark the rules naming that source dirty.
+   * @param {string[]} changedEntityIds - Home Assistant entity ids the sources read
+   * @private
+   */
+  _onDataSourceEntitiesChanged(changedEntityIds) {
+    const sources = this.dataSourceManager?.sources;
+    if (!sources || typeof sources.entries !== 'function') return;
+    const changed = new Set(changedEntityIds || []);
+    /** @type {string[]} */
+    const names = [];
+    for (const [name, source] of sources.entries()) {
+      if (changed.has(source?.cfg?.entity)) names.push(name);
+    }
+    if (names.length && this.markEntitiesDirty(names) > 0) {
+      this._runReEvaluationCallbacks('data source');
+    }
   }
 
   buildDependencyIndex() {
@@ -170,6 +464,8 @@ export class RulesEngine extends BaseService {
     });
 
     this.dependencyIndex = { entityToRules, ruleToEntities };
+    // rules added or removed: follow their entities (once monitoring is set up)
+    if (this._monitorConnection) this._syncRuleEntityListeners();
 
     lcardsLog.debug(`[RulesEngine] Dependency index built: ${entityToRules.size} entities across ${this.rules.length} rules`);
   }
@@ -198,10 +494,10 @@ export class RulesEngine extends BaseService {
 
           // Check if this is actually a DataSource by consulting the DataSourceManager
           if (this.dataSourceManager && this.dataSourceManager.getSource(sourceName)) {
-            lcardsLog.trace(`[RulesEngine] Skipping DataSource reference in rule monitoring: ${condition.entity}`);
-            // Don't add DataSource references to HASS entity monitoring
-            // The DataSourceManager already handles these entities via its own subscriptions
-            return;
+            // Indexed under the full reference: markEntitiesDirty(sourceName) finds it
+            // by prefix when the source updates. The Home Assistant subscription
+            // (setupHassMonitoring) leaves data source references out.
+            entities.add(condition.entity);
           } else {
             // Not a DataSource, might be an entity with attribute reference (e.g., "sensor.temp.state")
             // Extract just the entity ID part
@@ -218,9 +514,9 @@ export class RulesEngine extends BaseService {
         }
       }
 
-      // Entity attribute reference (e.g., "sensor.temp.state")
-      if (condition.entity_attr) {
-        const entityId = condition.entity_attr.split('.')[0];
+      // Entity attribute reference: `entity_attr: sensor.temp` (+ `attribute:`)
+      if (typeof condition.entity_attr === 'string') {
+        const entityId = condition.entity_attr.split('.').slice(0, 2).join('.');
         entities.add(entityId);
       }
 
@@ -235,6 +531,17 @@ export class RulesEngine extends BaseService {
       }
     });
 
+    // The compiler's deps also cover nested all/any/not trees and entities read by
+    // Jinja2 ({{ states('x') }}) and JavaScript (states['x']) conditions; without
+    // them such rules never re-evaluated when those entities changed.
+    try {
+      for (const entityId of compileRule(rule, []).deps.entities) {
+        if (/^[a-z_]+\.[\w-]+$/.test(entityId)) entities.add(entityId);
+      }
+    } catch (_) {
+      // Compilation problems are reported by _compileRules().
+    }
+
     return Array.from(entities);
   }
 
@@ -243,11 +550,13 @@ export class RulesEngine extends BaseService {
       changedEntityIds = [changedEntityIds];
     }
 
+    const index = this.dependencyIndex;
+    if (!index) return 0; // rules not indexed yet
     let affectedRules = 0;
 
     changedEntityIds.forEach(entityId => {
       // Direct entity/DataSource rule matches
-      const rules = this.dependencyIndex.entityToRules.get(entityId);
+      const rules = index.entityToRules.get(entityId);
       if (rules) {
         rules.forEach(ruleId => {
           if (!this.dirtyRules.has(ruleId)) {
@@ -261,7 +570,7 @@ export class RulesEngine extends BaseService {
       // If a DataSource changes, mark rules that depend on its transformations/aggregations
       if (this.dataSourceManager?.getSource(entityId)) {
         // Find rules that depend on this DataSource's transformations/aggregations
-        for (const [fullRef, ruleSet] of this.dependencyIndex.entityToRules) {
+        for (const [fullRef, ruleSet] of index.entityToRules) {
           if (fullRef.startsWith(`${entityId}.`)) {
             ruleSet.forEach(ruleId => {
               if (!this.dirtyRules.has(ruleId)) {
@@ -294,7 +603,20 @@ export class RulesEngine extends BaseService {
    * @param {Object} context - Evaluation context
    * @returns {Promise<Object>} Aggregated rule results
    */
-  async evaluateDirty(context = {}) {
+  evaluateDirty(context = {}) {
+    const run = this._evalQueue.then(() => this._evaluateDirtyNow(context));
+    this._evalQueue = run.catch(() => {});
+    return run;
+  }
+
+  /**
+   * evaluateDirty's body: evaluate the dirty rules, then return the patches of every
+   * rule that matches now.
+   * @param {Object} context
+   * @returns {Promise<Object>}
+   * @private
+   */
+  async _evaluateDirtyNow(context = {}) {
     let { getEntity, overlays, entity } = context;  // ✨ CHANGED: Extract entity and overlays from context
 
       // ENHANCED: Always prioritize original HASS states for rule evaluation
@@ -405,6 +727,11 @@ export class RulesEngine extends BaseService {
       for (const rule of dirtyRulesArray) {
         if (processedRules.has(rule.id)) continue;
 
+        // Clear the dirty flag before evaluating, not after: a rule marked dirty again while it
+        // is evaluated (an MSD's overlays registering during the await, then markAllDirty())
+        // stays dirty and is evaluated again. Deleting it afterwards lost that mark: the rule
+        // kept the patches it resolved before the overlays existed.
+        this.dirtyRules.delete(rule.id);
         const result = await this.evaluateRule(rule, getEntity, overlays, entity);  // ✨ CHANGED: Pass entity
         processedRules.add(rule.id);
 
@@ -422,6 +749,7 @@ export class RulesEngine extends BaseService {
 
         if (result.matched) {
           results.push(result);
+          this._matchedResults.set(rule.id, result);
           this.evalCounts.matched++;
 
           // ✨ NEW: Execute rule animations when rule transitions to matched state
@@ -429,14 +757,15 @@ export class RulesEngine extends BaseService {
             lcardsLog.debug(`[RulesEngine] Rule ${rule.id} matched - executing animations`);
             await this._executeRuleAnimations(result.animations, rule.id);
           }
-        } else if (wasMatched) {
+        } else {
+          this._matchedResults.delete(rule.id);
+        }
+        if (!isMatched && wasMatched) {
           // ✨ NEW: Stop animations when rule transitions from matched to unmatched
           lcardsLog.debug(`[RulesEngine] Rule ${rule.id} unmatched - stopping animations`);
           this._stopRuleAnimations(rule.id);
         }
 
-        // Remove from dirty set
-        this.dirtyRules.delete(rule.id);
       }
 
       // Performance tracking
@@ -444,12 +773,16 @@ export class RulesEngine extends BaseService {
       this.evalCounts.dirty += totalDirty;
       this.evalCounts.skipped += (this.rules.length - totalDirty);
 
-      const aggregatedResult = this.aggregateResults(results);
+      // Every rule that matches now, not only this call's: the patches are the full
+      // current set for every caller (a rule removed since is dropped)
+      for (const id of this._matchedResults.keys()) {
+        if (!this.rulesById.has(id)) this._matchedResults.delete(id);
+      }
+      const aggregatedResult = this.aggregateResults([...this._matchedResults.values()]);
 
       // DEBUG: Log what we're returning from evaluateDirty
       lcardsLog.trace(`[RulesEngine] evaluateDirty returning:`, {
         overlayPatchesCount: aggregatedResult.overlayPatches?.length || 0,
-        profilesAddCount: aggregatedResult.profilesAdd?.length || 0,
         hasResult: !!aggregatedResult,
         isObject: typeof aggregatedResult === 'object',
         keys: Object.keys(aggregatedResult || {})
@@ -473,9 +806,24 @@ export class RulesEngine extends BaseService {
    *
    * @param {Object} hass - Fresh Home Assistant state object
    */
+  /**
+   * A hass view whose `states` lookups prefer _freshStateCache (no copying).
+   * @private
+   */
+  _hassWithFreshStates(hass) {
+    const fresh = this._freshStateCache;
+    if (!hass || !fresh?.size) return hass;
+    const states = new Proxy(hass.states ?? {}, {
+      get: (target, key) => (typeof key === 'string' && fresh.has(key) ? fresh.get(key) : target[key]),
+      has: (target, key) => fresh.has(/** @type {string} */ (key)) || key in target,
+    });
+    return { ...hass, states };
+  }
+
   ingestHass(hass) {
     if (!hass || !hass.states) {
-      lcardsLog.warn('[RulesEngine] ingestHass: Invalid HASS provided');
+      // a hass without states is normal while Home Assistant starts (was a warning on every slow load)
+      lcardsLog.debug('[RulesEngine] ingestHass: no states yet (Home Assistant still starting?)');
       return;
     }
 
@@ -520,14 +868,18 @@ export class RulesEngine extends BaseService {
    *
    * @param {Object} rule - Rule to evaluate
    * @param {Function} getEntity - Function to get entity state
-   * @param {Array} contextOverlays - Overlays available during evaluation (for initial render)
-   * @param {string} boundEntity - Entity ID bound to the card (for JavaScript context)
+   * @param {Array|null} contextOverlays - Overlays available during evaluation (for initial render)
+   * @param {string|null} boundEntity - Entity ID bound to the card (for JavaScript context)
    * @returns {Promise<Object>} Evaluation result
    */
   async evaluateRule(rule, getEntity, contextOverlays = null, boundEntity = null) {  // ✨ CHANGED: Accept boundEntity
     const startTime = performance.now();
 
     try {
+      // A disabled rule (enabled: false, what the Rules tab's Disable writes) never
+      // matches, so its patches and animations are removed like any unmatched rule's
+      if (rule.enabled === false) return this.createUnmatchedResult(rule);
+
       // Get compiled rule
       const compiled = this.compiledRules.get(rule.id);
       if (!compiled) {
@@ -541,16 +893,18 @@ export class RulesEngine extends BaseService {
         getEntity,
         entity: boundEntity ? getEntity(boundEntity) : null,  // ✨ CHANGED: Use passed entity if available
 
-        // HASS access
-        hass: this.systemsManager?.getHass?.(),
+        // HASS access, with states from just-received state_changed events taking
+        // precedence: evaluation runs on the event, before HA hands the cards (and
+        // the systems manager) a new hass, so JS conditions reading states['x']
+        // saw the previous state and never matched on the change.
+        hass: this._hassWithFreshStates(this.systemsManager?.getHass?.()),
 
         // Time/date
         now: Date.now(),
 
         // Additional context
-        sun: this.systemsManager?.getSunInfo?.(),
-        getPerf: (key) => /** @type {any} */ (this).perfMetrics?.[key],
-        flags: /** @type {any} */ (this).debugFlags || {},
+        // sun_elevation reads sun.sun (there is no getSunInfo on the systems manager)
+        sun: { elevation: Number(getEntity?.('sun.sun')?.attributes?.elevation ?? this.systemsManager?.getHass?.()?.states?.['sun.sun']?.attributes?.elevation) },
 
         // ✨ NEW: Template evaluator for Jinja2/JS
         unifiedTemplateEvaluator: this._templateEvaluator
@@ -607,10 +961,10 @@ export class RulesEngine extends BaseService {
           isArray: Array.isArray(result.overlayPatches)
         });
 
-        result.profilesAdd = rule.apply.profiles_add || [];
-        result.profilesRemove = rule.apply.profiles_remove || [];
         result.animations = rule.apply.animations || [];
         result.baseSvgUpdate = rule.apply.base_svg || null;
+        // the card whose rules: block holds the rule (an MSD applies only its own base_svg changes)
+        result.sourceCardId = rule._sourceCardId ?? null;
         result.stopAfter = rule.stop === true;
 
         // DEBUG: Log what we found
@@ -704,6 +1058,7 @@ export class RulesEngine extends BaseService {
    * @param {Object} ruleApply - Rule 'apply' clause
    * @returns {Promise<Array<Object>>} Array of overlay patches with {id, style, ...}
    * @private
+   * @param {*} [contextOverlays]
    */
   async _resolveOverlaySelectors(ruleApply, contextOverlays = null) {  // ✨ CHANGED: Made async for template evaluation
     if (!ruleApply.overlays) return [];
@@ -1024,10 +1379,10 @@ export class RulesEngine extends BaseService {
 
     const aggregated = {
       overlayPatches: [],
-      profilesAdd: [],
-      profilesRemove: [],
-      animations: [],
-      baseSvgUpdate: null  // ✅ NEW: Aggregate base_svg updates
+      animations: /** @type {any[]} */ ([]),
+      baseSvgUpdate: null,  // the highest-priority base_svg update of any card
+      /** @type {Record<string, any>} base_svg updates by source card id ('*' for a rule of no card) */
+      baseSvgUpdates: {}
     };
 
     // Group results by target overlays for stop semantics
@@ -1052,16 +1407,10 @@ export class RulesEngine extends BaseService {
       this.processOverlayRules(overlayId, rules, aggregated);
     });
 
-    // Add non-overlay results (profiles, animations, base_svg)
+    // Add non-overlay results (animations, base_svg)
     ruleResults
       .sort((a, b) => (b.priority || 0) - (a.priority || 0))
       .forEach(result => {
-        if (result.profilesAdd) {
-          aggregated.profilesAdd.push(...result.profilesAdd);
-        }
-        if (result.profilesRemove) {
-          aggregated.profilesRemove.push(...result.profilesRemove);
-        }
         if (result.animations) {
           aggregated.animations.push(...result.animations);
         }
@@ -1069,13 +1418,15 @@ export class RulesEngine extends BaseService {
         if (result.baseSvgUpdate && !aggregated.baseSvgUpdate) {
           aggregated.baseSvgUpdate = result.baseSvgUpdate;
         }
+        if (result.baseSvgUpdate) {
+          const owner = result.sourceCardId ?? '*';
+          if (!(owner in aggregated.baseSvgUpdates)) aggregated.baseSvgUpdates[owner] = result.baseSvgUpdate;
+        }
       });
 
     // DEBUG: Log what we're returning
     lcardsLog.trace(`[RulesEngine] aggregateResults returning:`, {
       overlayPatchesCount: aggregated.overlayPatches.length,
-      profilesAddCount: aggregated.profilesAdd.length,
-      profilesRemoveCount: aggregated.profilesRemove.length,
       animationsCount: aggregated.animations.length,
       hasBaseSvg: !!aggregated.baseSvgUpdate,
       overlayPatches: aggregated.overlayPatches
@@ -1132,18 +1483,12 @@ export class RulesEngine extends BaseService {
     });
   }
 
-  countConditions(when) {
-    if (!when) return 0;
-    return (when.all?.length || 0) + (when.any?.length || 0);
-  }
-
   createEmptyResult() {
     return {
       overlayPatches: [],
-      profilesAdd: [],
-      profilesRemove: [],
       animations: [],
-      baseSvgUpdate: null  // ✅ NEW: Include base_svg in empty result
+      baseSvgUpdate: null,
+      baseSvgUpdates: {}
     };
   }
 
@@ -1171,7 +1516,7 @@ export class RulesEngine extends BaseService {
 
     // Track which overlays have animations started by this rule
     if (!this.activeRuleAnimations.has(ruleId)) {
-      this.activeRuleAnimations.set(ruleId, new Set());
+      this.activeRuleAnimations.set(ruleId, new Map());
     }
     const activeOverlays = this.activeRuleAnimations.get(ruleId);
 
@@ -1223,7 +1568,9 @@ export class RulesEngine extends BaseService {
           const ruleAnimDef = { ...animCmd, trigger: 'on_rule' };
           await animationManager.playAnimation(overlayId, ruleAnimDef);
           if (animCmd.loop) {
-            activeOverlays.add(overlayId);
+            // Remember the exact definition: stopping it leaves other rules' loops on the overlay running
+            if (!activeOverlays.has(overlayId)) activeOverlays.set(overlayId, []);
+            activeOverlays.get(overlayId).push(ruleAnimDef);
           }
         }
 
@@ -1306,9 +1653,10 @@ export class RulesEngine extends BaseService {
 
     // Stop animations on each overlay that has rule-triggered animations
     // ✅ FIX: Only stop rule-triggered animations by passing trigger type
-    activeOverlays.forEach(overlayId => {
+    activeOverlays.forEach((defs, overlayId) => {
       try {
-        animationManager.stopAnimations(overlayId, 'on_rule');
+        // Only this rule's animations: another rule's loop on the same overlay keeps running
+        for (const def of defs) animationManager.stopAnimations(overlayId, 'on_rule', def);
       } catch (error) {
         lcardsLog.error(`[RulesEngine] Failed to stop animation for overlay ${overlayId}:`, error);
       }
@@ -1419,7 +1767,7 @@ export class RulesEngine extends BaseService {
    */
   async setupHassMonitoring(hass) {
     // Check if already set up OR setup is in progress
-    if (!hass?.connection?.subscribeEvents || this.hassUnsubscribe || this._hassMonitoringSetupInProgress) {
+    if (!hass?.connection?.subscribeMessage || this.hassUnsubscribe || this._hassMonitoringSetupInProgress) {
       if (this._hassMonitoringSetupInProgress) {
         lcardsLog.debug('[RulesEngine] HASS monitoring setup already in progress, skipping duplicate setup');
       } else {
@@ -1432,52 +1780,13 @@ export class RulesEngine extends BaseService {
     this._hassMonitoringSetupInProgress = true;
 
     try {
-      // Extract all HASS entities referenced in rules (exclude DataSource references)
-      const allEntityReferences = Array.from(this.dependencyIndex?.entityToRules.keys() || []);
-      lcardsLog.trace('[RulesEngine] All entity references from dependency index:', allEntityReferences);
-
-      // Filter out DataSource references
-      const ruleEntities = allEntityReferences.filter(entityId => {
-        // Skip DataSource references (contain dots and match DataSource pattern)
-        if (entityId.includes('.')) {
-          const sourceName = entityId.split('.')[0];
-          if (this.dataSourceManager?.getSource(sourceName)) {
-            lcardsLog.trace(`[RulesEngine] Filtered out DataSource reference: ${entityId}`);
-            return false;
-          }
-        }
-        lcardsLog.trace(`[RulesEngine] Including HASS entity: ${entityId}`);
-        return true;
-      });
-
-      lcardsLog.trace(`[RulesEngine] HASS entity monitoring summary:`, {
-        totalReferences: allEntityReferences.length,
-        dataSourceReferences: allEntityReferences.length - ruleEntities.length,
-        hassEntities: ruleEntities.length,
-        hassEntityList: ruleEntities
-      });
-
-      if (ruleEntities.length === 0) {
+      this._monitorConnection = hass.connection;
+      this._monitorHass = hass;
+      this._syncRuleEntityListeners();
+      if (!this.hassUnsubscribe) {
         lcardsLog.debug('[RulesEngine] No HASS entities found in rules for monitoring (all references are DataSources)');
-        this._hassMonitoringSetupInProgress = false;
         return;
       }
-
-      lcardsLog.debug(`[RulesEngine] Setting up monitoring for ${ruleEntities.length} rule entities:`, ruleEntities);
-
-      // Direct subscription - following DataSource pattern.
-      // NOTE: The listener consults dependencyIndex.entityToRules live (not a
-      // frozen snapshot) so that entities added by cards that load after this
-      // subscription is created are automatically covered. Map.has() is O(1).
-      this.hassUnsubscribe = await hass.connection.subscribeEvents((event) => {
-        if (event.event_type === 'state_changed' && event.data?.entity_id) {
-          const entityId = event.data.entity_id;
-
-          if (this.dependencyIndex?.entityToRules.has(entityId)) {
-            this._handleRuleEntityChange(entityId, event.data);
-          }
-        }
-      }, 'state_changed');
 
       lcardsLog.debug('[RulesEngine] ✅ HASS state monitoring enabled');
     } catch (error) {
@@ -1487,6 +1796,43 @@ export class RulesEngine extends BaseService {
       // Clear flag whether setup succeeded or failed
       this._hassMonitoringSetupInProgress = false;
     }
+  }
+
+  /**
+   * One state listener per Home Assistant entity the rules name (not data source
+   * references), kept in step with the dependency index. The shared hub subscribes
+   * only to the entities its listeners name, so the server filters; this was one
+   * listener for every entity in Home Assistant (HA-LCARS feedback, 2026-11-18).
+   * `hassUnsubscribe` is set while at least one entity is watched (without it,
+   * ingestHass marks every rule dirty instead).
+   * @private
+   */
+  _syncRuleEntityListeners() {
+    const connection = this._monitorConnection;
+    if (!connection) return;
+    /** @type {Map<string, () => void>} */
+    const listeners = (this._ruleEntityListeners ??= new Map());
+    const wanted = new Set(Array.from(this.dependencyIndex?.entityToRules.keys() || []).filter((entityId) => {
+      if (entityId.includes('.') && this.dataSourceManager?.getSource(entityId.split('.')[0])) return false;
+      return entityId.includes('.');
+    }));
+    for (const [entityId, remove] of [...listeners]) {
+      if (!wanted.has(entityId)) {
+        remove();
+        listeners.delete(entityId);
+      }
+    }
+    for (const entityId of wanted) {
+      if (listeners.has(entityId)) continue;
+      const known = (this.systemsManager?.getHass?.() ?? this._monitorHass)?.states?.[entityId];
+      listeners.set(entityId, onStateChanged(connection, entityId, (data) => this._handleRuleEntityChange(entityId, data), known));
+    }
+    this.hassUnsubscribe = listeners.size > 0 ? () => {
+      for (const remove of listeners.values()) remove();
+      listeners.clear();
+      this._monitorConnection = null;
+    } : null;
+    lcardsLog.debug(`[RulesEngine] Watching ${listeners.size} rule entities`);
   }
 
   /**
@@ -1539,8 +1885,8 @@ export class RulesEngine extends BaseService {
 
   /**
    * Add callback for when rules need re-evaluation (supports multiple MSD cards)
-   * @param {Function} callback - Re-evaluation callback function
-   * @returns {number} - Index of the added callback (for removal)
+   * @param {Function} callback - Re-evaluation callback function (keep the reference to remove it later)
+   * @returns {void}
    */
   setReEvaluationCallback(callback) {
     if (typeof callback !== 'function') {
@@ -1586,6 +1932,14 @@ export class RulesEngine extends BaseService {
    * @returns {Promise<void>}
    */
   async destroy() {
+    this._clearTimeRefresh();
+    if (this._rulesChangedTimer) {
+      clearTimeout(this._rulesChangedTimer);
+      this._rulesChangedTimer = null;
+    }
+    this._dataSourceUnsubscribe?.();
+    this._dataSourceUnsubscribe = null;
+    this._monitorConnection = null;
     if (this.hassUnsubscribe) {
       try {
         this.hassUnsubscribe();
@@ -1608,6 +1962,8 @@ export class RulesEngine extends BaseService {
   setDataSourceManager(dataSourceManager) {
     lcardsLog.debug(`[RulesEngine] Setting DataSourceManager with ${Object.keys(dataSourceManager?.sources || {}).length} sources`);
     this.dataSourceManager = dataSourceManager;
+    this._watchDataSources();
+    this._templateEvaluator?.updateDataSourceManager(dataSourceManager);
 
     // Rebuild dependency index to include DataSource references
     this.buildDependencyIndex();
@@ -1738,69 +2094,3 @@ export class RulesEngine extends BaseService {
     });
   }
 }
-
-/**
- * Helper function for applying overlay patches from rule results.
- * @param {Array} overlays - Array of overlay configurations
- * @param {Array} patches - Array of patch configurations from rules
- * @returns {Array} Patched overlays array
- */
-export function applyOverlayPatches(overlays, patches) {
-  if (!patches || patches.length === 0) {
-    return overlays;
-  }
-
-  lcardsLog.trace('[RulesEngine] Applying overlay patches:', {
-    overlayCount: overlays.length,
-    patchCount: patches.length,
-    patches: patches.map(p => ({
-      id: p.id,
-      type: overlays.find(o => o.id === p.id)?.type,
-      styleKeys: Object.keys(p.style || {}),
-      cellTarget: p.cell_target || p.cellTarget || null
-    }))
-  });
-
-  const patchMap = new Map(patches.map(patch => [patch.id, patch]));
-
-  // Removed: applyStatusGridCellPatch - status_grid overlay type is no longer supported
-  // Removed: apexChartUpdates - apexchart overlay type is no longer supported
-
-  const patchedOverlays = overlays.map(overlay => {
-    const patch = patchMap.get(overlay.id);
-    if (!patch) {
-      return overlay;
-    }
-    lcardsLog.trace('[RulesEngine] Applying patch to overlay:', {
-      id: overlay.id,
-      type: overlay.type,
-      cellTarget: patch.cell_target || patch.cellTarget,
-      originalStyle: overlay.style,
-      patchKeys: Object.keys(patch)
-    });
-
-    // Deep merge entire patch into overlay (not just .style)
-    // This allows rules to patch text, dpad, icon, and other properties
-    const patchedOverlay = deepMerge({ ...overlay }, patch);
-
-    // Mark that this is an overlay-level patch, not cell-level
-    patchedOverlay._hasOverlayLevelPatch = !patch.cell_target && !patch.cellTarget;
-
-    lcardsLog.trace('[RulesEngine] Patched overlay result:', {
-      id: patchedOverlay.id,
-      type: patchedOverlay.type,
-      patchedKeys: Object.keys(patch),
-      hasText: !!patchedOverlay.text,
-      hasStyle: !!patchedOverlay.style,
-      hasFinalStyle: !!patchedOverlay.finalStyle
-    });
-
-    return patchedOverlay;
-  });
-  return patchedOverlays;
-}
-
-// ============================================================================
-// PHASE 1: New HASS Ingestion Method (Step 1 - Add alongside existing)
-// ============================================================================
-

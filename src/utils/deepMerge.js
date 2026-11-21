@@ -11,6 +11,10 @@ export function isPlain(o) {
   return o && typeof o === 'object' && !Array.isArray(o);
 }
 
+// A config parsed from JSON keeps `__proto__` as an own key; merged as a key it
+// reached Object.prototype (isPlain() accepts it) and changed every object on the
+// page. These keys are never config (CodeQL js/prototype-pollution-utility, 2026-11-18).
+
 /**
  * Deep merge that MUTATES the target object (original behavior)
  * Use with caution - mutates the first argument!
@@ -19,6 +23,7 @@ export function deepMerge(target, source) {
   if (!isPlain(source)) return source;
   if (!isPlain(target)) target = {};
   for (const k of Object.keys(source)) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
     const sv = source[k];
     const tv = target[k];
     if (isPlain(sv) && isPlain(tv)) {
@@ -54,6 +59,7 @@ export function deepMergeImmutable(target, source) {
 
   // First, copy all properties from target
   for (const k of Object.keys(target)) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
     const tv = target[k];
     if (isPlain(tv)) {
       // Deep clone nested objects
@@ -66,6 +72,7 @@ export function deepMergeImmutable(target, source) {
 
   // Then, merge/override with source properties
   for (const k of Object.keys(source)) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
     const sv = source[k];
     const tv = target[k];
 

@@ -14,12 +14,27 @@
 
 /**
  * Gutter (in px) reserved at the top and left of the grid while the grid editor
- * is active, so the column/row headers have somewhere to live without covering
- * the first row / first column cells. Shared by the view (#grid-root padding)
- * and the overlay (#ghost-grid padding + HEADER_OVERLAP) so the editor chrome
- * stays aligned with the real cards. Keep these two in sync.
+ * is active, so the column/row headers live outside the cells and never cover
+ * the first row / first column (or the area controls inside them).
  */
 export const GRID_EDIT_GUTTER = 28;
+
+/**
+ * Height (in px) of the edit toolbar strip reserved above the grid in edit mode
+ * (both the grid editor and card mode), so the toolbar never floats over cards.
+ */
+export const EDIT_BAR_HEIGHT = 48;
+
+/**
+ * Space the grid reserves for the editor chrome, by edit mode.
+ * @param {'grid'|'cards'|null|undefined} mode
+ * @returns {{top: number, left: number}}
+ */
+export function editReserve(mode) {
+    if (mode === 'grid')  return { top: EDIT_BAR_HEIGHT + GRID_EDIT_GUTTER, left: GRID_EDIT_GUTTER };
+    if (mode === 'cards') return { top: EDIT_BAR_HEIGHT, left: 0 };
+    return { top: 0, left: 0 };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Track list parsing
@@ -52,6 +67,43 @@ export function parseTrackList(str) {
     const last = current.trim();
     if (last) tokens.push(last);
     return tokens;
+}
+
+/**
+ * How many grid tracks a parsed track list makes: `repeat(N, ...)` counts as N times its
+ * inner tracks. `repeat(auto-fill, ...)` / `auto-fit` can't be counted and count as 1.
+ *
+ * @param {string[]} tracks  from parseTrackList
+ * @returns {number}  e.g. ['120px', 'repeat(2, 1fr 2fr)', 'auto'] -> 6
+ */
+export function countTracks(tracks) {
+    let n = 0;
+    for (const t of tracks) {
+        const m = /^repeat\(\s*(\d+)\s*,(.*)\)$/s.exec(t);
+        n += m ? Number(m[1]) * Math.max(1, parseTrackList(m[2].trim()).length) : 1;
+    }
+    return n;
+}
+
+/**
+ * One entry per grid track: `repeat(N, a b)` becomes N copies of `a b`, so a grid
+ * line index reads the right track. Returns null when a `repeat(auto-fill / auto-fit,
+ * ...)` makes the count unknowable.
+ *
+ * @param {string[]} tracks  from parseTrackList
+ * @returns {string[]|null}  e.g. ['40px', 'repeat(2, 1fr 2fr)'] -> ['40px', '1fr', '2fr', '1fr', '2fr']
+ */
+export function expandTracks(tracks) {
+    /** @type {string[]} */
+    const out = [];
+    for (const t of tracks ?? []) {
+        if (/^repeat\(\s*auto-(fill|fit)/.test(t)) return null;
+        const m = /^repeat\(\s*(\d+)\s*,(.*)\)$/s.exec(t);
+        if (!m) { out.push(t); continue; }
+        const inner = parseTrackList(m[2].trim());
+        for (let i = 0; i < Number(m[1]); i++) out.push(...inner);
+    }
+    return out;
 }
 
 /**
@@ -356,6 +408,28 @@ export function cellsToAreaName(grid2d, bounds, name) {
 }
 
 /**
+ * Move and/or resize a named area to new rectangular bounds (r1..r2-1, c1..c2-1).
+ * Its old cells are freed first, so the new rect may overlap the area's own old
+ * cells but no other area. Cards and per-area settings refer to the area by name,
+ * so they follow it unchanged.
+ *
+ * @param {string[][]} grid2d
+ * @param {string} name
+ * @param {{ r1: number, c1: number, r2: number, c2: number }} bounds
+ * @returns {{ ok: true, grid2d: string[][] } | { ok: false, error: string }}
+ */
+export function setAreaBounds(grid2d, name, bounds) {
+    const { r1, c1, r2, c2 } = bounds;
+    const rows = grid2d.length;
+    const cols = grid2d[0]?.length ?? 0;
+    if (!getAreaBounds(grid2d, name)) return { ok: false, error: `No area "${name}"` };
+    if (![r1, c1, r2, c2].every(Number.isInteger) || r1 < 0 || c1 < 0 || r2 > rows || c2 > cols || r1 >= r2 || c1 >= c2) {
+        return { ok: false, error: 'Outside the grid' };
+    }
+    return cellsToAreaName(removeArea(grid2d, name), bounds, name);
+}
+
+/**
  * Remove a named area by replacing all its cells with ".".
  * @param {string[][]} grid2d
  * @param {string}     name
@@ -610,8 +684,11 @@ export function parseLayoutConfig(layout) {
         ? parseAreasString(layout['grid-template-areas'])
         : [];
 
-    const numCols = columns.length;
-    const numRows = rows.length;
+    // Areas are fitted to the track grid. repeat(N, ...) is one token but N tracks;
+    // repeat(auto-fill/auto-fit, ...) can't be counted, so there the areas set the size.
+    const uncountable = (tracks) => tracks.some(t => /^repeat\(\s*auto-(fill|fit)/.test(t));
+    const numCols = uncountable(columns) ? Math.max(countTracks(columns), ...rawAreas.map(r => r.length)) : countTracks(columns);
+    const numRows = uncountable(rows) ? Math.max(countTracks(rows), rawAreas.length) : countTracks(rows);
 
     const areas = Array(numRows).fill(null).map((_, r) => {
         const row = rawAreas[r] ?? [];
@@ -632,7 +709,7 @@ export function parseLayoutConfig(layout) {
  * @param {string[]} rows
  * @param {string[][]} areas
  * @param {string} gap
- * @param {object} [existingLayout={}] — preserved as-is (margin, padding, card_margin, etc.)
+ * @param {object} [existingLayout={}] - preserved as-is (margin, padding, card_margin, etc.)
  * @returns {object}
  */
 export function serializeLayoutConfig(columns, rows, areas, gap, existingLayout = {}) {
@@ -675,4 +752,138 @@ function parsePxValue(str) {
     if (!str) return 0;
     const n = parseFloat(str);
     return isNaN(n) ? 0 : n;
+}
+
+/**
+ * Rows and columns after Visibility conditions: an LCARS screen keeps its size and
+ * reshapes inside it (reports/shell-collapse-plan.md).
+ *
+ * A row (or column) collapses to `0px` when it has a card with a Visibility
+ * condition and every card that sits in that row (column) alone is hidden; Home
+ * Assistant's hui-card sets `hidden` when the conditions fail. A card without a
+ * condition is never hidden, so it keeps its track open. A card spanning several
+ * rows (columns) doesn't keep one of them open: it narrows when one collapses.
+ * While a row is open, a shown card with a definite `targetHeight` (a layout
+ * card's `layout.height`) sizes it. In edit mode every track is open, as Home
+ * Assistant shows every card while editing.
+ *
+ * Only the tracks change; CSS grid shares the freed space between `fr` tracks,
+ * and an `auto` track collapses by itself once its cards are hidden.
+ *
+ * @param {{ rows: string[], columns: string[], areas: string[][] }} grid  active tracks (not mutated)
+ * @param {{ area: string, hidden: boolean, conditional: boolean, targetHeight?: string | null }[]} cards
+ *        every placed card, by `view_layout.grid-area`
+ * @param {boolean} editMode
+ * @returns {{ rows: string[], columns: string[] }}
+ */
+export function resolveVisibilityTracks({ rows, columns, areas }, cards, editMode) {
+    if (editMode) return { rows: [...rows], columns: [...columns] };
+    // Index by grid track: repeat(N, ...) is N tracks (uncountable lists stay as given).
+    const out = { rows: expandTracks(rows) ?? [...rows], columns: expandTracks(columns) ?? [...columns] };
+    /** @typedef {{conditional: boolean, open: boolean, size: string|null}} TrackState */
+    /** @type {Map<number, TrackState>} */
+    const rowState = new Map();
+    /** @type {Map<number, TrackState>} */
+    const colState = new Map();
+    const note = (/** @type {Map<number, TrackState>} */ map, /** @type {number} */ i, card, /** @type {boolean} */ sizes) => {
+        const st = map.get(i) ?? { conditional: false, open: false, size: null };
+        if (card.conditional) st.conditional = true;
+        if (!card.hidden) {
+            st.open = true;
+            if (sizes && card.conditional && card.targetHeight && !st.size) st.size = card.targetHeight;
+        }
+        map.set(i, st);
+    };
+    for (const card of cards) {
+        const b = card.area ? getAreaBounds(areas ?? [], card.area) : null;
+        if (!b) continue;
+        if (b.r2 - b.r1 === 1) note(rowState, b.r1, card, true);
+        if (b.c2 - b.c1 === 1) note(colState, b.c1, card, false);
+    }
+    for (const [i, st] of rowState) {
+        if (i >= out.rows.length || !st.conditional) continue;
+        if (!st.open) out.rows[i] = '0px';
+        else if (st.size) out.rows[i] = st.size;
+    }
+    for (const [i, st] of colState) {
+        if (i < out.columns.length && st.conditional && !st.open) out.columns[i] = '0px';
+    }
+    return out;
+}
+
+/**
+ * Whether a card's view_layout leaves it to auto-placement (no area, row or column).
+ * @param {Record<string, any>|undefined} viewLayout
+ * @returns {boolean}
+ */
+export function isAutoPlaced(viewLayout) {
+    return !viewLayout?.['grid-area'] && !viewLayout?.['grid-row'] && !viewLayout?.['grid-column'];
+}
+
+/**
+ * Whether a card placed by `view_layout.grid-area` sits in rows of a definite
+ * height, so a card that fills its cell can follow it (a button then drops its
+ * preset's minimum height, which spilled out of short rows). Fixed lengths
+ * (px, vh, rem, ...) and functions of them (`clamp()`, `calc()`, `minmax()`)
+ * always are; with fr or % only in a grid whose own height is set (not `auto`,
+ * not a %, unless the grid fills a definite cell itself); anything that reads
+ * content (`auto`, `min-content`, `max-content`, `fit-content`) never is.
+ * A card with no placement at all (no grid-area, grid-row or grid-column) in a
+ * grid with no named areas is auto-placed: with `auto` given, the n-th such card
+ * sits in row floor(n / columns), an explicit row or else a `grid-auto-rows` row.
+ * A card placed by grid lines, or in an unnamed cell of a grid with areas, is
+ * treated as not definite.
+ * @param {string[]} rows - the grid's row tracks
+ * @param {string[][]} areas - the area matrix
+ * @param {Record<string, any>} viewLayout - the card's view_layout
+ * @param {boolean} gridHeightDefinite - the grid has a definite height
+ * @param {{ index: number, columns: number, autoRows?: string|null }|null} [auto] -
+ *   the card's position among the auto-placed cards, the column count and the
+ *   grid's `grid-auto-rows`
+ * @returns {boolean}
+ */
+export function cellHeightDefinite(rows, areas, viewLayout, gridHeightDefinite, auto = null) {
+    // A track sized without its content: lengths and functions of lengths (clamp,
+    // calc, min, max, minmax) always; with fr or % only in a grid of a set height;
+    // anything that reads content (auto, min-/max-/fit-content) never.
+    const definite = (/** @type {string} */ track) => {
+        const t = String(track ?? '').trim().toLowerCase();
+        if (!t || /\b(auto|min-content|max-content|fit-content)\b/.test(t)) return false;
+        if (!/^[\w\s.,()%+*\/-]+$/.test(t)) return false;
+        if (/\d(fr|%)|\d\s*%/.test(t)) return gridHeightDefinite;
+        return /\d/.test(t);
+    };
+    // One entry per grid track (repeat(N, ...) is N tracks); an uncountable
+    // repeat(auto-fill, ...) leaves the rows unknown.
+    if (Array.isArray(rows)) {
+        const expanded = expandTracks(rows);
+        if (!expanded) return false;
+        rows = expanded;
+    }
+    const name = viewLayout?.['grid-area'];
+    if (!name) {
+        const named = Array.isArray(areas) && areas.some(r => r.some(n => n && n !== '.'));
+        if (!auto || !Array.isArray(rows) || named) return false;
+        if (viewLayout?.['grid-row'] || viewLayout?.['grid-column']) return false;
+        const row = Math.floor(auto.index / Math.max(1, auto.columns));
+        if (row < rows.length) return definite(rows[row]);
+        // implicit rows: one grid-auto-rows track (a repeating pattern is not followed)
+        const autoRows = String(auto.autoRows ?? '').trim();
+        return !!autoRows && !/\s/.test(autoRows) && definite(autoRows);
+    }
+    if (!Array.isArray(rows) || !Array.isArray(areas)) return false;
+    const spanned = areas.map((row, r) => (row.includes(name) ? r : -1)).filter(r => r >= 0);
+    if (!spanned.length) return false;
+    return spanned.every(r => definite(rows[r]));
+}
+
+/**
+ * Whether a grid with this `height` is definite for its fr / % rows: an explicit
+ * length, not `auto` and not a percentage of a parent that may size to content.
+ * @param {unknown} height
+ * @returns {boolean}
+ */
+export function gridHeightIsDefinite(height) {
+    const h = String(height ?? '').trim();
+    return !!h && h !== 'auto' && !h.endsWith('%');
 }

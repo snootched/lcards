@@ -17,6 +17,7 @@
 
 import { BaseService } from '../BaseService.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { onStateChanged } from '../state-change-hub.js';
 import {
   HELPER_REGISTRY,
   getAllHelpers,
@@ -63,8 +64,11 @@ export class LCARdSHelperManager extends BaseService {
     /** @type {Map<string, Array<Function>>} Subscriptions by helper key */
     this._subscriptions = new Map();
 
-    /** @type {Map<string, Function>} Unsubscribe functions for state changes */
-    this._stateUnsubscribers = new Map();
+    /** @type {Map<string, string>} Helper key by entity id, for the shared state listener */
+    this._helperKeyByEntity = new Map();
+
+    /** @type {(() => void)|null} Removes the helper listeners from the shared state_changed subscription */
+    this._stateUnsubscribe = null;
 
     /** @type {Map<string, *>} Cached helper values */
     this._valueCache = new Map();
@@ -79,6 +83,9 @@ export class LCARdSHelperManager extends BaseService {
    * @param {Object} hass - New Home Assistant instance
    */
   updateHass(hass) {
+    // Every card passes each new hass on (LCARdSNativeCard), so the same object
+    // arrives once per card: only the first one has anything new. 2026-11-17
+    if (hass && hass === this.hass && this._autoSwitchInitialized) return;
     this.hass = hass;
 
     // Only setup auto-switch once when HASS is available
@@ -103,38 +110,25 @@ export class LCARdSHelperManager extends BaseService {
       return;
     }
 
-    // Subscribe to state changes for all helpers
+    if (this._stateUnsubscribe) {
+      return;
+    }
+
     getAllHelpers().forEach(helper => {
-      this._subscribeToHelperState(helper.key, helper.entity_id);
+      this._helperKeyByEntity.set(helper.entity_id, helper.key);
     });
-  }
 
-  /**
-   * Subscribe to state changes for a specific helper
-   * @private
-   */
-  _subscribeToHelperState(key, entityId) {
-    if (!this.hass || !this.hass.connection) {
-      return;
-    }
+    // Through the page's one shared state_changed subscription (state-change-hub):
+    // every state_changed subscription gets every state change in Home Assistant,
+    // so one per helper multiplied the event traffic per tab, enough to overflow
+    // HA's 4096 pending-message queue during a burst (#405, #408).
+    const removers = [...this._helperKeyByEntity].map(([entityId, key]) =>
+      onStateChanged(this.hass.connection, entityId, (data) => {
+        this._handleStateChange(key, entityId, { event_type: 'state_changed', data });
+      }, this.hass.states?.[entityId]));
+    this._stateUnsubscribe = () => removers.forEach((remove) => remove());
 
-    // If already subscribed, skip
-    if (this._stateUnsubscribers.has(key)) {
-      return;
-    }
-
-    // Subscribe to state changes
-    try {
-      const unsubscribe = this.hass.connection.subscribeEvents(
-        (event) => this._handleStateChange(key, entityId, event),
-        'state_changed'
-      );
-
-      this._stateUnsubscribers.set(key, unsubscribe);
-      lcardsLog.debug(`[HelperManager] Subscribed to state changes: ${entityId}`);
-    } catch (error) {
-      lcardsLog.error(`[HelperManager] Failed to subscribe to ${entityId}:`, error);
-    }
+    lcardsLog.debug(`[HelperManager] Subscribed to state changes for ${this._helperKeyByEntity.size} helpers`);
   }
 
   /**
@@ -161,8 +155,8 @@ export class LCARdSHelperManager extends BaseService {
     this._valueCache.set(key, newValue);
 
     // Notify subscribers
-    if (this._subscriptions.has(key)) {
-      const callbacks = this._subscriptions.get(key);
+    const callbacks = this._subscriptions.get(key);
+    if (callbacks) {
       callbacks.forEach(callback => {
         try {
           callback(newValue, oldValue);
@@ -214,7 +208,7 @@ export class LCARdSHelperManager extends BaseService {
     // Subscribe to alert mode changes — always apply theme when the input_select changes.
     // auto_switch toggle no longer gates this; it is reserved for future HA automation use.
     this.subscribeToHelper('alert_mode', (newMode, oldMode) => {
-      lcardsLog.info(`[HelperManager] Alert mode changed to: ${newMode}`);
+      lcardsLog.debug(`[HelperManager] Alert mode changed to: ${newMode}`);
 
       // A real change event means the entity has already settled — the
       // initial-load check (timed retries + per-HASS-update fallback) is moot.
@@ -247,7 +241,7 @@ export class LCARdSHelperManager extends BaseService {
       if ((newValue === 'on' || newValue === true) && (oldValue === 'off' || oldValue === false)) {
         // Auto-switch just got enabled - apply current alert mode
         const currentMode = this.getHelperValue('alert_mode');
-        lcardsLog.info(`[HelperManager] Auto-switch enabled, applying current mode: ${currentMode}`);
+        lcardsLog.debug(`[HelperManager] Auto-switch enabled, applying current mode: ${currentMode}`);
 
         // Ensure HASS is available (critical for green_alert)
         if (this.hass && window.lcards?.core) {
@@ -302,8 +296,10 @@ export class LCARdSHelperManager extends BaseService {
     if (!this._initialAlertModePending) return;
 
     // Read directly from HASS state (cached values may not be populated yet)
-    const autoSwitchEntity = this.hass?.states['input_boolean.lcards_alert_mode_auto_switch'];
-    const modeEntity       = this.hass?.states['input_select.lcards_alert_mode'];
+    // states can be null while Home Assistant reconnects (an uncaught error in the
+    // retry timer, found by the #408 reconnect check, 2026-11-18)
+    const autoSwitchEntity = this.hass?.states?.['input_boolean.lcards_alert_mode_auto_switch'];
+    const modeEntity       = this.hass?.states?.['input_select.lcards_alert_mode'];
 
     const autoSwitchEnabled = autoSwitchEntity?.state;
     const currentMode       = modeEntity?.state;
@@ -326,7 +322,7 @@ export class LCARdSHelperManager extends BaseService {
     }
 
     this._initialAlertModePending = false;
-    lcardsLog.info(`[HelperManager] ✓ Auto-switch enabled on initial load, applying mode: ${currentMode}`);
+    lcardsLog.debug(`[HelperManager] ✓ Auto-switch enabled on initial load, applying mode: ${currentMode}`);
 
     // Ensure HASS is available (critical for green_alert)
     if (this.hass && window.lcards?.core) {
@@ -334,7 +330,7 @@ export class LCARdSHelperManager extends BaseService {
     }
 
     if (window.lcards?.setAlertMode) {
-      lcardsLog.info(`[HelperManager] Calling setAlertMode('${currentMode}') on initial load (no transition)`);
+      lcardsLog.debug(`[HelperManager] Calling setAlertMode('${currentMode}') on initial load (no transition)`);
       // Skip transition on initial load — there is nothing visible to transition from.
       window.lcards.setAlertMode(currentMode, { skipTransition: true }).catch(error => {
         lcardsLog.error('[HelperManager] Failed to apply initial alert mode:', error);
@@ -379,14 +375,14 @@ export class LCARdSHelperManager extends BaseService {
       lcardsLog.warn('[HelperManager] Helper API may not be available, attempting anyway...');
     }
 
-    lcardsLog.info('[HelperManager] Ensuring all helpers exist...');
+    lcardsLog.debug('[HelperManager] Ensuring all helpers exist...');
 
     const results = {
       total: 0,
       existing: 0,
       created: 0,
       failed: 0,
-      errors: []
+      errors: /** @type {any[]} */ ([])
     };
 
     const allHelpers = getAllHelpers();
@@ -412,7 +408,7 @@ export class LCARdSHelperManager extends BaseService {
       }
     }
 
-    lcardsLog.info(`[HelperManager] Ensure complete: ${results.created} created, ${results.existing} existing, ${results.failed} failed`);
+    lcardsLog.debug(`[HelperManager] Ensure complete: ${results.created} created, ${results.existing} existing, ${results.failed} failed`);
 
     return results;
   }
@@ -454,7 +450,7 @@ export class LCARdSHelperManager extends BaseService {
         // Small delay to let HA register the entity before we write to it
         await new Promise(resolve => setTimeout(resolve, 300));
         await apiSetHelperValue(this.hass, definition.entity_id, definition.default_value);
-        lcardsLog.info(`[HelperManager] Set default value for new helper ${key}: ${definition.default_value}`);
+        lcardsLog.debug(`[HelperManager] Set default value for new helper ${key}: ${definition.default_value}`);
       } catch (error) {
         lcardsLog.warn(`[HelperManager] Could not set default value for ${key}:`, error);
       }
@@ -562,6 +558,17 @@ export class LCARdSHelperManager extends BaseService {
       throw new Error(`[HelperManager] Helper not found in registry: ${key}`);
     }
 
+    // A number goes in within the helper's own range (Home Assistant rejects a value
+    // outside it, and an older helper may have a narrower range than the registry's)
+    if (definition.domain === 'input_number' && Number.isFinite(Number(value))) {
+      const attrs = this.hass.states?.[definition.entity_id]?.attributes ?? {};
+      const min = Number(attrs.min), max = Number(attrs.max);
+      let v = Number(value);
+      if (Number.isFinite(min)) v = Math.max(min, v);
+      if (Number.isFinite(max)) v = Math.min(max, v);
+      value = v;
+    }
+
     await apiSetHelperValue(this.hass, definition.entity_id, value);
 
     // Update cache immediately (will be confirmed by state change event).
@@ -602,11 +609,11 @@ export class LCARdSHelperManager extends BaseService {
    * @returns {Function} Unsubscribe function
    */
   subscribeToHelper(key, callback) {
-    if (!this._subscriptions.has(key)) {
-      this._subscriptions.set(key, []);
+    let callbacks = this._subscriptions.get(key);
+    if (!callbacks) {
+      callbacks = [];
+      this._subscriptions.set(key, callbacks);
     }
-
-    const callbacks = this._subscriptions.get(key);
     callbacks.push(callback);
 
     lcardsLog.debug(`[HelperManager] Subscribed to helper: ${key}`);
@@ -662,7 +669,7 @@ export class LCARdSHelperManager extends BaseService {
   /**
    * Generate YAML configuration for helpers
    *
-   * @param {string} [category=null] - Optional category filter
+   * @param {string|null} [category=null] - Optional category filter
    * @returns {string} YAML configuration
    */
   generateYAML(category = null) {
@@ -848,7 +855,8 @@ export class LCARdSHelperManager extends BaseService {
     return {
       type: 'HelperManager',
       subscriptionsCount: this._subscriptions?.size || 0,
-      stateListeners: this._stateUnsubscribers?.size || 0,
+      stateListeners: this._stateUnsubscribe ? 1 : 0,
+      watchedHelpers: this._helperKeyByEntity?.size || 0,
       cachedValues: this._valueCache?.size || 0,
       autoSwitchInitialized: this._autoSwitchInitialized || false
     };
@@ -860,16 +868,9 @@ export class LCARdSHelperManager extends BaseService {
   destroy() {
     lcardsLog.debug('[HelperManager] Destroying service, cleaning up subscriptions');
 
-    // Unsubscribe from all state listeners
-    for (const [key, unsubscribe] of this._stateUnsubscribers.entries()) {
-      try {
-        unsubscribe();
-      } catch (error) {
-        lcardsLog.error(`[HelperManager] Error unsubscribing from ${key}:`, error);
-      }
-    }
-
-    this._stateUnsubscribers.clear();
+    this._stateUnsubscribe?.();
+    this._stateUnsubscribe = null;
+    this._helperKeyByEntity.clear();
     this._subscriptions.clear();
     this._valueCache.clear();
   }

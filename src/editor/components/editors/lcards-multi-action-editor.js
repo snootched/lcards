@@ -21,7 +21,8 @@ export class LCARdSMultiActionEditor extends LitElement {
     static get properties() {
         return {
             hass: { type: Object },           // Home Assistant instance
-            actions: { type: Object }         // { tap_action, hold_action, double_tap_action }
+            actions: { type: Object },        // { tap_action, hold_action, double_tap_action }
+            defaults: { type: Object }        // the card's own defaults, e.g. { tap_action: { action: 'toggle' } }
         };
     }
 
@@ -29,6 +30,18 @@ export class LCARdSMultiActionEditor extends LitElement {
         super();
         this.hass = null;
         this.actions = {};
+        this.defaults = {};
+    }
+
+    /** @param {string} type @returns {{ action: string }} the card's action when the key is unset */
+    _default(type) {
+        return this.defaults?.[type] || { action: 'none' };
+    }
+
+    /** @param {string} type @returns {string} */
+    _describe(type) {
+        const verb = { tap_action: 'tapped', hold_action: 'held', double_tap_action: 'double-tapped' }[type];
+        return `Action to perform when ${verb} (default: ${this._default(type).action.replace(/-/g, ' ')})`;
     }
 
     static get styles() {
@@ -44,18 +57,17 @@ export class LCARdSMultiActionEditor extends LitElement {
     }
 
     render() {
-        // Show actual config values - no display defaults
-        // If undefined, action-editor will show its own empty state
-        const tapAction = this.actions.tap_action || { action: 'none' };
-        const holdAction = this.actions.hold_action || { action: 'none' };
-        const doubleTapAction = this.actions.double_tap_action || { action: 'none' };
+        // An unset action shows what the card does without it (a button toggles)
+        const tapAction = this.actions.tap_action || this._default('tap_action');
+        const holdAction = this.actions.hold_action || this._default('hold_action');
+        const doubleTapAction = this.actions.double_tap_action || this._default('double_tap_action');
 
         return html`
             <div class="action-section">
                 <lcards-form-section
                     header="Tap Action"
                     icon="mdi:gesture-tap"
-                    description="Action to perform when tapped (default: none)"
+                    description=${this._describe('tap_action')}
                     ?expanded=${true}
                     ?outlined=${true}
                     headerLevel="5">
@@ -73,7 +85,7 @@ export class LCARdSMultiActionEditor extends LitElement {
                 <lcards-form-section
                     header="Hold Action"
                     icon="mdi:gesture-tap-hold"
-                    description="Action to perform when held (default: none)"
+                    description=${this._describe('hold_action')}
                     ?expanded=${false}
                     ?outlined=${true}
                     headerLevel="5">
@@ -91,7 +103,7 @@ export class LCARdSMultiActionEditor extends LitElement {
                 <lcards-form-section
                     header="Double-Tap Action"
                     icon="mdi:gesture-double-tap"
-                    description="Action to perform when double-tapped (default: none)"
+                    description=${this._describe('double_tap_action')}
                     ?expanded=${false}
                     ?outlined=${true}
                     headerLevel="5">
@@ -122,9 +134,9 @@ export class LCARdSMultiActionEditor extends LitElement {
         // Build updated actions object
         const updatedActions = { ...this.actions };
 
-        // If action is set to 'none', remove it from config entirely
-        // This prevents polluting config with default/empty actions
-        if (actionValue?.action === 'none') {
+        // The card's own default (none, or a button's toggle) leaves the key out;
+        // anything else is written, so None on a button that would toggle sticks
+        if (!actionValue || JSON.stringify(actionValue) === JSON.stringify(this._default(actionType))) {
             delete updatedActions[actionType];
         } else {
             // Only add action if it's actually configured with something meaningful

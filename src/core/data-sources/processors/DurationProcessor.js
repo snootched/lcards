@@ -15,7 +15,7 @@ import { Processor } from './BaseProcessor.js';
  * ```yaml
  * processor_name:
  *   type: duration
- *   from: source_processor  # Optional
+ *   input_source: source_processor  # Optional
  *   condition: "> 20"       # Condition expression
  *   reset_on: "< 15"        # Optional: reset condition
  * ```

@@ -1,0 +1,9 @@
+# doc/core/colours.md "Template Strings as Colour Values": a text field colour from a JS template
+type: custom:lcards-button
+entity: input_number.demo_level
+preset: panel-dark
+text:
+  label:
+    content: LEVEL
+    show: true
+    color: "[[[ return Number(entity.state) > 80 ? '#ff0000' : '#00ff00'; ]]]"

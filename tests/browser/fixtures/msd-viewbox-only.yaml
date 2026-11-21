@@ -1,0 +1,13 @@
+# MSD with a view_box and no base_svg: a blank canvas (used to hang on "Initializing MSD...")
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 400, 200]
+  anchors:
+    a: [40, 40]
+    b: [360, 160]
+  overlays:
+    - id: line_ab
+      type: line
+      anchor: a
+      attach_to: b
+      route: auto

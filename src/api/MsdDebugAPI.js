@@ -246,7 +246,7 @@ export class MsdDebugAPI {
           },
           animations: {
             desc: 'Animation state and playback control',
-            methods: ['active(cardId?)', 'dump(cardId?)', 'registryStats(cardId?)', 'inspect(overlayId, cardId?)', 'timeline(id, cardId?)', 'trigger(overlayId, preset, params?, cardId?)']
+            methods: ['active(cardId?)', 'dump(cardId?)', 'inspect(overlayId, cardId?)', 'trigger(overlayId, preset, params?, cardId?)']
           },
           overlays: {
             desc: 'Overlay introspection and search',
@@ -583,31 +583,6 @@ export class MsdDebugAPI {
         // `route`) and blanket-invalidated the entire route cache twice as
         // a "debug" side effect. Debug inspection must never mutate routing
         // state; use inspect() (read-only, from the route cache) instead.
-
-        /**
-         * Visualize routing paths (future enhancement)
-         *
-         * Will render visual representation of data flow paths.
-         *
-         * @param {string} [overlayId] - Overlay to visualize, or all if omitted
-         * @returns {Object} NOT_IMPLEMENTED response
-         *
-         * @example
-         * const viz = window.lcards.debug.msd.routing.visualize('button_1');
-         */
-        visualize(overlayId) {
-          lcardsLog.warn('[DebugAPI] routing.visualize() not yet implemented - planned for Phase 5');
-          lcardsLog.info('[DebugAPI] This will draw routing paths directly on the MSD');
-          return {
-            error: 'NOT_IMPLEMENTED',
-            message: 'Feature planned for Phase 5',
-            plannedFeatures: [
-              'Visual overlay of routing paths on MSD',
-              'Interactive path exploration',
-              'Highlight data flow bottlenecks'
-            ]
-          };
-        }
       },
 
       // ==========================================
@@ -680,6 +655,7 @@ export class MsdDebugAPI {
          * @param {Object} options - Filter options
          * @param {boolean} options.includeDisabled - Include disabled rules (default: false)
          * @param {boolean} options.verbose - Include full rule details (default: false)
+         * @param {*} [cardId]
          * @returns {Array} Active rules
          *
          * @example
@@ -760,16 +736,14 @@ export class MsdDebugAPI {
         /**
          * Dump all animation definitions
          *
-         * Returns complete animation configuration including custom presets,
-         * overlay animations, and timelines.
+         * Returns every registered overlay animation, one entry per animation
+         * with its overlayId.
          *
-         * @returns {Object} Animation definitions
+         * @returns {Array<Object>|null} Animation definitions
          *
          * @example
          * const dump = window.lcards.debug.msd.animations.dump();
-         * console.log('Custom presets:', dump.customPresets);
-         * console.log('Overlay animations:', dump.overlayAnimations);
-         * console.log('Timelines:', dump.timelines);
+         * console.table(dump);
          */
         dump(cardId = null) {
           try {
@@ -789,41 +763,13 @@ export class MsdDebugAPI {
         },
 
         /**
-         * Get AnimationRegistry statistics
-         *
-         * Returns cache performance metrics, hit rates, and stored animations.
-         *
-         * @returns {Object} Registry statistics
-         *
-         * @example
-         * const stats = window.lcards.debug.msd.animations.registryStats();
-         * console.log('Cache hit rate:', stats.hitRate);
-         * console.log('Stored animations:', stats.size);
-         */
-        registryStats(cardId = null) {
-          try {
-            const coordinator = _getMsdCoordinator(cardId);
-            const registry = coordinator?.animRegistry;
-
-            if (!registry) {
-              lcardsLog.warn('[DebugAPI] AnimationRegistry not available');
-              return null;
-            }
-
-            return registry.getStats();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting registry stats:', error);
-            return null;
-          }
-        },
-
-        /**
          * Inspect overlay animations
          *
          * Returns detailed animation state for a specific overlay including
          * scope info, active animations, and registered triggers.
          *
          * @param {string} overlayId - Overlay identifier
+         * @param {*} [cardId]
          * @returns {Object|null} Overlay animation state
          *
          * @example
@@ -850,28 +796,6 @@ export class MsdDebugAPI {
         },
 
         /**
-         * Get timeline details
-         *
-         * Returns details for a specific animation timeline.
-         *
-         * @param {string} timelineId - Timeline ID
-         * @returns {Object|null} Timeline details
-         *
-         * @example
-         * const timeline = window.lcards.debug.msd.animations.timeline('startup_sequence');
-         */
-        timeline(timelineId, cardId = null) {
-          try {
-            const config = _getMsdConfig(cardId);
-            const timelines = config?.timelines || [];
-            return timelines.find(tl => tl.id === timelineId) || null;
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting timeline:', error);
-            return null;
-          }
-        },
-
-        /**
          * Trigger animation manually
          *
          * Manually trigger an animation for testing.
@@ -879,6 +803,7 @@ export class MsdDebugAPI {
          * @param {string} overlayId - Overlay identifier
          * @param {string} presetName - Animation preset name
          * @param {Object} [params] - Additional animation parameters
+         * @param {*} [cardId]
          * @returns {Object} Result object
          *
          * @example
@@ -936,6 +861,7 @@ export class MsdDebugAPI {
          * bounding box, type, and validation status.
          *
          * @param {string} overlayId - Overlay ID
+         * @param {*} [cardId]
          * @returns {Object|null} Overlay details
          *
          * @example
@@ -979,6 +905,7 @@ export class MsdDebugAPI {
          * Returns position and size from the resolved model.
          *
          * @param {string} overlayId - Overlay ID
+         * @param {*} [cardId]
          * @returns {Object|null} Bounding box derived from model {x, y, w, h}
          *
          * @example
@@ -1021,6 +948,7 @@ export class MsdDebugAPI {
          * Queries the live SVG DOM for the rendered element's transform.
          *
          * @param {string} overlayId - Overlay ID
+         * @param {*} [cardId]
          * @returns {Object|null} Transform data
          *
          * @example
@@ -1090,6 +1018,7 @@ export class MsdDebugAPI {
          * Returns current data/state for an overlay.
          *
          * @param {string} overlayId - Overlay ID
+         * @param {*} [cardId]
          * @returns {*} Overlay state/data
          *
          * @example
@@ -1118,6 +1047,7 @@ export class MsdDebugAPI {
          * Returns all overlays matching the specified type.
          *
          * @param {string} type - Overlay type (e.g., 'button', 'text', 'status_grid')
+         * @param {*} [cardId]
          * @returns {Array} Matching overlays
          *
          * @example
@@ -1151,6 +1081,7 @@ export class MsdDebugAPI {
          * Returns all overlays that reference a specific entity ID.
          *
          * @param {string} entityId - Entity ID
+         * @param {*} [cardId]
          * @returns {Array} Overlays using this entity
          *
          * @example

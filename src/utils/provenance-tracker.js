@@ -8,6 +8,12 @@
  * - Template processing (template → processed output + dependencies)
  * - Style resolution (explicit → theme → preset → default)
  * - Renderer info (MSD-specific: defaults accessed, features used, timing)
+ * - Runtime layers: values a card applies after the config merge (component
+ *   presets, the active state branch, match-light, alert mode, preset params,
+ *   built-in code defaults), per field
+ *
+ * subscribe() notifies once per burst of changes, so an inspector can follow
+ * the card live without polling.
  *
  * @module utils/provenance-tracker
  */
@@ -34,10 +40,10 @@ export class ProvenanceTracker {
     this.data = {
       // Config layer provenance (from CoreConfigManager)
       config: {
-        merge_order: [],           // Layer precedence
+        merge_order: /** @type {string[]} */ ([]),           // Layer precedence
         field_sources: {},         // Field → layer mapping
-        card_type: null,
-        timestamp: null
+        card_type: /** @type {any} */ (null),
+        timestamp: /** @type {any} */ (null)
       },
 
       // Theme token resolution chains
@@ -53,8 +59,15 @@ export class ProvenanceTracker {
       styles: null,
 
       // Renderer info (MSD-specific)
-      renderer: null
+      renderer: null,
+
+      // Runtime layers: field → [{ layer, value, detail, at }]
+      runtime: {}
     };
+
+    /** @type {Set<Function>} */
+    this._listeners = new Set();
+    this._notifyQueued = false;
 
     // Statistics
     this.stats = {
@@ -75,6 +88,7 @@ export class ProvenanceTracker {
    */
   trackConfig(provenance) {
     if (!provenance) return;
+    this._changed();
 
     this.data.config = {
       merge_order: provenance.merge_order || [],
@@ -99,13 +113,15 @@ export class ProvenanceTracker {
    * @param {string[]} usedByFields - Fields using this token
    */
   trackThemeToken(tokenPath, originalRef, resolvedValue, resolutionChain = [], usedByFields = []) {
+    const before = this.data.theme_tokens[tokenPath]?.used_by_fields ?? [];
     this.data.theme_tokens[tokenPath] = {
       original_ref: originalRef,
       resolved_value: resolvedValue,
       resolution_chain: resolutionChain,
-      used_by_fields: usedByFields,
+      used_by_fields: [...new Set([...before, ...usedByFields])],
       timestamp: Date.now()
     };
+    this._changed();
 
     this.stats.tokensTracked++;
 
@@ -134,6 +150,7 @@ export class ProvenanceTracker {
     };
 
     this.stats.patchesTracked++;
+    this._changed();
 
     lcardsLog.trace(`[ProvenanceTracker:${this.cardGuid}] Patch tracked: ${fieldPath}`, {
       ruleId,
@@ -161,6 +178,7 @@ export class ProvenanceTracker {
     };
 
     this.stats.templatesTracked++;
+    this._changed();
 
     lcardsLog.trace(`[ProvenanceTracker:${this.cardGuid}] Template tracked: ${fieldId}`, {
       processor,
@@ -175,6 +193,7 @@ export class ProvenanceTracker {
    */
   trackStyles(styleProvenance) {
     this.data.styles = styleProvenance;
+    this._changed();
 
     lcardsLog.trace(`[ProvenanceTracker:${this.cardGuid}] MSD styles tracked`);
   }
@@ -191,6 +210,73 @@ export class ProvenanceTracker {
   }
 
   /**
+   * Forget every rule patch (the card's rules stopped matching, or are about to
+   * be re-applied from scratch).
+   */
+  clearRulePatches() {
+    if (!Object.keys(this.data.rule_patches).length) return;
+    this.data.rule_patches = {};
+    this._changed();
+  }
+
+  /**
+   * Record a value a card applied to a field after the config merge.
+   * One entry per layer per field: re-tracking a layer replaces it.
+   *
+   * @param {string} fieldPath - e.g. 'style.card.color.background'
+   * @param {string} layer - 'component' | 'state' | 'match-light' | 'alert-mode' | 'preset-params' | 'built-in' | ...
+   * @param {*} value - The value it applied
+   * @param {Object} [detail] - e.g. { state: 'active' }, { preset: 'pulse' }, { token: 'colors.x' }
+   */
+  trackRuntime(fieldPath, layer, value, detail = undefined) {
+    const entries = [...(this.data.runtime[fieldPath] ?? [])];
+    const entry = { layer, value, ...(detail ? { detail } : {}), at: Date.now() };
+    const i = entries.findIndex(e => e.layer === layer);
+    if (i >= 0) entries[i] = entry; else entries.push(entry);
+    this.data.runtime[fieldPath] = entries;
+    this._changed();
+  }
+
+  /**
+   * Forget runtime entries: one layer's, or all of them.
+   * @param {string} [layer]
+   */
+  clearRuntime(layer = undefined) {
+    if (layer === undefined) {
+      this.data.runtime = {};
+    } else {
+      for (const [field, entries] of Object.entries(this.data.runtime)) {
+        const kept = entries.filter(e => e.layer !== layer);
+        if (kept.length) this.data.runtime[field] = kept;
+        else delete this.data.runtime[field];
+      }
+    }
+    this._changed();
+  }
+
+  /**
+   * Be told when provenance changes (once per burst of changes).
+   * @param {Function} callback
+   * @returns {Function} Unsubscribe
+   */
+  subscribe(callback) {
+    this._listeners.add(callback);
+    return () => this._listeners.delete(callback);
+  }
+
+  /** @private */
+  _changed() {
+    if (this._notifyQueued || !this._listeners?.size) return;
+    this._notifyQueued = true;
+    setTimeout(() => {
+      this._notifyQueued = false;
+      for (const listener of [...this._listeners]) {
+        try { listener(this); } catch (e) { lcardsLog.warn('[ProvenanceTracker] Listener failed', e); }
+      }
+    }, 0);
+  }
+
+  /**
    * Get provenance data
    *
    * Returns all tracked provenance information including config layers,
@@ -199,7 +285,7 @@ export class ProvenanceTracker {
    * The config section includes both a flat field_sources map and a
    * hierarchical tree view for easier navigation.
    *
-   * @param {string} [path] - Optional path to specific provenance data
+   * @param {string|null} [path] - Optional path to specific provenance data
    * @returns {any} Provenance data (full or at path)
    *
    * @example
@@ -222,8 +308,8 @@ export class ProvenanceTracker {
    * // Get config provenance
    * tracker.getProvenance('config');
    *
-   * // Get specific field source
-   * tracker.getProvenance('config.field_sources.style.color');
+   * // Get one field's source (field_sources is a flat map keyed by dotted path)
+   * tracker.getProvenance('config.field_sources')['style.color'];
    *
    * // Get config tree
    * tracker.getProvenance('config.tree');
@@ -379,7 +465,7 @@ export class ProvenanceTracker {
       console.groupEnd();
 
       console.groupEnd();
-      return; // No return value when outputting to console
+      return undefined; // No return value when outputting to console
     }
 
     // Legacy string output (for backwards compatibility)
@@ -484,13 +570,15 @@ export class ProvenanceTracker {
    */
   clear() {
     this.data = {
-      config: { merge_order: [], field_sources: {}, card_type: null, timestamp: null },
+      config: { merge_order: /** @type {string[]} */ ([]), field_sources: {}, card_type: null, timestamp: null },
       theme_tokens: {},
       rule_patches: {},
       templates: {},
       styles: null,
-      renderer: null
+      renderer: null,
+      runtime: {}
     };
+    this._changed();
 
     this.stats = {
       tokensTracked: 0,
@@ -685,6 +773,26 @@ export class ProvenanceTracker {
           current = current[part];
         }
       }
+    }
+
+    // Fields no config layer sets: set only by a rule ('rules') or by the card
+    // after the merge (its runtime layer, e.g. 'state', 'component', 'built-in')
+    const addLeaf = (fieldPath, source) => {
+      const parts = fieldPath.split('.');
+      let current = tree;
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (!current[part]) current[part] = {};
+        if (i === parts.length - 1) {
+          if (!current[part].__source) current[part].__source = source;
+        } else {
+          current = current[part];
+        }
+      }
+    };
+    for (const fieldPath of Object.keys(this.data.rule_patches)) addLeaf(fieldPath, 'rules');
+    for (const [fieldPath, layers] of Object.entries(this.data.runtime)) {
+      if (layers.length) addLeaf(fieldPath, layers[layers.length - 1].layer);
     }
 
     return tree;

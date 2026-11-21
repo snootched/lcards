@@ -23,7 +23,7 @@
  *
  * Rather than updating ALL controls on every HASS change, we:
  * 1. Track which entities each control uses (_controlEntityMap)
- * 2. Detect which entities changed in HASS update (_detectEntityChanges)
+ * 2. Find the controls whose entities changed in a HASS update (_getAffectedControls)
  * 3. Only update controls affected by changed entities (_getAffectedControls)
  * 4. Batch updates to minimize reflows (_batchUpdateControls)
  *
@@ -131,12 +131,11 @@ export class MsdControlsRenderer {
   _extractControlEntities(overlay) {
     const entities = new Set();
 
-    // Explicit escape hatch (array form): overlay.triggers_update — same field
-    // already used by line overlays for MSD data-source subscriptions
-    // (ModelBuilder.js/OverlayBase.js). Entity-shaped entries are folded into
-    // this control's own change-detection set here; non-entity entries are
-    // MSD data-source refs, unrelated to this method. The 'all' string form
-    // is handled separately by the caller (_registerControl), not here.
+    // Explicit escape hatch (array form): overlay.triggers_update. Entity ids
+    // are folded into this control's own change-detection set; anything else
+    // is ignored (MSD data-source refs here never worked and were dropped in
+    // 2026.11). The 'all' string form is handled by the caller
+    // (_registerControl), not here.
     if (Array.isArray(overlay.triggers_update)) {
       overlay.triggers_update.forEach(ref => {
         if (typeof ref === 'string' && isHAEntity(ref)) {
@@ -206,53 +205,29 @@ export class MsdControlsRenderer {
   }
 
   /**
-   * Detect which entities changed between HASS updates
-   * Compares state and last_changed to catch all relevant updates
+   * Controls whose entities changed between two HASS snapshots (or with
+   * triggers_update: 'all', see #387). Home Assistant gives an entity a new state
+   * object on any change, attributes included, and keeps the object otherwise, so
+   * comparing the objects finds every change. Only each control's own entities are
+   * looked at (2026-11-17: this used to scan every entity in Home Assistant per
+   * update, and compared only state and last_changed, so a change of attributes
+   * alone, such as a light's brightness, never reached the card inside a control).
    * @private
-   * @param {Object} oldHass - Previous HASS object
-   * @param {Object} newHass - New HASS object
-   * @returns {Set<string>} Set of entity IDs that changed
+   * @param {any} oldHass - Previous HASS object (none: every control with entities)
+   * @param {any} newHass - New HASS object
+   * @returns {Array} Array of affected control objects { overlayId, element }
    */
-  _detectEntityChanges(oldHass, newHass) {
-    const changed = new Set();
-
-    if (!oldHass || !oldHass.states) {
-      // First HASS update - consider all entities changed
-      return new Set(Object.keys(newHass.states));
-    }
-
-    // Compare entity states
-    Object.keys(newHass.states).forEach(entityId => {
-      const oldState = oldHass.states[entityId];
-      const newState = newHass.states[entityId];
-
-      // Entity is new or state/attributes changed
-      if (!oldState ||
-          oldState.state !== newState.state ||
-          oldState.last_changed !== newState.last_changed) {
-        changed.add(entityId);
-      }
-    });
-
-    return changed;
-  }
-
-  /**
-   * Get controls affected by entity changes
-   * Returns list of controls that use at least one changed entity
-   * @private
-   * @param {Set<string>} changedEntities - Set of entity IDs that changed
-   * @returns {Array} Array of affected control objects { overlayId, element, config }
-   */
-  _getAffectedControls(changedEntities) {
+  _getAffectedControls(oldHass, newHass) {
     const affected = [];
+    const oldStates = oldHass?.states;
 
     this._controlEntityMap.forEach((entities, overlayId) => {
-      // triggers_update: 'all' controls are always affected, regardless of
-      // which entities actually changed (see #387).
-      const hasChangedEntity = this._alwaysUpdateControls.has(overlayId) ||
-        Array.from(entities).some(e => changedEntities.has(e));
-
+      let hasChangedEntity = this._alwaysUpdateControls.has(overlayId);
+      if (!hasChangedEntity) {
+        for (const entityId of entities) {
+          if (!oldStates || oldStates[entityId] !== newHass.states[entityId]) { hasChangedEntity = true; break; }
+        }
+      }
       if (hasChangedEntity) {
         const element = this.controlElements.get(overlayId);
         if (element) {
@@ -294,16 +269,8 @@ export class MsdControlsRenderer {
       // 🔄 MANUAL MODE: Optimized entity-based forwarding
       lcardsLog.debug('[MsdControlsRenderer] 🔄 Manual HASS forwarding ENABLED - using entity-based optimization');
 
-      // Detect which entities changed
-      const changedEntities = this._detectEntityChanges(oldHass, hass);
-
-      if (changedEntities.size === 0) {
-        lcardsLog.trace('[MsdControlsRenderer] No entity changes, skipping control updates');
-        return;
-      }
-
-      // Only update controls that use changed entities
-      const affectedControls = this._getAffectedControls(changedEntities);
+      // Only update controls whose entities changed
+      const affectedControls = this._getAffectedControls(oldHass, hass);
 
       if (affectedControls.length === 0) {
         lcardsLog.trace('[MsdControlsRenderer] No controls affected by entity changes');
@@ -311,7 +278,6 @@ export class MsdControlsRenderer {
       }
 
       lcardsLog.debug('[MsdControlsRenderer] Updating affected controls', {
-        changedEntities: changedEntities.size,
         affectedControls: affectedControls.length,
         totalControls: this.controlElements.size,
         efficiency: `${((1 - affectedControls.length / this.controlElements.size) * 100).toFixed(1)}% reduction`
@@ -389,10 +355,11 @@ export class MsdControlsRenderer {
    * pipeline created it (#387).
    *
    * hui-card-wrapped controls (the preferred path — see createControlElement())
-   * just need plain property assignment: hui-card's own `hass` setter
-   * evaluates `config.visibility` and only redistributes hass to the real
-   * inner card when conditions pass — that IS the visibility fix, so nothing
-   * else should reach past it into the inner card directly.
+   * just need plain property assignment: hui-card evaluates `config.visibility`
+   * itself (stateful conditions server-side via `subscribe_condition`; screen/
+   * user/time/location and legacy-semantics state conditions client-side) and
+   * forwards hass to the real inner card — that IS the visibility fix, so
+   * nothing else should reach past it into the inner card directly.
    *
    * Raw-card controls (the hui-card-unavailable fallback path) still go
    * through `_applyHassToCard()`'s existing per-card-type branching exactly
@@ -634,7 +601,11 @@ export class MsdControlsRenderer {
     // treat any control that opts into visibility as always-update, so the
     // hui-card wrapper (see createControlElement()) keeps getting fresh hass
     // every tick to re-evaluate its condition, instead of freezing forever
-    // after its first render.
+    // after its first render. Still required on HA 2026.10+: core pushes
+    // results for most conditions via `subscribe_condition`, but `location`
+    // and lovelace state/numeric_state conditions with legacy-only semantics
+    // (`attribute`, entity-id comparison values) are still evaluated
+    // client-side from hass.states (frontend src/common/condition/translate.ts).
     const hasVisibility = Array.isArray(overlay.card?.visibility) && overlay.card.visibility.length > 0;
     const alwaysUpdate = overlay.triggers_update === 'all' || hasVisibility;
     if (alwaysUpdate) {
@@ -840,10 +811,10 @@ export class MsdControlsRenderer {
         // its native `visibility:` conditional evaluation runs — the same
         // mechanism a card gets automatically on a real dashboard, and the
         // same fix already used by lcards-layout-card.js's `_createChild()`.
-        // hui-card evaluates `config.visibility` in its own `hass` setter and
-        // only forwards hass to the real inner card when conditions pass;
+        // hui-card evaluates `config.visibility` itself (core-pushed for most
+        // conditions, client-side for the rest) and hides/shows itself;
         // cards never need to implement visibility themselves.
-        const config = this._buildCardConfig(cardDef, overlay.id);
+        const config = this._buildCardConfig(cardDef, overlay.id, overlay.tags);
         cardElement = createHuiCardWrapper(config, this.hass, { editMode: this._editMode });
 
         // hui-card ships no layout CSS of its own (unstyled custom elements
@@ -908,7 +879,7 @@ export class MsdControlsRenderer {
       // wrong node (e.g. matches something unrelated nested inside the real
       // card's light DOM) and silently route hass through the wrong branch.
       // We already know exactly what we built; just remember it.
-      wrapper._msdCardElement = cardElement;
+      /** @type {any} */ (wrapper)._msdCardElement = cardElement;
 
       // Event isolation
       this._setupEventIsolation(wrapper, cardElement, overlay);
@@ -932,7 +903,7 @@ export class MsdControlsRenderer {
    */
   async _configureCard(cardElement, cardDef, overlay) {
     // Build the final configuration
-    const config = this._buildCardConfig(cardDef, overlay.id);
+    const config = this._buildCardConfig(cardDef, overlay.id, overlay.tags);
 
     lcardsLog.debug('[MsdControls] Configuring card:', {
       overlayId: overlay.id,
@@ -1028,8 +999,11 @@ export class MsdControlsRenderer {
 
   /**
    * Build card configuration from card definition
+   * @param {any} cardDef
+   * @param {string} overlayId
+   * @param {string[]|null} [overlayTags] - the control overlay's tags, passed to an LCARdS card
    */
-  _buildCardConfig(cardDef, overlayId) {
+  _buildCardConfig(cardDef, overlayId, overlayTags = null) {
     if (!cardDef) return null;
 
     lcardsLog.debug('[MsdControls] Building card config from cardDef:', {
@@ -1075,6 +1049,12 @@ export class MsdControlsRenderer {
     if (isLCARdSCard && overlayId && !finalConfig.id) {
       finalConfig.id = overlayId;
       lcardsLog.debug(`[MsdControls] Injected overlay ID as card ID: ${overlayId}`);
+    }
+
+    // The control overlay's tags reach the hosted card, so rules targeting
+    // tag:<name> find it (the card registers with the rules engine itself)
+    if (isLCARdSCard && Array.isArray(overlayTags) && overlayTags.length) {
+      finalConfig.tags = [...new Set([...(Array.isArray(finalConfig.tags) ? finalConfig.tags : []), ...overlayTags])];
     }
 
     // Mark as MSD-generated
@@ -1596,7 +1576,8 @@ export class MsdControlsRenderer {
    */
   static computeAttachmentPoints(overlay, anchors, container) {
     // Set default size for control overlays if not specified
-    if (!overlay.size) overlay.size = [100, 80];
+    // the size a control without one is drawn at (resolveSize): lines attached to it end on its edges
+    if (!overlay.size) overlay.size = [100, 100];
 
     const attachmentPoints = OverlayUtils.computeAttachmentPoints(overlay, anchors);
 

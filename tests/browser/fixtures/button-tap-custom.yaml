@@ -1,0 +1,17 @@
+# on_tap animation on a toggling button: must survive the state change the tap causes (animation-tap.spec.js)
+type: custom:lcards-button
+entity: switch.demo_switch
+preset: lozenge
+# No toggle here: the test pushes the state change itself, late, as Home Assistant does
+tap_action:
+  action: none
+text:
+  name:
+    content: Tap
+    show: true
+animations:
+  - trigger: on_tap
+    preset: custom
+    params:
+      scale: [1, 1.3, 1]
+      duration: 800

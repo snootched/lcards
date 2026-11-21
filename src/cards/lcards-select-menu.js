@@ -5,8 +5,8 @@
  * option buttons. Tapping any button calls input_select.select_option.
  *
  * Architecture:
- * - Each option is a native <div> button styled via CSS
- * - Color/style comes from StylePresetManager (same button presets as lcards-button)
+ * - Each option is an lcards-button (config via setConfig, real hass)
+ * - Style layers: preset < button_template.style < style < option style < rule patches
  * - selected option: 'active' state colors, all others: 'inactive'
  * - Full rules-engine integration via _registerOverlayForRules
  *
@@ -27,14 +27,52 @@
  * ```
  */
 
-import { html, css, svg } from 'lit';
+import { html, css, svg, noChange } from 'lit';
+import { Directive, directive, PartType } from 'lit/directive.js';
+import { styleMap } from 'lit/directives/style-map.js';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
-import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { getSelectMenuSchema } from './schemas/select-menu-schema.js';
+import {
+    gridLayout, mergeStyleLayers, naturalHeightPx, optionCardKeys,
+    optionOpacity, rowCount, OPTION_CARD_KEYS,
+    optionPlacement, optionMinHeight,
+} from './select-menu-config.js';
 
-import '../editor/cards/lcards-select-menu-editor.js';
+/**
+ * Gives an option button its config through setConfig (as Home Assistant does),
+ * and again only when the config changed. A plain `.config=` property skips
+ * setConfig, so the button never captured its text settings, loaded its rules
+ * or resolved its templates.
+ */
+class ButtonConfigDirective extends Directive {
+    /** @param {import('lit/directive.js').PartInfo} partInfo */
+    constructor(partInfo) {
+        super(partInfo);
+        if (partInfo.type !== PartType.ELEMENT) throw new Error('buttonConfig() is an element directive');
+        /** @type {string | null} */
+        this._last = null;
+    }
+
+    /** @param {Record<string, any>} _config */
+    render(_config) { return noChange; }
+
+    /**
+     * @param {import('lit/directive.js').ElementPart} part
+     * @param {[Record<string, any>]} args
+     */
+    update(part, [config]) {
+        const json = JSON.stringify(config);
+        if (json !== this._last) {
+            this._last = json;
+            /** @type {any} */ (part.element).setConfig(config);
+        }
+        return noChange;
+    }
+}
+const buttonConfig = directive(ButtonConfigDirective);
+
 
 export class LCARdSSelectMenu extends LCARdSCard {
 
@@ -44,10 +82,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
     static get properties() {
         return {
             ...super.properties,
-            _resolvedStyle:   { type: Object,  state: true },
             _optionList:      { type: Array,   state: true },
-            _hoverOption:     { type: String,  state: true },
-            _pressedOption:   { type: String,  state: true },
             _containerHeight: { type: Number,  state: true },
         };
     }
@@ -68,47 +103,6 @@ export class LCARdSSelectMenu extends LCARdSCard {
                     box-sizing: border-box;
                 }
 
-                .sm-option {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    overflow: hidden;
-                    white-space: nowrap;
-                    text-overflow: ellipsis;
-                    box-sizing: border-box;
-                    -webkit-tap-highlight-color: transparent;
-                    cursor: pointer;
-                }
-
-                .sm-option-inner {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 5px;
-                    overflow: hidden;
-                    max-width: 100%;
-                    pointer-events: none;
-                }
-
-                .sm-label {
-                    overflow: hidden;
-                    white-space: nowrap;
-                    text-overflow: ellipsis;
-                    font-family: var(--lcars-font, 'Antonio', 'Helvetica Neue', sans-serif);
-                    font-size: inherit;
-                    font-weight: inherit;
-                    letter-spacing: inherit;
-                    text-transform: inherit;
-                    line-height: 1.1;
-                }
-
-                .sm-icon {
-                    flex-shrink: 0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
                 .sm-loading {
                     display: flex;
                     align-items: center;
@@ -127,10 +121,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
 
     constructor() {
         super();
-        this._resolvedStyle   = null;
         this._optionList      = [];
-        this._hoverOption     = null;
-        this._pressedOption   = null;
         this._containerHeight = 0;
         this._containerRO     = null;
     }
@@ -139,21 +130,10 @@ export class LCARdSSelectMenu extends LCARdSCard {
     // LIFECYCLE
     // =========================================================================
 
-    connectedCallback() {
-        super.connectedCallback();
-        if (!this._containerRO) {
-            this._containerRO = new ResizeObserver(entries => {
-                const h = entries[0]?.contentRect?.height ?? 0;
-                if (h !== this._containerHeight) this._containerHeight = h;
-            });
-            this._containerRO.observe(this);
-        }
-    }
-
-    disconnectedCallback() {
-        super.disconnectedCallback();
+    _onDisconnected() {
         this._containerRO?.disconnect();
         this._containerRO = null;
+        super._onDisconnected();
     }
 
     _onConfigSet(config) {
@@ -162,14 +142,11 @@ export class LCARdSSelectMenu extends LCARdSCard {
     }
 
     _handleFirstUpdate(changedProperties) {
-        // Re-detect preview mode now that we're in the DOM (setConfig fires before mount).
-        // Same pattern as lcards-chart.js / lcards-msd.js.
-        // Only the card-picker (browse-cards screen) should show the placeholder.
-        // hui-card-preview alone appears in dashboard edit mode — do NOT treat that
-        // as the picker.  hui-card-picker IS the reliable indicator for the picker UI.
+        // Only the card picker (browse-cards screen) shows the placeholder, not every
+        // preview (preview mode itself is detected by the base on connect, and is
+        // also true in dashboard edit mode): hui-card-picker is the reliable signal.
         this._isInCardPicker = this._checkForAncestor(['hui-card-picker']);
         if (this._isInCardPicker) {
-            this._isPreviewMode = true;
             this.requestUpdate();
             return; // Skip full initialisation in preview context
         }
@@ -184,7 +161,6 @@ export class LCARdSSelectMenu extends LCARdSCard {
         });
 
         this._registerOverlayForRules(overlayId, 'select-menu', tags);
-        this._resolveMenuStyle();
         this._buildOptionList();
     }
 
@@ -206,14 +182,16 @@ export class LCARdSSelectMenu extends LCARdSCard {
         }
     }
 
-    _onRulePatchesChanged() {
-        this._resolveMenuStyle();
-    }
-
     async _onConnected() {
         await super._onConnected();
-        // Re-resolve styles now that StylePresetManager is available
-        this._resolveMenuStyle();
+        // the container's height: bounded-fill mode sizes the rows to it
+        if (!this._containerRO) {
+            this._containerRO = new ResizeObserver(entries => {
+                const h = entries[0]?.contentRect?.height ?? 0;
+                if (h !== this._containerHeight) this._containerHeight = h;
+            });
+            this._containerRO.observe(this);
+        }
     }
 
     // =========================================================================
@@ -228,9 +206,13 @@ export class LCARdSSelectMenu extends LCARdSCard {
      *   - Array:  [{ value, label, icon, style, tap_action }]        →  explicit order + filter
      *
      * Falls back to plain entity attribute list when no config.options is provided.
+     * Each option keeps its card-level keys (rules, sounds, variables, zones,
+     * debug_zones) for its own button.
      * @private
      */
     _buildOptionList() {
+        /** @param {Record<string, any>} o */
+        const pickCardKeys = (o) => Object.fromEntries(OPTION_CARD_KEYS.filter(k => o?.[k] !== undefined).map(k => [k, o[k]]));
         const entityOptions = this._entity?.attributes?.options || [];
         const configOptions  = this.config.options;
 
@@ -242,6 +224,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
                 icon:       null,
                 style:      {},
                 tap_action: null,
+                cardKeys:   {},
             }));
             return;
         }
@@ -260,6 +243,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
                     tap_action:        opt.tap_action        ?? null,
                     hold_action:       opt.hold_action       ?? null,
                     double_tap_action: opt.double_tap_action ?? null,
+                    cardKeys:          pickCardKeys(opt),
                 }));
             return;
         }
@@ -276,276 +260,9 @@ export class LCARdSSelectMenu extends LCARdSCard {
                     tap_action:        override.tap_action        ?? null,
                     hold_action:       override.hold_action       ?? null,
                     double_tap_action: override.double_tap_action ?? null,
+                    cardKeys:          pickCardKeys(override),
                 };
             });
-        }
-    }
-
-    // =========================================================================
-    // STYLE RESOLUTION
-    // =========================================================================
-
-    /**
-     * Resolve the card-level style from preset + config.style + rule patches.
-     * Stores result in this._resolvedStyle and triggers re-render.
-     * @private
-     */
-    _resolveMenuStyle() {
-        let style = {};
-
-        // 1. Resolve button preset via StylePresetManager
-        if (this.config.preset) {
-            const core = window.lcards?.core;
-            const spm  = this._singletons?.stylePresetManager || core?.getStylePresetManager?.();
-            if (!spm) {
-                lcardsLog.warn(`[LCARdSSelectMenu] StylePresetManager not available, deferring preset '${this.config.preset}'`);
-                return;
-            }
-            const preset = this.getStylePreset('button', this.config.preset);
-            if (preset) {
-                style = deepMergeImmutable({}, preset);
-                lcardsLog.debug(`[LCARdSSelectMenu] Applied preset '${this.config.preset}'`);
-            } else {
-                lcardsLog.warn(`[LCARdSSelectMenu] Preset '${this.config.preset}' not found`);
-            }
-        }
-
-        // 2. Merge card-level config.style (config wins over preset)
-        if (this.config.style) {
-            const copy         = JSON.parse(JSON.stringify(this.config.style));
-            const withTokens   = resolveThemeTokensRecursive(copy, this._singletons?.themeManager);
-            style              = deepMergeImmutable(style, withTokens);
-        }
-
-        // 3. Apply rules patches (highest priority)
-        style = this._getMergedStyleWithRules(style);
-
-        const prev = JSON.stringify(this._resolvedStyle);
-        if (JSON.stringify(style) !== prev) {
-            this._resolvedStyle = style;
-            this.requestUpdate();
-        }
-    }
-
-    /**
-     * Resolve the visual CSS properties for a single option button.
-     *
-     * State classifier:
-     *   unavailable → 'unavailable'
-     *   pressed     → 'pressed'
-     *   hover       → 'hover'
-     *   selected    → 'active'
-     *   otherwise   → 'inactive'
-     *
-     * @param {string} optValue      - Option value
-     * @param {Object} optStyleOverride - Per-option style config overrides
-     * @returns {{ bgColor, textColor, borderRadius, borderWidthPx, borderColor, opacity, fontSizePx, textTransform, letterSpacing, fontWeight }}
-     * @private
-     */
-    _resolveOptionCss(optValue, optStyleOverride) {
-        const style = this._resolvedStyle || {};
-
-        const entityState   = this._entity?.state;
-        const isUnavailable = !this._entity || entityState === 'unavailable';
-        const isSelected    = !isUnavailable && entityState === optValue;
-        const isHover       = this._hoverOption === optValue;
-        const isPressed     = this._pressedOption === optValue;
-
-        const classifiedState = isUnavailable ? 'unavailable'
-            : isPressed                        ? 'pressed'
-            : isHover                          ? 'hover'
-            : isSelected                       ? 'active'
-            :                                    'inactive';
-
-        // ── Background ────────────────────────────────────────────────────
-        let bgColor = this._resolveStateValue({
-            actualState:     classifiedState,
-            classifiedState: isSelected ? 'active' : 'inactive',
-            colorConfig:     style.card?.color?.background,
-            fallback:        null
-        });
-
-        // Theme defaults when no preset/style color found
-        if (!bgColor) {
-            if (isUnavailable) {
-                bgColor = 'var(--lcars-gray, #333344)';
-            } else if (isSelected) {
-                bgColor = this.getThemeToken('components.button.background.active')
-                    || 'var(--lcars-orange, #FF9900)';
-            } else {
-                bgColor = this.getThemeToken('components.button.background.inactive')
-                    || 'var(--lcars-dark-gray, #4D4D4D)';
-            }
-        }
-
-        // ── Text color ────────────────────────────────────────────────────
-        let textColor = this._resolveStateValue({
-            actualState:     classifiedState,
-            classifiedState: isSelected ? 'active' : 'inactive',
-            colorConfig:     style.text?.default?.color,
-            fallback:        null
-        });
-        if (!textColor) {
-            textColor = isSelected
-                ? (this.getThemeToken('components.button.text.color.active') || 'var(--lcars-ui-secondary, #000000)')
-                : (this.getThemeToken('components.button.text.color.inactive') || 'var(--lcars-ui-primary, #FFFFFF)');
-        }
-
-        // ── Border ────────────────────────────────────────────────────────
-        const rawRadius = style.border?.radius ?? 4;
-        let borderRadius;
-        if (typeof rawRadius === 'object' && rawRadius !== null) {
-            const { top_left = 0, top_right = 0, bottom_right = 0, bottom_left = 0 } = rawRadius;
-            borderRadius = `${top_left}px ${top_right}px ${bottom_right}px ${bottom_left}px`;
-        } else if (typeof rawRadius === 'number') {
-            borderRadius = `${rawRadius}px`;
-        } else {
-            borderRadius = String(rawRadius);
-        }
-
-        const borderWidthPx = style.border?.width ?? 0;
-        let borderColor = this._resolveStateValue({
-            actualState:     classifiedState,
-            classifiedState: isSelected ? 'active' : 'inactive',
-            colorConfig:     style.border?.color,
-            fallback:        'transparent'
-        }) || 'transparent';
-
-        // ── Opacity ───────────────────────────────────────────────────────
-        let opacity = 1;
-        if (isUnavailable) {
-            opacity = 0.45;
-        } else if (!isSelected && !isHover && !isPressed) {
-            opacity = typeof style.opacity === 'number' ? style.opacity : 0.88;
-        }
-
-        // ── Typography ────────────────────────────────────────────────────
-        const textCfg    = style.text?.default || {};
-        const fontSizePx = textCfg.font_size
-            ? (typeof textCfg.font_size === 'number' ? `${textCfg.font_size}px` : textCfg.font_size)
-            : '13px';
-        const textTransform  = textCfg.text_transform  || 'uppercase';
-        const letterSpacing  = textCfg.letter_spacing  || '0.05em';
-        const fontWeight     = textCfg.font_weight
-            ? (typeof textCfg.font_weight === 'number' ? textCfg.font_weight : String(textCfg.font_weight))
-            : '400';
-
-        // ── Per-option overrides (highest priority) ───────────────────────
-        if (optStyleOverride && Object.keys(optStyleOverride).length) {
-            const ovBg = this._resolveStateValue({
-                actualState:     classifiedState,
-                classifiedState: isSelected ? 'active' : 'inactive',
-                colorConfig:     optStyleOverride.card?.color?.background,
-                fallback:        null
-            });
-            if (ovBg) bgColor = ovBg;
-
-            const ovText = this._resolveStateValue({
-                actualState:     classifiedState,
-                classifiedState: isSelected ? 'active' : 'inactive',
-                colorConfig:     optStyleOverride.text?.default?.color,
-                fallback:        null
-            });
-            if (ovText) textColor = ovText;
-        }
-
-        return { bgColor, textColor, borderRadius, borderWidthPx, borderColor, opacity, fontSizePx, textTransform, letterSpacing, fontWeight };
-    }
-
-    // =========================================================================
-    // ACTION EXECUTION
-    // =========================================================================
-
-    /**
-     * Called when user taps an option button.
-     * By default calls input_select.select_option on the card entity.
-     * Respects per-option tap_action override, card-level tap_action override,
-     * and fires secondary_tap_action afterwards.
-     * @param {Object} opt - Normalized option { value, label, icon, style, tap_action }
-     * @private
-     */
-    async _onOptionTap(opt) {
-        const entityId     = this.config.entity;
-        const optTapAction = opt.tap_action ?? this.config.tap_action;
-
-        lcardsLog.debug(`[LCARdSSelectMenu] Option tapped: "${opt.value}"`, {
-            entityId,
-            hasCustomAction: !!optTapAction,
-        });
-
-        if (optTapAction) {
-            // User-defined custom action (overrides built-in select)
-            await this._executeAction(optTapAction, entityId, opt.value);
-        } else {
-            // Default: select the option
-            if (entityId && this.hass) {
-                // Handle both 'select' and 'input_select' domains
-                const domain = entityId.split('.')[0];
-                const svcDomain = domain === 'select' ? 'select' : 'input_select';
-                await this.hass.callService(
-                    svcDomain, 'select_option',
-                    { entity_id: entityId, option: opt.value }
-                );
-                lcardsLog.debug(`[LCARdSSelectMenu] Selected option "${opt.value}" on ${entityId}`);
-            }
-        }
-
-    }
-
-    /**
-     * Execute a standard HA action object.
-     * @param {Object}  action   - HA action config
-     * @param {string}  entityId - Default entity ID for the action
-     * @param {string}  [optionValue] - Current option value (for context)
-     * @private
-     */
-    async _executeAction(action, entityId, optionValue) {
-        if (!action || action.action === 'none') return;
-
-        switch (action.action) {
-            case 'call-service':
-            case 'perform-action': {
-                const raw       = action.service || action.perform_action || '';
-                const [dom, svc] = raw.split('.');
-                const svcData   = { ...(action.service_data || action.data || {}) };
-                const target    = action.target || (entityId ? { entity_id: entityId } : undefined);
-                if (dom && svc) {
-                    if (target) {
-                        await this.hass?.callService(dom, svc, svcData, target);
-                    } else {
-                        await this.hass?.callService(dom, svc, svcData);
-                    }
-                }
-                break;
-            }
-            case 'navigate':
-                if (action.navigation_path) {
-                    window.history.pushState(null, '', action.navigation_path);
-                    window.dispatchEvent(new CustomEvent('location-changed'));
-                }
-                break;
-            case 'url':
-                if (action.url_path) {
-                    window.open(action.url_path, action.url_target || '_blank');
-                }
-                break;
-            case 'more-info':
-                if (entityId) {
-                    this.dispatchEvent(new CustomEvent('hass-more-info', {
-                        detail: { entityId },
-                        bubbles: true,
-                        composed: true,
-                    }));
-                }
-                break;
-            case 'toggle':
-                if (entityId) {
-                    const [dom] = entityId.split('.');
-                    await this.hass?.callService(dom, 'toggle', { entity_id: entityId });
-                }
-                break;
-            default:
-                lcardsLog.warn(`[LCARdSSelectMenu] Unknown action type: ${action.action}`);
         }
     }
 
@@ -568,107 +285,21 @@ export class LCARdSSelectMenu extends LCARdSCard {
         }
 
         // ── Grid CSS ──────────────────────────────────────────────────────
-        const gridCfg  = this.config.grid || {};
-        let   tplCols  = gridCfg['grid-template-columns'];
-        if (!tplCols) {
-            const cols = gridCfg.columns;
-            if (cols) {
-                tplCols = typeof cols === 'number' ? `repeat(${cols}, 1fr)` : String(cols);
-            } else {
-                tplCols = 'repeat(1, 1fr)';
-            }
-        }
-
-        const gap      = gridCfg.gap             || '4px';
-        const rowGap  = gridCfg['row-gap']    || gridCfg.row_gap    || gap;
-        const colGap  = gridCfg['column-gap'] || gridCfg.column_gap || gap;
-        const autoFlow = gridCfg['grid-auto-flow'] || 'row';
-        let   autoRows  = gridCfg['grid-auto-rows'] || '56px';
-        let   overflowY = null;
-
-        // Fit mode: grid.height='fit' publishes the menu's natural height as a
-        // definite inline height on the HOST. Content-sized outer grid tracks
-        // (auto / max-content) cannot reliably measure the menu through HA's
-        // hui-card wrappers — percentage-height hosts contribute 0 or garbage
-        // to intrinsic track sizing — so a definite pixel height is the only
-        // dependable way to let an outer row size itself to this card. Pair
-        // with an outer row of minmax(0, max-content): the row then tracks the
-        // menu exactly, capped by the container (add overflow-y:auto on the
-        // wrapper via view_layout so the squeezed case scrolls, not bleeds).
-        let hostHeight = null;
-        if (gridCfg.height === 'fit' && this._optionList.length > 0) {
-            const mm = autoRows.match(/^minmax\(\s*[\d.]+px\s*,\s*([\d.]+)px\s*\)$/i);
-            const px = mm ? null : autoRows.match(/^([\d.]+)px$/);
-            if (mm || px) {
-                const rowPx = parseFloat(mm ? mm[1] : px[1]);
-                let colCount = 1;
-                if (typeof gridCfg.columns === 'number')      colCount = gridCfg.columns;
-                else if (typeof gridCfg.columns === 'string') colCount = gridCfg.columns.trim().split(/\s+/).length;
-                const N     = Math.ceil(this._optionList.length / Math.max(1, colCount));
-                const gapPx = parseFloat(rowGap) || 0;
-                hostHeight  = N * rowPx + (N - 1) * gapPx;
-            }
-        }
+        // grid.height 'fit' publishes the menu's natural height as a definite
+        // inline height on the HOST: content-sized outer tracks (auto /
+        // max-content) cannot reliably measure the menu through HA's hui-card
+        // wrappers, so a definite pixel height is the dependable way to let an
+        // outer row size itself to this card. '100%' fills a bounded container,
+        // the rows sharing its measured height (ResizeObserver, _containerHeight).
+        const { style: gridStyle, hostHeight } = gridLayout(this.config.grid || {}, this._optionList.length, this._containerHeight);
         // Definite px in fit mode; otherwise restore the stylesheet default
         // (:host height:100%) so mode switches in the editor behave.
-        // Do NOT clear when config.height is set — _onConfigSet already applied it.
+        // Do NOT clear when config.height is set: _onConfigSet already applied it.
         if (hostHeight != null) {
             this.style.height = `${hostHeight}px`;
         } else if (!this.config.height) {
             this.style.height = '';
         }
-
-        // Bounded-fill mode: grid.height='100%' makes sm-grid fill a bounded
-        // container (e.g. a minmax(0,1fr) sidebar row). When grid-auto-rows is
-        // pixel-bounded — minmax(Apx, Bpx) or plain Npx — a ResizeObserver gives
-        // us the exact container height so we can compute a concrete per-button
-        // height that fits without overflowing the container. Values with a 1fr
-        // max fall through to CSS, which flexes them within the bounded height.
-        if (gridCfg.height === '100%' && this._optionList.length > 0) {
-            const mm = autoRows.match(/^minmax\(\s*([\d.]+)px\s*,\s*([\d.]+)px\s*\)$/i);
-            const px = mm ? null : autoRows.match(/^([\d.]+)px$/);
-            if (mm || px) {
-                const minPx = parseFloat(mm ? mm[1] : px[1]);
-                const maxPx = parseFloat(mm ? mm[2] : px[1]);
-                if (this._containerHeight > 0) {
-                    const N     = this._optionList.length;
-                    const gapPx = parseFloat(rowGap) || 0;
-                    const fit   = Math.floor((this._containerHeight - (N - 1) * gapPx) / N);
-                    if (fit < minPx) {
-                        // Even the minimum row height overflows the container:
-                        // keep buttons usable at minPx and scroll inside the
-                        // menu only — never bleed into the surrounding layout.
-                        autoRows  = `${minPx}px`;
-                        overflowY = 'auto';
-                    } else {
-                        autoRows = `${Math.min(maxPx, fit)}px`;
-                    }
-                } else {
-                    // Container not measured yet (first frame, before the RO
-                    // fires): clip rather than bleed until a real height lands.
-                    overflowY = 'hidden';
-                }
-            }
-        }
-
-        // '100%' mode: sm-grid must fill the bounded parent so its content is
-        // measurable by the ResizeObserver-driven autoRows calculation.
-        // 'fit' mode: host gets a definite px height (above); inner grid stays auto.
-        // All other grid.height values are intentionally ignored here — use the
-        // top-level config.height to constrain the card host instead.
-        const gridStyleParts = [
-            `display: grid`,
-            `grid-template-columns: ${tplCols}`,
-            `row-gap: ${rowGap}`,
-            `column-gap: ${colGap}`,
-            `grid-auto-flow: ${autoFlow}`,
-            `grid-auto-rows: ${autoRows}`,
-            `width: 100%`,
-            `box-sizing: border-box`,
-        ];
-        if (gridCfg.height === '100%') gridStyleParts.push(`height: 100%`);
-        if (overflowY)      gridStyleParts.push(`overflow-y: ${overflowY}`);
-        const gridStyle = gridStyleParts.join('; ');
 
         return html`
             <div class="sm-grid" style="${gridStyle}">
@@ -679,34 +310,17 @@ export class LCARdSSelectMenu extends LCARdSCard {
 
     /**
      * Render a single option as a full lcards-button element.
-     * Active/inactive state is communicated by normalising the entity's state
-     * to 'on' (selected) or 'off' (not selected) inside a synthetic hass
-     * snapshot — letting the button's preset/style system drive the visuals.
+     * The button sees the real entity; state_classification makes this option's
+     * value its 'active' state and every other option 'inactive', so the button's
+     * preset/style system drives the visuals and its templates see the real state.
      *
-     * @param {Object} opt - Normalized option { value, label, icon, style, tap_action }
-     * @returns {TemplateResult}
+     * @param {Object} opt - Normalized option { value, label, icon, style, tap_action, cardKeys }
+     * @returns {import('lit').TemplateResult}
      * @private
      */
     _renderOption(opt) {
-        const entityId      = this.config.entity;
-        const isSelected    = this._entity?.state === opt.value;
-        const isUnavailable = !this._entity || this._entity.state === 'unavailable';
-
-        // Synthetic hass: express option selection as on/off so lcards-button
-        // correctly applies active / inactive preset colours.
-        let buttonHass = this.hass;
-        if (this.hass && entityId) {
-            buttonHass = {
-                ...this.hass,
-                states: {
-                    ...this.hass.states,
-                    [entityId]: {
-                        ...(this.hass.states[entityId] || {}),
-                        state: isUnavailable ? 'unavailable' : (isSelected ? 'on' : 'off'),
-                    },
-                },
-            };
-        }
+        const entityId   = this.config.entity;
+        const isSelected = !!this._entity && this._entity.state === opt.value;
 
         // Tap action: per-option → card-level override → built-in select_option
         const domain     = entityId?.split('.')[0];
@@ -718,19 +332,23 @@ export class LCARdSSelectMenu extends LCARdSCard {
 
         // button_template: full lcards-button config set via Style-tab sub-editor.
         // Everything in it becomes the base; card-level and option-specific values override.
-        // id and tags are stripped — the card manages them (per-button ids cause rules collision).
+        // id and tags are stripped: the card manages them (per-button ids cause rules collision).
         const {
             id:   _tplId,
             tags: _tplTags,
             ...template
         } = this.config.button_template || {};
 
-        // Style merge: template.style → card config.style → per-option opt.style
-        const templateStyle = template.style;
-        const cardStyle     = this.config.style;
-        const mergedStyle   = (templateStyle || cardStyle || opt.style)
-            ? { ...(templateStyle || {}), ...(cardStyle || {}), ...(opt.style || {}) }
-            : undefined;
+        // Style layers, merged key by key: template < card < option < rule patches
+        // (the button puts its preset underneath). opacity is the menu's own: it
+        // dims the host of every option but the selected one.
+        const merged = mergeStyleLayers([template.style, this.config.style, opt.style, this._lastRulePatches?.style]);
+        const opacity = optionOpacity(merged, !!entityId && !isSelected);
+        let style = merged;
+        if (style && 'opacity' in style) {
+            const { opacity: _menuOpacity, ...rest } = style;
+            style = rest;
+        }
 
         // Action priority: per-option → card-level → template-level → default
         // hold/double_tap explicitly default to {action:'none'} so the button card
@@ -739,25 +357,38 @@ export class LCARdSSelectMenu extends LCARdSCard {
         const holdAction   = opt.hold_action       || this.config.hold_action       || template.hold_action       || { action: 'none' };
         const dblTapAction = opt.double_tap_action || this.config.double_tap_action || template.double_tap_action || { action: 'none' };
 
+        const otherValues = this._optionList.map(o => o.value).filter(v => v !== opt.value);
+
         const btnConfig = {
             type:   'custom:lcards-button',
             // Spread template first (min_height, padding, and any other button props)
             ...template,
+            // the option's rules, sounds, variables, zones, debug_zones over the template's
+            ...optionCardKeys(template, opt.cardKeys),
+            // rows of a definite height: the button follows its row, not the preset's min_height
+            ...(optionMinHeight(this.config.grid, template) === 0 ? { min_height: 0 } : {}),
             // Override template with card-level and option-specific values
-            entity:     entityId || undefined,
-            preset:     this.config.preset,
+            ...(entityId ? {
+                entity: entityId,
+                state_classification: { active: [opt.value], inactive: otherValues, else: 'inactive' },
+            } : {}),
+            ...(this.config.preset ? { preset: this.config.preset } : {}),
             tap_action:        tapAction,
             hold_action:       holdAction,
             double_tap_action: dblTapAction,
-            ...(mergedStyle  ? { style: mergedStyle }             : {}),
+            ...(style ? { style } : {}),
             // Visibility baseline: hide name/state so preset defaults don't bleed through.
             // text.label is the active field for option display text (centered, primary).
-            // Merge order: our defaults → template overrides → label.content always from opt.
+            // Merge order (key by key): our defaults → template → label.content always from opt.
             // The template can restore any field (e.g. state.show:true) if the user wants it.
+            // The style's text.default also goes in as the button's text.default (over the
+            // template's): the button's preset merges its own text.default into the
+            // button config, where it would beat a text.default given only as style.
             text: {
-                name:  { show: false },
-                state: { show: false },
-                ...(template.text || {}),
+                ...deepMergeImmutable(
+                    deepMergeImmutable({ name: { show: false }, state: { show: false } }, template.text || {}),
+                    style?.text?.default ? { default: style.text.default } : {},
+                ),
                 label: {
                     show: true,
                     ...(template.text?.label || {}),
@@ -766,8 +397,17 @@ export class LCARdSSelectMenu extends LCARdSCard {
             },
             ...(opt.icon ? { icon: opt.icon, show_icon: true } : {}),
         };
+        // The card's sounds reach every option button; the template's and the option's win
+        if (this.config.sounds && typeof this.config.sounds === 'object') {
+            btnConfig.sounds = { ...this.config.sounds, ...(btnConfig.sounds || {}) };
+        }
 
-        return html`<lcards-button .hass=${buttonHass} .config=${btnConfig}></lcards-button>`;
+        // justify-items / align-items place only a button with its own size (an unsized one would vanish)
+        const placement = (/** @type {any} */ b) => { const p = optionPlacement(b); return { 'justify-self': p.justifySelf, 'align-self': p.alignSelf }; };
+        return html`<lcards-button
+            ${buttonConfig(btnConfig)}
+            .hass=${this.hass}
+            style=${styleMap({ opacity: opacity < 1 ? String(opacity) : undefined, ...placement(btnConfig) })}></lcards-button>`;
     }
 
     // =========================================================================
@@ -885,11 +525,37 @@ export class LCARdSSelectMenu extends LCARdSCard {
     // STATIC HELPERS
     // =========================================================================
 
+    /**
+     * Masonry height in 50 px units: the option grid's rows (see
+     * select-menu-config.js rowCount), about one unit each.
+     * @protected
+     */
+    _getCardSize() {
+        if (this._configPx(this.config?.height)) return Math.ceil(/** @type {number} */ (this._configPx(this.config.height)) / 50);
+        return rowCount(this.config?.grid || {}, this._optionList.length);
+    }
+
+    /**
+     * Height of the option grid in px, from the config alone (never from the
+     * measured DOM, which would loop with the rows Home Assistant allocates).
+     * @returns {number}
+     * @private
+     */
+    _naturalHeightPx() {
+        return naturalHeightPx(this.config?.grid || {}, this._optionList.length);
+    }
+
+    /**
+     * Sections-view size: enough 56 px rows (8 px gaps) to show every option,
+     * or a pixel config.height. A user's grid_options wins (Home Assistant
+     * also merges config grid_options over these).
+     */
     getGridOptions() {
         const go = this.config.grid_options || {};
+        const h = this._configPx(this.config?.height) ?? this._naturalHeightPx();
         return {
             columns: go.columns ?? 4,
-            rows: go.rows ?? 2,
+            rows: go.rows ?? Math.max(1, Math.ceil((h + 8) / 64)),
             min_columns: 2,
             min_rows: 1,
         };
@@ -907,13 +573,16 @@ export class LCARdSSelectMenu extends LCARdSCard {
         };
     }
 
-    static getConfigElement() {
+    static async getConfigElement() {
+        // Editors load on demand (HA awaits getConfigElement), keeping them out of
+        // the bundle every dashboard loads.
+        await import('../editor/cards/lcards-select-menu-editor.js');
         return document.createElement('lcards-select-menu-editor');
     }
 
     /**
      * Register card schema with CoreConfigManager.
-     * Called from src/lcards.js after core initialisation.
+     * Called from src/lcards-main.js after core initialisation.
      * @static
      */
     static registerSchema() {

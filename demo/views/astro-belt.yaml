@@ -1,0 +1,90 @@
+# Astrometrics asteroid belt (E8 part 2): type belt, far and close.
+title: Astrometrics belt
+path: astro-belt
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SYSTEM, show: true } }
+        tap_action: { action: fly-to, card: astro_belt_1, view: system }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLOSE, show: true } }
+        tap_action: { action: fly-to, card: astro_belt_1, view: close }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_belt_1
+        height: 650
+        camera:
+          view: system
+          buttons: true
+          views:
+            system: { target: [ 0, 0, 0 ], yaw: 20, tilt: 25, distance: 170 }
+            close: { target: [ 50, 0, 0 ], yaw: 250, tilt: 10, distance: 16 }
+        points:
+          - { id: sun, xyz: [ 0, 0, 0 ], label: SOL, style: minor }
+          - { id: belt_label, xyz: [ 0, 0, -64 ], label: MAIN BELT, style: minor, tap_action: { action: fly-to, view: close } }
+          - { id: mars, polar: [ 32, 120 ], object: mars_orbit, marker: dot, label: MARS, style: minor }
+        objects:
+          - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
+          - { type: sphere, at: sun, radius: 5, fill: { color: var(--lcars-yellow) }, color: var(--lcars-orange), line_spacing_deg: 30 }
+          - { type: ring, id: mars_orbit, radius: 32, spin: 6, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+          - { type: sphere, at: mars, radius: 2, image: builtin:mars_viking, line_width: 0.5 }
+          - { type: belt, at: sun, radius: [ 44, 56 ], thickness: 4, count: 1500, size: [ 0.2, 1.6 ], period: 40, colors: [ var(--lcards-gray-light), var(--lcards-gray-medium), var(--lcards-yellow-dark) ] }
+        grid_options: { columns: full }
+      - type: custom:lcards-astrometrics-card
+        height: 650
+        camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 30, tilt: 35, distance: 60 } }, buttons: true }
+        objects:
+          - { type: sphere, id: saturn, radius: 8, fill: { effect: { preset: ringed_giant } }, line_width: 0.5, spin: 12 }
+          - { type: belt, radius: [ 12, 22 ], thickness: 0.6, count: 3000, size: [ 0.05, 0.35 ], period: 20, tumble: 60, color: var(--lcars-khaki), rotation: [ 27, 0, 0 ] }
+        grid_options: { columns: full }
+  # AC1: the band follows entities in place (each edge, thickness, how many rocks), easing round the same rocks
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: INNER EDGE } }
+        style: { shaped: { text_bands: { left: { size: 140 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: OUTER + ROCKS } }
+        style: { shaped: { text_bands: { left: { size: 140 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: THICKNESS } }
+        style: { shaped: { text_bands: { left: { size: 140 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        height: 650
+        camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 20, tilt: 30, distance: 240 } }, buttons: true }
+        points:
+          - { id: star, xyz: [ 0, 0, 0 ], label: STAR, style: minor }
+        objects:
+          - { type: glow, at: star, size: 36, color: var(--lcars-yellow) }
+          - type: belt
+            id: band
+            at: star
+            radius:
+              - { entity: input_number.lcards_test_shields, output: [ 25, 50 ] }
+              - { entity: input_number.lcards_test_power, output: [ 52, 85 ], smooth: 1200 }
+            thickness: { entity: input_number.lcards_test_value, output: [ 0.5, 16 ] }
+            count: { entity: input_number.lcards_test_power, output: [ 200, 2500 ], smooth: 1200 }
+            size: [ 0.2, 1.4 ]
+            period: 40
+            colors: [ var(--lcards-gray-light), var(--lcards-gray-medium), var(--lcards-yellow-dark) ]
+        grid_options: { columns: full }

@@ -9,6 +9,8 @@
 
 import { LitElement, html, css, unsafeCSS } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { bundleUrl } from '../utils/bundle-url.js';
+import { isSyntheticHass } from '../utils/synthetic-hass.js';
 
 /**
  * Normalise a config height/width value to a valid CSS length string.
@@ -42,6 +44,23 @@ function _toPxInt(val) {
     const str = String(val).trim();
     if (/^[\d.]+px$/i.test(str)) return parseFloat(str);      // "400px"
     return null;   // em, rem, vh, vw, %, vmin, vmax, etc. — not convertible
+}
+
+/**
+ * True when Home Assistant's display formatters or locale changed between two hass
+ * objects. The first hass a card sees carries placeholder formatters that return the
+ * raw state ("18.8"); the locale-aware ones ("18,8 °C") arrive later in a new hass
+ * object without any entity changing (frontend src/state/connection-mixin.ts,
+ * state-display-mixin.ts), so cards must format their text again when they do.
+ * @param {any} newHass
+ * @param {any} oldHass
+ * @returns {boolean}
+ */
+export function hassFormattersChanged(newHass, oldHass) {
+    if (!newHass || !oldHass) return false;
+    return newHass.formatEntityState !== oldHass.formatEntityState
+        || newHass.formatEntityAttributeValue !== oldHass.formatEntityAttributeValue
+        || newHass.locale !== oldHass.locale;
 }
 
 /**
@@ -122,14 +141,14 @@ export class LCARdSNativeCard extends LitElement {
             /* LCARS font loading */
             @font-face {
                 font-family: 'lcards_jeffries';
-                src: url('/lcards/fonts/jeffries.woff2') format('woff2'),
-                     url('/lcards/fonts/jeffries.woff') format('woff');
+                src: url('${unsafeCSS(bundleUrl('/lcards/fonts/jeffries.woff2'))}') format('woff2'),
+                     url('${unsafeCSS(bundleUrl('/lcards/fonts/jeffries.woff'))}') format('woff');
             }
 
             @font-face {
                 font-family: 'lcards_microgramma';
-                src: url('/lcards/fonts/microgramma.woff2') format('woff2'),
-                     url('/lcards/fonts/microgramma.woff') format('woff');
+                src: url('${unsafeCSS(bundleUrl('/lcards/fonts/microgramma.woff2'))}') format('woff2'),
+                     url('${unsafeCSS(bundleUrl('/lcards/fonts/microgramma.woff'))}') format('woff');
             }
         `;
     }
@@ -204,8 +223,9 @@ export class LCARdSNativeCard extends LitElement {
         if (hass && oldHass !== hass) {
             lcardsLog.debug(`[LCARdSNativeCard] HASS object changed for ${this._cardGuid} - calling _onHassChanged`);
 
-            // Propagate HASS to HelperManager (ensures auto-switch works on any page with cards)
-            if (window.lcards?.core?.helperManager) {
+            // Propagate HASS to HelperManager (ensures auto-switch works on any page with cards);
+            // never a synthetic copy (see utils/synthetic-hass.js)
+            if (window.lcards?.core?.helperManager && !isSyntheticHass(hass)) {
                 window.lcards.core.helperManager.ingestHass(hass);
             }
 
@@ -257,19 +277,15 @@ export class LCARdSNativeCard extends LitElement {
 
         lcardsLog.debug(`[LCARdSNativeCard] Connected: ${this._cardGuid}`);
 
-        // Re-detect whether we're inside the card editor dialog now that the card
-        // is in the DOM. setConfig() runs before connectedCallback() (HA inserts the
-        // element after configuration), so shadow-DOM-piercing ancestor checks always
-        // return false at setConfig() time. We only need to catch the editor dialog
-        // case here — dashboard edit mode and card-picker detection are handled by
-        // _detectPreviewMode() (called from setConfig()) once the card is placed in
-        // its final context, and by each card's _handleFirstUpdate() override.
-        // NOTE: intentionally does NOT call the full _detectPreviewMode() to avoid
-        // falsely setting _isPreviewMode=true for dashboard edit mode, which would
-        // break cards that use _isPreviewMode to decide whether to render a placeholder.
-        if (this._checkForAncestor(['hui-dialog-edit-card'])) {
-            lcardsLog.debug(`[LCARdSNativeCard] Preview detection: card editor dialog detected (connectedCallback)`);
-            this._isPreviewMode = true;
+        // Detect preview mode again now that the card is placed: setConfig() runs
+        // before Home Assistant's hui-card sets `.preview` and before the card has
+        // a parent, so the detection in setConfig() never sees either. Subclasses
+        // with their own _detectPreviewMode() (the MSD's tiers) get it here too.
+        const previewMode = this._detectPreviewMode();
+        if (previewMode !== this._isPreviewMode) {
+            lcardsLog.debug(`[LCARdSNativeCard] Preview mode on connect: ${String(this._isPreviewMode)} -> ${String(previewMode)}`);
+            this._isPreviewMode = /** @type {any} */ (previewMode);
+            this.requestUpdate();
         }
 
         // Load fonts if needed
@@ -277,6 +293,14 @@ export class LCARdSNativeCard extends LitElement {
 
         // Resolve mount element
         this._resolveMountElement();
+
+        // on_show animations play once per connection: AnimationManager records the
+        // scopes that played in this set. Scopes rebuilt by the next render play from
+        // onOverlayRendered(); onCardShown() covers the ones that weren't rebuilt.
+        this._lcardsShown = new Set();
+        this.updateComplete.then(() => requestAnimationFrame(() => {
+            if (this.isConnected) window.lcards?.core?.animationManager?.onCardShown?.(this);
+        }));
 
         // Notify subclasses
         this._onConnected();
@@ -371,6 +395,11 @@ export class LCARdSNativeCard extends LitElement {
             return true;
         }
 
+        // Home Assistant's formatters or locale changed: text needs formatting again
+        if (hassFormattersChanged(newHass, oldHass)) {
+            return true;
+        }
+
         // Check if card's configured entity changed
         if (this.config?.entity) {
             const oldState = oldHass?.states?.[this.config.entity];
@@ -432,14 +461,16 @@ export class LCARdSNativeCard extends LitElement {
         // Apply min-height/min-width to the host element — suppressed when the
         // corresponding exact dimension is also set (config.height/config.width wins;
         // CSS min-* always overrides height/width when larger, so we clear it).
+        // An exact size is exact: an inline 0 (not a cleared value) so a card's own
+        // stylesheet floor (the chart's 200px) can't beat it either.
         if (explicitH) {
-            this.style.removeProperty('min-height');
+            this.style.minHeight = '0px';
         } else {
             this.style.minHeight = _toCssLength(config.min_height ?? '');
         }
         const explicitW = _toCssLength(config.width ?? '');
         if (explicitW) {
-            this.style.removeProperty('min-width');
+            this.style.minWidth = '0px';
         } else {
             this.style.minWidth = _toCssLength(config.min_width ?? '');
         }

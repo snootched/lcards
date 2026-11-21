@@ -18,6 +18,12 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { TokenValidator } from './TokenValidator.js';
 import { DataSourceValidator } from './DataSourceValidator.js';
 import { ErrorFormatter } from './ErrorFormatter.js';
+import { isTemplateString } from '../../utils/template-string.js';
+import { CARD_PLUMBING_KEYS } from '../../cards/schemas/card-plumbing.js';
+
+/** Config keys whose value is an entity ID, or a list of them. */
+const ENTITY_KEYS = new Set(['entity', 'entity_id', 'entities']);
+const ENTITY_ID_RE = /^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z0-9_]+$/;
 
 /**
  * Legacy CoreSchemaRegistry for backward compatibility
@@ -74,7 +80,8 @@ class CoreSchemaRegistry {
         url_path: { type: 'string' },
         pipeline_id: { type: 'string' },
         start_listening: { type: 'boolean' },
-        confirmation: { type: 'object' }
+        navigation_replace: { type: 'boolean' },
+        confirmation: { type: ['boolean', 'object'] }
       }
     });
 
@@ -160,8 +167,10 @@ class CoreErrorFormatter {
     const template = this.templates[error.type] || 'Validation error: {message}';
     const suggestionTemplate = this.suggestions[error.type] || 'Check your configuration';
 
-    const message = this._interpolateTemplate(template, error.context || {});
-    const suggestion = this._interpolateTemplate(suggestionTemplate, error.context || {});
+    // the fallback template names {message}, which lives on the error, not its context
+    const vars = { message: error.message, ...(error.context || {}) };
+    const message = this._interpolateTemplate(template, vars);
+    const suggestion = this._interpolateTemplate(suggestionTemplate, vars);
 
     return {
       ...error,
@@ -189,10 +198,12 @@ class CoreErrorFormatter {
  * configuration validation, entity checking, and error reporting.
  */
 export class CoreValidationService {
+  /** Most validation results kept (least recently used dropped first). */
+  static MAX_CACHED = 500;
+
   constructor(config = {}) {
     // Configuration
     this.config = {
-      strict: false,              // Treat warnings as errors
       validateEntities: true,     // Check entity existence in HASS
       cacheResults: true,         // Cache validation results
       debug: false,               // Enable debug logging
@@ -210,9 +221,14 @@ export class CoreValidationService {
     this.initialized = false;
     this.hass = null;
 
-    // Caching
+    // Caching. Results are kept for the most recent MAX_CACHED keys (least recently
+    // used first out): every config a card validates is a new key, so an unbounded cache
+    // grew with every dashboard opened and crashed long-lived tabs.
     this.validationCache = new Map();
     this.entityCache = new Map();
+    /** Short ids for inline schema objects (their JSON was megabytes per cache key). */
+    this._schemaIds = new WeakMap();
+    this._schemaSeq = 0;
 
     // Statistics
     this.stats = {
@@ -238,7 +254,7 @@ export class CoreValidationService {
       this.hass = hass;
       this.initialized = true;
 
-      lcardsLog.info('[CoreValidationService] ✅ Core validation system initialized:', {
+      lcardsLog.debug('[CoreValidationService] ✅ Core validation system initialized:', {
         hasHASS: !!this.hass,
         schemaCount: this.schemaRegistry.listSchemas().length,
         validateEntities: this.config.validateEntities
@@ -254,7 +270,7 @@ export class CoreValidationService {
    * Validate an object against a schema
    * @param {Object} data - Data to validate
    * @param {string|Object} schema - Schema name or schema object
-   * @param {Object} context - Validation context
+   * @param {Object<string, any>} [context] - Validation context (also part of the cache key)
    * @returns {Object} Validation result
    */
   validate(data, schema, context = {}) {
@@ -266,13 +282,17 @@ export class CoreValidationService {
     // Check cache
     if (this.config.cacheResults && this.validationCache.has(cacheKey)) {
       this.stats.cacheHits++;
-      return this.validationCache.get(cacheKey);
+      const hit = this.validationCache.get(cacheKey);
+      // most recently used last (Map keeps insertion order)
+      this.validationCache.delete(cacheKey);
+      this.validationCache.set(cacheKey, hit);
+      return hit;
     }
 
     const result = {
       valid: true,
-      errors: [],
-      warnings: [],
+      errors: /** @type {any[]} */ ([]),
+      warnings: /** @type {any[]} */ ([]),
       data,
       schema: typeof schema === 'string' ? schema : 'inline'
     };
@@ -303,9 +323,8 @@ export class CoreValidationService {
         this._validateEntities(data, result, context);
       }
 
-      // Determine final validity
-      result.valid = result.errors.length === 0 &&
-                     (!this.config.strict || result.warnings.length === 0);
+      // Determine final validity (warnings never make a result invalid)
+      result.valid = result.errors.length === 0;
 
       // Update statistics
       if (!result.valid) this.stats.errorsFound++;
@@ -318,6 +337,9 @@ export class CoreValidationService {
       // Cache result
       if (this.config.cacheResults) {
         this.validationCache.set(cacheKey, result);
+        while (this.validationCache.size > CoreValidationService.MAX_CACHED) {
+          this.validationCache.delete(this.validationCache.keys().next().value);
+        }
       }
 
     } catch (error) {
@@ -368,8 +390,8 @@ export class CoreValidationService {
    * @private
    */
   _validateAgainstSchema(data, schema, result, path) {
-    // Handle oneOf - try each option and succeed if any match
-    if (schema.oneOf) {
+    // Handle oneOf/anyOf - try each option and succeed if any match
+    if (schema.oneOf || schema.anyOf) {
       return this._validateOneOf(data, schema, result, path);
     }
 
@@ -400,27 +422,56 @@ export class CoreValidationService {
   }
 
   /**
-   * Validate oneOf (data must match exactly one schema)
+   * Validate oneOf/anyOf. Both pass when at least one option matches (a
+   * multi-match oneOf is tolerated, which makes the two equivalent here).
    * @private
    */
   _validateOneOf(data, schema, result, path) {
+    // A discriminator (`{ propertyName: 'type' }`) names the one branch to check:
+    // the one whose property is that const (otherwise the first branch that
+    // loosely fits would report its own warnings for another type's keys)
+    const prop = schema.discriminator?.propertyName;
+    if (prop && data && typeof data === 'object' && !Array.isArray(data) && data[prop] !== undefined) {
+      const branch = (schema.oneOf ?? schema.anyOf).find((/** @type {any} */ o) => o?.properties?.[prop]?.const === data[prop]);
+      if (branch) return this._validateAgainstSchema(data, branch, result, path);
+    }
     const matchedSchemas = [];
+    const options = schema.oneOf ?? schema.anyOf;
+    /** @type {{valid: boolean, errors: any[], warnings: any[]}[]} */
+    const optionResults = [];
 
-    for (let i = 0; i < schema.oneOf.length; i++) {
-      const option = schema.oneOf[i];
+    for (let i = 0; i < options.length; i++) {
+      const option = options[i];
       const tempResult = { valid: true, errors: [], warnings: [] };
 
       this._validateAgainstSchema(data, option, tempResult, path);
+      optionResults.push(tempResult);
 
       if (tempResult.errors.length === 0) {
         matchedSchemas.push(i);
       }
     }
 
+    // Surface the warnings (e.g. deprecated keys) of the branch that matched,
+    // and warn when that branch is itself a deprecated (legacy) form.
+    if (matchedSchemas.length > 0) {
+      const matched = options[matchedSchemas[0]];
+      result.warnings.push(...optionResults[matchedSchemas[0]].warnings);
+      if (matched.deprecated) {
+        const replacement = matched['x-replacement'];
+        result.warnings.push({
+          type: 'deprecated_property',
+          field: path,
+          message: replacement ? `Legacy format; use ${replacement}` : 'Legacy format',
+          context: { field: path, replacement }
+        });
+      }
+    }
+
     // oneOf requires exactly one match
     if (matchedSchemas.length === 0) {
       // Get expected types from oneOf options
-      const expectedTypes = schema.oneOf
+      const expectedTypes = options
         .map(opt => opt.type || 'object')
         .filter((v, i, a) => a.indexOf(v) === i); // unique
 
@@ -439,9 +490,19 @@ export class CoreValidationService {
             actual: actualType
           }
         });
+      } else {
+        // The type fits but no option matched: report the closest option's problems
+        // (fewest errors among options of the right type) as warnings. Several
+        // schemas' patterns are stricter than what the cards accept (calc(),
+        // clamp(), templates), so this must not block configs that work.
+        // Ties prefer current (non-deprecated) forms.
+        const closest = optionResults
+          .map((r, i) => ({ r, option: options[i] }))
+          .filter(({ option }) => this._typeMatches(actualType, [option.type || 'object'], data))
+          .sort((a, b) => (a.r.errors.length - b.r.errors.length)
+            || (Number(Boolean(a.option.deprecated)) - Number(Boolean(b.option.deprecated))))[0]?.r;
+        result.warnings.push(...(closest?.errors ?? []));
       }
-      // If type matches but validation failed, the specific errors were already added
-      // by the temp validation runs above, so don't add a generic type error
     } else if (matchedSchemas.length > 1) {
       // Multiple matches - this is technically a schema error but we'll allow it
       // and just use the first match (common in practice)
@@ -476,7 +537,9 @@ export class CoreValidationService {
       for (const [prop, propSchema] of Object.entries(schema.properties)) {
         const fieldPath = path ? `${path}.${prop}` : prop;
 
-        if (propSchema.required && !(prop in data)) {
+        // Nonstandard per-property `required: true`. An array-form `required`
+        // on the property describes its own children, not the property itself.
+        if (propSchema.required === true && !(prop in data)) {
           result.errors.push({
             type: 'required_field',
             field: fieldPath,
@@ -487,6 +550,18 @@ export class CoreValidationService {
             }
           });
         } else if (prop in data) {
+          // Deprecated keys still validate (old configs keep working) but say what replaces them.
+          if (propSchema.deprecated) {
+            const replacement = propSchema['x-replacement'];
+            result.warnings.push({
+              type: 'deprecated_property',
+              field: fieldPath,
+              message: replacement
+                ? `"${prop}" is deprecated; use ${replacement}`
+                : `"${prop}" is deprecated`,
+              context: { field: fieldPath, prop, replacement }
+            });
+          }
           const effectiveSchema = propSchema.discriminatedBy
             ? this._resolveDiscriminatedSchema(propSchema, data, result, fieldPath)
             : propSchema;
@@ -525,6 +600,9 @@ export class CoreValidationService {
       const allowedProps = Object.keys(schema.properties);
       const bucket = schema.additionalProperties === false ? result.errors : result.warnings;
       for (const prop of Object.keys(data)) {
+        // Home Assistant's layout keys (grid_options, visibility, ...) and card-mod / UIX
+        // styling are read by others, never by the card: accepted at a card's root.
+        if (!path && CARD_PLUMBING_KEYS.includes(prop)) continue;
         if (!allowedProps.includes(prop)) {
           bucket.push({
             type: 'invalid_property',
@@ -572,7 +650,7 @@ export class CoreValidationService {
       result.warnings.push({
         type: 'unrecognized_discriminator',
         field: fieldPath,
-        message: `No params schema for ${field}="${discriminatorValue}" — validated generically`,
+        message: `No params schema for ${field}="${discriminatorValue}", validated generically`,
         context: { field: fieldPath, [field]: discriminatorValue }
       });
     }
@@ -670,8 +748,10 @@ export class CoreValidationService {
       });
     }
 
-    // Pattern validation for strings
-    if (schema.pattern && typeof data === 'string') {
+    // Pattern validation for strings. Template strings ([[[ js ]]], {{ jinja }},
+    // {% %}, {token}) only become their real value at render time, so a pattern
+    // can't judge them (documented colour templates used to warn here).
+    if (schema.pattern && typeof data === 'string' && !isTemplateString(data)) {
       try {
         const pattern = typeof schema.pattern === 'string' ? new RegExp(schema.pattern) : schema.pattern;
         if (!pattern.test(data)) {
@@ -751,23 +831,25 @@ export class CoreValidationService {
       return;
     }
 
-    if (typeof obj === 'string') {
-      // Check if it looks like an entity ID
-      if (/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z0-9_]+$/.test(obj)) {
-        this._validateEntity(obj, path, result);
-      }
-    } else if (obj && typeof obj === 'object') {
-      for (const [key, value] of Object.entries(obj)) {
-        const fieldPath = path ? `${path}.${key}` : key;
+    // Only known entity fields are checked. Any other string that merely looks
+    // like `domain.object` (a series name such as `statistics.min`, a buffer
+    // key, a dotted label) is not an entity reference.
+    if (!obj || typeof obj !== 'object') return;
 
-        // Special handling for known entity fields
-        if (key === 'entity' || key === 'entity_id') {
-          if (typeof value === 'string') {
-            this._validateEntity(value, fieldPath, result);
+    for (const [key, value] of Object.entries(obj)) {
+      const fieldPath = path ? `${path}.${key}` : key;
+
+      if (ENTITY_KEYS.has(key) && (typeof value === 'string' || Array.isArray(value))) {
+        const ids = typeof value === 'string' ? [[value, fieldPath]] : value.map((v, i) => [v, `${fieldPath}.${i}`]);
+        for (const [id, idPath] of ids) {
+          if (typeof id === 'string' && ENTITY_ID_RE.test(id)) {
+            this._validateEntity(id, idPath, result);
+          } else if (id && typeof id === 'object') {
+            this._findEntityReferences(id, idPath, result);
           }
-        } else {
-          this._findEntityReferences(value, fieldPath, result);
         }
+      } else {
+        this._findEntityReferences(value, fieldPath, result);
       }
     }
   }
@@ -821,9 +903,25 @@ export class CoreValidationService {
    */
   _generateCacheKey(data, schema, context) {
     const dataStr = JSON.stringify(data);
-    const schemaStr = typeof schema === 'string' ? schema : JSON.stringify(schema);
+    // An inline schema (a card's own) is a large object: key it by identity, not its JSON
+    const schemaStr = typeof schema === 'string' ? schema : this._schemaId(schema);
     const contextStr = JSON.stringify(context);
     return `${dataStr}:${schemaStr}:${contextStr}`;
+  }
+
+  /**
+   * A short id for an inline schema object, the same for the same object.
+   * @param {any} schema
+   * @returns {string}
+   */
+  _schemaId(schema) {
+    if (!schema || typeof schema !== 'object') return String(schema);
+    let id = this._schemaIds.get(schema);
+    if (!id) {
+      id = `inline#${++this._schemaSeq}`;
+      this._schemaIds.set(schema, id);
+    }
+    return id;
   }
 
   /**

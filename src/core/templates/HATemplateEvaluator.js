@@ -1,5 +1,6 @@
 import { TemplateEvaluator } from './TemplateEvaluator.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { renderLive } from './live-templates.js';
 
 /**
  * HATemplateEvaluator - Server-side Jinja2 template evaluation via Home Assistant
@@ -34,7 +35,6 @@ export class HATemplateEvaluator extends TemplateEvaluator {
    * // Conditional logic
    * await evaluate('{{states("light.living") == "on" ? "Active" : "Off"}}')
    */
-  // @ts-ignore - override with narrower signature than base TemplateEvaluator
   async evaluate(content) {
     if (!content || typeof content !== 'string') {
       return content;
@@ -66,8 +66,9 @@ export class HATemplateEvaluator extends TemplateEvaluator {
   /**
    * Call Home Assistant's template rendering via WebSocket subscription
    *
-   * Uses a one-shot subscription to render_template which immediately
-   * returns the rendered result and unsubscribes.
+   * A card's evaluator (context._liveTemplates, its template owner) keeps the
+   * template subscribed (live-templates.js); otherwise a one-shot subscription
+   * takes the first result and unsubscribes.
    *
    * @private
    * @param {string} template - Jinja2 template to render
@@ -91,10 +92,48 @@ export class HATemplateEvaluator extends TemplateEvaluator {
       }
     }
 
+    const all = {
+      // Card-supplied names (e.g. sky, point) as top-level variables
+      ...(this.context.extra && typeof this.context.extra === 'object' ? this.context.extra : {}),
+      config: this.context.config,
+      user: this.context.hass?.user?.name,
+      variables: this.context.variables
+    };
+    // Only the names the template uses: an open template is keyed by its variables,
+    // and the card config changes (presets merged in, rule patches) where most
+    // templates never read it
+    /** @type {Record<string, any>} */
+    const variables = {};
+    for (const [name, value] of Object.entries(all)) {
+      if (new RegExp(`\\b${name.replace(/[^\w]/g, '')}\\b`).test(template)) variables[name] = value;
+    }
+
+    // A card's templates stay subscribed (live-templates.js): Home Assistant sends
+    // only changed results. Others (rules, one-off evaluations) render once.
+    const owner = this.context._liveTemplates;
+    if (owner) {
+      return renderLive(hass.connection, template, variables, owner);
+    }
+
     return new Promise((resolve, reject) => {
+      /** @type {(() => any) | undefined} */
       let unsubscribe;
+      // Set once a result or the timeout ends this render. Home Assistant can send
+      // the subscribe result and the first event in one websocket frame, so the
+      // callback may run before subscribeMessage() resolves with the unsubscribe:
+      // then .then() unsubscribes. Without this the subscription stayed open in
+      // connection.commands and on the server for good (2026-11-17).
+      let done = false;
+      const end = () => {
+        done = true;
+        if (unsubscribe) {
+          const unsub = unsubscribe;
+          unsubscribe = undefined;
+          Promise.resolve().then(unsub).catch(() => {});
+        }
+      };
       const timeout = setTimeout(() => {
-        if (unsubscribe) unsubscribe();
+        end();
         reject(new Error('Template rendering timed out after 5 seconds'));
       }, 5000);
 
@@ -104,8 +143,9 @@ export class HATemplateEvaluator extends TemplateEvaluator {
       // {{ variables.x }} work the same way inside Jinja2 templates too.
       hass.connection.subscribeMessage(
         (result) => {
+          if (done) return;
           clearTimeout(timeout);
-          if (unsubscribe) unsubscribe();
+          end();
 
           lcardsLog.trace('[HATemplateEvaluator] Received result:', result);
 
@@ -116,14 +156,11 @@ export class HATemplateEvaluator extends TemplateEvaluator {
         {
           type: 'render_template',
           template: template,
-          variables: {
-            config: this.context.config,
-            user: this.context.hass?.user?.name,
-            variables: this.context.variables
-          }
+          variables
         }
       ).then((unsub) => {
-        unsubscribe = unsub;
+        if (done) Promise.resolve().then(unsub).catch(() => {});
+        else unsubscribe = unsub;
       }).catch((error) => {
         clearTimeout(timeout);
         reject(error);

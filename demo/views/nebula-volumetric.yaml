@@ -1,0 +1,101 @@
+# Volumetric nebula (C3). Rescued from reports/c2-review/c3.yaml.
+title: Volumetric nebula
+path: nebula-volumetric
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: TURBULENCE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: DRIFT } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: nebula
+              config:
+                seed: 4
+                cloud_count: 5
+                colors: &a1 [ var(--lcards-purple), var(--lcards-blue-medium), var(--lcards-orange) ]
+                turbulence: { map_range: { input: [ 0, 100 ], output: [ 0, 1.5 ] } }
+                volumetric: true
+        text: { label: { content: 1A NEBULA VOLUMETRIC · TURBULENCE, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: nebula
+              config: { seed: 4, cloud_count: 5, colors: *a1, turbulence: { map_range: { input: [ 0, 100 ], output: [ 0, 1.5 ] } }}
+        text: { label: { content: "1B SAME CLOUDS, PLAIN · TURBULENCE", show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: nebula
+              config:
+                scroll_speed_x: { map_range: { input: [ 0, 100 ], output: [ 0, 40 ] } }
+                seed: 8
+                cloud_count: 5
+                colors: *a1
+                turbulence: 1
+                noise_scale: 0.006
+                volumetric: true
+        text:
+          label:
+            content: 2 VOLUMETRIC, HIGH TURBULENCE, FINER WISPS · DRIFT
+            show: true
+            color: var(--lcards-blue)
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: nebula
+              config:
+                seed: 12
+                cloud_count: 5
+                colors: *a1
+                turbulence: 0.6
+                volumetric: true
+                max_opacity: 0.6
+            - { preset: warp-starfield, config: { count: 500 } }
+        text:
+          label: { content: 3 VOLUMETRIC + WARP STARFIELD, show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 4 }

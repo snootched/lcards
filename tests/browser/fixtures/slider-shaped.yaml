@@ -1,0 +1,5 @@
+# doc/cards/slider-card/index.md: shaped horizontal slider with its name and state labels
+type: custom:lcards-slider
+entity: light.demo
+preset: shaped-horizontal
+component: shaped

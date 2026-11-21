@@ -130,8 +130,9 @@ export const SLIDER_PRESETS = {
         content: "[[[return entity ? entity.attributes.friendly_name : null]]]",
         show: false
       },
+      // The value as Home Assistant formats it for the user's locale (18,8 not 18.8), without its unit
       state: {
-        content: "[[[if (!entity) return null; if (entity.entity_id.split('.')[0] === 'light' && entity.attributes.brightness != null) return Math.round(entity.attributes.brightness / 2.55) + '%'; return entity.state;]]]",
+        content: "[[[if (!entity) return null; if (entity.entity_id.split('.')[0] === 'light' && entity.attributes.brightness != null) return Math.round(entity.attributes.brightness / 2.55) + '%'; const parts = hass && hass.formatEntityStateToParts ? hass.formatEntityStateToParts(entity) : null; const value = parts && parts.find((p) => p.type === 'value'); return value ? value.value : entity.state;]]]",
         show: false
       }
     }
@@ -238,7 +239,7 @@ export const SLIDER_PRESETS = {
   // =====================================
   'pills-left-border-rounded': {
     extends: 'slider.pills-left-border',
-    description: 'Pills slider with left border and rounded free-end corners. The left (bordered) end stays flat; only the right end is rounded — classic LCARS end-cap look. Override style.border.radius for a different radius or per-corner control.',
+    description: 'Pills slider with left border and rounded free-end corners. The left (bordered) end stays flat; only the right end is rounded, classic LCARS end-cap look. Override style.border.radius for a different radius or per-corner control.',
     compatibleComponents: ['default'],
 
     style: {
@@ -394,6 +395,114 @@ export const SLIDER_PRESETS = {
   },
 
   // =====================================
+  // RING PRESETS: circular gauge (component: ring)
+  // =====================================
+  //
+  // Text sits in the ring's centre zones: label (top), value (middle),
+  // sublabel (bottom). font_size_percent is a percentage of the text zone's
+  // height, so the text scales with the ring. Put the name underneath with
+  // text.name.zone: sublabel.
+
+  /**
+   * ring: 270 degree ring with the gap at the bottom, round caps, the name small
+   * above a large value.
+   */
+  'ring': {
+    extends: 'slider.base',
+    description: 'Ring gauge: a 270 degree value arc around a large state value, the name above it. Drag around the ring to set the value.',
+    compatibleComponents: ['ring'],
+
+    component: 'ring',
+
+    style: {
+      ring: {
+        start_angle: -135,
+        end_angle: 135,
+        thickness: '12%',
+        cap: 'round'
+      }
+    },
+
+    text: {
+      name: {
+        zone: 'label',
+        position: 'bottom',
+        show: true,
+        font_size_percent: 60,
+        padding: 0,
+        color: {
+          default: 'theme:colors.text.onDark',
+          inactive: 'theme:darken(colors.text.onDark, 0.2)',
+          unavailable: 'theme:darken(colors.text.onDark, 0.3)'
+        }
+      },
+      state: {
+        zone: 'value',
+        position: 'center',
+        show: true,
+        font_size_percent: 85,
+        padding: 0,
+        color: {
+          default: 'theme:colors.text.onDark',
+          active: 'theme:lighten(colors.text.onDark, 0.2)',
+          inactive: 'theme:darken(colors.text.onDark, 0.2)',
+          unavailable: 'theme:darken(colors.text.onDark, 0.3)'
+        }
+      }
+    }
+  },
+
+  /**
+   * picard-ring: the M148 (Protostar.NX) look: a near-full thick ring with flat
+   * ends, a small label over the number.
+   */
+  'picard-ring': {
+    extends: 'slider.base',
+    description: 'Picard-era ring: a near-full thick ring with flat ends, a small label over a large value (Protostar.NX zone gauges).',
+    compatibleComponents: ['ring'],
+
+    component: 'ring',
+
+    style: {
+      ring: {
+        start_angle: -165,
+        end_angle: 165,
+        thickness: '20%',
+        cap: 'flat',
+        fill: { color: 'theme:components.slider.ring.fill.color' },
+        track: { color: 'theme:alpha(colors.card.buttonOff, 0.5)' }
+      }
+    },
+
+    text: {
+      name: {
+        zone: 'label',
+        position: 'bottom',
+        show: true,
+        font_size_percent: 55,
+        text_transform: 'uppercase',
+        padding: 0,
+        color: {
+          default: 'theme:components.slider.ring.fill.color',
+          unavailable: 'theme:darken(colors.text.onDark, 0.3)'
+        }
+      },
+      state: {
+        zone: 'value',
+        position: 'center',
+        show: true,
+        font_size_percent: 90,
+        padding: 0,
+        color: {
+          default: 'theme:colors.text.onDark',
+          inactive: 'theme:darken(colors.text.onDark, 0.2)',
+          unavailable: 'theme:darken(colors.text.onDark, 0.3)'
+        }
+      }
+    }
+  },
+
+  // =====================================
   // PICARD PRESET - Picard-style vertical slider
   // =====================================
 
@@ -401,6 +510,8 @@ export const SLIDER_PRESETS = {
     extends: 'slider.gauge-basic',
     description: 'Picard-style vertical slider',
     compatibleComponents: ['picard'],
+
+    component: 'picard',
 
     style: {
       track: {
@@ -425,6 +536,83 @@ export const SLIDER_PRESETS = {
           align:    'start',
           border:   { enabled: true },
           offset:   { x: 20 }
+        }
+      }
+    }
+  },
+
+  // =====================================
+  // PICARD COLUMN GAUGE - the Picard-era upright gauge of the reference consoles:
+  // a number cap at each end, a thin value bar on a dark track, short ticks,
+  // plain scale numbers and a small oval thumb. Structure roles for the caps and
+  // track, so a bank of them reads as structure, not as a block of accent.
+  // =====================================
+
+  'picard-gauge-column': {
+    extends: 'slider.gauge-basic',
+    description: 'Picard Titan column gauge: number caps at both ends, a bracket line, a thin value bar, a range strip, short ticks with their numbers beside them and a small oval thumb',
+    compatibleComponents: ['picard'],
+
+    component: 'picard',
+    shape: 'column',
+
+    style: {
+      track: {
+        orientation: 'vertical'
+      },
+      border: {
+        top:    { color: 'theme:colors.card.topColor' },
+        bottom: { color: 'theme:colors.card.topColor' }
+      },
+      gauge: {
+        progress_bar: {
+          radius:  0,
+          background: { color: 'theme:colors.card.topColor', radius: 0 }
+        },
+        scale: {
+          tick_marks: {
+            major: { interval: 10, height: 10, width: 2, color: 'theme:colors.ui.secondary' },
+            minor: { interval: 2, height: 5, width: 1, color: 'theme:colors.card.topColor' }
+          },
+          labels: { show_unit: false, font_size: 11, align: 'start', padding: 3, color: 'theme:colors.ui.secondary' }
+        },
+        indicator: {
+          enabled: true,
+          type:    'round',
+          color:   'theme:colors.ui.secondary',
+          size:    { width: 28, height: 11 }
+        },
+        // Value markers point left at the bar from the tick side
+        marker_indicator: {
+          type:     'triangle',
+          size:     { width: 10, height: 10 },
+          rotation: 180,
+          align:    'start',
+          border:   { enabled: false }
+        }
+      }
+    },
+
+    // The value in the top cap, the entity's name in the bottom one
+    text: {
+      state: {
+        zone: 'top',
+        position: 'center-right',
+        show: true,
+        font_size: 14,
+        color: {
+          default: 'theme:colors.ui.secondary',
+          unavailable: 'theme:darken(colors.ui.secondary, 0.3)'
+        }
+      },
+      name: {
+        zone: 'bottom',
+        position: 'center-right',
+        show: true,
+        font_size: 14,
+        color: {
+          default: 'theme:colors.ui.secondary',
+          unavailable: 'theme:darken(colors.ui.secondary, 0.3)'
         }
       }
     }

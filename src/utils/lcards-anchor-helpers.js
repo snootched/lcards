@@ -23,10 +23,10 @@ import { lcardsLog } from './lcards-logging.js';
  * document, since `getCTM()` is unreliable on fully-detached elements.
  *
  * @param {string} svgContent - SVG markup as string
- * @returns {Object<string, number[]|null>} Map of anchor ID to [x, y] coordinates
+ * @returns {Object<string, number[]>} Map of anchor ID to [x, y] coordinates
  */
 export function findSvgAnchors(svgContent) {
-  const anchors = /** @type {Object.<string, number[]|null>} */ ({});
+  const anchors = /** @type {Object.<string, number[]>} */ ({});
   if (!svgContent) return anchors;
 
   const container = document.createElement('div');
@@ -50,8 +50,8 @@ export function findSvgAnchors(svgContent) {
     svgRoot.querySelectorAll('circle[id]').forEach(el => {
       const id = el.id;
       if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
-      const cx = parseFloat(el.getAttribute('cx'));
-      const cy = parseFloat(el.getAttribute('cy'));
+      const cx = parseFloat(el.getAttribute('cx') ?? '');
+      const cy = parseFloat(el.getAttribute('cy') ?? '');
       if (Number.isFinite(cx) && Number.isFinite(cy)) {
         anchors[id] = resolvePoint(el, cx, cy);
       }
@@ -60,8 +60,8 @@ export function findSvgAnchors(svgContent) {
     svgRoot.querySelectorAll('ellipse[id]').forEach(el => {
       const id = el.id;
       if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
-      const cx = parseFloat(el.getAttribute('cx'));
-      const cy = parseFloat(el.getAttribute('cy'));
+      const cx = parseFloat(el.getAttribute('cx') ?? '');
+      const cy = parseFloat(el.getAttribute('cy') ?? '');
       if (Number.isFinite(cx) && Number.isFinite(cy)) {
         anchors[id] = resolvePoint(el, cx, cy);
       }
@@ -70,8 +70,8 @@ export function findSvgAnchors(svgContent) {
     svgRoot.querySelectorAll('text[id]').forEach(el => {
       const id = el.id;
       if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
-      const x = parseFloat(el.getAttribute('x'));
-      const y = parseFloat(el.getAttribute('y'));
+      const x = parseFloat(el.getAttribute('x') ?? '');
+      const y = parseFloat(el.getAttribute('y') ?? '');
       if (Number.isFinite(x) && Number.isFinite(y)) {
         anchors[id] = resolvePoint(el, x, y);
       }
@@ -83,22 +83,46 @@ export function findSvgAnchors(svgContent) {
     svgRoot.querySelectorAll('rect[id]').forEach(el => {
       const id = el.id;
       if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
-      const x = parseFloat(el.getAttribute('x')) || 0;
-      const y = parseFloat(el.getAttribute('y')) || 0;
-      const width = parseFloat(el.getAttribute('width'));
-      const height = parseFloat(el.getAttribute('height'));
+      const x = parseFloat(el.getAttribute('x') ?? '') || 0;
+      const y = parseFloat(el.getAttribute('y') ?? '') || 0;
+      const width = parseFloat(el.getAttribute('width') ?? '');
+      const height = parseFloat(el.getAttribute('height') ?? '');
       if (Number.isFinite(width) && Number.isFinite(height)) {
         anchors[id] = resolvePoint(el, x + width / 2, y + height / 2);
       }
     });
 
-    // <g id="anchor"> - unconditionally overwrites a same-id match from any
-    // element type above, matching this function's pre-existing (if perhaps
-    // accidental) precedence.
+    // <g id="anchor">: the centre of the group's bounding box (getBBox() is in
+    // the group's own user space, so its CTM maps it like the shapes above).
+    // Where getBBox() is missing (no layout engine) or the box is empty, the
+    // centre of the anchors found inside the group; a group with neither is
+    // left out, so the anchor check reports it as missing instead of a control
+    // being skipped silently.
     svgRoot.querySelectorAll('g[id]').forEach(el => {
       const id = el.id;
       if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
-      anchors[id] = null; // Optionally: calculate centroid if needed
+      const group = /** @type {any} */ (el);
+      let box = null;
+      try {
+        box = typeof group.getBBox === 'function' ? group.getBBox() : null;
+      } catch {
+        box = null; // Firefox throws for a group that is not rendered
+      }
+      if (box && Number.isFinite(box.x) && Number.isFinite(box.y) && (box.width > 0 || box.height > 0)) {
+        anchors[id] = resolvePoint(el, box.x + box.width / 2, box.y + box.height / 2);
+        return;
+      }
+      const inner = Array.from(el.querySelectorAll('[id]'))
+        .map(child => anchors[child.id])
+        .filter(point => Array.isArray(point));
+      if (inner.length) {
+        const xs = inner.map(p => p[0]);
+        const ys = inner.map(p => p[1]);
+        anchors[id] = [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+        return;
+      }
+      delete anchors[id];
+      lcardsLog.warn(`[findSvgAnchors] Group anchor '${id}' has no measurable geometry; left out`);
     });
   } finally {
     document.body.removeChild(container);
@@ -109,35 +133,22 @@ export function findSvgAnchors(svgContent) {
 
 export function getSvgContent(base_svg) {
   const assetManager = window.lcards?.core?.assetManager;
-  if (!assetManager) {
-    // Fallback to legacy method if AssetManager not available
-    let svgKey = null;
-    if (base_svg && base_svg.startsWith('builtin:')) {
-      svgKey = base_svg.replace('builtin:', '');
-    } else if (base_svg && base_svg.startsWith('/local/')) {
-      svgKey = base_svg.split('/').pop().replace('.svg','');
-    }
-    return svgKey && window.lcards?.assets?.svg_templates?.[svgKey];
-  }
+  if (!assetManager) return null;
 
-  let svgKey = null;
-  if (base_svg && base_svg.startsWith('builtin:')) {
-    svgKey = base_svg.replace('builtin:', '');
-  } else if (base_svg && base_svg.startsWith('/local/')) {
-    svgKey = base_svg.split('/').pop().replace('.svg','');
-  } else if (base_svg && base_svg.startsWith('media-source://')) {
-    // Registered/cached under the content ID itself — see
-    // AssetManager.loadSvgFromMediaSource(). Sync-only read like the
-    // branches above: only finds it if already fetched by something else.
-    svgKey = base_svg;
-  }
-
+  // Same key AssetManager.loadSvg() registers under: builtin:<name> -> <name>,
+  // a path/URL or media-source:// item -> the whole source. Sync-only read:
+  // finds the SVG once something has fetched it.
+  const svgKey = assetManager.svgKeyForSource(base_svg);
   if (!svgKey) return null;
 
-  const registry = assetManager.getRegistry('svg');
-  return registry.get(svgKey);
+  return assetManager.getRegistry('svg').get(svgKey);
 }
 
+/**
+ * Read an SVG's viewBox attribute (fallback [0, 0, 400, 200]).
+ * @param {string} svgContent
+ * @returns {[number, number, number, number]}
+ */
 export function getSvgViewBox(svgContent) {
   const match = svgContent && svgContent.match(/viewBox="([0-9.\-]+)\s+([0-9.\-]+)\s+([0-9.\-]+)\s+([0-9.\-]+)"/);
   if (match) {

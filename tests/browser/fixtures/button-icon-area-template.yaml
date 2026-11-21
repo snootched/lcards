@@ -1,0 +1,13 @@
+# icon_area_background takes a template like the card colours (D2 batch 5:
+# the template string reached the SVG fill unevaluated)
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+icon: mdi:lightbulb
+show_icon: true
+icon_area: left
+icon_area_background: "[[[ return entity.state === 'on' ? '#ff0000' : '#0000ff' ]]]"
+text:
+  name:
+    content: AREA
+    show: true

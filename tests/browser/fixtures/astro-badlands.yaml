@@ -1,0 +1,12 @@
+# Astrometrics Badlands (NB2c; astrometrics.spec.js, visual.spec.js): both nebula presets
+# side by side from outside: badlands (liquid fire, band, fire columns) on the left,
+# badlands_voyager (mauve layers, lightning columns, strikes) on the right.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: all
+  views:
+    all: { target: [0, 0, 0], yaw: 0, tilt: 22, distance: 1100 }
+objects:
+  - { type: nebula, id: ds9, at: [-280, 0, 0], preset: badlands }
+  - { type: nebula, id: voyager, at: [280, 0, 0], preset: badlands_voyager }

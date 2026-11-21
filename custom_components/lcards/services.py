@@ -13,6 +13,8 @@ Provides the lcards.* action namespace:
   lcards.set_log_level    — change JS frontend log level at runtime
   lcards.trigger_effect   — fire a named screen effect on target devices/users
   lcards.play_sound       — play a sound effect on target devices/users
+  lcards.fly_to           — fly an astrometrics card's camera to a view or point
+  lcards.set_clock        — set an astrometrics card's scene date and rate
 
 All services accept four optional targeting fields (all may be combined):
 
@@ -28,7 +30,9 @@ All services accept four optional targeting fields (all may be combined):
                          server-side.  Case-insensitive.
 
 When none of these fields are provided the service behaves as a broadcast
-(existing default behaviour — fully backward-compatible).
+(existing default behaviour — fully backward-compatible).  When they are
+provided but match no device or user (a typo), the call fails with a
+ServiceValidationError instead of falling back to a broadcast.
 
 Alert mode services — no targeting
   Call input_select.select_option on input_select.lcards_alert_mode, the
@@ -46,9 +50,10 @@ The `reload` and `set_log_level` services always use the lcards_event push
 channel (with optional per-device/per-user targeting).
 """
 import logging
-import voluptuous as vol
+import probatio as vol
 
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ServiceValidationError
 
 from .const import DOMAIN, LOG_LEVEL_OPTIONS, _LOG_LEVEL_MAP
 
@@ -72,13 +77,14 @@ _ALERT_MODES = [
 # surfaces as a clear HA-side error instead of a silent no-op in the browser.
 _SOUND_EVENT_TYPES = [
     "card_tap", "card_hold", "card_double_tap", "card_hover",
-    "button_tap", "toggle_on", "toggle_off",
+    "toggle_on", "toggle_off",
     "slider_drag_start", "slider_drag_end", "slider_change",
     "more_info_open",
     "menu_expand", "nav_page", "dialog_open", "dialog_close",
     "dashboard_edit_start", "dashboard_edit_save",
     "alert_red", "alert_yellow", "alert_blue", "alert_gray", "alert_black",
     "alert_clear", "system_ready", "error", "notification",
+    "borg_assimilate", "borg_deassimilate",
 ]
 
 # HA event name for the Python → JS push channel.
@@ -93,6 +99,7 @@ _TARGET_FIELDS = {
     vol.Optional("target_user_ids"):     [vol.All(str, vol.Length(min=1))],
     vol.Optional("target_user_names"):   [vol.All(str, vol.Length(min=1))],
 }
+_TARGET_FIELDS_KEYS = ("target_device_ids", "target_device_names", "target_user_ids", "target_user_names")
 
 
 async def _async_resolve_targets(
@@ -112,7 +119,8 @@ async def _async_resolve_targets(
     * ``target_user_names``   — matched case-insensitively against the HA
                                 user ``name`` / display name.
 
-    Returns ``([], [])`` when no targeting fields are present (→ broadcast).
+    Returns ``([], [])`` when no targeting fields are present (→ broadcast);
+    raises ServiceValidationError when they are present but match nothing.
     """
     device_ids: list[str] = list(call.data.get("target_device_ids") or [])
     user_ids:   list[str] = list(call.data.get("target_user_ids")   or [])
@@ -146,6 +154,16 @@ async def _async_resolve_targets(
                 _LOGGER.debug(
                     "LCARdS targeting: resolved user name %r → %s", uname, user.id
                 )
+
+    if not device_ids and not user_ids and any(
+        call.data.get(key) for key in _TARGET_FIELDS_KEYS
+    ):
+        # Targeting was asked for but matched nobody: never fall back to a
+        # broadcast (a typo in a name would hit every dashboard).
+        raise ServiceValidationError(
+            "LCARdS: no device or user matches the target "
+            f"(names: {device_names + user_names})"
+        )
 
     return device_ids, user_ids
 
@@ -187,6 +205,8 @@ SERVICE_SHOW_PORTAL_CARD  = "show_portal_card"
 SERVICE_CLEAR_PORTAL_CARD = "clear_portal_card"
 SERVICE_BORG_ASSIMILATE   = "borg_assimilate"    # Easter egg
 SERVICE_BORG_DEASSIMILATE = "borg_deassimilate"  # Easter egg — restores normal state
+SERVICE_FLY_TO            = "fly_to"
+SERVICE_SET_CLOCK         = "set_clock"
 
 _ALL_SERVICES = [
     SERVICE_SET_ALERT_MODE,
@@ -205,6 +225,8 @@ _ALL_SERVICES = [
     SERVICE_CLEAR_PORTAL_CARD,
     SERVICE_BORG_ASSIMILATE,
     SERVICE_BORG_DEASSIMILATE,
+    SERVICE_FLY_TO,
+    SERVICE_SET_CLOCK,
 ]
 
 
@@ -216,18 +238,18 @@ async def _async_set_alert_mode(hass: HomeAssistant, mode: str) -> None:
     subscription mechanism already wired up in JS.
     """
     _LOGGER.debug("LCARdS service: setting alert mode → %r", mode)
-    try:
-        await hass.services.async_call(
-            "input_select",
-            "select_option",
-            {"entity_id": _ALERT_MODE_ENTITY, "option": mode},
-            blocking=True,
+    # Without the helper the call did nothing and still reported success
+    if hass.states.get(_ALERT_MODE_ENTITY) is None:
+        raise ServiceValidationError(
+            f"LCARdS: {_ALERT_MODE_ENTITY} does not exist. Create the LCARdS helpers "
+            "(LCARdS config panel, Helpers tab, Create All) and try again."
         )
-    except Exception as exc:  # noqa: BLE001
-        _LOGGER.warning(
-            "LCARdS: failed to set alert mode %r — is %s defined? (%s)",
-            mode, _ALERT_MODE_ENTITY, exc,
-        )
+    await hass.services.async_call(
+        "input_select",
+        "select_option",
+        {"entity_id": _ALERT_MODE_ENTITY, "option": mode},
+        blocking=True,
+    )
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
@@ -297,11 +319,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         """Update log level on Python backend and push to JS frontends (targeted or all)."""
         level = call.data["level"]
         _LOGGER.info("LCARdS service: setting log level → %r", level)
-        # Update Python logger hierarchy immediately (always — it is process-wide)
+        # Resolve targets first: a target that matches nobody raises, and the
+        # failed call must leave the backend level as it was.
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        # Update the Python logger hierarchy (always: it is process-wide)
         py_level = _LOG_LEVEL_MAP.get(level, logging.WARNING)
         logging.getLogger(f"custom_components.{DOMAIN}").setLevel(py_level)
         # Push to connected JS frontends via the lcards_event channel
-        device_ids, user_ids = await _async_resolve_targets(hass, call)
         _fire_targeted_event(hass, "set_log_level", {"level": level}, device_ids, user_ids)
     async def handle_trigger_effect(call: ServiceCall) -> None:
         """Fire layered screen effects on target LCARdS frontends.
@@ -309,7 +333,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         ``layers`` — per-slot effect config dict (required):
           { backdrop: { preset, ...params }, color: { preset, ...params }, canvas: { preset, ...params } }
 
-        ``duration`` (optional int ms) auto-clears all effects after that delay.
+        ``duration`` (optional int ms) clears the slots this call sets after that delay.
         """
         layers   = call.data.get("layers") or {}
         duration = call.data.get("duration") or None
@@ -340,6 +364,37 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             payload["asset_key"] = asset_key
         device_ids, user_ids = await _async_resolve_targets(hass, call)
         _fire_targeted_event(hass, "play_sound", payload, device_ids, user_ids)
+
+    async def handle_fly_to(call: ServiceCall) -> None:
+        """Fly an astrometrics card's camera on target LCARdS frontends.
+
+        ``card_id`` is the card's ``id``; ``view`` a named camera view or
+        ``point`` a point id (``point`` wins); ``duration`` (ms) overrides the
+        card's fly_duration; ``warp`` (bool) overrides the view's and the
+        card's warp. Every open dashboard showing that card flies unless
+        targeted.
+        """
+        payload: dict = {"card_id": call.data["card_id"]}
+        for key in ("view", "point", "duration", "warp"):
+            if call.data.get(key) is not None:
+                payload[key] = call.data[key]
+        _LOGGER.info("LCARdS service: fly_to %r", payload)
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        _fire_targeted_event(hass, "fly_to", payload, device_ids, user_ids)
+
+    async def handle_set_clock(call: ServiceCall) -> None:
+        """Set an astrometrics card's scene date and rate on target frontends.
+
+        ``card_id`` is the card's ``id``; ``date`` is ``now`` or an ISO date,
+        ``rate`` is ``live``, days per second, or with a unit (``1 h/s``, ``30 d/s``). At least one of them.
+        """
+        payload: dict = {"card_id": call.data["card_id"]}
+        for key in ("date", "rate"):
+            if call.data.get(key) is not None:
+                payload[key] = call.data[key]
+        _LOGGER.info("LCARdS service: set_clock %r", payload)
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        _fire_targeted_event(hass, "set_clock", payload, device_ids, user_ids)
 
     async def handle_clear_effect(call: ServiceCall) -> None:
         """Clear screen effects on target LCARdS frontends.
@@ -401,6 +456,16 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         if tendrils       is not None: canvas_overrides["tendrilsPerSite"] = tendrils
         if tendril_length is not None: canvas_overrides["tendrilLength"]   = tendril_length
         if particle_count is not None: canvas_overrides["particleCount"]   = particle_count
+        # WebGL intro options (single words: same key in YAML and JS)
+        for key in ("renderer", "corruption", "overrun"):
+            if call.data.get(key) is not None:
+                canvas_overrides[key] = call.data[key]
+        # cube: detailed | classic | none (the page's cube on/off and cubeStyle)
+        cube = call.data.get("cube")
+        if cube is not None:
+            canvas_overrides["cube"] = cube != "none"
+            if cube != "none":
+                canvas_overrides["cubeStyle"] = cube
 
         # Mapping from snake_case YAML keys → camelCase JS params.
         # Allows intro_layers.canvas to use either convention in YAML.
@@ -410,6 +475,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             "tendril_length":    "tendrilLength",
             "particle_count":    "particleCount",
             "glow_color":        "glowColor",
+            "cube_style":        "cubeStyle",
         }
 
         def _norm_canvas(d: dict) -> dict:
@@ -443,6 +509,11 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         font_swap = call.data.get("font_swap")
         if font_swap is not None:
             payload["fontSwap"] = font_swap
+        palette_hue = call.data.get("palette_hue")
+        if palette_hue is not None:
+            payload["paletteHue"] = palette_hue
+        if call.data.get("sound"):
+            payload["sound"] = call.data["sound"]
 
         _fire_targeted_event(hass, "borg_assimilate", payload, device_ids, user_ids)
 
@@ -462,6 +533,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             payload["outro_layers"] = call.data["outro_layers"]
         if call.data.get("revert_transition_style") is not None:
             payload["revert_transition_style"] = call.data["revert_transition_style"]
+        if call.data.get("sound"):
+            payload["sound"] = call.data["sound"]
         _fire_targeted_event(hass, "borg_deassimilate", payload, device_ids, user_ids)
 
     # --- Register all services ---
@@ -513,17 +586,66 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN, SERVICE_CLEAR_EFFECT, handle_clear_effect,
         schema=vol.Schema({
-            vol.Optional("slot"): vol.In(["backdrop", "canvas", "color"]),
+            # "" is the action form's "All slots" choice
+            vol.Optional("slot"): vol.In(["", "backdrop", "canvas", "color"]),
             **_TARGET_FIELDS,
         }),
     )
     hass.services.async_register(
         DOMAIN, SERVICE_PLAY_SOUND, handle_play_sound,
-        schema=vol.Schema({
-            vol.Optional("event_type"): vol.In(_SOUND_EVENT_TYPES),
-            vol.Optional("asset_key"):  vol.All(str, vol.Length(min=1)),
-            **_TARGET_FIELDS,
-        }),
+        schema=vol.All(
+            vol.Schema({
+                vol.Optional("event_type"): vol.In(_SOUND_EVENT_TYPES),
+                vol.Optional("asset_key"):  vol.All(str, vol.Length(min=1)),
+                **_TARGET_FIELDS,
+            }),
+            # Without either one the browsers had nothing to play and the call
+            # still reported success
+            vol.Any(
+                vol.Schema({vol.Required("event_type"): object}, extra=vol.ALLOW_EXTRA),
+                vol.Schema({vol.Required("asset_key"): object}, extra=vol.ALLOW_EXTRA),
+                msg="play_sound needs an event_type or an asset_key",
+            ),
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_FLY_TO, handle_fly_to,
+        schema=vol.All(
+            vol.Schema({
+                vol.Required("card_id"):  vol.All(str, vol.Length(min=1)),
+                vol.Optional("view"):     vol.All(str, vol.Length(min=1)),
+                vol.Optional("point"):    vol.All(str, vol.Length(min=1)),
+                vol.Optional("duration"): vol.All(int, vol.Range(min=0, max=60000)),
+                vol.Optional("warp"):     bool,
+                **_TARGET_FIELDS,
+            }),
+            vol.Any(
+                vol.Schema({vol.Required("view"): str}, extra=vol.ALLOW_EXTRA),
+                vol.Schema({vol.Required("point"): str}, extra=vol.ALLOW_EXTRA),
+                msg="fly_to needs a view or a point",
+            ),
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_SET_CLOCK, handle_set_clock,
+        schema=vol.All(
+            vol.Schema({
+                vol.Required("card_id"): vol.All(str, vol.Length(min=1)),
+                vol.Optional("date"):    vol.All(str, vol.Length(min=1)),
+                vol.Optional("rate"):    vol.Any(
+                    vol.Coerce(float),
+                    vol.All(str, vol.In(["live"])),
+                    # with a unit, as the time slider shows it: 1 h/s, 30 d/s, 1 y/s
+                    vol.All(str, vol.Match(r"^\s*-?\d+(\.\d+)?\s*(s|min|h|d|w|mo|y)\s*(/\s*s)?\s*$")),
+                ),
+                **_TARGET_FIELDS,
+            }),
+            vol.Any(
+                vol.Schema({vol.Required("date"): object}, extra=vol.ALLOW_EXTRA),
+                vol.Schema({vol.Required("rate"): object}, extra=vol.ALLOW_EXTRA),
+                msg="set_clock needs a date or a rate",
+            ),
+        ),
     )
     hass.services.async_register(
         DOMAIN, SERVICE_SHOW_PORTAL_CARD, handle_show_portal_card,
@@ -555,8 +677,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             vol.Optional("tendrils_per_site"): vol.All(int, vol.Range(min=1, max=20)),
             vol.Optional("tendril_length"):    vol.All(int, vol.Range(min=100, max=1200)),
             vol.Optional("particle_count"):    vol.All(int, vol.Range(min=0, max=6)),
+            vol.Optional("renderer"):          vol.In(["auto", "webgl", "canvas"]),
+            vol.Optional("cube"):              vol.In(["detailed", "classic", "none"]),
+            vol.Optional("corruption"):        vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
+            vol.Optional("overrun"):           vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
             vol.Optional("suppress_persistent"): bool,
             vol.Optional("font_swap"):         bool,
+            vol.Optional("palette_hue"):       vol.All(vol.Coerce(int), vol.Range(min=0, max=359)),
+            vol.Optional("sound"):             str,
             vol.Optional("intro_layers"):      dict,
             vol.Optional("persistent_layers"): dict,
             **_TARGET_FIELDS,
@@ -568,6 +696,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             vol.Optional("with_outro"):             bool,
             vol.Optional("outro_layers"):           dict,
             vol.Optional("revert_transition_style"): vol.In(["flash", "fade_only", "blur_fade", "off"]),
+            vol.Optional("sound"):                  str,
             **_TARGET_FIELDS,
         }),
     )

@@ -1,0 +1,107 @@
+# The "Animations and effects" lead: five WebGL effects in one frame, joined into
+# doc/public/releases/2026.11.0/effects.webm (+ .gif for GitHub). Record, then join:
+#   node scripts/release-shots.mjs --list doc/releases/shots/2026.11.0-effects.yaml --out tmp/rn/effects
+#   then the ffmpeg xfade join in the release notes session (each clip trimmed to its length below).
+- name: e1-floor
+  kind: video
+  card:
+    type: custom:lcards-elbow
+    elbow: { type: frame, segment: { color: var(--lcards-gray) }, frame: { bar_width: 4, bar_height: 4, outer_curve: 10 } }
+    background_animation:
+      inset: auto
+      effects:
+        - preset: grid
+          config: { color: var(--lcards-orange), line_width: 2, major_row_interval: 4, major_col_interval: 4, color_major: var(--lcards-moonlight), line_width_major: 3, scroll_speed_x: 0, scroll_speed_y: 30, scan_period: 4 }
+    animations:
+      - trigger: on_load
+        target: background
+        preset: custom
+        params: { camera_tilt: [90, 12], duration: 2500, ease: inOutSine, delay: 2500 }
+  steps:
+    - wait: 200
+  duration: 4500
+  size: [900, 320]
+  viewport: [1100, 500]
+  selector: '#lcards-release-card'
+  padding: 24
+  settle: 1800
+
+- name: e2-tunnel
+  kind: video
+  card:
+    type: custom:lcards-elbow
+    elbow: { type: frame, segment: { color: var(--lcards-gray) }, frame: { bar_width: 4, bar_height: 4, outer_curve: 10 } }
+    background_animation:
+      inset: auto
+      effects:
+        - preset: grid
+          config: { surface: cylinder, surface_axis: horizontal, surface_side: inside, surface_length: 0, line_spacing: 30, scroll_speed_x: 60, major_col_interval: 4, color: var(--lcards-blue-medium), color_major: var(--lcards-moonlight) }
+  steps:
+    - wait: 1500
+  duration: 3500
+  size: [900, 320]
+  viewport: [1100, 500]
+  selector: '#lcards-release-card'
+  padding: 24
+
+- name: e3-well
+  kind: video
+  card:
+    type: custom:lcards-elbow
+    elbow: { type: frame, segment: { color: var(--lcards-gray) }, frame: { bar_width: 4, bar_height: 4, outer_curve: 10 } }
+    background_animation:
+      inset: auto
+      effects:
+        - preset: grid
+          config: { surface: well, well_profile: [1.1, 0.5, 0.2, 0.12, 0.1], well_ripple: 0.12, well_ripple_speed: 0.6, pattern: polar, spoke_count: 24, line_spacing: 18, camera_tilt: 40, color: var(--lcards-orange), color_major: var(--lcards-moonlight), major_row_interval: 4 }
+  steps:
+    - wait: 1500
+  duration: 3500
+  size: [900, 320]
+  viewport: [1100, 500]
+  selector: '#lcards-release-card'
+  padding: 24
+
+- name: e4-warp
+  kind: video
+  card:
+    type: custom:lcards-elbow
+    elbow: { type: frame, segment: { color: var(--lcards-gray) }, frame: { bar_width: 4, bar_height: 4, outer_curve: 10 } }
+    background_animation:
+      inset: auto
+      effects:
+        - preset: warp-starfield
+          config: { count: 1200, streak: 1.5, spectrum: true, speed: 1 }
+    animations:
+      - trigger: on_load
+        target: background
+        preset: custom
+        params: { speed: [1, 8], duration: 2000, ease: inQuad, delay: 2600 }
+  steps:
+    - wait: 200
+  duration: 4500
+  size: [900, 320]
+  viewport: [1100, 500]
+  selector: '#lcards-release-card'
+  padding: 24
+  settle: 1800
+
+- name: e5-holo
+  kind: video
+  card:
+    type: custom:lcards-elbow
+    elbow: { type: frame, segment: { color: var(--lcards-gray) }, frame: { bar_width: 4, bar_height: 4, outer_curve: 10 } }
+    background_animation:
+      inset: auto
+      effects:
+        - preset: grid
+          config: { view: floor, color: var(--lcards-blue-medium), scan_period: 0 }
+        - preset: holo-sphere
+          config: { size: 0.85, position_x: 0.7, position_y: 0.45, line_width: 1.5, scan_period: 3 }
+  steps:
+    - wait: 1500
+  duration: 3500
+  size: [900, 320]
+  viewport: [1100, 500]
+  selector: '#lcards-release-card'
+  padding: 24

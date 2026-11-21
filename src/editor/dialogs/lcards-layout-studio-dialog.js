@@ -17,6 +17,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { editorStyles } from '../base/editor-styles.js';
+import { messageStyles } from '../base/surface-styles.js';
 import { studioDialogStyles } from './studio-dialog-styles.js';
 import {
     parseLayoutConfig,
@@ -26,10 +27,17 @@ import {
     pruneAreaSettings,
 } from '../../views/layout-grid-utils.js';
 import { showConfirmDeleteDialog, showInfoDialog } from '../../views/layout-edit-dialogs.js';
+import { measureGridFrame } from '../../views/layout-render.js';
+import { EDIT_DOCK_WIDTH, DOCK_SHEET_BREAKPOINT } from '../../views/layout-edit-chrome.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-color-picker.js';
-import '../components/yaml/lcards-yaml-editor.js';
-import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
+import '../components/yaml/lcards-studio-yaml-tab.js';
+// The canvas tools (tracks, areas, cards). A lazy chunk shared with the layout
+// view's edit mode: import it here, or the studio's preview stays empty unless
+// a layout view was edited earlier on the page.
+import '../../views/lcards-grid-edit-overlay.js';
+import { layoutCardSchema } from '../../cards/schemas/layout-card-schema.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 
 const ALIGN_V_OPTIONS = [
     { value: 'stretch', label: 'Stretch (default)' },
@@ -44,9 +52,9 @@ const ALIGN_H_OPTIONS = [
     { value: 'end',     label: 'Right' },
 ];
 const OVERFLOW_OPTIONS = [
-    { value: 'visible', label: 'Visible — bleeds beyond cell' },
-    { value: 'clip',    label: 'Clip — hard clip, no scroll' },
-    { value: 'hidden',  label: 'Hidden — clip + block context' },
+    { value: 'visible', label: 'Visible: bleeds beyond cell' },
+    { value: 'clip',    label: 'Clip: hard clip, no scroll' },
+    { value: 'hidden',  label: 'Hidden: clip + block context' },
     { value: 'auto',    label: 'Scroll when needed (auto)' },
     { value: 'scroll',  label: 'Always scroll' },
 ];
@@ -116,7 +124,15 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         this._previewEl = this._overlayEl = null;
     }
 
-    updated() {
+    /** @param {Map<string, unknown>} changed */
+    updated(changed) {
+        // A state tick only needs the new hass on the preview and overlay; the
+        // full sync re-applies the config to the preview card.
+        if (changed.size === 1 && changed.has('hass') && this._previewEl) {
+            this._previewEl.hass = this.hass;
+            if (this._overlayEl) this._overlayEl.hass = this.hass;
+            return;
+        }
         this._syncCanvas();
     }
 
@@ -166,6 +182,10 @@ export class LCARdSLayoutStudioDialog extends LitElement {
             el.addEventListener('layout-settings-changed', (e) => this._onLayoutSettingsChanged(e));
             el.addEventListener('area-cards-changed',      (e) => this._onAreaCardsChanged(e));
             el.addEventListener('add-card-to-area',        (e) => this._onAddCardToArea(e));
+            // The overlay's dock narrows the preview while open (never covers it).
+            el.addEventListener('dock-changed', (e) => {
+                canvas.classList.toggle('dock-open', !!(/** @type {CustomEvent} */ (e)).detail?.open);
+            });
             canvas.appendChild(el);
             this._overlayEl = el;
             // The dialog open animation can leave the first measurement stale (cells
@@ -188,13 +208,9 @@ export class LCARdSLayoutStudioDialog extends LitElement {
     /** Feed the overlay the real grid's resolved px track sizes so its ghost grid
      *  matches content-sized tracks (auto / min-content). */
     _syncMeasureTracks() {
-        const realGrid = this._previewEl?.renderRoot?.querySelector('#grid-root');
+        const realGrid = /** @type {HTMLElement|null|undefined} */ (this._previewEl?.renderRoot?.querySelector('#grid-root'));
         if (!realGrid || !this._overlayEl) return;
-        const cs = getComputedStyle(realGrid);
-        const cols = cs.gridTemplateColumns;
-        const rows = cs.gridTemplateRows;
-        if (cols && cols !== 'none') this._overlayEl.measureColumns = cols.trim().split(/\s+/);
-        if (rows && rows !== 'none') this._overlayEl.measureRows = rows.trim().split(/\s+/);
+        Object.assign(this._overlayEl, measureGridFrame(realGrid, this._overlayEl));
         this._overlayEl.refresh?.();
     }
 
@@ -233,7 +249,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
     _onGridPreviewChanged(ev) {
         ev.stopPropagation();
         const { columns, rows, gap } = ev.detail;
-        const grid = this._previewEl?.renderRoot?.querySelector('#grid-root');
+        const grid = /** @type {HTMLElement | null} */ (this._previewEl?.renderRoot?.querySelector('#grid-root'));
         if (!grid) return;
         if (columns) grid.style.gridTemplateColumns = columns.join(' ');
         if (rows)    grid.style.gridTemplateRows    = rows.join(' ');
@@ -258,9 +274,9 @@ export class LCARdSLayoutStudioDialog extends LitElement {
 
     _onAreaSettingsChanged(ev) {
         ev.stopPropagation();
-        const { name, key, value } = ev.detail ?? {};
-        if (!name || !key) return;
-        this._setAreaSetting(name, key, value);
+        const { name, patch } = ev.detail ?? {};
+        if (!name || !patch) return;
+        for (const [key, value] of Object.entries(patch)) this._setAreaSetting(name, key, value);
     }
 
     /** Merge one per-area surface setting (empty value removes the key / area). */
@@ -300,7 +316,8 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         return html`
             <ha-dialog
                 open
-                @closed=${(e) => { e.stopPropagation(); this._handleCancel(); }}
+                @closed=${this._onDialogClosed}
+                flexcontent
                 header-title="Layout Studio">
 
                 <div class="dialog-content">
@@ -342,15 +359,15 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                     </div>
                 </div>
 
-                <div slot="footer">
-                    <ha-button appearance="plain" @click=${this._handleCancel}>
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" appearance="plain" @click=${this._handleCancel}>
                         Cancel
                     </ha-button>
-                    <ha-button variant="brand" @click=${this._handleSave}>
+                    <ha-button slot="primaryAction" variant="brand" @click=${this._handleSave}>
                         <ha-icon icon="mdi:check" slot="start"></ha-icon>
                         Save
                     </ha-button>
-                </div>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }
@@ -407,7 +424,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         const vl = card.view_layout ?? {};
         const { view_layout, ...cardOnly } = card;
         const areaNames = getAreaNames(parseLayoutConfig(this.config?.layout).areas);
-        const areaOptions = [{ value: '', label: '— none —' }, ...areaNames.map(n => ({ value: n, label: n }))];
+        const areaOptions = [{ value: '', label: '(none)' }, ...areaNames.map(n => ({ value: n, label: n }))];
         const areaName = vl['grid-area'];
 
         return html`
@@ -420,7 +437,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                     ?outlined=${true}
                     headerLevel="4">
                     <div class="ct-remove">
-                        <ha-button class="danger" appearance="plain" @click=${() => this._removeCard(i)}>
+                        <ha-button variant="danger" appearance="plain" @click=${() => this._removeCard(i)}>
                             <ha-icon icon="mdi:delete-outline" slot="start"></ha-icon>Remove card
                         </ha-button>
                     </div>
@@ -527,22 +544,15 @@ export class LCARdSLayoutStudioDialog extends LitElement {
     _renderYamlTab() {
         return html`
             <div class="yaml-tab">
-                <lcards-yaml-editor
-                    .value=${configToYaml(this.config ?? {})}
+                <lcards-studio-yaml-tab
                     .hass=${this.hass}
-                    @value-changed=${this._handleYamlChange}>
-                </lcards-yaml-editor>
+                    .config=${this.config ?? {}}
+                    .schema=${layoutCardSchema}
+                    cardType="layout-card"
+                    @yaml-config-changed=${(e) => this._commit(e.detail.config)}>
+                </lcards-studio-yaml-tab>
             </div>
         `;
-    }
-
-    _handleYamlChange(ev) {
-        try {
-            const newConfig = yamlToConfig(ev.detail.value);
-            this._commit(newConfig);
-        } catch (_) {
-            // Invalid YAML mid-edit — wait for valid state
-        }
     }
 
     _handleTabChange(e) {
@@ -620,7 +630,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         const label = (card?.type ?? 'card').replace('custom:', '');
         const ok = await showConfirmDeleteDialog({
             title: 'Remove card?',
-            message: `Remove the "${label}" card from this layout? This cannot be undone.`,
+            message: `Remove the "${label}" card from this layout? Cancel the studio to get it back.`,
             confirmText: 'Remove',
         });
         if (!ok) return;
@@ -660,33 +670,26 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         }
         this._pickerDialog?.remove();
         const dialog = document.createElement('ha-dialog');
-        // @ts-ignore - ha-dialog props
-        dialog.heading = 'Select a card';
+        dialog.headerTitle = 'Select a card';
         this._pickerDialog = dialog;
-        document.body.appendChild(dialog);
-        // @ts-ignore
+        mountDialogNearHomeAssistant(dialog, this);
         dialog.open = true;
-        // @ts-ignore
         await dialog.updateComplete;
 
         const picker = document.createElement('hui-card-picker');
-        // @ts-ignore
         picker.hass = this.hass;
-        // @ts-ignore
         picker.lovelace = this._childLovelace();
         picker.style.cssText = 'padding:24px; display:block;';
         dialog.appendChild(picker);
         await new Promise(r => setTimeout(r, 80));
-        // @ts-ignore
         picker.requestUpdate?.();
 
         picker.addEventListener('config-changed', (e) => {
             const selected = e.detail?.config;
-            // @ts-ignore
             dialog.open = false;
             if (selected) onPick(JSON.parse(JSON.stringify(selected)));
         });
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._pickerDialog === dialog) this._pickerDialog = null;
         });
@@ -699,6 +702,17 @@ export class LCARdSLayoutStudioDialog extends LitElement {
             detail: { config: this._workingConfig }, bubbles: true, composed: true,
         }));
         this._handleClose();
+    }
+
+    /**
+     * Only the dialog's own `closed` cancels; closes bubbling from pickers and
+     * selects inside it must not close the studio (or reach the card editor).
+     * @param {Event} e
+     * @private
+     */
+    _onDialogClosed(e) {
+        e.stopPropagation();
+        if (e.target === e.currentTarget) this._handleCancel();
     }
 
     _handleCancel() {
@@ -723,12 +737,10 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         return [
             editorStyles,
             studioDialogStyles,
+            messageStyles,
             css`
                 :host { display: block; }
 
-                /* Fixed dialog height set on first paint so it doesn't grow as tabs
-                   get taller — content scrolls inside each panel instead. */
-                .dialog-content { height: 80vh; max-height: 80vh; min-height: 0; display: flex; flex-direction: column; }
                 /* Left config pane ~1/3, preview ~2/3. Explicit row so panels take the
                    full height and scroll internally rather than sizing to content. */
                 .studio-layout {
@@ -762,11 +774,14 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                     overflow: hidden;
                 }
                 .canvas lcards-layout-card { display: block; width: 100%; height: 100%; }
+                .canvas.dock-open { padding-right: ${EDIT_DOCK_WIDTH}px; }
+                @media (max-width: ${DOCK_SHEET_BREAKPOINT}px) {
+                    .canvas.dock-open { padding-right: 0; }
+                }
 
                 .layout-tab { display: flex; flex-direction: column; gap: 12px; }
                 .yaml-tab { display: flex; flex-direction: column; height: 100%; }
-                .yaml-tab lcards-yaml-editor { flex: 1; min-height: 0; }
-                .hint { font-size: 13px; color: var(--secondary-text-color); line-height: 1.5; }
+                .yaml-tab lcards-studio-yaml-tab { flex: 1; min-height: 0; }
 
                 .card-tab { display: flex; flex-direction: column; gap: 14px; }
                 .grid2 { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 8px 10px; }
@@ -778,7 +793,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                 .inline2 ha-input,
                 .inline2 ha-selector { flex: 1; min-width: 0; }
                 .ct-remove { display: flex; justify-content: flex-end; margin-bottom: 8px; }
-                .ct-remove .danger { --mdc-theme-primary: var(--error-color, #ef4444); color: var(--error-color, #ef4444); }
+                
                 .card-editor-host {
                     border-top: var(--ha-border-width-sm, 1px) solid var(--divider-color);
                     padding-top: 12px;

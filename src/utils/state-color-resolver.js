@@ -31,7 +31,8 @@ import { compareThreshold, compareBetween } from './comparison-utils.js';
  * @param {Object} colorConfig - The color config object containing possible range keys
  * @returns {string|undefined} Matched color value, or undefined if no range matches
  */
-function _resolveRangeColor(value, colorConfig) {
+function _rangeKey(value, colorConfig) {
+    /** @type {Array<{type: string, key: string, threshold?: number, lo?: number, hi?: number, width?: number}>} */
     const candidates = [];
 
     for (const key of Object.keys(colorConfig)) {
@@ -82,13 +83,41 @@ function _resolveRangeColor(value, colorConfig) {
         if (typePriority[a.type] !== typePriority[b.type]) {
             return typePriority[a.type] - typePriority[b.type];
         }
-        if (a.type === 'between') return a.width - b.width;
-        if (a.type === 'above')   return b.threshold - a.threshold;
-        if (a.type === 'below')   return a.threshold - b.threshold;
+        // Each type always carries its own fields (width for between, threshold otherwise).
+        if (a.type === 'between') return /** @type {number} */ (a.width) - /** @type {number} */ (b.width);
+        if (a.type === 'above')   return /** @type {number} */ (b.threshold) - /** @type {number} */ (a.threshold);
+        if (a.type === 'below')   return /** @type {number} */ (a.threshold) - /** @type {number} */ (b.threshold);
         return 0;
     });
 
-    return colorConfig[candidates[0].key];
+    return candidates[0].key;
+}
+
+/**
+ * Which key of a state-keyed config applies: the same precedence as
+ * resolveStateColor (attributeState > actualState > zero > ranges > non_zero >
+ * classifiedState > default). For provenance ("the active branch").
+ *
+ * @param {Object} options - As for resolveStateColor (fallback ignored)
+ * @returns {string|null} The key, or null when none applies (or the config isn't an object)
+ */
+export function stateKeyFor({ actualState, classifiedState, colorConfig, numericState = undefined, attributeState = undefined }) {
+    if (!colorConfig || typeof colorConfig !== 'object') return null;
+    const has = (key) => key != null && colorConfig[key] !== undefined;
+    const numericVal = numericState !== undefined ? numericState : parseFloat(actualState);
+    const numericValValid = !isNaN(numericVal);
+
+    if (attributeState !== undefined && has(attributeState)) return String(attributeState);
+    if (actualState != null && has(actualState)) return String(actualState);
+    if (numericValValid && numericVal === 0 && has('zero')) return 'zero';
+    if (numericValValid) {
+        const range = _rangeKey(numericVal, colorConfig);
+        if (range !== undefined) return range;
+    }
+    if (numericValValid && numericVal !== 0 && has('non_zero')) return 'non_zero';
+    if (has(classifiedState)) return String(classifiedState);
+    if (has('default')) return 'default';
+    return null;
 }
 
 /**
@@ -102,6 +131,11 @@ function _resolveRangeColor(value, colorConfig) {
  * @param {string} options.classifiedState - The classified/mapped state (e.g., "active", "inactive", "unavailable")
  * @param {Object|string} options.colorConfig - The color configuration (can be object with state keys or string)
  * @param {string|number|null} [options.fallback] - Optional fallback value
+ * @param {number} [options.numericState] - Value for zero/range/non_zero keys (from ranges_attribute)
+ * @param {*} [options.attributeState] - Exact-match key source (from state_attribute)
+ * @param {boolean} [options.resolveTokens=true] - Run the selected value through the theme
+ *   resolver (CSS target). False returns it as configured, for callers that resolve it
+ *   themselves (LCARdSCard._resolveColorValue's concrete path).
  * @returns {string|number|null} The resolved color value or null if not found
  *
  * @example
@@ -140,102 +174,25 @@ function _resolveRangeColor(value, colorConfig) {
  * });
  * // Returns: '#FF9900'
  */
-export function resolveStateColor({ actualState, classifiedState, colorConfig, fallback = null, numericState = undefined, attributeState = undefined }) {
-    // If colorConfig is null/undefined, return fallback
-    if (!colorConfig) {
-        return fallback;
-    }
-
-    // If colorConfig is a plain string (not state-based), return it directly
-    if (typeof colorConfig !== 'object') {
-        return colorConfig;
-    }
-
-    // State-based color object - check in priority order:
-    // 0. Attribute state — String(entity.attributes[state_attribute]) — highest priority
-    //    (only when attributeState !== undefined, set via config.state_attribute)
-    // 1. Actual entity state (e.g., "heat", "cool", "playing")
-    // 2. "zero" — exact numeric zero match (value === 0); treated like an exact-match key
-    // 3. Range conditions (above:N, below:N, between:N:M) — most-specific numeric match wins
-    // 4. "non_zero" — catch-all for any non-zero number (only when no range matched)
-    // 5. Classified state (e.g., "active", "inactive", "unavailable")
-    // 6. Default state / fallback parameter
-    //
-    // "zero" comes before ranges because it is an exact condition (value === 0), not a range.
-    // "non_zero" comes after ranges because it is a catch-all fallback.
-    //
-    // NOTE: Use !== undefined throughout to avoid silently skipping falsy color
-    // values (e.g., an empty string reset or a future numeric token).
-    //
-    // numericState: optional override for the numeric value used in steps 2-4.
-    // When provided, it replaces parseFloat(actualState) for range/zero/non_zero
-    // evaluation. This allows callers to use entity attributes (e.g. brightness_pct)
-    // for range conditions while keeping actualState for exact-string matching.
-    //
-    // attributeState: optional String(entity.attributes[state_attribute]) override.
-    // When provided, it is checked before actualState for exact-key matching, allowing
-    // boolean (true→"true") and discrete string (e.g. "fade") attributes to drive colors.
+export function resolveStateColor({ actualState, classifiedState, colorConfig, fallback = null, numericState = undefined, attributeState = undefined, resolveTokens = true }) {
+    // A plain value, a state map's selected value and the fallback all resolve
+    // the same way, so `color: 'alpha(#f90, 0.5)'` works with or without a state map.
     let resolved;
-
-    // Pre-compute numeric value once: use explicit numericState when provided,
-    // otherwise parse actualState string (works for numeric sensor entities).
-    const numericVal = numericState !== undefined ? numericState : parseFloat(actualState);
-    const numericValValid = !isNaN(numericVal);
-
-    // 0. Attribute state match — String(entity.attributes[state_attribute])
-    // Checked before actualState so boolean/discrete attributes take precedence.
-    if (attributeState !== undefined && colorConfig[attributeState] !== undefined) {
-        resolved = colorConfig[attributeState];
+    if (!colorConfig) {
+        resolved = fallback;
+    } else if (typeof colorConfig !== 'object') {
+        resolved = colorConfig;
+    } else {
+        const key = stateKeyFor({ actualState, classifiedState, colorConfig, numericState, attributeState });
+        resolved = key !== null ? colorConfig[key] : fallback;
     }
 
-    // 1. Exact raw state match (always uses actualState string, never the numeric override)
-    if (resolved === undefined && actualState != null && colorConfig[actualState] !== undefined) {
-        resolved = colorConfig[actualState];
-    }
-
-    // 2. "zero" — exact numeric zero (higher specificity than any range)
-    if (resolved === undefined) {
-        if (numericValValid && numericVal === 0 && colorConfig.zero !== undefined) {
-            resolved = colorConfig.zero;
-        }
-    }
-
-    // 3. Range conditions (above:N, below:N, between:N:M) — most-specific match wins
-    if (resolved === undefined) {
-        if (numericValValid) {
-            resolved = _resolveRangeColor(numericVal, colorConfig);
-        }
-    }
-
-    // 4. "non_zero" — catch-all for any non-zero number (no range matched)
-    if (resolved === undefined) {
-        if (numericValValid && numericVal !== 0 && colorConfig.non_zero !== undefined) {
-            resolved = colorConfig.non_zero;
-        }
-    }
-
-    // 4. Classified state (active / inactive / unavailable / default)
-    if (resolved === undefined && classifiedState != null && colorConfig[classifiedState] !== undefined) {
-        resolved = colorConfig[classifiedState];
-    }
-
-    // 5. Default / fallback
-    if (resolved === undefined) {
-        resolved = colorConfig.default !== undefined ? colorConfig.default : fallback;
-    }
-
-    // Resolve computed tokens (e.g., "darken(var(--lcards-orange), 0.2)") via ThemeTokenResolver.
-    // Skip match-light/match-brightness tokens — these are per-card runtime placeholders that
-    // must not be evaluated here; _resolveMatchLightColor() handles them at render time.
-    // ThemeTokenResolver.resolve() only ever expects bare paths ("colors.x.y"), never the
-    // "theme:" prefix — strip it here so values produced at render time (e.g. by a template,
-    // which never passes through CoreConfigManager's one-time static "theme:" substitution
-    // pass) still resolve correctly, not just literal config values.
-    if (resolved && window.lcards?.core?.themeManager?.resolver &&
-        !String(resolved).includes('match-light') && !String(resolved).includes('match-brightness')) {
-        const resolverInstance = window.lcards.core.themeManager.resolver;
-        const tokenPath = String(resolved).startsWith('theme:') ? String(resolved).slice(6) : resolved;
-        resolved = resolverInstance.resolve(tokenPath, resolved);
+    // Theme tokens and computed functions; match-light/match-brightness are
+    // per-card and substituted later by LCARdSCard._resolveMatchLightColor().
+    const resolver = window.lcards?.core?.themeManager?.resolver;
+    if (resolveTokens && typeof resolved === 'string' && resolver &&
+        !resolved.includes('match-light') && !resolved.includes('match-brightness')) {
+        resolved = resolver.resolve(resolved, resolved);
     }
 
     return resolved;
@@ -249,6 +206,8 @@ export function resolveStateColor({ actualState, classifiedState, colorConfig, f
  * @param {string} options.classifiedState - The classified/mapped state
  * @param {Object} options.configPath - The config object to navigate (e.g., border.color)
  * @param {string|number|null} [options.fallback] - Optional fallback value
+ * @param {number} [options.numericState] - Numeric entity state, for numeric state-colour keys
+ * @param {string} [options.attributeState] - Attribute value, when the colour follows an attribute
  * @returns {string|number|null} The resolved color value or null if not found
  *
  * @example

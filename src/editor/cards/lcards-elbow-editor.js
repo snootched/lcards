@@ -14,16 +14,19 @@
  * - Inherits button card functionality (text, actions, etc.)
  */
 
-import { html, svg } from 'lit';
+import { html, svg, nothing } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { editorComponentStyles } from '../base/editor-component-styles.js';
 import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
 import { getElbowSchema } from '../../cards/schemas/elbow-schema.js';
+import { concentricInnerCurve, parseFrameConfig } from '../../cards/elbow-config.js';
+import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
 // Import shared form components
 import '../components/shared/lcards-form-section.js';
+import { renderInfoGuide } from '../components/shared/info-guide.js';
 import '../components/shared/lcards-color-picker.js';
 // Import specialized editor components
 import '../components/editors/lcards-grid-layout.js';
@@ -36,16 +39,18 @@ import '../components/editors/lcards-font-selector.js';
 import '../components/lcards-animation-editor.js';
 import '../components/lcards-filter-editor.js';
 import '../components/lcards-shape-texture-editor.js';
+import '../components/lcards-background-animation-editor.js';
 // Import dashboard components
 import '../components/dashboard/lcards-rules-dashboard.js';
 // Import datasource components
 import '../components/datasources/lcards-datasource-editor-tab.js';
 // Import template components
 import '../components/templates/lcards-template-evaluation-tab.js';
-import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
+import { createDialogFooter, mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
+import { showInfoDialog } from '../../views/layout-edit-dialogs.js';
+import { elbowEditorZones } from './elbow-editor-zones.js';
 
-// @ts-ignore - TS2417: static side extends - getConfigElement signature
 export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
     static get properties() {
@@ -123,8 +128,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const wrapper = this.closest('.wrapper');
         if (wrapper) {
             const shadowRoot = wrapper.getRootNode();
-            if (shadowRoot && shadowRoot !== document) {
-                // @ts-ignore - TS2339: auto-suppressed
+            if (shadowRoot instanceof ShadowRoot) {
                 const shadowHost = shadowRoot.host;
                 if (shadowHost) {
                     const editorContainer = shadowHost.parentElement;
@@ -200,8 +204,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             this._symbioCardEditorDialogRef.remove();
             this._symbioCardEditorDialogRef = null;
         }
-        clearTimeout(this._yamlDebounceTimer);
-        clearTimeout(this._cssDebounceTimer);
+        clearTimeout(this._yamlDebounceTimer ?? undefined);
+        clearTimeout(this._cssDebounceTimer ?? undefined);
     }
 
     static get styles() {
@@ -211,7 +215,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     /**
      * Get tab definitions for the elbow editor
      * @returns {Array<{label: string, content: Function}>}
-     * @private
+     * @protected
      */
     _getTabDefinitions() {
         return [
@@ -247,17 +251,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         // dialog visibly in the sidebar).
         if (!customElements.get('hui-card-picker')) {
             lcardsLog.warn('[ElbowEditor] hui-card-picker not loaded yet. Click "Add Card" on the dashboard once to prime it, then try again.');
-            // Show a transient notification via HA if possible
-            try {
-                const ha = document.querySelector('home-assistant');
-                // @ts-ignore - TS2339: auto-suppressed
-                if (ha?.showToast) {
-                    // @ts-ignore - TS2339: auto-suppressed
-                    ha.showToast({ message: 'Card picker loading… please try again in a moment.', duration: 3000 });
-                } else {
-                    alert('Card picker not ready yet. Click "Add Card" on any dashboard view once to enable it, then try again.');
-                }
-            } catch (_) { /* ignore */ }
+            showInfoDialog({
+                title: 'Card picker not ready',
+                message: 'Home Assistant hasn’t loaded its card picker yet. On any dashboard, click “Add card” once (you can cancel it), then come back and try again.',
+            });
             return;
         }
 
@@ -268,34 +265,26 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         }
 
         const dialog = document.createElement('ha-dialog');
-        // @ts-ignore - TS2339: auto-suppressed
         dialog.headerTitle = 'Select Symbiont Card Type';
 
         this._symbioCardPickerDialogRef = dialog;
-        document.body.appendChild(dialog);
-        // @ts-ignore - TS2339: auto-suppressed
+        mountDialogNearHomeAssistant(dialog, this);
         dialog.open = true;
 
-        // @ts-ignore - TS2339: auto-suppressed
         await dialog.updateComplete;
 
         const picker = document.createElement('hui-card-picker');
         // CRITICAL: set hass and lovelace BEFORE appending so firstUpdated has data
-        // @ts-ignore - TS2339: auto-suppressed
         picker.hass = this.hass;
-        // @ts-ignore - TS2339: auto-suppressed
         picker.lovelace = this._getSymbiontLovelace();
         picker.style.cssText = 'padding: 24px; display: block;';
         dialog.appendChild(picker);
 
         await new Promise(r => setTimeout(r, 100));
-        // @ts-ignore - TS2339: auto-suppressed
         picker.requestUpdate?.();
-        // @ts-ignore - TS2339: auto-suppressed
         if (picker.updateComplete) await picker.updateComplete;
 
         picker.addEventListener('config-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
             const selectedConfig = e.detail?.config;
             lcardsLog.debug('[ElbowEditor] Symbiont card type selected:', selectedConfig?.type);
 
@@ -303,11 +292,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 detail: { config: selectedConfig }
             }));
 
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = false;
         });
 
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._symbioCardPickerDialogRef === dialog) {
                 this._symbioCardPickerDialogRef = null;
@@ -348,7 +336,6 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         }
 
         const dialog = document.createElement('ha-dialog');
-        // @ts-ignore - TS2339: auto-suppressed
         dialog.headerTitle = `Edit: ${currentCard.type}`;
         dialog.setAttribute('prevent-scrim-close', '');
         this._symbioCardEditorDialogRef = dialog;
@@ -357,26 +344,19 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         container.style.cssText = 'padding: 16px; min-height: 300px; min-width: 420px; box-sizing: border-box;';
 
         const editor = document.createElement('hui-card-element-editor');
-        // @ts-ignore - TS2339: auto-suppressed
         editor.hass = this.hass;
-        // @ts-ignore - TS2339: auto-suppressed
         editor.lovelace = this._getSymbiontLovelace();
-        // @ts-ignore - TS2339: auto-suppressed
         editor.value = JSON.parse(JSON.stringify(currentCard));
 
         let tempConfig = JSON.parse(JSON.stringify(currentCard));
 
         editor.addEventListener('config-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
             if (e.detail?.config && typeof e.detail.config === 'object' && e.detail.config.type) {
-                // @ts-ignore - TS2339: auto-suppressed
                 tempConfig = e.detail.config;
             }
         });
         editor.addEventListener('value-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
             if (e.detail?.value && typeof e.detail.value === 'object' && e.detail.value.type) {
-                // @ts-ignore - TS2339: auto-suppressed
                 tempConfig = e.detail.value;
             }
         });
@@ -384,39 +364,32 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         container.appendChild(editor);
         dialog.appendChild(container);
 
-        const actionsDiv = document.createElement('div');
-        actionsDiv.slot = 'footer';
-        actionsDiv.style.cssText = 'display:flex; gap:8px;';
-
         const cancelButton = document.createElement('ha-button');
         cancelButton.textContent = 'Cancel';
-        // @ts-ignore - TS2339: auto-suppressed
+        cancelButton.setAttribute('appearance', 'plain');
         cancelButton.addEventListener('click', () => { dialog.open = false; });
 
         const saveButton = document.createElement('ha-button');
         saveButton.textContent = 'Save';
+        saveButton.setAttribute('variant', 'brand');
         saveButton.addEventListener('click', () => {
             if (tempConfig?.type) {
                 this._setConfigValue('symbiont.card', JSON.parse(JSON.stringify(tempConfig)));
                 lcardsLog.debug('[ElbowEditor] Symbiont card config saved from editor:', tempConfig.type);
             }
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = false;
         });
 
-        actionsDiv.appendChild(cancelButton);
-        actionsDiv.appendChild(saveButton);
-        dialog.appendChild(actionsDiv);
+        dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [saveButton] }));
 
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._symbioCardEditorDialogRef === dialog) {
                 this._symbioCardEditorDialogRef = null;
             }
         });
 
-        document.body.appendChild(dialog);
-        // @ts-ignore - TS2339: auto-suppressed
+        mountDialogNearHomeAssistant(dialog, this);
         setTimeout(() => { dialog.open = true; }, 10);
         lcardsLog.debug('[ElbowEditor] Opened symbiont card editor dialog for:', currentCard.type);
     }
@@ -499,7 +472,6 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             styleOptions.push({ value: 'segmented', label: 'Segmented (Picard-style double)' });
         }
 
-        // @ts-ignore - TS2345: auto-suppressed
         return [...this._buildConfigTab({
             infoMessage: 'Configure your LCARS elbow card. Elbows are positioned borders with rounded corners that create the iconic LCARS interface aesthetic.',
             modeSections: [
@@ -514,11 +486,11 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         {
                             type: 'custom',
                             render: () => html`
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .label=${'Elbow Position'}
-                                    .helper=${'Position of the elbow corner on the card'}
-                                    .selector=${{
+                                ${this._renderFieldWithHandler('elbow.type', {
+                                    label: 'Elbow Position',
+                                    helper: 'Position of the elbow corner on the card',
+                                    value: elbowType,
+                                    selectorOverride: {
                                         select: {
                                             mode: 'dropdown',
                                             options: this._getElbowComponentEntries().map(([key, component]) => ({
@@ -526,29 +498,25 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                                 label: component.metadata?.name || key
                                             }))
                                         }
-                                    }}
-                                    .value=${elbowType}
-                                    @value-changed=${this._handleElbowTypeChange}>
-                                </ha-selector>
+                                    }
+                                }, (value) => this._handleElbowTypeChange(value))}
 
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .label=${'Elbow Style'}
-                                    .helper=${supportsSegmented
+                                ${this._renderFieldWithHandler('elbow.style', {
+                                    label: 'Elbow Style',
+                                    helper: supportsSegmented
                                         ? (elbowStyle === 'simple'
                                             ? 'Simple: Single elbow with one curve'
                                             : 'Segmented: Double concentric elbows with gap (TNG aesthetic)')
-                                        : 'This component only supports simple style'}
-                                    .selector=${{
+                                        : 'This component only supports simple style',
+                                    value: elbowStyle,
+                                    disabled: !supportsSegmented,
+                                    selectorOverride: {
                                         select: {
                                             mode: 'dropdown',
                                             options: styleOptions
                                         }
-                                    }}
-                                    .value=${elbowStyle}
-                                    .disabled=${!supportsSegmented}
-                                    @value-changed=${this._handleStyleChange}>
-                                </ha-selector>
+                                    }
+                                }, (value) => this._handleStyleChange(value))}
                             `
                         }
                     ]
@@ -564,18 +532,15 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         {
                             type: 'custom',
                             render: () => html`
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .label=${'Entity'}
-                                    .helper=${'[Optional] Entity whose state drives colour and icon changes'}
-                                    .selector=${{ entity: {} }}
-                                    .value=${this.config?.entity || ''}
-                                    @value-changed=${(e) => {
-                                        const v = e.detail.value;
-                                        if (v) this._setConfigValue('entity', v);
-                                        else   this._removeConfigPath('entity');
-                                    }}>
-                                </ha-selector>
+                                ${this._renderFieldWithHandler('entity', {
+                                    label: 'Entity',
+                                    helper: '[Optional] Entity whose state drives colour and icon changes',
+                                    value: this.config?.entity || '',
+                                    selectorOverride: { entity: {} }
+                                }, (v) => {
+                                    if (v) this._setConfigValue('entity', v);
+                                    else   this._removeConfigPath('entity');
+                                })}
                             `
                         },
                         {
@@ -603,7 +568,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         {
             type: 'section',
             header: 'Sizing',
-            description: 'Override card dimensions — useful in stacks, overlays, or any auto-height container',
+            description: 'Override card dimensions: useful in stacks, overlays, or any auto-height container',
             icon: 'mdi:resize',
             expanded: false,
             outlined: true,
@@ -683,32 +648,37 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const iDefIC    = innerFc.inner_curve ?? Math.round(iDefOC / 2);
         const segGap    = frame.segments?.gap ?? 4;
 
-        const cornerOuter = (ck) => frame.corners?.[ck]?.outer_curve ?? defOC;
-        const cornerInner = (ck) => frame.corners?.[ck]?.inner_curve ?? defIC;
+        // The card's own corner defaults (square beside an open side, concentric inner curve)
+        const parsedCorners = /** @type {Record<string, { outer: number, inner: number }>} */ (parseFrameConfig(frame, elbowStyle).corners);
+        const cornerOuter = (ck) => frame.corners?.[ck]?.outer_curve ?? parsedCorners[ck]?.outer ?? defOC;
+        const cornerInner = (ck) => frame.corners?.[ck]?.inner_curve ?? parsedCorners[ck]?.inner ?? defIC;
+
+        /**
+         * A frame length: px through FormField, or a CSS text field when the YAML holds a CSS length.
+         * @param {string} path
+         * @param {string} label
+         * @param {any} shown - value shown when unset (the card's own default)
+         * @param {{ min?: number, max?: number, mode?: string, helper?: string, style?: string }} [opts]
+         */
+        const lengthField = (path, label, shown, { min = 0, max = 250, mode = 'slider', helper = undefined, style = '' } = {}) => {
+            const raw = this._getConfigValue(path);
+            const field = this._isCssExpr(raw)
+                ? this._renderCssField(label, raw, path, typeof shown === 'number' ? shown : undefined)
+                : FormField.renderField(this, path, {
+                    label, helper, value: shown,
+                    selectorOverride: { number: { min, max, step: 1, mode, unit_of_measurement: 'px' } }
+                });
+            return style ? html`<div style=${style}>${field}</div>` : field;
+        };
 
         const renderSideRow = (key, label) => html`
             <div style="display: flex; align-items: center; gap: 12px; padding: 4px 0;">
-                <ha-selector
-                    style="flex: 0 0 140px;"
-                    .hass=${this.hass}
-                    .label=${label}
-                    .selector=${{ boolean: {} }}
-                    .value=${sideEnabled(key)}
-                    @value-changed=${(e) => this._setConfigValue(`elbow.frame.${key}.enabled`, e.detail.value)}>
-                </ha-selector>
-                ${sideEnabled(key) ? html`
-                    <ha-selector
-                        style="flex: 1;"
-                        .hass=${this.hass}
-                        .label=${'Thickness (px)'}
-                        .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
-                        .value=${sideThickness(key)}
-                        @value-changed=${(e) => {
-                            const k = (key === 'top' || key === 'bottom') ? 'bar_height' : 'bar_width';
-                            this._setConfigValue(`elbow.frame.${key}.${k}`, e.detail.value);
-                        }}>
-                    </ha-selector>
-                ` : ''}
+                <div style="flex: 0 0 140px;">
+                    ${FormField.renderField(this, `elbow.frame.${key}.enabled`, { label, value: sideEnabled(key) })}
+                </div>
+                ${sideEnabled(key)
+                    ? lengthField(`elbow.frame.${key}.${(key === 'top' || key === 'bottom') ? 'bar_height' : 'bar_width'}`, 'Thickness (px)', sideThickness(key), { min: 1, max: 500, mode: 'box', style: 'flex: 1;' })
+                    : ''}
             </div>
         `;
 
@@ -722,23 +692,11 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             return html`
                 <div style="display: flex; align-items: center; gap: 8px; padding: 2px 0;">
                     <span style="flex: 0 0 130px; font-size: 13px; color: var(--secondary-text-color);">${label}</span>
-                    <ha-selector
-                        style="flex: 1;"
-                        .hass=${this.hass}
-                        .label=${outerLabel}
-                        .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
-                        .value=${cornerOuter(ck)}
-                        @value-changed=${(e) => this._setConfigValue(`elbow.frame.corners.${ck}.outer_curve`, e.detail.value)}>
-                    </ha-selector>
-                    <ha-selector
-                        style="flex: 1;"
-                        .hass=${this.hass}
-                        .label=${innerLabel}
-                        .helper=${'Rounded curve on the inner corner of the bar; only applied when both adjacent sides are enabled'}
-                        .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
-                        .value=${cornerInner(ck)}
-                        @value-changed=${(e) => this._setConfigValue(`elbow.frame.corners.${ck}.inner_curve`, e.detail.value)}>
-                    </ha-selector>
+                    ${lengthField(`elbow.frame.corners.${ck}.outer_curve`, outerLabel, cornerOuter(ck), { mode: 'box', style: 'flex: 1;' })}
+                    ${lengthField(`elbow.frame.corners.${ck}.inner_curve`, innerLabel, cornerInner(ck), {
+                        mode: 'box', style: 'flex: 1;',
+                        helper: 'Rounded curve on the inner corner of the bar; only applied when both adjacent sides are enabled'
+                    })}
                 </div>
             `;
         };
@@ -746,7 +704,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         return html`
             <lcards-message
                 type="info"
-                message="Frame type draws a rectangular border (ring) around the card. Each side can be independently enabled/disabled and sized. Open sides get rounded end-caps via the corner curves.">
+                message="A frame draws a border around the card. Each side can be turned on and sized; open sides get rounded end-caps.">
             </lcards-message>
 
             <!-- Shorthand defaults -->
@@ -757,37 +715,13 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 ?expanded=${true}
                 ?outlined=${true}>
 
-                <ha-selector .hass=${this.hass}
-                    .label=${'Default Side Width (left/right)'}
-                    .helper=${'Applied to left and right bars unless overridden'}
-                    .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                    .value=${defBW}
-                    @value-changed=${(e) => this._setConfigValue('elbow.frame.bar_width', e.detail.value)}>
-                </ha-selector>
+                ${lengthField('elbow.frame.bar_width', 'Default Side Width (left/right)', defBW, { min: 1, max: 500, mode: 'slider', helper: 'Applied to left and right bars unless overridden' })}
 
-                <ha-selector .hass=${this.hass}
-                    .label=${'Default Side Height (top/bottom)'}
-                    .helper=${'Applied to top and bottom bars unless overridden'}
-                    .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                    .value=${defBH}
-                    @value-changed=${(e) => this._setConfigValue('elbow.frame.bar_height', e.detail.value)}>
-                </ha-selector>
+                ${lengthField('elbow.frame.bar_height', 'Default Side Height (top/bottom)', defBH, { min: 1, max: 500, mode: 'slider', helper: 'Applied to top and bottom bars unless overridden' })}
 
-                <ha-selector .hass=${this.hass}
-                    .label=${'Default Outer Corner Curve'}
-                    .helper=${'Outer corner/end-cap arc radius — applied to all 4 corners unless overridden'}
-                    .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                    .value=${defOC}
-                    @value-changed=${(e) => this._setConfigValue('elbow.frame.outer_curve', e.detail.value)}>
-                </ha-selector>
+                ${lengthField('elbow.frame.outer_curve', 'Default Outer Corner Curve', defOC, { min: 0, max: 250, mode: 'slider', helper: 'Outer corner/end-cap arc radius: applied to all 4 corners unless overridden' })}
 
-                <ha-selector .hass=${this.hass}
-                    .label=${'Default Inner Corner Curve'}
-                    .helper=${'Default inner corner curve; only applied when both adjacent sides are enabled — open-side corners are always square'}
-                    .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                    .value=${defIC}
-                    @value-changed=${(e) => this._setConfigValue('elbow.frame.inner_curve', e.detail.value)}>
-                </ha-selector>
+                ${lengthField('elbow.frame.inner_curve', 'Default Inner Corner Curve', defIC, { min: 0, max: 250, mode: 'slider', helper: 'Default inner corner curve; only applied when both adjacent sides are enabled; open-side corners are always square' })}
             </lcards-form-section>
 
             <!-- Per-side control -->
@@ -827,41 +761,15 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     ?expanded=${true}
                     ?outlined=${true}>
 
-                    <ha-selector .hass=${this.hass}
-                        .label=${'Gap between rings (px)'}
-                        .selector=${{ number: { min: 0, max: 50, step: 1, mode: 'box', unit_of_measurement: 'px' } }}
-                        .value=${segGap}
-                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.gap', e.detail.value)}>
-                    </ha-selector>
+                    ${lengthField('elbow.frame.segments.gap', 'Gap between rings (px)', segGap, { min: 0, max: 50, mode: 'box' })}
 
-                    <ha-selector .hass=${this.hass}
-                        .label=${'Inner ring width (left/right)'}
-                        .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                        .value=${iDefBW}
-                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.bar_width', e.detail.value)}>
-                    </ha-selector>
+                    ${lengthField('elbow.frame.segments.inner_frame.bar_width', 'Inner ring width (left/right)', iDefBW, { min: 1, max: 500, mode: 'slider' })}
 
-                    <ha-selector .hass=${this.hass}
-                        .label=${'Inner ring height (top/bottom)'}
-                        .selector=${{ number: { min: 1, max: 500, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                        .value=${iDefBH}
-                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.bar_height', e.detail.value)}>
-                    </ha-selector>
+                    ${lengthField('elbow.frame.segments.inner_frame.bar_height', 'Inner ring height (top/bottom)', iDefBH, { min: 1, max: 500, mode: 'slider' })}
 
-                    <ha-selector .hass=${this.hass}
-                        .label=${'Inner ring outer curve'}
-                        .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                        .value=${iDefOC}
-                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.outer_curve', e.detail.value)}>
-                    </ha-selector>
+                    ${lengthField('elbow.frame.segments.inner_frame.outer_curve', 'Inner ring outer curve', iDefOC, { min: 0, max: 250, mode: 'slider' })}
 
-                    <ha-selector .hass=${this.hass}
-                        .label=${'Inner ring inner curve'}
-                        .helper=${'Inner ring corner curve; only applied when both adjacent sides are enabled — open-side corners are always square'}
-                        .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
-                        .value=${iDefIC}
-                        @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.inner_curve', e.detail.value)}>
-                    </ha-selector>
+                    ${lengthField('elbow.frame.segments.inner_frame.inner_curve', 'Inner ring inner curve', iDefIC, { min: 0, max: 250, mode: 'slider', helper: 'Inner ring corner curve; only applied when both adjacent sides are enabled; open-side corners are always square' })}
                 </lcards-form-section>
 
                 <lcards-form-section
@@ -924,36 +832,28 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Render a read-only banner for a CSS expression value set via YAML.
-     * Provides a 'Clear' button that reverts the field to a plain numeric default
-     * so the user can switch back to the slider UI without hand-editing YAML.
+     * Render a text field for a CSS expression value set via YAML (a number
+     * field can't show it). Blanking the field writes `clearValue`, so the user
+     * can get back to the number control without hand-editing YAML.
      *
      * @param {string} label       - Field label
      * @param {string} cssValue    - The CSS expression string to display
      * @param {string} configPath  - Dot-path to pass to _setConfigValue when clearing
      * @param {*}      clearValue  - Value to set when the user clears the expression
-     * @returns {TemplateResult}
+     * @returns {import('lit').TemplateResult}
      * @private
      */
     _renderCssField(label, cssValue, configPath, clearValue) {
-        return html`
-            <ha-selector
-                .hass=${this.hass}
-                .label=${label}
-                .helper=${'CSS length: vw, vh, clamp(), calc(), etc. Switch mode dropdown to revert to slider.'}
-                .selector=${{ text: {} }}
-                .value=${cssValue || ''}
-                @value-changed=${(e) => {
-                    const v = (e.detail.value || '').trim();
-                    // If user blanks the field, revert to the numeric/string fallback
-                    if (v === '') {
-                        this._setConfigValue(configPath, clearValue);
-                    } else {
-                        this._setConfigValue(configPath, v);
-                    }
-                }}>
-            </ha-selector>
-        `;
+        return this._renderFieldWithHandler(configPath, {
+            label,
+            helper: 'CSS length: vw, vh, clamp(), calc(), etc. Switch mode dropdown to revert to slider.',
+            value: cssValue || '',
+            selectorOverride: { text: {} }
+        }, (value) => {
+            const v = String(value ?? '').trim();
+            // If user blanks the field, revert to the numeric/string fallback
+            this._setConfigValue(configPath, v === '' ? clearValue : v);
+        });
     }
 
     /**
@@ -1004,7 +904,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             if (innerCurve === 'arm_max') return armMax / 2;
             if (innerCurve === 'arm_min') return armMin / 2;
             if (innerCurve === 'arm_fill') return armMax;
-            return effectiveOuter / 2; // 'auto', undefined, or fallback
+            if (innerCurve === undefined) return concentricInnerCurve(effectiveOuter, numericBarWidth, numericBarHeight);
+            return effectiveOuter / 2; // 'auto' or fallback
         })();
 
         // Drive the selects: keyword modes map to themselves; numeric → 'manual'; CSS → 'css'
@@ -1012,8 +913,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const innerCurveModeValue = isCssInnerCurve ? 'css' : (typeof innerCurve === 'number' ? 'manual' : (innerCurve ?? 'auto'));
 
         return html`
+            ${this._isBarType() ? this._renderBarSlant(segment) : html`
             <!-- Static reference diagram -->
             <lcards-form-section
+                variant="guide"
                 header="Elbow Geometry Reference"
                 description="How the four dimensions map to the physical LCARS elbow shape"
                 icon="mdi:ruler-square"
@@ -1036,9 +939,9 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .hass=${this.hass}
                     .label=${'Bar Width Mode (Vertical)'}
                     .helper=${isCssBarWidth
-                        ? 'CSS expression — edit via YAML'
+                        ? 'CSS expression: edit via YAML'
                         : barWidth === 'theme'
-                            ? 'Dynamic — follows input_number.lcars_vertical'
+                            ? 'Dynamic: follows input_number.lcars_vertical'
                             : 'Static pixel value'}
                     .selector=${{
                         select: {
@@ -1084,9 +987,9 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .hass=${this.hass}
                     .label=${'Bar Height Mode (Horizontal)'}
                     .helper=${isCssBarHeight
-                        ? 'CSS expression — edit via YAML'
+                        ? 'CSS expression: edit via YAML'
                         : barHeight === 'theme'
-                            ? 'Dynamic — follows input_number.lcars_horizontal'
+                            ? 'Dynamic: follows input_number.lcars_horizontal'
                             : 'Static pixel value'}
                     .selector=${{
                         select: {
@@ -1151,16 +1054,16 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 <ha-selector
                     .hass=${this.hass}
                     .label=${'Outer Arc Radius'}
-                    .helper=${isCssOuterCurve ? 'CSS expression — edit via YAML' : `→ ${calculatedOuterCurve.toFixed(1)} px`}
+                    .helper=${isCssOuterCurve ? 'CSS expression: edit via YAML' : `→ ${calculatedOuterCurve.toFixed(1)} px`}
                     .selector=${{
                         select: {
                             mode: 'dropdown',
                             options: [
                                 { value: 'auto',       label: 'auto / arm_width  (bar_width ÷ 2)' },
                                 { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
-                                { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)  ★ paired elbows' },
+                                { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2), for paired elbows' },
                                 { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
-                                { value: 'arm_fill',   label: 'arm_fill  (max arm — full sweep)' },
+                                { value: 'arm_fill',   label: 'arm_fill  (max arm, full sweep)' },
                                 { value: 'manual',     label: 'manual  (explicit px)' },
                                 ...(isCssOuterCurve ? [{ value: 'css', label: 'CSS expression (YAML only)' }] : []),
                             ]
@@ -1187,7 +1090,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 <ha-selector
                     .hass=${this.hass}
                     .label=${'Inner Arc Radius'}
-                    .helper=${isCssInnerCurve ? 'CSS expression — edit via YAML' : `→ ${calculatedInnerCurve.toFixed(1)} px`}
+                    .helper=${isCssInnerCurve ? 'CSS expression: edit via YAML' : `→ ${calculatedInnerCurve.toFixed(1)} px`}
                     .selector=${{
                         select: {
                             mode: 'dropdown',
@@ -1229,9 +1132,9 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         select: {
                             mode: 'dropdown',
                             options: [
-                                { value: 'card',   label: 'card  — clamp to card viewport (default)' },
-                                { value: 'none',   label: 'none  — no clamp (consistent paired elbows)' },
-                                { value: 'manual', label: 'manual  — explicit px ceiling' },
+                                { value: 'card',   label: 'card: clamp to card viewport (default)' },
+                                { value: 'none',   label: 'none: no clamp (consistent paired elbows)' },
+                                { value: 'manual', label: 'manual: explicit px ceiling' },
                             ]
                         }
                     }}
@@ -1251,7 +1154,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     <lcards-message
                         type=${clampModeValue === 'none' ? 'success' : 'info'}
                         message=${clampModeValue === 'none'
-                            ? 'No clamping — the arc radius is exactly the computed value. The SVG clips overflow at the card edge. Use this for paired elbows in different-height cards so both render identically.'
+                            ? 'No clamping: the arc radius is exactly the computed value. The SVG clips overflow at the card edge. Use this for paired elbows in different-height cards so both render identically.'
                             : 'The arc radius is clamped to min(card_width, card_height) at render time. Two elbows with the same config in differently-sized cards may render with different radii. Use none to prevent this.'}>
                     </lcards-message>
                 `}
@@ -1261,7 +1164,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         .hass=${this.hass}
                         .label=${'Diagonal Angle Mode'}
                         .helper=${segment.diagonal_angle === 'theme'
-                            ? 'Dynamic — follows input_number.lcars_elbow_angle'
+                            ? 'Dynamic: follows input_number.lcars_elbow_angle'
                             : 'Static angle value'}
                         .selector=${{
                             select: {
@@ -1301,6 +1204,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     `}
                 ` : ''}
             </lcards-form-section>
+            `}
 
             <lcards-form-section
                 header="Elbow Colours"
@@ -1395,7 +1299,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             if (outerIC === 'arm_max')    return outerArmMax / 2;
             if (outerIC === 'arm_min')    return outerArmMin / 2;
             if (outerIC === 'arm_fill')   return outerArmMax;
-            return outerOCPx / 2; // auto / undefined
+            if (outerIC === undefined) return concentricInnerCurve(outerOCPx, outerBW, outerBH);
+            return outerOCPx / 2; // auto
         })();
 
         const outerClamp     = outerSegment.outer_curve_clamp ?? 'card';
@@ -1443,6 +1348,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             if (innerIC === 'arm_max')    return innerArmMax / 2;
             if (innerIC === 'arm_min')    return innerArmMin / 2;
             if (innerIC === 'arm_fill')   return innerArmMax;
+            if (innerIC === undefined && innerOC === undefined) return concentricInnerCurve(innerOCPx, innerBW, innerBH);
             return innerOCPx / 2; // auto / undefined
         })();
 
@@ -1460,6 +1366,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
             <!-- ── Geometry Reference ──────────────────────────────────────── -->
             <lcards-form-section
+                variant="guide"
                 header="Geometry Reference"
                 description="Fixed-proportion diagram showing the segmented elbow structure"
                 icon="mdi:help-circle-outline"
@@ -1496,12 +1403,14 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 ?expanded=${true}
                 ?outlined=${true}>
 
+                ${this._renderSegmentEntityAndActions('outer_segment', outerSegment)}
+
                 <lcards-color-section-v2
                     .editor=${this}
-                    .entityId=${this.config?.entity || ''}
+                    .entityId=${outerSegment.entity_id || this.config?.entity || ''}
                     basePath="elbow.segments.outer_segment.color"
                     header="Colour"
-                    description="Colour states for outer frame segment"
+                    description="Colour states for outer frame segment (matched against its entity)"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
@@ -1513,68 +1422,16 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     ?expanded=${true}
                     ?outlined=${false}>
 
-                    ${this._isCssExpr(outerSegment.bar_width) ? html`
-                        <ha-selector .hass=${this.hass} .label=${'Bar Width Mode'}
-                            .helper=${'📐 CSS expression active'}
-                            .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: 'static', label: 'Static Value' },
-                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
-                            ]}}}
-                            .value=${'css'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.bar_width', 90, 'clamp(60px, 8vw, 120px)')}>
-                        </ha-selector>
-                        ${this._renderCssField('Bar Width', outerSegment.bar_width, 'elbow.segments.outer_segment.bar_width', 90)}
-                    ` : html`
-                        <ha-selector .hass=${this.hass} .label=${'Bar Width Mode'}
-                            .helper=${'📏 Static: Fixed pixel value'}
-                            .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: 'static', label: 'Static Value' },
-                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
-                            ]}}}
-                            .value=${'static'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.bar_width', 90, 'clamp(60px, 8vw, 120px)')}>
-                        </ha-selector>
-                        <ha-selector .hass=${this.hass} .label=${'Bar Width'} .helper=${'Vertical bar thickness'}
-                            .selector=${{ number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
-                            .value=${typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90}
-                            @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.bar_width', e.detail.value)}>
-                        </ha-selector>
-                    `}
+                    ${this._renderSegmentBar(outerSegment.bar_width, 'elbow.segments.outer_segment.bar_width', { label: 'Bar Width', helper: 'Vertical bar thickness', shown: 90, fallback: 90, css: 'clamp(60px, 8vw, 120px)', theme: 'input_number.lcars_vertical' })}
 
-                    ${this._isCssExpr(outerSegment.bar_height) ? html`
-                        <ha-selector .hass=${this.hass} .label=${'Bar Height Mode'}
-                            .helper=${'📐 CSS expression active'}
-                            .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: 'static', label: 'Static Value' },
-                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
-                            ]}}}
-                            .value=${'css'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.bar_height', 90, 'clamp(40px, 6vh, 90px)')}>
-                        </ha-selector>
-                        ${this._renderCssField('Bar Height', outerSegment.bar_height, 'elbow.segments.outer_segment.bar_height', 90)}
-                    ` : html`
-                        <ha-selector .hass=${this.hass} .label=${'Bar Height Mode'}
-                            .helper=${'📏 Static: Fixed pixel value'}
-                            .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: 'static', label: 'Static Value' },
-                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
-                            ]}}}
-                            .value=${'static'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.bar_height', 90, 'clamp(40px, 6vh, 90px)')}>
-                        </ha-selector>
-                        <ha-selector .hass=${this.hass} .label=${'Bar Height'} .helper=${'Horizontal bar thickness'}
-                            .selector=${{ number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
-                            .value=${typeof outerSegment.bar_height === 'number' ? outerSegment.bar_height : outerBW}
-                            @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.bar_height', e.detail.value)}>
-                        </ha-selector>
-                    `}
+                    ${this._renderSegmentBar(outerSegment.bar_height, 'elbow.segments.outer_segment.bar_height', { label: 'Bar Height', helper: 'Horizontal bar thickness', shown: outerBW, fallback: 90, css: 'clamp(40px, 6vh, 90px)', theme: 'input_number.lcars_horizontal' })}
 
                     ${this._isDiagonalCapType() ? html`
                         <ha-selector .hass=${this.hass}
                             .label=${'Diagonal Angle Mode'}
                             .helper=${outerSegment.diagonal_angle === 'theme'
-                                ? '🎨 Dynamic: Binds to input_number.lcars_elbow_angle helper'
-                                : '📏 Static: Fixed angle value'}
+                                ? 'Dynamic: follows the input_number.lcars_elbow_angle helper'
+                                : 'Static: fixed angle value'}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'static', label: 'Static Value' },
                                 { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
@@ -1606,12 +1463,14 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 ?expanded=${true}
                 ?outlined=${true}>
 
+                ${this._renderSegmentEntityAndActions('inner_segment', innerSegment)}
+
                 <lcards-color-section-v2
                     .editor=${this}
-                    .entityId=${this.config?.entity || ''}
+                    .entityId=${innerSegment.entity_id || this.config?.entity || ''}
                     basePath="elbow.segments.inner_segment.color"
                     header="Colour"
-                    description="Colour states for inner content segment"
+                    description="Colour states for inner content segment (matched against its entity)"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
@@ -1623,68 +1482,16 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     ?expanded=${true}
                     ?outlined=${false}>
 
-                    ${this._isCssExpr(innerSegment.bar_width) ? html`
-                        <ha-selector .hass=${this.hass} .label=${'Bar Width Mode'}
-                            .helper=${'📐 CSS expression active'}
-                            .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: 'static', label: 'Static Value' },
-                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
-                            ]}}}
-                            .value=${'css'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.bar_width', 60, 'clamp(40px, 5vw, 80px)')}>
-                        </ha-selector>
-                        ${this._renderCssField('Bar Width', innerSegment.bar_width, 'elbow.segments.inner_segment.bar_width', 60)}
-                    ` : html`
-                        <ha-selector .hass=${this.hass} .label=${'Bar Width Mode'}
-                            .helper=${'📏 Static: Fixed pixel value'}
-                            .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: 'static', label: 'Static Value' },
-                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
-                            ]}}}
-                            .value=${'static'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.bar_width', 60, 'clamp(40px, 5vw, 80px)')}>
-                        </ha-selector>
-                        <ha-selector .hass=${this.hass} .label=${'Bar Width'} .helper=${'Vertical bar thickness'}
-                            .selector=${{ number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
-                            .value=${typeof innerSegment.bar_width === 'number' ? innerSegment.bar_width : 60}
-                            @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.bar_width', e.detail.value)}>
-                        </ha-selector>
-                    `}
+                    ${this._renderSegmentBar(innerSegment.bar_width, 'elbow.segments.inner_segment.bar_width', { label: 'Bar Width', helper: 'Vertical bar thickness', shown: 60, fallback: 60, css: 'clamp(40px, 5vw, 80px)', theme: 'input_number.lcars_vertical' })}
 
-                    ${this._isCssExpr(innerSegment.bar_height) ? html`
-                        <ha-selector .hass=${this.hass} .label=${'Bar Height Mode'}
-                            .helper=${'📐 CSS expression active'}
-                            .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: 'static', label: 'Static Value' },
-                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
-                            ]}}}
-                            .value=${'css'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.bar_height', 60, 'clamp(30px, 4vh, 60px)')}>
-                        </ha-selector>
-                        ${this._renderCssField('Bar Height', innerSegment.bar_height, 'elbow.segments.inner_segment.bar_height', 60)}
-                    ` : html`
-                        <ha-selector .hass=${this.hass} .label=${'Bar Height Mode'}
-                            .helper=${'📏 Static: Fixed pixel value'}
-                            .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: 'static', label: 'Static Value' },
-                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
-                            ]}}}
-                            .value=${'static'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.bar_height', 60, 'clamp(30px, 4vh, 60px)')}>
-                        </ha-selector>
-                        <ha-selector .hass=${this.hass} .label=${'Bar Height'} .helper=${'Horizontal bar thickness'}
-                            .selector=${{ number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
-                            .value=${typeof innerSegment.bar_height === 'number' ? innerSegment.bar_height : innerBW}
-                            @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.bar_height', e.detail.value)}>
-                        </ha-selector>
-                    `}
+                    ${this._renderSegmentBar(innerSegment.bar_height, 'elbow.segments.inner_segment.bar_height', { label: 'Bar Height', helper: 'Horizontal bar thickness', shown: innerBW, fallback: 60, css: 'clamp(30px, 4vh, 60px)', theme: 'input_number.lcars_horizontal' })}
 
                     ${this._isDiagonalCapType() ? html`
                         <ha-selector .hass=${this.hass}
                             .label=${'Diagonal Angle Mode'}
                             .helper=${innerSegment.diagonal_angle === 'theme'
-                                ? '🎨 Dynamic: Binds to input_number.lcars_elbow_angle helper'
-                                : '📏 Static: Fixed angle value'}
+                                ? 'Dynamic: follows the input_number.lcars_elbow_angle helper'
+                                : 'Static: fixed angle value'}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'static', label: 'Static Value' },
                                 { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
@@ -1711,7 +1518,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             <!-- ── Corner Curves ────────────────────────────────────────────── -->
             <lcards-form-section
                 header="Corner Curves"
-                description="Arc radii for both segments — dual preview updates live as you drag"
+                description="Arc radii for both segments: dual preview updates live as you drag"
                 icon="mdi:vector-curve"
                 ?expanded=${true}
                 ?outlined=${true}>
@@ -1738,13 +1545,13 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     <ha-selector .hass=${this.hass}
                         .label=${'Outer Arc Radius'}
-                        .helper=${isCssOuterOC ? 'CSS expression — edit via YAML' : `→ ${outerOCPx.toFixed(1)} px`}
+                        .helper=${isCssOuterOC ? 'CSS expression: edit via YAML' : `→ ${outerOCPx.toFixed(1)} px`}
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'auto',       label: 'auto / arm_width  (bar_width ÷ 2)' },
                             { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
-                            { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)  ★ paired elbows' },
+                            { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2), for paired elbows' },
                             { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
-                            { value: 'arm_fill',   label: 'arm_fill  (max arm — full sweep)' },
+                            { value: 'arm_fill',   label: 'arm_fill  (max arm, full sweep)' },
                             { value: 'manual',     label: 'manual  (explicit px)' },
                             ...(isCssOuterOC ? [{ value: 'css', label: 'CSS expression (YAML only)' }] : []),
                         ]}}}
@@ -1764,7 +1571,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     <ha-selector .hass=${this.hass}
                         .label=${'Inner Arc Radius'}
-                        .helper=${isCssOuterIC ? 'CSS expression — edit via YAML' : `→ ${outerICPx.toFixed(1)} px`}
+                        .helper=${isCssOuterIC ? 'CSS expression: edit via YAML' : `→ ${outerICPx.toFixed(1)} px`}
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'auto',       label: 'auto  (outer ÷ 2, LCARS formula)' },
                             { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)' },
@@ -1792,13 +1599,13 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     <ha-selector .hass=${this.hass}
                         .label=${'Curve Clamp'}
                         .helper=${{
-                            card:   'card  — clamp to card dimensions (default)',
-                            none:   'none  — no clamp; card clips SVG overflow',
-                            manual: `manual  — ceiling at ${typeof outerClamp === 'number' ? outerClamp : 100} px`,
+                            card:   'card: clamp to card dimensions (default)',
+                            none:   'none: no clamp; card clips SVG overflow',
+                            manual: `manual: ceiling at ${typeof outerClamp === 'number' ? outerClamp : 100} px`,
                         }[outerClampMode] ?? ''}
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'card',   label: 'card  (clamp to card size)' },
-                            { value: 'none',   label: 'none  (no clamp — use with arm_max for paired elbows)' },
+                            { value: 'none',   label: 'none  (no clamp; use with arm_max for paired elbows)' },
                             { value: 'manual', label: 'manual  (explicit px ceiling)' },
                         ]}}}
                         .value=${outerClampMode}
@@ -1822,7 +1629,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     <ha-selector .hass=${this.hass}
                         .label=${'Outer Arc Radius'}
-                        .helper=${isCssInnerOC ? 'CSS expression — edit via YAML' : `→ ${innerOCPx.toFixed(1)} px`}
+                        .helper=${isCssInnerOC ? 'CSS expression: edit via YAML' : `→ ${innerOCPx.toFixed(1)} px`}
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'auto',       label: `auto  (concentric → ${innerOCAutoValue.toFixed(1)} px)` },
                             { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
@@ -1848,7 +1655,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     <ha-selector .hass=${this.hass}
                         .label=${'Inner Arc Radius'}
-                        .helper=${isCssInnerIC ? 'CSS expression — edit via YAML' : `→ ${innerICPx.toFixed(1)} px`}
+                        .helper=${isCssInnerIC ? 'CSS expression: edit via YAML' : `→ ${innerICPx.toFixed(1)} px`}
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'auto',       label: 'auto  (outer ÷ 2, LCARS formula)' },
                             { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)' },
@@ -1895,21 +1702,21 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
         return html`
             <div class="tab-content-container">
-                <lcards-message type="info">
-                    <strong>Symbiont Card</strong>
-                    <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                        Embed any Home Assistant card inside the elbow’s content area.
-                        Enable <strong>Imprint</strong> to inject background color, text color, and font
-                        directly into the child card’s shadow root — no card-mod required.
-                        If the embedded card config includes a <code>card_mod</code> block and
-                        card-mod is installed, LCARdS will defer to card-mod instead.
-                    </p>
-                </lcards-message>
+                ${renderInfoGuide({
+                    header: 'How the symbiont card works',
+                    body: html`
+                        <p>Any Home Assistant card can sit inside the elbow's content area.</p>
+                        <ul>
+                            <li><strong>Imprint</strong> gives it the elbow's background colour, text colour and font, without UIX.</li>
+                            <li>A <code>uix</code> block on the embedded card still applies, but where both set the same property, imprint wins. Turn imprint off to let UIX style the card alone.</li>
+                        </ul>
+                    `,
+                })}
 
                 <!-- Master Enable -->
                 <lcards-form-section
                     header="Symbiont"
-                    description="Embed another HA card inside the elbow content area"
+                    description="Embed another Home Assistant card inside the elbow content area"
                     icon="mdi:card-multiple"
                     ?expanded=${true}
                     ?outlined=${true}>
@@ -1917,7 +1724,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'Enable Symbiont'}
-                        .helper=${'Embed another HA card in the elbow content area'}
+                        .helper=${'Embed another Home Assistant card in the elbow content area'}
                         .selector=${{ boolean: {} }}
                         .value=${enabled}
                         @value-changed=${(e) => this._setConfigValue('symbiont.enabled', e.detail.value)}>
@@ -1974,7 +1781,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                 mode="yaml"
                                 @value-changed=${(e) => {
                                     const raw = e.detail.value;
-                                    clearTimeout(this._yamlDebounceTimer);
+                                    clearTimeout(this._yamlDebounceTimer ?? undefined);
                                     this._yamlDebounceTimer = setTimeout(() => {
                                         try {
                                             const parsed = yamlToConfig(raw);
@@ -2003,11 +1810,11 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             .label=${'Overflow'}
                             .helper=${'Sets both axes unless overridden below. Default: hidden (clips content).'}
                             .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: 'hidden',  label: 'Hidden — clips content (default)' },
-                                { value: 'visible', label: 'Visible — content paints outside' },
-                                { value: 'clip',    label: 'Clip — hard clip, no scroll' },
-                                { value: 'scroll',  label: 'Scroll — always shows scrollbar' },
-                                { value: 'auto',    label: 'Auto — scrollbar only when needed' },
+                                { value: 'hidden',  label: 'Hidden: clips content (default)' },
+                                { value: 'visible', label: 'Visible: content paints outside' },
+                                { value: 'clip',    label: 'Clip: hard clip, no scroll' },
+                                { value: 'scroll',  label: 'Scroll: always shows scrollbar' },
+                                { value: 'auto',    label: 'Auto: scrollbar only when needed' },
                             ] } }}
                             .value=${symbiont.overflow ?? 'hidden'}
                             @value-changed=${(e) => this._setConfigValue('symbiont.overflow', e.detail.value === 'hidden' ? undefined : e.detail.value)}>
@@ -2018,7 +1825,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             .label=${'Overflow X (horizontal)'}
                             .helper=${'Overrides the Overflow setting for the horizontal axis only.'}
                             .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: '',        label: '— inherit from Overflow —' },
+                                { value: '',        label: '(inherit from Overflow)' },
                                 { value: 'hidden',  label: 'Hidden' },
                                 { value: 'visible', label: 'Visible' },
                                 { value: 'clip',    label: 'Clip' },
@@ -2034,7 +1841,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             .label=${'Overflow Y (vertical)'}
                             .helper=${'Overrides the Overflow setting for the vertical axis only.'}
                             .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: '',        label: '— inherit from Overflow —' },
+                                { value: '',        label: '(inherit from Overflow)' },
                                 { value: 'hidden',  label: 'Hidden' },
                                 { value: 'visible', label: 'Visible' },
                                 { value: 'clip',    label: 'Clip' },
@@ -2074,7 +1881,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Width'}
-                            .helper=${'CSS width of the symbiont container — e.g. "50%" or "200px". Leave blank to fill the available area.'}
+                            .helper=${'CSS width of the symbiont container, e.g. "50%" or "200px". Leave blank to fill the available area.'}
                             .selector=${{ text: {} }}
                             .value=${symbiont.size?.width ?? ''}
                             @value-changed=${(e) => this._setConfigValue('symbiont.size.width', e.detail.value || null)}>
@@ -2083,7 +1890,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Height'}
-                            .helper=${'CSS height of the symbiont container — e.g. "50%" or "150px". Leave blank to fill the available area.'}
+                            .helper=${'CSS height of the symbiont container, e.g. "50%" or "150px". Leave blank to fill the available area.'}
                             .selector=${{ text: {} }}
                             .value=${symbiont.size?.height ?? ''}
                             @value-changed=${(e) => this._setConfigValue('symbiont.size.height', e.detail.value || null)}>
@@ -2123,7 +1930,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Enable Imprint'}
-                            .helper=${'Inject background color, text color, and font into the embedded card (no card-mod required). Automatically defers to card_mod if present in the card config and card-mod is installed.'}
+                            .helper=${'Inject background color, text color, and font into the embedded card (no UIX required). Applied after any uix block on the embedded card, so imprint wins where both set the same property; turn this off to let UIX style the card alone.'}
                             .selector=${{ boolean: {} }}
                             .value=${imprintEnabled}
                             @value-changed=${(e) => this._setConfigValue('symbiont.imprint.enabled', e.detail.value)}>
@@ -2144,7 +1951,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                     .entityId=${this.config?.entity || ''}
                                     basePath="symbiont.imprint.background"
                                     header="Background"
-                                    description="Background colour for each state — null = transparent (do not imprint)"
+                                    description="Background colour for each state: null = transparent (do not imprint)"
                                     .suggestedStates=${['default', 'active', 'inactive', 'zero', 'non_zero']}
                                     ?allowCustomStates=${true}
                                     ?expanded=${false}>
@@ -2164,7 +1971,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                     .entityId=${this.config?.entity || ''}
                                     basePath="symbiont.imprint.text.color"
                                     header="Text Colour"
-                                    description="Text colour for each state — null = do not imprint"
+                                    description="Text colour for each state: null = do not imprint"
                                     .suggestedStates=${['default', 'active', 'inactive', 'zero', 'non_zero']}
                                     ?allowCustomStates=${true}
                                     ?expanded=${false}>
@@ -2249,7 +2056,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         ?expanded=${false}
                         ?outlined=${true}>
 
-                        <lcards-message type="info" message="Raw CSS injected into the embedded card&#39;s shadow root after imprint styles. Works without card-mod. If the card config includes a card_mod block and card-mod is installed, native injection is skipped automatically.">
+                        <lcards-message type="info" message="Raw CSS for the embedded card, applied after the imprint styles and after any uix block on the embedded card. Off when imprint is off.">
                         </lcards-message>
 
                         <ha-code-editor
@@ -2257,7 +2064,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             .value=${symbiont.custom_style || ''}
                             @value-changed=${(e) => {
                                 const raw = e.detail.value;
-                                clearTimeout(this._cssDebounceTimer);
+                                clearTimeout(this._cssDebounceTimer ?? undefined);
                                 this._cssDebounceTimer = setTimeout(() => {
                                     this._setConfigValue('symbiont.custom_style', raw || undefined);
                                 }, 750);
@@ -2278,38 +2085,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
      * @private
      */
     _buildAvailableZones(elbowCfg) {
-        const type  = elbowCfg.type  || 'header-left';
-        const style = elbowCfg.style || 'simple';
-
-        // Frame — sides present in config
-        if (type === 'frame') {
-            const sides = elbowCfg.frame?.sides || {};
-            const zones = {};
-            if (sides.top?.enabled)    zones.top    = 'Top';
-            if (sides.bottom?.enabled) zones.bottom = 'Bottom';
-            if (sides.left?.enabled)   zones.left   = 'Left';
-            if (sides.right?.enabled)  zones.right  = 'Right';
-            zones.body = 'Body (interior)';
-            return zones;
-        }
-
-        // Segmented (Picard-style double elbow)
-        if (style === 'segmented') {
-            return {
-                outer_vertical_bar:   'Outer Vertical Bar',
-                inner_vertical_bar:   'Inner Vertical Bar',
-                outer_horizontal_bar: 'Outer Horizontal Bar',
-                inner_horizontal_bar: 'Inner Horizontal Bar',
-                body:                 'Body (open area)'
-            };
-        }
-
-        // Simple L-shaped elbow (default)
-        return {
-            vertical_bar:   'Vertical Bar',
-            horizontal_bar: 'Horizontal Bar',
-            body:           'Body (open area)'
-        };
+        return elbowEditorZones(elbowCfg);
     }
 
     /**
@@ -2353,7 +2129,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     _renderActionsTab() {
         const isInteractive = this.config.interactive !== false;
         const cursorOptions = [
-            { value: 'pointer',      label: 'Pointer (hand) — default' },
+            { value: 'pointer',      label: 'Pointer (hand), default' },
             { value: 'default',      label: 'Default (arrow)' },
             { value: 'none',         label: 'None (hidden)' },
             { value: 'not-allowed',  label: 'Not allowed' },
@@ -2426,6 +2202,56 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * The straight bar types (bar-slant-left/right, bar-parallelogram): the card
+     * is the bar, so only the end angle shapes them (no arms, curves or clamp).
+     * @returns {boolean}
+     * @private
+     */
+    _isBarType() {
+        return String(this.config.elbow?.type || '').startsWith('bar-');
+    }
+
+    /**
+     * A bar type's one design setting: the slant of its ends, 10-90 degrees
+     * (90 = square), as the path generator clamps it.
+     * @param {Object} segment
+     * @private
+     */
+    _renderBarSlant(segment) {
+        const angle = segment.diagonal_angle;
+        return html`
+            <lcards-form-section
+                header="Slant"
+                description="The bar fills the card; its height is the bar's thickness"
+                icon="mdi:angle-acute"
+                ?expanded=${true}
+                ?outlined=${true}>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Slant Angle Mode'}
+                    .helper=${angle === 'theme' ? 'Dynamic: follows input_number.lcars_elbow_angle' : 'Static angle value'}
+                    .selector=${{ select: { mode: 'dropdown', options: [
+                        { value: 'static', label: 'Static Value' },
+                        { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
+                    ] } }}
+                    .value=${angle === 'theme' ? 'theme' : 'static'}
+                    @value-changed=${(e) => this._handleDiagonalAngleModeChange(e)}>
+                </ha-selector>
+                ${angle !== 'theme' ? html`
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Slant Angle'}
+                        .helper=${'90° = a square end; 45° = a cut as long as the bar is thick; lower is a longer slant'}
+                        .selector=${{ number: { min: 10, max: 90, step: 5, mode: 'slider', unit_of_measurement: '°' } }}
+                        .value=${typeof angle === 'number' ? angle : 45}
+                        @value-changed=${(e) => this._setConfigValue('elbow.segment.diagonal_angle', e.detail.value)}>
+                    </ha-selector>
+                ` : nothing}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
      * Get current elbow style (simple or segmented)
      * @returns {string} 'simple' or 'segmented'
      * @private
@@ -2451,13 +2277,31 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     // ==================== Event Handlers ====================
 
     /**
-     * Handle elbow type change (header-left, header-right, etc.)
-     * Reset to simple if new type doesn't support segmented
-     * @param {CustomEvent} event
+     * Render a field through FormField whose change has side effects: the
+     * change goes to `onChange` instead of a plain write of `path`.
+     * @param {string} path - Config path, for the schema lookup
+     * @param {Object} options - FormField options (label, helper, value, selectorOverride, disabled)
+     * @param {(value: any) => void} onChange - Receives the selected value
+     * @returns {import('lit').TemplateResult}
      * @private
      */
-    _handleElbowTypeChange(event) {
-        const newType = event.detail.value;
+    _renderFieldWithHandler(path, options, onChange) {
+        const host = {
+            hass: this.hass,
+            _getSchemaForPath: (/** @type {string} */ p) => this._getSchemaForPath(p),
+            _getConfigValue: (/** @type {string} */ p) => this._getConfigValue(p),
+            _setConfigValue: (/** @type {string} */ _p, /** @type {any} */ value) => onChange(value),
+        };
+        return FormField.renderField(host, path, options);
+    }
+
+    /**
+     * Handle elbow type change (header-left, header-right, etc.)
+     * Reset to simple if new type doesn't support segmented
+     * @param {string} newType
+     * @private
+     */
+    _handleElbowTypeChange(newType) {
         this._setConfigValue('elbow.type', newType);
 
         // Check if new component supports current style
@@ -2469,7 +2313,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         if (currentStyle === 'segmented' && !supportedFeatures.includes('segmented')) {
             this._setConfigValue('elbow.style', 'simple');
             // Show a message to user
-            this.dispatchEvent(new CustomEvent('show-notification', {
+            this.dispatchEvent(new CustomEvent('hass-notification', {
                 bubbles: true,
                 composed: true,
                 detail: {
@@ -2482,11 +2326,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
     /**
      * Handle style change (simple vs segmented)
-     * @param {CustomEvent} event
+     * @param {string} newStyle
      * @private
      */
-    _handleStyleChange(event) {
-        const newStyle = event.detail.value;
+    _handleStyleChange(newStyle) {
         const currentStyle = this._getElbowStyle();
 
         if (newStyle === currentStyle) return;
@@ -2750,7 +2593,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 <g transform="translate(8, 6)">
                     <!-- Card background — makes the gap between segments visible -->
                     <rect x="0" y="0" width="${cW}" height="${cH}"
-                          fill="var(--ha-card-background-color,var(--card-background-color,#1c1c2a))"
+                          fill="var(--ha-card-background,var(--card-background-color,#1c1c2a))"
                           stroke="var(--divider-color,#444)" stroke-width="1" stroke-dasharray="4,3" rx="2"/>
 
                     <!-- Outer segment arms — blue, L-path naturally excludes the content area -->
@@ -3023,17 +2866,17 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const f = (n) => n.toFixed(1);
         const messages = which === 'outer' ? {
             auto:       `bar_width ÷ 2 = ${f(barW / 2)} px. Classic LCARS sweep from the vertical arm.`,
-            arm_height: `bar_height ÷ 2 = ${f(barH / 2)} px. Based on the horizontal arm — ${barH < barW ? 'smaller than auto for this config' : 'useful when bar_height is the dominant arm'}.`,
-            arm_max:    `max(${barW}, ${barH}) ÷ 2 = ${f(Math.max(barW, barH) / 2)} px. Uses the larger arm — same as auto when bar_width ≥ bar_height. Recommended for consistent paired elbows.`,
-            arm_min:    `min(${barW}, ${barH}) ÷ 2 = ${f(Math.min(barW, barH) / 2)} px. Tightest arc, based on the thinner arm. ${barW !== barH ? 'Significantly smaller than auto for asymmetric bars.' : 'Equal bars — same as auto.'}`,
-            arm_fill:   `max(${barW}, ${barH}) = ${f(Math.max(barW, barH))} px. Maximum sweep — fills the entire dominant arm. Dramatic effect; arc may be clipped by the card edge.`,
+            arm_height: `bar_height ÷ 2 = ${f(barH / 2)} px. Based on the horizontal arm: ${barH < barW ? 'smaller than auto for this config' : 'useful when bar_height is the dominant arm'}.`,
+            arm_max:    `max(${barW}, ${barH}) ÷ 2 = ${f(Math.max(barW, barH) / 2)} px. Uses the larger arm; same as auto when bar_width ≥ bar_height. Recommended for consistent paired elbows.`,
+            arm_min:    `min(${barW}, ${barH}) ÷ 2 = ${f(Math.min(barW, barH) / 2)} px. Tightest arc, based on the thinner arm. ${barW !== barH ? 'Significantly smaller than auto for asymmetric bars.' : 'Equal bars: same as auto.'}`,
+            arm_fill:   `max(${barW}, ${barH}) = ${f(Math.max(barW, barH))} px. Maximum sweep: fills the entire dominant arm. Dramatic effect; arc may be clipped by the card edge.`,
         } : {
-            auto:       `outer_curve ÷ 2 = ${f((outerPx || resolvedPx * 2) / 2)} px. LCARS concentric formula — matches the outer arc's curvature family.`,
-            arm_max:    `max(${barW}, ${barH}) ÷ 2 = ${f(Math.max(barW, barH) / 2)} px. Independent of outer_curve — based on the larger arm.`,
+            auto:       `outer_curve ÷ 2 = ${f((outerPx || resolvedPx * 2) / 2)} px. LCARS concentric formula: matches the outer arc's curvature family.`,
+            arm_max:    `max(${barW}, ${barH}) ÷ 2 = ${f(Math.max(barW, barH) / 2)} px. Independent of outer_curve, based on the larger arm.`,
             arm_width:  `bar_width ÷ 2 = ${f(barW / 2)} px. Based on the vertical arm width.`,
-            arm_height: `bar_height ÷ 2 = ${f(barH / 2)} px. Based on the horizontal arm — ${barH < barW ? 'tighter than arm_width for this config' : 'same as arm_width for this config'}.`,
+            arm_height: `bar_height ÷ 2 = ${f(barH / 2)} px. Based on the horizontal arm: ${barH < barW ? 'tighter than arm_width for this config' : 'same as arm_width for this config'}.`,
             arm_min:    `min(${barW}, ${barH}) ÷ 2 = ${f(Math.min(barW, barH) / 2)} px. Tightest inner arc.`,
-            arm_fill:   `max(${barW}, ${barH}) = ${f(Math.max(barW, barH))} px. Very large inner arc — likely exceeds the outer. Use with care.`,
+            arm_fill:   `max(${barW}, ${barH}) = ${f(Math.max(barW, barH))} px. Very large inner arc; likely exceeds the outer. Use with care.`,
         };
 
         const text = messages[mode];
@@ -3115,24 +2958,44 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Generic dimension mode change handler for segmented fields.
-     * Switching to 'css' seeds a starter expression so the text input appears immediately.
-     * Switching to 'static' reverts to a plain numeric default.
-     *
-     * @param {string} newMode       - 'static' | 'css'
-     * @param {string} configPath    - Dot-path to update via _setConfigValue
-     * @param {number} defaultNumber - Numeric value to use when reverting to static
-     * @param {string} starterCss    - Starter CSS expression to seed on 'css' selection
+     * A segment's bar width or height: Static (a px slider), Theme Binding (follows the
+     * HA-LCARS helper) or a CSS expression, as the simple elbow offers. The segmented
+     * editor once showed `theme` as "Static, 90 px", so touching the slider replaced it.
+     * @param {any} value - the configured value
+     * @param {string} path - config path
+     * @param {{ label: string, helper: string, shown: number, fallback: number, css: string, theme: string }} o
+     *   shown: the slider's value when none is set; fallback: the number Static starts from;
+     *   css: the starter expression; theme: the helper a theme binding follows
      * @private
      */
-    _handleDimModeChange(newMode, configPath, defaultNumber, starterCss) {
-        if (newMode === 'css') {
-            this._setConfigValue(configPath, starterCss);
-        } else {
-            this._setConfigValue(configPath, defaultNumber);
-        }
-        this.requestUpdate();
+    _renderSegmentBar(value, path, { label, helper, shown, fallback, css, theme }) {
+        const mode = this._isCssExpr(value) ? 'css' : value === 'theme' ? 'theme' : 'static';
+        const setMode = (/** @type {string} */ next) => {
+            if (next === mode) return;
+            this._setConfigValue(path, next === 'css' ? css : next === 'theme' ? 'theme' : fallback);
+            this.requestUpdate();
+        };
+        return html`
+            <ha-selector .hass=${this.hass} .label=${`${label} Mode`}
+                .helper=${mode === 'css' ? 'CSS expression active' : mode === 'theme' ? `Follows ${theme}` : 'Static: fixed pixel value'}
+                .selector=${{ select: { mode: 'dropdown', options: [
+                    { value: 'static', label: 'Static Value' },
+                    { value: 'theme', label: `Theme Binding (${theme})` },
+                    { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
+                ] } }}
+                .value=${mode}
+                @value-changed=${(/** @type {CustomEvent} */ e) => setMode(e.detail.value)}>
+            </ha-selector>
+            ${mode === 'css' ? this._renderCssField(label, value, path, fallback)
+                : mode === 'static' ? html`
+                    <ha-selector .hass=${this.hass} .label=${label} .helper=${helper}
+                        .selector=${{ number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
+                        .value=${typeof value === 'number' ? value : shown}
+                        @value-changed=${(/** @type {CustomEvent} */ e) => this._setConfigValue(path, e.detail.value)}>
+                    </ha-selector>` : nothing}
+        `;
     }
+
 
     /**
      * Handle bar width mode change (static vs theme)
@@ -3300,6 +3163,63 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * A segmented elbow segment's own entity and actions: its colour state map
+     * follows the entity, and its taps run its actions (the card's where it sets
+     * none) on that entity.
+     * @param {'outer_segment'|'inner_segment'} key
+     * @param {any} segment - the segment's config
+     * @returns {import('lit').TemplateResult}
+     * @private
+     */
+    _renderSegmentEntityAndActions(key, segment) {
+        const base = `elbow.segments.${key}`;
+        return html`
+            <lcards-form-section
+                header="Entity and actions"
+                description="This segment's own entity and tap actions (default: the card's)"
+                icon="mdi:gesture-tap"
+                ?expanded=${false}
+                ?outlined=${false}>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Entity'}
+                    .helper=${"Its colour state map and actions follow this entity (default: the card's entity)"}
+                    .selector=${{ entity: {} }}
+                    .value=${segment.entity_id || ''}
+                    @value-changed=${(e) => e.detail.value
+                        ? this._setConfigValue(`${base}.entity_id`, e.detail.value)
+                        : this._removeConfigPath(`${base}.entity_id`)}>
+                </ha-selector>
+                <lcards-multi-action-editor
+                    .hass=${this.hass}
+                    .actions=${{
+                        tap_action: segment.tap_action,
+                        hold_action: segment.hold_action,
+                        double_tap_action: segment.double_tap_action
+                    }}
+                    @value-changed=${(e) => this._handleSegmentActionsChange(base, e)}>
+                </lcards-multi-action-editor>
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Commit a segment's actions from the multi-action editor (unset ones removed).
+     * @param {string} base - e.g. elbow.segments.outer_segment
+     * @param {CustomEvent} event
+     * @private
+     */
+    _handleSegmentActionsChange(base, event) {
+        event.stopPropagation();
+        const actions = event.detail.value || {};
+        const segment = base.split('.').reduce((o, k) => o?.[k], /** @type {any} */ (this.config)) || {};
+        for (const k of ['tap_action', 'hold_action', 'double_tap_action']) {
+            if (actions[k]) this._setConfigValue(`${base}.${k}`, actions[k]);
+            else if (segment[k]) this._removeConfigPath(`${base}.${k}`);
+        }
+    }
+
+    /**
      * Handle actions change from multi-action editor
      * @param {CustomEvent} event
      * @private
@@ -3385,16 +3305,18 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     _renderEffectsTab() {
         return html`
             <div class="tab-content-container">
-                <!-- Info Message -->
-                <lcards-message type="info">
-                    <strong>Combining Effects:</strong>
-                    <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                        Animations and filters work together. For example:
-                        <br/>• Add a <strong>glow filter</strong> with a <strong>pulse animation</strong> for breathing light effects
-                        <br/>• Use <strong>blur + brightness filters</strong> with <strong>hover animations</strong> for depth effects
-                        <br/>• Apply <strong>SVG filters</strong> for advanced effects like displacement maps or morphology
-                    </p>
-                </lcards-message>
+                ${renderInfoGuide({
+                    header: 'Combining effects',
+                    icon: 'mdi:lightbulb-outline',
+                    body: html`
+                        <p>Animations and filters work together. A few ideas:</p>
+                        <ul>
+                            <li>A <strong>glow</strong> filter with a <strong>pulse</strong> animation, for a breathing light.</li>
+                            <li><strong>Blur</strong> and <strong>brightness</strong> filters with <strong>hover</strong> animations, for depth.</li>
+                            <li><strong>SVG filters</strong> for displacement maps, morphology and more.</li>
+                        </ul>
+                    `,
+                })}
 
                 <!-- Animations Section -->
                 <lcards-form-section

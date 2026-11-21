@@ -1,0 +1,31 @@
+# Every kind of MSD animation scope: base_svg.animations, msd.animations (the
+# overlay group) and a line's own animations (msd-animation.spec.js teardown test)
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: builtin:enterprise-d-shuttlecraft15-anomaly
+    animations:
+      - trigger: on_load
+        target: "#g45-6"
+        preset: pulse
+        loop: true
+  animations:
+    - trigger: on_load
+      preset: draw
+      target: '[data-overlay-id^="conduit_"] [data-animatable="true"]'
+      duration: 1500
+      loop: true
+      alternate: true
+  overlays:
+    - id: conduit_upper
+      type: line
+      anchor: [60, 80]
+      attach_to: [400, 80]
+      route: direct
+      style:
+        color: var(--lcards-orange)
+        width: 4
+      animations:
+        - trigger: on_load
+          preset: pulse
+          loop: true

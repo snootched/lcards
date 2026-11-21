@@ -1,0 +1,182 @@
+# D2 batch 4: the MSD fixes the docs audit found. ALERT SWITCH (lcards_test_toggle) drives the
+# rule: the blueprint dims (apply.base_svg filters) and every line tagged power turns red.
+title: D2 batch 4 MSD fixes
+path: d2-batch4-msd-fixes
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          name:
+            content: ALERT SWITCH
+            show: true
+        tap_action:
+          action: toggle
+        grid_options:
+          columns: 8
+          rows: 1
+
+  - type: grid
+    column_span: 4
+    cards:
+      # rule: base_svg filters and a tag: selector; the line colour stays on the visible line
+      - type: custom:lcards-msd-card
+        id: d2b4_rules
+        grid_options:
+          columns: full
+          rows: 6
+        msd:
+          base_svg:
+            source: builtin:ncc-1701-a-blue
+          view_box: [180, 270, 1600, 720]
+          overlays:
+            - id: d2b4_bridge
+              type: control
+              position: [400, 360]
+              size: [220, 70]
+              card:
+                type: custom:lcards-button
+                preset: lozenge
+                entity: input_boolean.lcards_test_lights
+                text:
+                  name:
+                    content: BRIDGE
+                    show: true
+            - id: d2b4_power
+              type: line
+              anchor: d2b4_bridge
+              anchor_side: right
+              anchor_gap: 16
+              attach_to: [1200, 600]
+              route: auto
+              tags: [power]
+              style:
+                color: var(--lcars-orange)
+                width: 4
+                marker_end: arrow
+        rules:
+          - id: d2b4_alert
+            when:
+              entity: input_boolean.lcards_test_toggle
+              state: "on"
+            apply:
+              overlays:
+                tag:power:
+                  style:
+                    color: var(--lcars-red)
+              base_svg:
+                filters:
+                  - type: opacity
+                    value: 0.35
+                  - type: drop-shadow
+                    value:
+                      x: 0
+                      "y": 0
+                      blur: 6
+                      color: var(--lcars-red)
+                transition: 600
+
+      # percentage anchors and positions; a control with no size placed by anchor name is an obstacle;
+      # a line with no sides leaves and arrives on the nearest sides
+      - type: custom:lcards-msd-card
+        grid_options:
+          rows: 5
+        msd:
+          view_box: [0, 0, 800, 300]
+          anchors:
+            port: ["12%", "50%"]
+            starboard: ["88%", "50%"]
+            middle: ["50%", "50%"]
+          overlays:
+            - id: d2b4_port
+              type: control
+              position: port
+              size: [160, 60]
+              card:
+                type: custom:lcards-button
+                preset: lozenge
+                text:
+                  name:
+                    content: PORT
+                    show: true
+            - id: d2b4_mid
+              type: control
+              position: middle
+              obstacle: true
+              card:
+                type: custom:lcards-button
+                preset: lozenge
+                text:
+                  name:
+                    content: OBSTACLE
+                    show: true
+            - id: d2b4_starboard
+              type: control
+              position: starboard
+              size: [160, 60]
+              card:
+                type: custom:lcards-button
+                preset: lozenge
+                text:
+                  name:
+                    content: STARBOARD
+                    show: true
+            - id: d2b4_link
+              type: line
+              anchor: d2b4_port
+              attach_to: d2b4_starboard
+              route: auto
+              style:
+                color: var(--lcars-orange)
+                width: 3
+
+      # a channel's own line_spacing: two lines ride lanes 20 apart through the bus
+      - type: custom:lcards-msd-card
+        grid_options:
+          rows: 5
+        msd:
+          view_box: [0, 0, 800, 300]
+          anchors:
+            in_top: [40, 70]
+            in_bottom: [40, 230]
+            out_top: [760, 70]
+            out_bottom: [760, 230]
+          channels:
+            bus:
+              bounds: [250, 110, 300, 80]
+              mode: force
+              direction: horizontal
+              line_spacing: 20
+          overlays:
+            - id: d2b4_bus_frame
+              type: shape
+              kind: rect
+              position: [250, 110]
+              size: [300, 80]
+              style:
+                color: var(--lcars-gray)
+                # fill_opacity 0 is see-through (it used to become 1)
+                fill_opacity: 0
+            - id: d2b4_top
+              type: line
+              anchor: in_top
+              attach_to: out_top
+              route: auto
+              route_channels: [bus]
+              style:
+                color: var(--lcars-blue)
+                width: 3
+            - id: d2b4_bottom
+              type: line
+              anchor: in_bottom
+              attach_to: out_bottom
+              route: auto
+              route_channels: [bus]
+              style:
+                color: var(--lcars-orange)
+                width: 3

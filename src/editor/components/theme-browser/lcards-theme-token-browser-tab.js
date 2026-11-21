@@ -1,12 +1,12 @@
 /**
- * @fileoverview LCARdS Theme Token Browser Tab
+ * @fileoverview LCARdS Theme Studio (config panel > Theme Studio)
  *
- * Browse and search the full active theme's token tree, cross-reference usage,
- * and enable quick copy/insertion with proper LCARdS token syntax.
+ * The alert mode lab, the HA-LCARS theme lab, the active theme's token tree,
+ * the LCARS and all CSS variables, and token overrides per scope. A card
+ * editor's Theme tab (lcards-card-theme-tab) shows only that card's tokens and
+ * links here.
  *
  * @element lcards-theme-token-browser-tab
- * @property {Object} editor - Parent card editor instance
- * @property {Object} config - Full card configuration
  * @property {Object} hass - Home Assistant instance
  */
 
@@ -15,7 +15,8 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { resolveThemeTokensRecursive } from '../../../utils/lcards-theme.js';
 import { captureOriginalColors } from '../../../core/themes/paletteInjector.js';
 import { getColorSortKey, compareColorSortKeys, FAMILY_ORDER, FAMILY_LABELS, FAMILY_HUE_RANGES, FAMILY_SWATCH_COLORS } from '../../../core/themes/ColorFamily.js';
-import { getCssVarCategory, isColorValue } from '../../../core/themes/CssVarCategory.js';
+import { getCssVarCategory } from '../../../core/themes/CssVarCategory.js';
+import { isCssColor, isComputedColor } from '../../../core/themes/color-syntax.js';
 import { editorStyles } from '../../base/editor-styles.js';
 import {
   transformColorToAlertMode,
@@ -23,18 +24,32 @@ import {
   setAlertModeTransformParameter,
   resetAlertModeTransform
 } from '../../../core/themes/alertModeTransform.js';
-import '../shared/lcards-collapsible-section.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-message.js';
+import { canWriteGlobalStorage, GLOBAL_WRITE_REFUSED_MSG } from '../../../core/services/storage-permissions.js';
 import '../shared/lcards-color-picker.js';
 import './alert-mode-color-wheel.js';
-import '../../dialogs/pack-explorer/lcards-pack-explorer-dialog.js';
 import '../../../panels/components/shared/lcards-scope-selector.js';
 import { STORAGE_KEY_THEME_OVERRIDES } from '../../../core/services/ScopedSettingsConstants.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
-import { LEGACY_FIELD_DEFS } from './lcards-theme-generator-view.js';
+import { activeHaThemeName } from '../../../utils/support-info.js';
+import { LEGACY_FIELD_DEFS } from './theme-legacy-fields.js';
+import { surfaceStyles } from '../../base/surface-styles.js';
+import { renderInfoGuide } from '../shared/info-guide.js';
+import { renderFilterChips } from '../shared/filter-chips.js';
+import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 
 const LEGACY_KEY_SET = new Set(LEGACY_FIELD_DEFS.map(f => f.key));
+
+/** Alert modes in menu order, with a dot colour for tables and a short label for swatch legends. */
+const ALERT_MODES = [
+  { value: 'green_alert', label: 'Green alert (normal)', short: 'GRN', dot: 'var(--success-color)' },
+  { value: 'red_alert', label: 'Red alert', short: 'RED', dot: 'var(--error-color)' },
+  { value: 'blue_alert', label: 'Blue alert', short: 'BLU', dot: 'var(--info-color)' },
+  { value: 'yellow_alert', label: 'Yellow alert', short: 'YEL', dot: 'var(--warning-color)' },
+  { value: 'gray_alert', label: 'Gray alert', short: 'GRY', dot: 'var(--disabled-color)' },
+  { value: 'black_alert', label: 'Black alert', short: 'BLK', dot: 'var(--primary-background-color)' },
+];
 
 // Curated "major colours" for the Alert Mode Lab's Live Preview swatches and HSL Wheel — keys
 // are cross-checked against LEGACY_FIELD_DEFS (the same canonical catalog the HA-LCARS Theme
@@ -99,17 +114,13 @@ function getAlertLabColorGroups() {
 export class LCARdSThemeTokenBrowserTab extends LitElement {
   static get properties() {
     return {
-      editor: { type: Object },
-      config: { type: Object },
       hass: { type: Object },
-      _inlineMode: { type: Boolean }, // When true, render content directly without dialog wrapper
       _tokens: { type: Array, state: true },
       _filteredTokens: { type: Array, state: true },
       _searchQuery: { type: String, state: true },
       _selectedCategory: { type: String, state: true },
       _isLoading: { type: Boolean, state: true },
       _activeTheme: { type: Object, state: true },
-      _dialogOpen: { type: Boolean, state: true },
       _sortColumn: { type: String, state: true },
       _sortDirection: { type: String, state: true },
       _activeView: { type: String, state: true }, // 'tokens', 'css-vars', or 'all-vars'
@@ -130,10 +141,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       _originalLcarsColors: { type: Object, state: true }, // Store baseline colors
       _showFullPreview: { type: Boolean, state: true }, // Toggle for full color grid
       _activeVizTab: { type: String, state: true }, // Active visualization tab (preview/wheel/comparison)
-      _packExplorerOpen: { type: Boolean, state: true }, // Pack Explorer dialog state
       _helperSaveMessage: { type: Object, state: true }, // Message for helper save operations
       // Overrides view state
       _overridesScopeInfo: { type: Object, state: true },  // { scope, userId, deviceId, isAdminTarget }
+      _overridesError: { type: String, state: true },  // shown when a save/clear was refused or failed
       _overridesFilter: { type: String, state: true },     // search filter for overrides list
       _activeEditToken: { type: String, state: true },     // tokenPath currently in edit panel
       _editPendingValue: { type: String, state: true },    // value staged in the edit control
@@ -153,7 +164,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._isLoading = false;
     this._selectedFamily = 'all';
     this._activeTheme = null;
-    this._dialogOpen = false;
     this._sortColumn = 'path';
     this._sortDirection = 'asc';
     this._cssVarSortColumn = 'hue';
@@ -172,13 +182,13 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._selectedAlertMode = 'red_alert';
     this._alertLabParams = {};
     this._livePreviewEnabled = false; // User controls when to apply changes
-    this._originalLcarsColors = null; // Will be captured when dialog opens
+    this._originalLcarsColors = null; // Captured when connected
     this._showFullPreview = false; // Full color grid collapsed by default
     this._activeVizTab = 'preview'; // Default to live preview tab
-    this._packExplorerOpen = false; // Pack Explorer closed by default
     this._helperSaveMessage = null; // No message by default
     // Overrides view state
     this._overridesScopeInfo = { scope: 'user', userId: null, deviceId: null, isAdminTarget: false };
+    this._overridesError = null;
     this._overridesFilter = '';
     this._activeEditToken = null;
     this._editPendingValue = '';
@@ -192,15 +202,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     // Use capture phase to intercept before browser's find
     document.addEventListener('keydown', this._handleKeydown, true);
 
-    // If in inline mode, initialize immediately
-    // @ts-ignore - TS2339: auto-suppressed
-    if (this._inlineMode) {
-      this._initializeInlineMode();
-    }
+    this._initialize();
   }
 
-  _initializeInlineMode() {
-    lcardsLog.debug('[ThemeTokenBrowser] Initializing inline mode');
+  _initialize() {
+    lcardsLog.debug('[ThemeTokenBrowser] Initializing');
     this._scanCssVariables();
     this._scanAllCssVariables();
     this._detectHaTheme();
@@ -214,6 +220,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       this._selectedAlertMode = window.lcards.getAlertMode();
       lcardsLog.debug('[AlertLab] Initialized with current mode:', this._selectedAlertMode);
     }
+
+    // Load helper values if available
+    this._loadAlertLabFromHelpers();
   }
 
   disconnectedCallback() {
@@ -222,32 +231,22 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   _handleKeydown(e) {
-    // Only handle keyboard shortcuts when dialog is open
-    if (!this._dialogOpen) return;
-
     // Ctrl/Cmd+F to focus search - must prevent BEFORE browser sees it
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
       e.preventDefault();
       e.stopPropagation();
-      const searchInput = this.shadowRoot?.querySelector('.dialog-search');
+      const searchInput = /** @type {HTMLElement | null} */ (this.shadowRoot?.querySelector('.dialog-search'));
       if (searchInput) {
-        // @ts-ignore - TS2339: auto-suppressed
         searchInput.focus();
       }
       return;
     }
 
-    // ESC to close dialog
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      this._closeDialog();
-      return;
-    }
   }
 
   static get styles() {
     return [
+      surfaceStyles,
       editorStyles,
       css`
         :host {
@@ -259,16 +258,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         }
 
         /* Studio Layout Container */
-        .studio-layout {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          background: var(--primary-background-color);
-          min-height: 0;
-          border-radius: var(--ha-card-border-radius, 12px);
-          padding: 16px;
-        }
 
         /* Dialog styles */
         ha-dialog {
@@ -279,7 +268,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
         ha-tab-group-tab ha-icon {
           --mdc-icon-size: 18px;
-          margin-right: 8px;
+          margin-right: var(--ha-space-2);
         }
 
       .dialog-content {
@@ -312,29 +301,29 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       /* HA native tab styling (Issue #82) */
       ha-tab-group {
         display: block;
-        margin-bottom: 12px;
+        margin-bottom: var(--ha-space-3);
         padding: 0;
       }
 
       .theme-info {
         display: flex;
-        gap: 12px;
-        padding: 12px 24px;
+        gap: var(--ha-space-3);
+        padding: var(--ha-space-3) var(--ha-space-6);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         background: var(--secondary-background-color);
       }
 
       .theme-info-badge {
-        padding: 8px 16px;
+        padding: var(--ha-space-2) var(--ha-space-4);
         background: var(--secondary-background-color);
         border: var(--ha-border-width-sm) solid var(--divider-color);
-        border-radius: 4px;
-        font-size: 13px;
+        border-radius: var(--ha-border-radius-sm);
+        font-size: var(--ha-font-size-m);
         font-weight: 500;
         color: var(--primary-text-color);
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2);
       }
 
       .theme-info-badge strong {
@@ -348,10 +337,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .search-container {
-        padding: 12px 24px;
+        padding: var(--ha-space-3) var(--ha-space-6);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         display: flex;
-        gap: 12px;
+        gap: var(--ha-space-3);
         align-items: center;
       }
 
@@ -375,51 +364,25 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .search-result-count {
         color: var(--secondary-text-color);
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         white-space: nowrap;
-        padding: 0 8px;
+        padding: 0 var(--ha-space-2);
       }
 
       .category-filters {
         display: flex;
-        gap: 8px;
+        gap: var(--ha-space-2);
         flex-wrap: wrap;
-        padding: 16px 24px;
+        padding: var(--ha-space-4) var(--ha-space-6);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
-      }
-
-      .category-chip {
-        appearance: none;
-        border: var(--ha-border-width-sm) solid var(--divider-color);
-        background: var(--secondary-background-color);
-        color: var(--primary-text-color);
-        padding: 6px 12px;
-        border-radius: 16px;
-        font-size: 13px;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .category-chip:hover {
-        background: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-      }
-
-      .category-chip.selected {
-        background: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
       }
 
       .chip-swatch {
         display: inline-block;
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        margin-right: 6px;
-        vertical-align: middle;
-        border: var(--ha-border-width-sm) solid rgba(0, 0, 0, 0.15);
+        width: 10px;
+        height: 10px;
+        border-radius: var(--ha-border-radius-circle);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .dialog-body {
@@ -455,7 +418,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         position: sticky;
         top: 0;
         background: var(--primary-background-color);
-        padding: 16px 24px 8px;
+        padding: var(--ha-space-4) var(--ha-space-6) var(--ha-space-2);
         margin: 0;
         color: var(--primary-text-color);
         border-bottom: var(--ha-border-width-md) solid var(--divider-color);
@@ -478,7 +441,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .token-table th {
         text-align: left;
-        padding: 12px 16px;
+        padding: var(--ha-space-3) var(--ha-space-4);
         font-weight: 600;
         color: var(--primary-text-color);
         border-bottom: var(--ha-border-width-md) solid var(--divider-color);
@@ -491,13 +454,13 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .token-table th .sort-indicator {
-        margin-left: 4px;
-        font-size: 10px;
+        margin-left: var(--ha-space-1);
+        font-size: var(--ha-font-size-xs);
         color: var(--secondary-text-color);
       }
 
       .token-table td {
-        padding: 12px 16px;
+        padding: var(--ha-space-3) var(--ha-space-4);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         vertical-align: middle;
       }
@@ -508,7 +471,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .token-path-cell {
         font-family: 'Courier New', monospace;
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--primary-color);
         word-break: break-all;
         max-width: 300px;
@@ -516,7 +479,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .token-value-cell {
         font-family: 'Courier New', monospace;
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
         word-break: break-all;
         max-width: 300px;
@@ -525,18 +488,18 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .token-resolution {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--ha-space-1);
       }
 
       .raw-value {
         color: var(--secondary-text-color);
-        font-size: 11px;
+        font-size: var(--ha-font-size-s);
         opacity: 0.8;
       }
 
       .resolution-arrow {
         color: var(--primary-color);
-        font-size: 10px;
+        font-size: var(--ha-font-size-xs);
         font-weight: bold;
         padding: 2px 0;
       }
@@ -544,7 +507,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .resolved-value {
         color: var(--primary-text-color);
         font-weight: 500;
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
       }
 
       .token-preview-cell {
@@ -555,10 +518,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .color-preview {
         width: 32px;
         height: 32px;
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         border: var(--ha-border-width-md) solid var(--divider-color);
         display: inline-block;
-        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+        box-shadow: inset 0 0 0 var(--ha-border-width-sm) var(--divider-color);
       }
 
       /* Alert mode preview swatches */
@@ -577,7 +540,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         border: var(--ha-border-width-sm) solid var(--divider-color);
         cursor: pointer;
         transition: transform 0.1s ease;
-        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+        box-shadow: inset 0 0 0 var(--ha-border-width-sm) var(--divider-color);
         position: relative;
         flex-shrink: 0;
       }
@@ -589,20 +552,20 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .alert-swatch.active-mode {
         border: var(--ha-border-width-md) solid var(--primary-color);
-        box-shadow: 0 0 0 2px rgba(var(--rgb-primary-color), 0.3);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 30%, transparent);
       }
 
       /* Alert mode toggle button in header */
       .alert-mode-toggle {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
+        gap: var(--ha-space-2);
+        padding: var(--ha-space-2) var(--ha-space-4);
         background: var(--secondary-background-color);
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         cursor: pointer;
         user-select: none;
-        transition: background 0.2s ease;
+        transition: background var(--ha-animation-duration-normal, 0.2s) ease;
       }
 
       .alert-mode-toggle:hover {
@@ -619,30 +582,30 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .alert-mode-toggle-label {
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         font-weight: 500;
       }
 
       .alert-mode-info {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--ha-space-3);
         flex-wrap: wrap;
       }
 
       .hsl-formula-info {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 6px 12px;
+        gap: var(--ha-space-2);
+        padding: 6px var(--ha-space-3);
         background: var(--secondary-background-color);
         border-radius: 6px;
       }
 
       /* HSL Formula Table */
       .hsl-formula-table {
-        margin-top: 12px;
-        border-radius: 8px;
+        margin-top: var(--ha-space-3);
+        border-radius: var(--ha-border-radius-md);
         overflow: hidden;
         border: var(--ha-border-width-sm) solid var(--divider-color);
       }
@@ -654,10 +617,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .hsl-formula-table th,
       .hsl-formula-table td {
-        padding: 8px 12px;
+        padding: var(--ha-space-2) var(--ha-space-3);
         text-align: left;
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
       }
 
       .hsl-formula-table th {
@@ -680,8 +643,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         font-family: inherit;
       }
 
-      .hsl-formula-table .mode-icon {
+      .hsl-formula-table .mode-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
         margin-right: 6px;
+        border-radius: var(--ha-border-radius-circle);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
+        vertical-align: middle;
       }
 
       /* Alert mode swatch legend */
@@ -703,7 +672,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         flex-shrink: 0;
         line-height: 12px;
         font-weight: 600;
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
         border: var(--ha-border-width-sm) solid var(--divider-color);
       }
@@ -713,7 +682,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         padding: 2px 6px;
         border-radius: 3px;
         font-family: 'Roboto Mono', monospace;
-        font-size: 11px;
+        font-size: var(--ha-font-size-s);
         color: var(--primary-text-color);
       }
 
@@ -728,7 +697,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .token-actions {
         display: flex;
-        gap: 4px;
+        gap: var(--ha-space-1);
         justify-content: flex-end;
       }
 
@@ -747,29 +716,29 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         font-size: var(--token-font-size, 14px);
         font-weight: var(--token-font-weight, normal);
         line-height: 1.5;
-        padding: 4px 8px;
+        padding: var(--ha-space-1) var(--ha-space-2);
         background: var(--secondary-background-color);
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         display: inline-block;
       }
 
       .empty-state {
         text-align: center;
-        padding: 48px 24px;
+        padding: var(--ha-space-12) var(--ha-space-6);
         color: var(--secondary-text-color);
       }
 
       .loading-state {
         text-align: center;
-        padding: 48px 24px;
+        padding: var(--ha-space-12) var(--ha-space-6);
       }
 
       /* Alert Mode Lab Styles */
       .alert-lab-container {
-        padding: 20px;
+        padding: var(--ha-space-5);
         display: grid;
         grid-template-columns: 450px 1fr;
-        gap: 32px;
+        gap: var(--ha-space-8);
         min-height: 0;
         flex: 1;
       }
@@ -783,7 +752,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .alert-lab-left-column {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--ha-space-3);
         align-self: start;
         overflow-y: auto;
         overflow-x: hidden;
@@ -801,7 +770,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       /* Alert Lab: HA native tab styling for visualization tabs (Issue #82) */
       .alert-lab-right-column ha-tab-group {
         display: block;
-        margin-bottom: 12px;
+        margin-bottom: var(--ha-space-3);
         flex-shrink: 0;
       }
 
@@ -818,7 +787,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .preview-section,
       .visualization-section,
       .comparison-section {
-        padding: 16px;
+        padding: var(--ha-space-4);
       }
 
       .preview-section h4,
@@ -829,44 +798,17 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .alert-lab-header {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding-bottom: 16px;
+        gap: var(--ha-space-3);
+        padding-bottom: var(--ha-space-4);
         border-bottom: var(--ha-border-width-md) solid var(--divider-color);
       }
 
       .mode-selection-controls {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
-      .mode-selector-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        width: 100%;
-      }
-
-      .mode-selector-row label {
-        font-weight: 500;
-        color: var(--primary-text-color);
-      }
-
-      .alert-mode-select {
-        padding: 8px 12px;
-        border: var(--ha-border-width-sm) solid var(--divider-color);
-        border-radius: 4px;
-        background: var(--secondary-background-color);
-        color: var(--primary-text-color);
-        font-size: 14px;
-        flex: 1;
-        cursor: pointer;
-      }
-
-      .alert-mode-select:focus {
-        outline: 2px solid var(--primary-color);
-        outline-offset: 2px;
-      }
 
       .live-preview-toggle {
         display: flex;
@@ -876,10 +818,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .live-preview-toggle label {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2);
         cursor: pointer;
         color: var(--secondary-text-color);
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
       }
 
       .live-preview-toggle input[type="checkbox"] {
@@ -889,15 +831,15 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .parameter-controls {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        margin-bottom: 12px;
+        gap: var(--ha-space-3);
+        margin-bottom: var(--ha-space-3);
       }
 
       .slider-control {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 12px 0;
+        gap: var(--ha-space-2);
+        padding: var(--ha-space-3) 0;
       }
 
       .slider-label-row {
@@ -913,7 +855,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .slider-value {
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         color: var(--primary-color);
         font-weight: 600;
         font-family: 'Roboto Mono', monospace;
@@ -936,7 +878,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         appearance: none;
         width: 18px;
         height: 18px;
-        border-radius: 50%;
+        border-radius: var(--ha-border-radius-circle);
         background: var(--primary-color);
         cursor: pointer;
         box-shadow: var(--ha-box-shadow-s);
@@ -945,7 +887,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .parameter-slider::-moz-range-thumb {
         width: 18px;
         height: 18px;
-        border-radius: 50%;
+        border-radius: var(--ha-border-radius-circle);
         background: var(--primary-color);
         cursor: pointer;
         border: none;
@@ -953,17 +895,17 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .parameter-slider:focus::-webkit-slider-thumb {
-        box-shadow: 0 0 0 3px rgba(var(--rgb-primary-color), 0.2);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
       }
 
       .parameter-slider:focus::-moz-range-thumb {
-        box-shadow: 0 0 0 3px rgba(var(--rgb-primary-color), 0.2);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
       }
 
       .alert-lab-actions {
         display: flex;
-        gap: 12px;
-        margin-bottom: 12px;
+        gap: var(--ha-space-3);
+        margin-bottom: var(--ha-space-3);
         flex-wrap: wrap;
       }
 
@@ -976,32 +918,32 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
         border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
-        padding: 20px;
+        padding: var(--ha-space-5);
       }
 
       .preview-section h4 {
-        margin: 0 0 8px 0;
+        margin: 0 0 var(--ha-space-2) 0;
         color: var(--primary-text-color);
         font-size: 16px;
         font-weight: 500;
       }
 
       .preview-hint {
-        margin: 0 0 16px 0;
+        margin: 0 0 var(--ha-space-4) 0;
         color: var(--secondary-text-color);
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
       }
 
       .preview-swatches-container {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .preview-swatch-group {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .swatch-group-title {
@@ -1009,30 +951,30 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         font-size: 14px;
         font-weight: 600;
         color: var(--primary-text-color);
-        padding-bottom: 8px;
+        padding-bottom: var(--ha-space-2);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .preview-swatches-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .preview-swatch-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2);
       }
 
       .preview-swatch {
         width: 60px;
         height: 60px;
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         border: var(--ha-border-width-md) solid var(--divider-color);
         box-shadow: var(--ha-box-shadow-s);
-        transition: transform 0.2s;
+        transition: transform var(--ha-animation-duration-normal, 0.2s);
       }
 
       .preview-swatch:hover {
@@ -1040,7 +982,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .swatch-label {
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
         text-align: center;
       }
@@ -1050,18 +992,18 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         display: flex;
         flex-direction: column;
         border: var(--ha-border-width-sm) solid var(--divider-color);
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         overflow: auto;
       }
 
       .comparison-grid-header {
         display: grid;
         grid-template-columns: 200px 1fr 1fr;
-        gap: 12px;
-        padding: 12px 16px;
+        gap: var(--ha-space-3);
+        padding: var(--ha-space-3) var(--ha-space-4);
         border-bottom: var(--ha-border-width-md) solid var(--divider-color);
         font-weight: 600;
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
       }
 
       .comparison-column-label {
@@ -1076,10 +1018,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .comparison-row {
         display: grid;
         grid-template-columns: 200px 1fr 1fr;
-        gap: 12px;
-        padding: 12px 16px;
+        gap: var(--ha-space-3);
+        padding: var(--ha-space-3) var(--ha-space-4);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
-        transition: background-color 0.2s;
+        transition: background-color var(--ha-animation-duration-normal, 0.2s);
       }
 
       .comparison-row:hover {
@@ -1092,7 +1034,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .comparison-var-name code {
-        font-size: 11px;
+        font-size: var(--ha-font-size-s);
         color: var(--primary-color);
         word-break: break-all;
       }
@@ -1100,53 +1042,47 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .comparison-color-cell {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .comparison-swatch {
         width: 40px;
         height: 40px;
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         border: var(--ha-border-width-sm) solid var(--divider-color);
         flex-shrink: 0;
       }
 
       .comparison-hex {
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
         font-family: monospace;
       }
 
-      .comparison-grid-empty {
-        padding: 24px;
-        text-align: center;
-        color: var(--secondary-text-color);
-      }
-
       /* Color Wheel Visualization Styles */
       .visualization-section {
-        padding: 20px;
+        padding: var(--ha-space-5);
         border-radius: var(--ha-card-border-radius, 12px);
         background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
         border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .visualization-section h4 {
-        margin: 0 0 8px 0;
+        margin: 0 0 var(--ha-space-2) 0;
         font-size: 16px;
         font-weight: 600;
       }
 
       .visualization-section .preview-hint {
-        margin: 0 0 16px 0;
-        font-size: 13px;
+        margin: 0 0 var(--ha-space-4) 0;
+        font-size: var(--ha-font-size-m);
         color: var(--secondary-text-color);
       }
 
       .color-wheel-layout {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 32px;
+        gap: var(--ha-space-8);
         align-items: start;
       }
 
@@ -1159,7 +1095,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .color-wheel-explanation {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .color-wheel-explanation h5 {
@@ -1170,30 +1106,30 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .color-wheel-explanation h6 {
-        margin: 0 0 8px 0;
+        margin: 0 0 var(--ha-space-2) 0;
         font-size: 14px;
         font-weight: 600;
         color: var(--primary-text-color);
       }
 
       .explanation-section {
-        padding: 12px 16px;
+        padding: var(--ha-space-3) var(--ha-space-4);
         background: var(--secondary-background-color);
-        border-radius: 4px;
-        border-left: 3px solid var(--primary-color);
+        border-radius: var(--ha-border-radius-sm);
+        border-left: var(--ha-border-width-lg) solid var(--primary-color);
       }
 
       .explanation-section p {
         margin: 0;
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         line-height: 1.5;
         color: var(--secondary-text-color);
       }
 
       .explanation-section ul {
-        margin: 8px 0 0 0;
-        padding-left: 20px;
-        font-size: 13px;
+        margin: var(--ha-space-2) 0 0 0;
+        padding-left: var(--ha-space-5);
+        font-size: var(--ha-font-size-m);
         line-height: 1.6;
       }
 
@@ -1203,11 +1139,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .explanation-tip {
-        padding: 12px 16px;
-        background: rgba(33, 150, 243, 0.1);
-        border-radius: 4px;
-        border-left: 3px solid var(--info-color, #2196f3);
-        font-size: 13px;
+        padding: var(--ha-space-3) var(--ha-space-4);
+        background: color-mix(in srgb, var(--info-color) 10%, transparent);
+        border-radius: var(--ha-border-radius-sm);
+        border-left: var(--ha-border-width-lg) solid var(--info-color);
+        font-size: var(--ha-font-size-m);
         line-height: 1.5;
         color: var(--secondary-text-color);
       }
@@ -1223,15 +1159,15 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .overrides-view {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 12px 0;
+        gap: var(--ha-space-3);
+        padding: var(--ha-space-3) 0;
       }
 
       .overrides-toolbar {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 0 16px;
+        gap: var(--ha-space-3);
+        padding: 0 var(--ha-space-4);
       }
 
       .overrides-filter-wrapper {
@@ -1239,18 +1175,18 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .overrides-summary {
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         color: var(--secondary-text-color);
         white-space: nowrap;
       }
 
       .overrides-load-hint {
-        padding: 0 16px;
+        padding: 0 var(--ha-space-4);
       }
 
       .overrides-table-wrapper {
         overflow-x: auto;
-        padding: 0 16px 16px;
+        padding: 0 var(--ha-space-4) var(--ha-space-4);
       }
 
       .overrides-table {
@@ -1258,11 +1194,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .override-token-row.has-override {
-        background: rgba(var(--rgb-accent-color, 3, 155, 229), 0.06);
+        background: color-mix(in srgb, var(--accent-color) 6%, transparent);
       }
 
       .override-token-row.is-editing {
-        background: rgba(var(--rgb-accent-color, 3, 155, 229), 0.12);
+        background: color-mix(in srgb, var(--accent-color) 12%, transparent);
       }
 
       .override-path-cell {
@@ -1271,17 +1207,17 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .override-token-path {
         font-family: monospace;
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
       }
 
       .override-origin-badge {
         display: inline-block;
         margin-left: 6px;
         padding: 1px 6px;
-        border-radius: 10px;
-        background: var(--accent-color, #039be5);
-        color: #fff;
-        font-size: 10px;
+        border-radius: var(--ha-border-radius-pill);
+        background: var(--accent-color);
+        color: var(--text-accent-color, var(--text-primary-color));
+        font-size: var(--ha-font-size-xs);
         font-weight: 600;
         vertical-align: middle;
       }
@@ -1297,14 +1233,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         width: 14px;
         height: 14px;
         border-radius: 3px;
-        border: var(--ha-border-width-sm) solid var(--divider-color, #ccc);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         vertical-align: middle;
-        margin-right: 4px;
+        margin-right: var(--ha-space-1);
       }
 
       .override-value-text {
         font-family: monospace;
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         vertical-align: middle;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1314,12 +1250,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .override-value-active {
-        color: var(--accent-color, #039be5);
+        color: var(--accent-color);
         font-weight: 600;
       }
 
       .override-value-empty {
-        color: var(--disabled-text-color, #888);
+        color: var(--disabled-text-color);
       }
 
       .override-actions-cell {
@@ -1338,31 +1274,31 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .override-edit-panel {
-        margin: 4px 8px 12px;
-        padding: 16px;
-        border: var(--ha-border-width-sm) solid var(--accent-color, #039be5);
+        margin: var(--ha-space-1) var(--ha-space-2) var(--ha-space-3);
+        padding: var(--ha-space-4);
+        border: var(--ha-border-width-sm) solid var(--accent-color);
         border-radius: 6px;
         background: var(--card-background-color);
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .override-edit-panel-header {
         display: flex;
         align-items: baseline;
-        gap: 16px;
+        gap: var(--ha-space-4);
         flex-wrap: wrap;
       }
 
       .override-edit-token-path {
         font-family: monospace;
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         font-weight: 600;
       }
 
       .override-edit-default {
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
       }
 
@@ -1376,7 +1312,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .override-edit-actions {
         display: flex;
-        gap: 8px;
+        gap: var(--ha-space-2);
       }
       `
     ];
@@ -1387,25 +1323,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   render() {
-    // If in inline mode, render dialog content directly without ha-dialog wrapper
-    // @ts-ignore - TS2339: auto-suppressed
-    if (this._inlineMode) {
-      return html`
-        ${this._renderInlineContent()}
-        ${this._renderPackExplorer()}
-      `;
-    }
-
-    return html`
-      ${this._renderTabContent()}
-      ${this._renderDialog()}
-      ${this._renderPackExplorer()}
-    `;
-  }
-
-  _renderInlineContent() {
-    lcardsLog.debug('[ThemeTokenBrowser] Rendering inline content');
-
     return html`
       <div class="studio-layout">
         <div class="dialog-content">
@@ -1418,78 +1335,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         </div>
       </div>
     `;
-  }
-
-  _renderTabContent() {
-    if (this._isLoading) {
-      return html`
-        <div class="loading-state">
-          <ha-spinner size="small"></ha-spinner>
-          <p>Loading theme browser...</p>
-        </div>
-      `;
-    }
-
-    return html`
-      <div class="tab-content">
-        <div class="info-card">
-          <div class="info-card-content">
-            <h3>Theme Browser</h3>
-            <p>
-              <strong>${this._activeTheme?.name || 'Active Theme'}</strong>
-              <br />
-              ${this._tokens.length} tokens available
-            </p>
-            <p style="font-size: 13px; color: var(--secondary-text-color);">
-              Browse and copy theme tokens for <strong>style configuration</strong>: <code>theme:token.path</code>
-            </p>
-          </div>
-          <div class="info-card-actions">
-            <ha-button
-              class="open-browser-button"
-              raised
-              @click=${this._openDialog}>
-              <ha-icon icon="mdi:palette" slot="start"></ha-icon>
-              Open Theme Browser
-            </ha-button>
-            <ha-button
-              class="open-pack-explorer-button"
-              @click=${this._openPackExplorer}>
-              <ha-icon icon="mdi:package-variant" slot="start"></ha-icon>
-              Browse All Packs
-            </ha-button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  _renderDialog() {
-    if (!this._dialogOpen) return '';
-
-    lcardsLog.debug('[ThemeTokenBrowser] Rendering dialog');
-
-    return html`
-      <ha-dialog
-        open
-        @closed=${(e) => { e.stopPropagation(); this._closeDialog(); }}
-        .headerTitle=${this._renderDialogTitle()}>
-        ${this._renderInlineContent()}
-        <div slot="footer">
-          <ha-button
-            variant="brand"
-            appearance="accent"
-            @click=${this._closeDialog}
-            data-dialog="close">
-            Close
-          </ha-button>
-        </div>
-      </ha-dialog>
-    `;
-  }
-
-  _renderDialogTitle() {
-    return `Theme Browser  •  HA: ${this._haThemeName}  •  LCARdS: ${this._activeTheme?.name || 'Unknown'}`;
   }
 
   _renderDialogHeader() {
@@ -1537,12 +1382,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
                   </tr>
                 </thead>
                 <tbody>
-                  ${this._renderAlertModeConfigRow('green_alert', '🟢', 'Green (Normal)')}
-                  ${this._renderAlertModeConfigRow('red_alert', '🔴', 'Red Alert')}
-                  ${this._renderAlertModeConfigRow('blue_alert', '🔵', 'Blue Alert')}
-                  ${this._renderAlertModeConfigRow('yellow_alert', '🟡', 'Yellow Alert')}
-                  ${this._renderAlertModeConfigRow('gray_alert', '⚫', 'Gray Alert')}
-                  ${this._renderAlertModeConfigRow('black_alert', '⚪', 'Black Alert')}
+                  ${ALERT_MODES.map(mode => this._renderAlertModeConfigRow(mode))}
                 </tbody>
               </table>
             </div>
@@ -1611,9 +1451,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       this._applyAllVarsFilters();
     }
     // Focus back on search input
-    const searchInput = this.shadowRoot?.querySelector('.dialog-search');
+    const searchInput = /** @type {HTMLElement | null} */ (this.shadowRoot?.querySelector('.dialog-search'));
     if (searchInput) {
-      // @ts-ignore - TS2339: auto-suppressed
       searchInput.focus();
     }
   }
@@ -1625,17 +1464,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       ...categories
     ];
 
-    return html`
-      <div class="category-filters">
-        ${filters.map(filter => html`
-          <button
-            class="category-chip ${this._selectedCategory === filter.value ? 'selected' : ''}"
-            @click=${() => this._selectCategory(filter.value)}>
-            ${filter.label} (${filter.count})
-          </button>
-        `)}
-      </div>
-    `;
+    return renderFilterChips({
+      className: 'category-filters',
+      options: filters.map(f => ({ value: f.value, label: `${f.label} (${f.count})` })),
+      selected: this._selectedCategory,
+      onSelect: (value) => this._selectCategory(value),
+    });
   }
 
   _renderAllVarsCategoryFilters() {
@@ -1643,14 +1477,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     // Count variables by category
     const categoryCounts = {
-      'ha-legacy':   { label: 'HA Legacy', count: 0 },
-      'ha-color':    { label: 'HA Color', count: 0 },
-      'ha-space':    { label: 'HA Spacing', count: 0 },
-      'ha-shape':    { label: 'HA Shape', count: 0 },
-      'ha-motion':   { label: 'HA Motion', count: 0 },
-      'ha-type':     { label: 'HA Typography', count: 0 },
-      'ha-elevation':{ label: 'HA Elevation', count: 0 },
-      'ha-system':   { label: 'HA System', count: 0 },
+      'ha-legacy':   { label: 'Home Assistant Legacy', count: 0 },
+      'ha-color':    { label: 'Home Assistant Color', count: 0 },
+      'ha-space':    { label: 'Home Assistant Spacing', count: 0 },
+      'ha-shape':    { label: 'Home Assistant Shape', count: 0 },
+      'ha-motion':   { label: 'Home Assistant Motion', count: 0 },
+      'ha-type':     { label: 'Home Assistant Typography', count: 0 },
+      'ha-elevation':{ label: 'Home Assistant Elevation', count: 0 },
+      'ha-system':   { label: 'Home Assistant System', count: 0 },
       'material':    { label: 'Material', count: 0 },
       'wa':          { label: 'WebAwesome', count: 0 },
       'states':      { label: 'States', count: 0 },
@@ -1674,17 +1508,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         .map(([key, data]) => ({ label: data.label, value: key, count: data.count }))
     ];
 
-    return html`
-      <div class="category-filters">
-        ${filters.map(filter => html`
-          <button
-            class="category-chip ${this._selectedAllVarsCategory === filter.value ? 'selected' : ''}"
-            @click=${() => this._selectAllVarsCategory(filter.value)}>
-            ${filter.label} (${filter.count})
-          </button>
-        `)}
-      </div>
-    `;
+    return renderFilterChips({
+      className: 'category-filters',
+      options: filters.map(f => ({ value: f.value, label: `${f.label} (${f.count})` })),
+      selected: this._selectedAllVarsCategory,
+      onSelect: (value) => this._selectAllVarsCategory(value),
+    });
   }
 
   _renderDialogBody() {
@@ -1702,6 +1531,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     }
 
     if (this._activeView === 'generator') {
+      // Loads on first open (CodeMirror + the bundled HA-LCARS theme YAML); the
+      // element upgrades when the module arrives, keeping .hass set before then.
+      import('./lcards-theme-generator-view.js').catch(error =>
+        lcardsLog.error('[ThemeTokenBrowser] Failed to load the theme generator:', error));
       return html`
         <div class="dialog-body">
           <lcards-theme-generator-view .hass=${this.hass}></lcards-theme-generator-view>
@@ -1724,7 +1557,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           <div class="empty-state">
             <ha-icon icon="mdi:${this._searchQuery ? 'magnify-remove-outline' : 'palette'}"></ha-icon>
             <p>${this._searchQuery ? `No tokens found matching "${this._searchQuery}"` : 'No tokens found'}</p>
-            <p style="font-size: 13px; color: var(--secondary-text-color); max-width: 400px;">
+            <p style="font-size: var(--ha-font-size-m); color: var(--secondary-text-color); max-width: 400px;">
               ${this._searchQuery
                 ? 'Try a different search term, or clear the search to see all tokens.'
                 : this._selectedCategory !== 'all'
@@ -1743,12 +1576,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           ${Object.entries(groupedTokens).map(([category, tokens]) => {
             const isExpanded = this._expandedTokenCategories.has(`token-${category}`);
             return html`
-              <lcards-collapsible-section
-                .title=${this._formatCategoryName(category)}
-                .count=${tokens.length}
-                .countLabel=${'tokens'}
+              <lcards-form-section
+                .header=${this._formatCategoryName(category)}
+                .secondary=${`${tokens.length} tokens`}
                 ?expanded=${isExpanded}
-                @toggle=${() => this._toggleTokenCategory(category)}>
+                @expanded-changed=${() => this._toggleTokenCategory(category)}>
                 <table class="token-table">
                   <thead>
                     <tr>
@@ -1768,7 +1600,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
                     ${tokens.map(token => this._renderTokenRow(token))}
                   </tbody>
                 </table>
-              </lcards-collapsible-section>
+              </lcards-form-section>
             `;
           })}
         </div>
@@ -1779,7 +1611,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         <div class="empty-state">
           <ha-icon icon="mdi:alert-circle"></ha-icon>
           <p>Error loading tokens</p>
-          <p style="font-size: 12px;">Check console for details</p>
+          <p style="font-size: var(--ha-font-size-s);">Check console for details</p>
         </div>
       `;
     }
@@ -1899,14 +1731,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    * @param {boolean} isCssVar - Whether this is a CSS variable (true) or token (false)
    */
   _renderAlertModeSwatches(baseColor, pathOrVarName, isCssVar = false) {
-    const alertModes = [
-      { name: 'green_alert', label: 'Green', icon: '🟢', shortLabel: 'GRN' },
-      { name: 'red_alert', label: 'Red', icon: '🔴', shortLabel: 'RED' },
-      { name: 'blue_alert', label: 'Blue', icon: '🔵', shortLabel: 'BLU' },
-      { name: 'yellow_alert', label: 'Yellow', icon: '🟡', shortLabel: 'YEL' },
-      { name: 'gray_alert', label: 'Gray', icon: '⚫', shortLabel: 'GRY' },
-      { name: 'black_alert', label: 'Black', icon: '⚪', shortLabel: 'BLK' }
-    ];
+    const alertModes = ALERT_MODES.map(m => ({ name: m.value, label: m.label, shortLabel: m.short }));
 
     const currentMode = this._getCurrentAlertMode();
 
@@ -2086,14 +1911,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     // Group by category
     const categories = {
-      'ha-legacy':   { title: 'HA Legacy Semantic (--primary-*, --text-*, etc.)', vars: [] },
-      'ha-color':    { title: 'HA Color System (--ha-color-*)', vars: [] },
-      'ha-space':    { title: 'HA Spacing Scale (--ha-space-*)', vars: [] },
-      'ha-shape':    { title: 'HA Shape — Border Radius & Width', vars: [] },
-      'ha-motion':   { title: 'HA Motion — Animation Durations', vars: [] },
-      'ha-type':     { title: 'HA Typography — Font & Line Height', vars: [] },
-      'ha-elevation':{ title: 'HA Elevation — Box Shadows', vars: [] },
-      'ha-system':   { title: 'HA System (icons, chips, dialogs, …)', vars: [] },
+      'ha-legacy':   { title: 'Home Assistant Legacy Semantic (--primary-*, --text-*, etc.)', vars: [] },
+      'ha-color':    { title: 'Home Assistant Color System (--ha-color-*)', vars: [] },
+      'ha-space':    { title: 'Home Assistant Spacing Scale (--ha-space-*)', vars: [] },
+      'ha-shape':    { title: 'Home Assistant Shape: Border Radius & Width', vars: [] },
+      'ha-motion':   { title: 'Home Assistant Motion: Animation Durations', vars: [] },
+      'ha-type':     { title: 'Home Assistant Typography: Font & Line Height', vars: [] },
+      'ha-elevation':{ title: 'Home Assistant Elevation: Box Shadows', vars: [] },
+      'ha-system':   { title: 'Home Assistant System (icons, chips, dialogs, …)', vars: [] },
       'material':    { title: 'Material Design (--mdc-*, --md-*)', vars: [] },
       'wa':          { title: 'WebAwesome (--wa-*)', vars: [] },
       'states':      { title: 'Entity State Colours (--state-*)', vars: [] },
@@ -2121,12 +1946,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           if (!cat || cat.vars.length === 0) return '';
           const isExpanded = this._expandedCategories.has(key);
           return html`
-            <lcards-collapsible-section
-              .title=${cat.title}
-              .count=${cat.vars.length}
-              .countLabel=${'variables'}
+            <lcards-form-section
+              .header=${cat.title}
+              .secondary=${`${cat.vars.length} variables`}
               ?expanded=${isExpanded}
-              @toggle=${() => this._toggleCategory(key)}>
+              @expanded-changed=${() => this._toggleCategory(key)}>
               <table class="token-table">
                 <thead>
                   <tr>
@@ -2140,7 +1964,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
                   ${cat.vars.map(v => this._renderCssVarRow(v))}
                 </tbody>
               </table>
-            </lcards-collapsible-section>
+            </lcards-form-section>
           `;
         })}
       </div>
@@ -2225,31 +2049,23 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         <div class="alert-lab-left-column">
           <!-- Mode Selection Section -->
           <lcards-form-section
-            .header=${'Alert Mode Selection'}
-            .description=${'Choose mode and control settings'}
+            .header=${'Alert mode'}
+            .description=${'The mode to tune, and whether choosing it applies it'}
             ?expanded=${true}
-            .collapsible=${false}
+            noCollapse
           >
             <div class="mode-selection-controls">
-              <div class="mode-selector-row">
-                <label>Alert Mode:</label>
-                <select
-                  .value="${this._selectedAlertMode}"
-                  @change="${this._handleModeChange}"
-                  class="alert-mode-select"
-                >
-                  <option value="green_alert">🟢 Green Alert (Normal)</option>
-                  <option value="red_alert">🔴 Red Alert</option>
-                  <option value="blue_alert">🔵 Blue Alert</option>
-                  <option value="yellow_alert">🟡 Yellow Alert</option>
-                  <option value="gray_alert">⚪ Gray Alert</option>
-                  <option value="black_alert">⚫ Black Alert</option>
-                </select>
-              </div>
+              <ha-selector
+                .hass=${this.hass}
+                .label=${'Alert mode'}
+                .value=${this._selectedAlertMode}
+                .selector=${{ select: { mode: 'dropdown', options: ALERT_MODES.map(m => ({ value: m.value, label: m.label })) } }}
+                @value-changed=${this._handleModeChange}
+              ></ha-selector>
 
               <ha-selector
                 .hass="${this.hass}"
-                .label="${'Auto-apply ALERT mode on selection'}"
+                .label="${'Apply the mode when selected'}"
                 .value="${this._livePreviewEnabled}"
                 .selector=${{
                   boolean: {}
@@ -2299,9 +2115,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
             </div>
           ` : html`
             <div class="parameter-controls">
-              <p style="padding: 20px; text-align: center; color: var(--secondary-text-color);">
-                Green Alert is the baseline state. Parameters cannot be edited.
-              </p>
+              <lcards-message type="info" message="Green alert is the baseline: the theme's own colours. Pick another mode to tune it."></lcards-message>
             </div>
           `}
 
@@ -2313,11 +2127,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
             </ha-button>
             <ha-button @click="${this._resetToDefaults}">
               <ha-icon icon="mdi:restore" slot="start"></ha-icon>
-              Reset to Defaults
+              Reset
             </ha-button>
             <ha-button @click="${this._saveToHelpers}">
               <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
-              Save to Helpers
+              Save to helpers
             </ha-button>
           </div>
 
@@ -2361,11 +2175,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
             ${this._activeVizTab === 'wheel' ? html`
               <div class="visualization-section">
-                <h4>🎨 HSL Color Wheel Transformation</h4>
-                <p class="preview-hint">Visual representation of how colors shift in HSL space.</p>
-                <p class="preview-hint" style="font-size: 12px; margin-top: -8px; color: var(--secondary-text-color);">
-                  <em>Showing the same 12 variables as above. Click legend items to toggle visibility.</em>
-                </p>
+                <h4>HSL colour wheel</h4>
+                <p class="preview-hint">How the Live Preview colours move in HSL space. Click a legend item to hide or show it.</p>
                 ${this._renderColorWheel()}
               </div>
             ` : ''}
@@ -2450,9 +2261,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   _renderColorComparisonGrid() {
     if (!this._originalLcarsColors || Object.keys(this._originalLcarsColors).length === 0) {
       return html`
-        <div class="comparison-grid-empty">
-          <p>⚠️ Original colors not captured. Close and reopen dialog to enable comparison view.</p>
-        </div>
+        <lcards-message type="warning" message="The theme's original colours weren't captured. Reload the page to compare."></lcards-message>
       `;
     }
 
@@ -2498,9 +2307,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   _renderColorWheel() {
     if (!this._originalLcarsColors || Object.keys(this._originalLcarsColors).length === 0) {
       return html`
-        <div class="comparison-grid-empty">
-          <p>⚠️ Original colors not captured. Close and reopen dialog to enable color wheel.</p>
-        </div>
+        <lcards-message type="warning" message="The theme's original colours weren't captured. Reload the page to see the wheel."></lcards-message>
       `;
     }
 
@@ -2536,47 +2343,23 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         </div>
 
         <div class="color-wheel-explanation">
-          <h5>📖 Understanding the Visualization</h5>
-
-          <div class="explanation-tip">
-            <h6>What You're Seeing:</h6>
-            <ul>
-              <li><strong>⭕ Circles (black border):</strong> Original colors from Green Alert baseline</li>
-              <li><strong>◼️ Squares (white border):</strong> Transformed colors in ${this._getModeName(this._selectedAlertMode)}</li>
-              <li><strong>🎨 Filled with actual colors:</strong> See the real color values at each position</li>
-              <li><strong>🔍 Hover to zoom:</strong> Mouse over any shape to enlarge it for better visibility</li>
-              <li><strong>➡️ Gray arrows:</strong> Show how each color shifts from source to target</li>
-              <li><strong>📏 Radial position:</strong> Saturation level (center = gray, edge = vibrant)</li>
-              <li><strong>🔄 Angular position:</strong> Hue angle (0° = red, 120° = green, 240° = blue)</li>
-            </ul>
-          </div>
-
-          ${transform.hueAnchor ? html`
-            <div class="explanation-tip">
-              <h6>🎯 Hue Anchor:</h6>
-              <p>The <strong>shaded arc</strong> shows the target hue range (${transform.hueAnchor.centerHue - transform.hueAnchor.range}° - ${transform.hueAnchor.centerHue + transform.hueAnchor.range}°). Colors are "pulled" toward this range with ${Math.round(transform.hueAnchor.strength * 100)}% strength.</p>
-            </div>
-          ` : ''}
-
-          ${transform.hueShift !== undefined ? html`
-            <div class="explanation-tip">
-              <h6>🎨 Hue Shift:</h6>
-              <p>Primary target: <strong>${transform.hueShift}°</strong> (${this._getHueName(transform.hueShift)})</p>
-              <p>Colors shift toward this hue with ${Math.round(transform.hueStrength * 100)}% strength.</p>
-            </div>
-          ` : ''}
-
-          <div class="explanation-tip">
-            <h6>💡 Transform Parameters:</h6>
-            <ul>
-              <li><strong>Saturation:</strong> ${transform.saturationMultiplier}× (${transform.saturationMultiplier > 1 ? 'more vivid' : 'more muted'})</li>
-              <li><strong>Lightness:</strong> ${transform.lightnessMultiplier}× (${transform.lightnessMultiplier > 1 ? 'brighter' : 'darker'})</li>
-            </ul>
-          </div>
-
-          <div class="explanation-tip">
-            <strong>💡 Tip:</strong> Adjust the sliders above and watch the blue dots move in real-time to see how parameters affect the transformation!
-          </div>
+          ${renderInfoGuide({
+            header: 'Reading the wheel',
+            icon: 'mdi:help-circle-outline',
+            open: true,
+            body: html`
+              <ul>
+                <li><strong>Circles</strong> (black border): the theme's colours in green alert.</li>
+                <li><strong>Squares</strong> (white border): the same colours in ${this._getModeName(this._selectedAlertMode)}.</li>
+                <li><strong>Arrows</strong>: how each colour moves. Hover a shape to enlarge it.</li>
+                <li><strong>Distance from the centre</strong> is saturation (grey in the middle, vivid at the edge); <strong>angle</strong> is hue (0° red, 120° green, 240° blue).</li>
+              </ul>
+              ${transform.hueAnchor ? html`<p><strong>Hue anchor:</strong> the shaded arc is the target range (${transform.hueAnchor.centerHue - transform.hueAnchor.range}° to ${transform.hueAnchor.centerHue + transform.hueAnchor.range}°); colours are pulled toward it at ${Math.round(transform.hueAnchor.strength * 100)}% strength.</p>` : ''}
+              ${transform.hueShift !== undefined ? html`<p><strong>Hue shift:</strong> toward ${transform.hueShift}° (${this._getHueName(transform.hueShift)}) at ${Math.round(transform.hueStrength * 100)}% strength.</p>` : ''}
+              <p><strong>Saturation</strong> ${transform.saturationMultiplier}× (${transform.saturationMultiplier > 1 ? 'more vivid' : 'more muted'}), <strong>lightness</strong> ${transform.lightnessMultiplier}× (${transform.lightnessMultiplier > 1 ? 'brighter' : 'darker'}).</p>
+              <p class="info-guide-tip">Move the sliders and watch the squares follow.</p>
+            `,
+          })}
         </div>
       </div>
     `;
@@ -2612,31 +2395,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   // Dialog control methods
-  _openDialog() {
-    lcardsLog.debug('[ThemeTokenBrowser] Opening dialog', {
-      tokensCount: this._tokens.length,
-      filteredCount: this._filteredTokens.length
-    });
-    this._dialogOpen = true;
-    this._scanCssVariables(); // Scan CSS variables when opening
-    this._scanAllCssVariables(); // Scan all CSS variables
-    this._detectHaTheme(); // Detect active HA theme
-    this._applyFilters(); // Apply initial filters when opening
-
-    // Capture original LCARS colors for side-by-side comparison
-    this._originalLcarsColors = captureOriginalColors(document.documentElement);
-    lcardsLog.debug('[AlertLab] Captured original colors:', Object.keys(this._originalLcarsColors || {}).length);
-
-    // Initialize Alert Lab with current running alert mode
-    if (window.lcards?.getAlertMode) {
-      this._selectedAlertMode = window.lcards.getAlertMode();
-      lcardsLog.debug('[AlertLab] Initialized with current mode:', this._selectedAlertMode);
-    }
-
-    // Load helper values if available
-    this._loadAlertLabFromHelpers();
-  }
-
   /**
    * Load Alert Lab parameters from helpers (if they exist)
    * @private
@@ -2724,29 +2482,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this.requestUpdate();
   }
 
-  _closeDialog() {
-    lcardsLog.debug('[ThemeTokenBrowser] Closing dialog');
-    this._dialogOpen = false;
-  }
-
-  /**
-   * Open Pack Explorer dialog
-   * @private
-   */
-  _openPackExplorer() {
-    lcardsLog.debug('[ThemeTokenBrowser] Opening Pack Explorer');
-    this._packExplorerOpen = true;
-  }
-
-  /**
-   * Close Pack Explorer dialog
-   * @private
-   */
-  _closePackExplorer() {
-    lcardsLog.debug('[ThemeTokenBrowser] Closing Pack Explorer');
-    this._packExplorerOpen = false;
-  }
-
   /**
    * Handle tab change from HA native tab group (Issue #82)
    * @param {CustomEvent} event - wa-tab-show event
@@ -2755,8 +2490,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     // CRITICAL: Stop propagation to prevent bubbling to parent tab handlers
     event.stopPropagation();
 
-    // @ts-ignore - TS2339: auto-suppressed
-    const view = event.target.activeTab?.getAttribute('value');
+    const view = /** @type {HaTabGroupElement} */ (event.target).activeTab?.getAttribute('value');
     if (view) {
       this._switchView(view);
     }
@@ -2808,8 +2542,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     // CRITICAL: Stop propagation to prevent bubbling to parent tab handlers
     event.stopPropagation();
 
-    // @ts-ignore - TS2339: auto-suppressed
-    const tab = event.target.activeTab?.getAttribute('value');
+    const tab = /** @type {HaTabGroupElement} */ (event.target).activeTab?.getAttribute('value');
     if (tab) {
       this._activeVizTab = tab;
       this.requestUpdate();
@@ -2866,19 +2599,17 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   _renderFamilyFilters(vars) {
     const filters = this._buildFamilyFilters(vars);
 
-    return html`
-      <div class="category-filters color-family-filters">
-        ${filters.map(filter => html`
-          <button
-            class="category-chip ${this._selectedFamily === filter.value ? 'selected' : ''}"
-            title=${FAMILY_HUE_RANGES[filter.value] || ''}
-            @click=${() => this._selectFamily(filter.value)}>
-            ${filter.value !== 'all' ? html`<span class="chip-swatch" style="background-color: ${FAMILY_SWATCH_COLORS[filter.value]}"></span>` : ''}
-            ${filter.label} (${filter.count})
-          </button>
-        `)}
-      </div>
-    `;
+    return renderFilterChips({
+      className: 'category-filters color-family-filters',
+      options: filters.map(f => ({
+        value: f.value,
+        label: `${f.label} (${f.count})`,
+        title: FAMILY_HUE_RANGES[f.value] || '',
+        swatch: f.value !== 'all' ? FAMILY_SWATCH_COLORS[f.value] : undefined,
+      })),
+      selected: this._selectedFamily,
+      onSelect: (value) => this._selectFamily(value),
+    });
   }
 
   _sortBy(column) {
@@ -3089,49 +2820,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    * Detect the active Home Assistant theme name
    */
   _detectHaTheme() {
-    try {
-      // Try multiple methods to detect HA theme
-
-      // Method 1: Check hass.themes
-      if (this.hass?.themes?.theme) {
-        this._haThemeName = this.hass.themes.theme;
-        return;
-      }
-
-      // Method 2: Check hass.selectedTheme
-      if (this.hass?.selectedTheme) {
-        this._haThemeName = this.hass.selectedTheme;
-        return;
-      }
-
-      // Method 3: Check document data attribute
-      const themeAttr = document.documentElement.getAttribute('data-theme');
-      if (themeAttr) {
-        this._haThemeName = themeAttr;
-        return;
-      }
-
-      // Method 4: Check for theme in localStorage
-      const savedTheme = localStorage.getItem('selectedTheme');
-      if (savedTheme) {
-        try {
-          const parsed = JSON.parse(savedTheme);
-          this._haThemeName = parsed.theme || parsed;
-          return;
-        } catch (e) {
-          this._haThemeName = savedTheme;
-          return;
-        }
-      }
-
-      // Fallback
-      this._haThemeName = 'Default';
-
-      lcardsLog.debug('[ThemeTokenBrowser] Detected HA theme:', this._haThemeName);
-    } catch (error) {
-      lcardsLog.warn('[ThemeTokenBrowser] Error detecting HA theme:', error);
-      this._haThemeName = 'Unknown';
-    }
+    this._haThemeName = activeHaThemeName(this.hass) || 'Default';
+    lcardsLog.debug('[ThemeTokenBrowser] Detected HA theme:', this._haThemeName);
   }
 
   /**
@@ -3281,11 +2971,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       // Extract tokens - use the correct API: activeTheme.tokens
       const tokens = this._extractTokensFromObject(activeTheme.tokens);
 
-      // Find usage in current config
-      tokens.forEach(token => {
-        token.usage = this._findTokenUsage(token.path);
-      });
-
       this._tokens = tokens;
       this._filteredTokens = tokens;
 
@@ -3366,7 +3051,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       return {
         finalValue: rawValue,
         resolvedFrom: null,
-        chain: [...chain, `⚠️ circular/max-depth`],
+        chain: [...chain, 'circular reference or too deep'],
         error: 'Circular reference or max recursion depth'
       };
     }
@@ -3419,7 +3104,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           return {
             finalValue: rawValue,
             resolvedFrom: rawValue,
-            chain: [...chain, `❌ not found`],
+            chain: [...chain, 'not found'],
             error: `Token reference not found: ${rawValue}`
           };
         }
@@ -3450,7 +3135,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       return {
         finalValue: rawValue,
         resolvedFrom: null,
-        chain: [...chain, `⚠️ error`],
+        chain: [...chain, 'error'],
         error: error.message
       };
     }
@@ -3500,52 +3185,20 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   /**
-   * Check if a value looks like a computed token
-   * (kept for potential future use, but resolution now handled by resolveThemeTokensRecursive)
+   * Check if a value is a computed colour expression (`theme:` prefix allowed).
    */
   _looksLikeComputedToken(value) {
     if (typeof value !== 'string') return false;
 
-    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix', 'shade', 'tint'];
-    return computedFunctions.some(fn => value.includes(`${fn}(`));
-  }  /**
-   * Find where a token is used in the current config
-   */
-  _findTokenUsage(tokenPath) {
-    const usage = [];
-    const tokenSyntax = `theme:${tokenPath}`;
-
-    // @ts-ignore - TS2339: auto-suppressed
-    this._findTokenUsageRecursive(this.config, '', tokenSyntax, usage);
-
-    return usage;
-  }
-
-  /**
-   * Recursively search config for token usage
-   */
-  _findTokenUsageRecursive(obj, path, tokenSyntax, usage) {
-    if (!obj || typeof obj !== 'object') {
-      return;
-    }
-
-    for (const [key, value] of Object.entries(obj)) {
-      const currentPath = path ? `${path}.${key}` : key;
-
-      if (typeof value === 'string' && value.includes(tokenSyntax)) {
-        usage.push(currentPath);
-      } else if (typeof value === 'object' && value !== null) {
-        this._findTokenUsageRecursive(value, currentPath, tokenSyntax, usage);
-      }
-    }
+    return isComputedColor(value.replace(/^theme:/, ''));
   }
 
   /**
    * Check if a value looks like a color. Delegates to the shared
-   * CssVarCategory.isColorValue() so the picker reuses the same logic.
+   * color-syntax.js isCssColor() so the picker reuses the same logic.
    */
   _isColorValue(value) {
-    return isColorValue(value);
+    return isCssColor(value);
   }
 
   /**
@@ -3565,7 +3218,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show success feedback
       button.icon = 'mdi:check';
-      button.style.color = 'var(--success-color, #4caf50)';
+      button.style.color = 'var(--success-color)';
 
       setTimeout(() => {
         button.icon = originalIcon;
@@ -3576,7 +3229,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show error feedback
       button.icon = 'mdi:alert-circle';
-      button.style.color = 'var(--error-color, #f44336)';
+      button.style.color = 'var(--error-color)';
 
       setTimeout(() => {
         button.icon = originalIcon;
@@ -3602,7 +3255,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show success feedback
       button.icon = 'mdi:check';
-      button.style.color = 'var(--success-color, #4caf50)';
+      button.style.color = 'var(--success-color)';
 
       setTimeout(() => {
         button.icon = originalIcon;
@@ -3613,7 +3266,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show error feedback
       button.icon = 'mdi:alert-circle';
-      button.style.color = 'var(--error-color, #f44336)';
+      button.style.color = 'var(--error-color)';
 
       setTimeout(() => {
         button.icon = originalIcon;
@@ -3639,18 +3292,18 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   /**
    * Render a single alert mode configuration row with actual values from getAlertModeTransform
    */
-  _renderAlertModeConfigRow(mode, icon, label) {
+  _renderAlertModeConfigRow({ value: mode, label, dot }) {
     const transform = getAlertModeTransform(mode);
     if (!transform) {
-      return html`<tr><td colspan="6">Error: Unknown mode ${mode}</td></tr>`;
+      return html`<tr><td colspan="6">Unknown mode ${mode}</td></tr>`;
     }
 
     // Format additional settings for black_alert and hue anchor modes
-    let additionalSettings = '—';
+    /** @type {string | import('lit').TemplateResult} */
+    let additionalSettings = '-';
 
     if (mode === 'black_alert' && transform.contrastEnhancement) {
       const ce = transform.contrastEnhancement;
-      // @ts-ignore - TS2322: auto-suppressed
       additionalSettings = html`
         <div style="font-size: 0.9em; line-height: 1.4;">
           <div><strong>Contrast:</strong> ${ce.enabled ? 'Enabled' : 'Disabled'}</div>
@@ -3661,7 +3314,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       `;
     } else if (transform.hueAnchor) {
       const ha = transform.hueAnchor;
-      // @ts-ignore - TS2322: auto-suppressed
       additionalSettings = html`
         <div style="font-size: 0.9em; line-height: 1.4;">
           <div><strong>Hue Anchor:</strong></div>
@@ -3674,7 +3326,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     return html`
       <tr>
-        <td><span class="mode-icon">${icon}</span><span class="mode-name">${label}</span></td>
+        <td><span class="mode-dot" style="background: ${dot}"></span><span class="mode-name">${label}</span></td>
         <td>${transform.hueShift}°</td>
         <td>${transform.hueStrength}</td>
         <td>${transform.saturationMultiplier}</td>
@@ -3725,7 +3377,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show success feedback
       button.icon = 'mdi:check';
-      button.style.color = 'var(--success-color, #4caf50)';
+      button.style.color = 'var(--success-color)';
 
       setTimeout(() => {
         button.icon = originalIcon;
@@ -3736,7 +3388,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show error feedback
       button.icon = 'mdi:alert-circle';
-      button.style.color = 'var(--error-color, #f44336)';
+      button.style.color = 'var(--error-color)';
 
       setTimeout(() => {
         button.icon = originalIcon;
@@ -3758,8 +3410,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show success feedback on the preview
       const originalBorder = preview.style.border;
-      preview.style.border = '3px solid var(--success-color, #4caf50)';
-      preview.style.boxShadow = '0 0 8px var(--success-color, #4caf50)';
+      preview.style.border = 'var(--ha-border-width-lg) solid var(--success-color)';
+      preview.style.boxShadow = '0 0 8px var(--success-color)';
 
       setTimeout(() => {
         preview.style.border = originalBorder;
@@ -3770,7 +3422,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show error feedback
       const originalBorder = preview.style.border;
-      preview.style.border = '3px solid var(--error-color, #f44336)';
+      preview.style.border = 'var(--ha-border-width-lg) solid var(--error-color)';
 
       setTimeout(() => {
         preview.style.border = originalBorder;
@@ -3779,30 +3431,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   _getHexColor(colorValue) {
-    // If it's already a hex color, return it
-    if (/^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/.test(colorValue)) {
-      return colorValue;
-    }
-
-    // Create a temporary element to let the browser compute the color
-    const temp = document.createElement('div');
-    temp.style.color = colorValue;
-    document.body.appendChild(temp);
-
-    const computed = window.getComputedStyle(temp).color;
-    document.body.removeChild(temp);
-
-    // Convert rgb/rgba to hex
-    const match = computed.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)$/);
-    if (match) {
-      const r = parseInt(match[1]).toString(16).padStart(2, '0');
-      const g = parseInt(match[2]).toString(16).padStart(2, '0');
-      const b = parseInt(match[3]).toString(16).padStart(2, '0');
-      return `#${r}${g}${b}`;
-    }
-
-    // Fallback to original value if conversion fails
-    return colorValue;
+    // Hex literals (incl. #RRGGBBAA) pass through; anything else is computed.
+    if (/^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/.test(colorValue)) return colorValue;
+    return ColorUtils.toHex(colorValue) ?? colorValue;
   }
 
   /**
@@ -3810,7 +3441,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    */
 
   async _handleModeChange(e) {
-    this._selectedAlertMode = e.target.value;
+    if (!e.detail?.value || e.detail.value === this._selectedAlertMode) return;
+    this._selectedAlertMode = e.detail.value;
     lcardsLog.debug('[AlertLab] Mode changed to:', this._selectedAlertMode);
 
     // If auto-apply is enabled, switch to the new alert mode immediately
@@ -3869,7 +3501,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         // Pass skipHelperLoad:true so the ThemeManager does NOT reload values from
         // the saved HA helpers — we want the live in-editor parameters to take effect.
         await window.lcards.core.themeManager.setAlertMode(this._selectedAlertMode, { skipHelperLoad: true });
-        lcardsLog.info('[AlertLab] Alert mode applied successfully');
+        lcardsLog.debug('[AlertLab] Alert mode applied successfully');
 
         // Force preview update
         this.requestUpdate();
@@ -4054,6 +3686,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    */
   _onOverridesScopeChanged(e) {
     this._overridesScopeInfo = e.detail;
+    this._overridesError = null;
     this._activeEditToken = null;
     this._editPendingValue = '';
     this._scopeOverridesCache = null;
@@ -4121,13 +3754,22 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       : rawValue;
 
     try {
-      await themeManager.setOverride(tokenPath, value, scope);
+      const ok = await themeManager.setOverride(tokenPath, value, scope);
+      this._overridesError = ok ? null : this._overrideWriteError(scope);
+      if (!ok) return;
       this._activeEditToken = null;
       this._editPendingValue = '';
       await this._loadScopeOverrides();
     } catch (err) {
       lcardsLog.error('[ThemeTokenBrowser] Failed to save override:', err);
     }
+  }
+
+  /** Error text for a refused or failed override write. */
+  _overrideWriteError(scope) {
+    return scope === 'global' && !canWriteGlobalStorage(this.hass)
+      ? GLOBAL_WRITE_REFUSED_MSG
+      : 'Could not save the override.';
   }
 
   /** Clear the override for a token in the current scope. */
@@ -4137,7 +3779,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     const scope = this._overridesScopeInfo?.scope ?? 'user';
     try {
-      await themeManager.clearOverride(tokenPath, scope);
+      const ok = await themeManager.clearOverride(tokenPath, scope);
+      this._overridesError = ok ? null : this._overrideWriteError(scope);
+      if (!ok) return;
       if (this._activeEditToken === tokenPath) {
         this._activeEditToken = null;
         this._editPendingValue = '';
@@ -4174,7 +3818,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           <div class="override-edit-panel">
             <div class="override-edit-panel-header">
               <span class="override-edit-token-path">theme:${tokenPath}</span>
-              <span class="override-edit-default">Default: <code>${String(defaultValue ?? '—')}</code></span>
+              <span class="override-edit-default">Default: <code>${String(defaultValue ?? '-')}</code></span>
             </div>
 
             ${showAlertWarning ? html`
@@ -4228,7 +3872,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
                 <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
                 Save
               </ha-button>
-              <ha-button @click=${() => this._cancelEditOverride()}>
+              <ha-button appearance="plain" @click=${() => this._cancelEditOverride()}>
                 Cancel
               </ha-button>
             </div>
@@ -4257,7 +3901,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           ${isColor ? html`
             <span class="override-color-swatch" style="background:${defaultValue}"></span>
           ` : ''}
-          <span class="override-value-text" title="${defaultValue}">${String(defaultValue ?? '—')}</span>
+          <span class="override-value-text" title="${defaultValue}">${String(defaultValue ?? '-')}</span>
         </td>
         <td class="override-value-cell">
           ${hasOverride ? html`
@@ -4265,7 +3909,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
               <span class="override-color-swatch" style="background:${overrideValue}"></span>
             ` : ''}
             <span class="override-value-text override-value-active" title="${overrideValue}">${String(overrideValue)}</span>
-          ` : html`<span class="override-value-empty">—</span>`}
+          ` : html`<span class="override-value-empty">-</span>`}
         </td>
         <td class="override-actions-cell">
           <div class="override-actions">
@@ -4311,6 +3955,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           showGlobal
           @scope-changed=${this._onOverridesScopeChanged}>
         </lcards-scope-selector>
+        ${this._overridesError ? html`
+          <lcards-message type="error" .message=${this._overridesError}></lcards-message>
+        ` : ''}
 
         <!-- Filter + summary bar -->
         <div class="overrides-toolbar">
@@ -4364,17 +4011,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    * Render Pack Explorer dialog
    * @private
    */
-  _renderPackExplorer() {
-    if (!this._packExplorerOpen) return '';
-
-    return html`
-      <lcards-pack-explorer-dialog
-        .hass=${this.hass}
-        .open=${this._packExplorerOpen}
-        @closed=${this._closePackExplorer}>
-      </lcards-pack-explorer-dialog>
-    `;
-  }
 }
 
 if (!customElements.get('lcards-theme-token-browser-tab')) customElements.define('lcards-theme-token-browser-tab', LCARdSThemeTokenBrowserTab);

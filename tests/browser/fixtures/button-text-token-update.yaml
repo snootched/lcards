@@ -1,0 +1,9 @@
+# doc/core/templates/index.md: text templates follow the card's entity
+type: custom:lcards-button
+entity: input_number.demo_level
+preset: panel-dark
+interactive: false
+text:
+  name: { content: TOKEN, show: true, position: top-left }
+  label: { content: "{entity.state}", position: bottom-right }
+  state: { content: "[[[ return Number(entity.state) > 80 ? 'HIGH' : 'LOW'; ]]]", show: true, position: center }

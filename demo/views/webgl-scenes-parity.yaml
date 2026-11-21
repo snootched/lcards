@@ -1,0 +1,173 @@
+# Renderer parity check (dev board only): the public webgl-scenes view minus the twins.
+# WebGL scenes (C2). Rescued from reports/c2-review/c2.yaml.
+title: WebGL scenes (renderer parity)
+path: webgl-scenes-parity
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: RED ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.red_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: FLOOR TILT } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: WARP SPEED } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: warp-starfield, config: { speed: { map_range: { input: [ 0, 100 ], output: [ 1, 8 ] } }, count: 600, color: theme:colors.ui.primary } }
+        text:
+          label: { content: 1 WARP STARFIELD (INSTANCES) · WARP SPEED, show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: warp-starfield, config: { speed: { map_range: { input: [ 0, 100 ], output: [ 1, 8 ] } }, count: 600, color: theme:colors.ui.primary } }
+        text: { label: { content: 2 WARP STARFIELD (SHADER) · WARP SPEED, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        entity: input_select.lcards_alert_mode
+        animations:
+          - trigger: on_entity_change
+            entity: input_select.lcards_alert_mode
+            to_state: red_alert
+            target: background
+            effect: 0
+            preset: custom
+            params: { speed: [ 1, 8 ], duration: 2000, ease: inOutQuad }
+          - trigger: on_entity_change
+            entity: input_select.lcards_alert_mode
+            from_state: red_alert
+            target: background
+            effect: 0
+            preset: custom
+            params: { speed: 1, duration: 3000, ease: outQuad }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: warp-starfield
+              config: { count: 900, colors: [ "#ffffff", theme:colors.ui.secondary ], streak: 1.2 }
+        text:
+          label: { content: 3 WARP ON RED ALERT (SPEED 1 TO 8), show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 12, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                view: floor
+                color: theme:colors.ui.primary
+                scan_color: theme:colors.ui.secondary
+        text: { label: { content: 4 GRID FLOOR, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              transition: 800
+              config:
+                view: floor
+                color: theme:colors.ui.secondary
+                camera_tilt:
+                  map_range: { entity_id: input_number.lcards_test_value, input: [ 0, 100 ], output: [ -5, 40 ] }
+        text:
+          label:
+            content: "5 GRID FLOOR: TILT FOLLOWS FLOOR TILT"
+            show: true
+            color: var(--lcards-blue)
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: nebula, config: { colors: [ theme:colors.ui.tertiary ] } }
+            - { preset: grid, config: { view: floor, color: theme:colors.ui.primary } }
+            - { preset: warp-starfield, config: { count: 400 } }
+        text:
+          label:
+            content: "6 STACK: NEBULA, GRID FLOOR, WARP (SHADER)"
+            show: true
+            color: var(--lcards-blue)
+        grid_options: { columns: 12, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: starfield
+              zoom: { layers: 4, duration: 12 }
+              config: { scroll_speed_x: 0, color: theme:colors.ui.primary }
+        text:
+          label:
+            content: 7 STARFIELD (CANVAS2D) FOR COMPARISON
+            show: true
+            color: var(--lcards-blue)
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: warp-starfield, config: { count: 600, streak: 0, speed: 3 } }
+        text:
+          label: { content: "8 WARP STARFIELD, STREAK 0 (DOTS)", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 4 }

@@ -1,16 +1,101 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync, statSync, createReadStream, mkdirSync, readdirSync, copyFileSync } from 'node:fs'
+import { resolve, extname, sep } from 'node:path'
+import { listReleases } from '../../scripts/release-lib.mjs'
+import { buildLlmsTxt, buildLlmsFull } from '../../scripts/lib/llms-txt.js'
 
-const SITE_URL = 'https://lcards.unimatrix01.ca'
 const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'))
+
+// Docs channels (.github/workflows/docs.yml, scripts/docs-deploy.mjs): the site root
+// is the stable line (main), /dev/ the dev branch, /v/<version>/ a frozen stable
+// release. DOCS_BASE picks the channel at build time; a local build is the root.
+const BASE = process.env.DOCS_BASE ?? '/'
+if (!/^\/(?:dev\/|v\/[0-9][^/]*\/)?$/.test(BASE)) throw new Error(`DOCS_BASE must be /, /dev/ or /v/<version>/ (got ${BASE})`)
+const CHANNEL = BASE === '/' ? 'latest' : BASE === '/dev/' ? 'dev' : 'archive'
+const SITE_ROOT = 'https://lcards.unimatrix01.ca'
+
+// Release pages (doc/releases/<tag>.md): in testing first, then newest first.
+const releases = listReleases()
+const latestRelease = releases.find(r => r.status === 'released')
+
+/**
+ * Release pages: put <ReleaseMeta /> (date, status, GitHub link) right under the
+ * page's # title, so the markdown itself stays plain enough to export to GitHub.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function releaseMetaRule(md: any) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  md.core.ruler.push('release_meta', (state: any) => {
+    const path: string = state.env?.relativePath ?? ''
+    if (!/^releases\/(?!index\.md$)[^/]+\.md$/.test(path)) return
+    const close = state.tokens.findIndex((t: any) => t.type === 'heading_close' && t.tag === 'h1')
+    if (close === -1) return
+    const meta = new state.Token('html_block', '', 0)
+    meta.content = '<ReleaseMeta />\n'
+    state.tokens.splice(close + 1, 0, meta)
+  })
+}
 
 /**
  * markdown-it core rule: wrap {{ ... }} in <span v-pre> so Vue's
  * template compiler doesn't try to interpret them as interpolations.
  * Needed because LCARdS docs show Jinja2 / HA template syntax in prose.
  */
+/**
+ * ```yaml live  code blocks render a live demo built from the same YAML, then
+ * the YAML itself (the card first: the user, 2026-11-08; one source of truth,
+ * the doc-example validator still checks the block). ```yaml live collapsed
+ * folds the YAML into a details block (long pages such as the starters);
+ * ```yaml live controls adds a control for each entity the YAML names (CardDemo).
+ * The card `type:` picks the demo component.
+ */
+const LIVE_DEMOS: Record<string, string> = {
+  'lcards-chart': 'ChartDemo',
+  'lcards-data-grid': 'DataGridDemo',
+  'lcards-button': 'CardDemo',
+  'lcards-elbow': 'CardDemo',
+  'lcards-slider': 'CardDemo',
+  'lcards-select-menu': 'CardDemo',
+  'lcards-msd-card': 'CardDemo',
+  'lcards-layout-card': 'CardDemo',
+  'lcards-astrometrics-card': 'CardDemo',
+  // the Alert Studio's mock screen (CardDemo mounts lcards-alert-preview)
+  'lcards-alert-overlay': 'CardDemo',
+  // a whole view: CardDemo draws its grid with the Layout Card (same layout code)
+  'lcards-layout-view': 'CardDemo',
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function liveDemoFence(md: any) {
+  const fence = md.renderer.rules.fence
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  md.renderer.rules.fence = (tokens: any[], idx: number, options: any, env: any, self: any) => {
+    const html = fence(tokens, idx, options, env, self)
+    const info = (tokens[idx].info || '').trim().split(/\s+/)
+    // ```yaml lab: a processor lab around the example (rendered at build time, so the
+    // YAML stays in the page HTML; the lab's code loads in the browser).
+    if (/^ya?ml$/.test(info[0]) && info.includes('lab')) {
+      return `<ProcessorLab src="${encodeURIComponent(tokens[idx].content)}">${html}</ProcessorLab>`
+    }
+    if (!/^ya?ml$/.test(info[0]) || !info.includes('live')) return html
+    const content = tokens[idx].content
+    const type = /^type:\s*["']?custom:([\w-]+)/m.exec(content)?.[1] ?? ''
+    const component = LIVE_DEMOS[type]
+    if (!component) {
+      // No demo for this card type yet: render the YAML only (was: a chart demo).
+      console.warn(`[docs] \`yaml live\` block with no demo for type "${type || '(none)'}" in ${env?.relativePath ?? '?'}`)
+      return html
+    }
+    const yaml = info.includes('collapsed')
+      ? `<details class="details custom-block live-yaml"><summary>YAML</summary>${html}</details>`
+      : html
+    const controls = info.includes('controls') ? ' controls' : ''
+    return `<ClientOnly><${component} src="${encodeURIComponent(content)}"${controls} /></ClientOnly>${yaml}`
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function vPreBracesRule(md: any) {
   // 1. Patch code_inline renderer: add v-pre so Vue skips interpolation inside <code>
@@ -49,24 +134,183 @@ function vPreBracesRule(md: any) {
   })
 }
 
+// Live card demos load the production bundle from /lcards/. The built site
+// publishes the copy in doc/public/lcards/ (scripts/copy-docs-bundle.js); the dev
+// server instead serves /lcards/ straight from the build output, so `npm run build`
+// is enough and a rebuild while it runs can't leave it serving its HTML fallback for
+// new chunk names (Vite's view of public/ can miss files after the copy recreates
+// the folder). no-cache: the stub keeps its name across builds, its chunks don't.
+const BUNDLE_DIR = resolve(new URL('../../custom_components/lcards', import.meta.url).pathname)
+const GALLERY_YAML_DIR = resolve(new URL('../gallery/dashboards', import.meta.url).pathname)
+const MIME: Record<string, string> = {
+  '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
+  '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.mp3': 'audio/mpeg',
+}
+function devBundlePlugin() {
+  return {
+    name: 'lcards-dev-bundle',
+    apply: 'serve' as const,
+    configureServer(server) {
+      server.middlewares.use(`${BASE}lcards`, (req, res, next) => {
+        const path = decodeURIComponent((req.url ?? '/').split('?')[0])
+        const file = resolve(BUNDLE_DIR, '.' + path)
+        if (!file.startsWith(BUNDLE_DIR + sep) || !existsSync(file) || !statSync(file).isFile()) return next()
+        res.setHeader('Content-Type', MIME[extname(file)] ?? 'application/octet-stream')
+        res.setHeader('Cache-Control', 'no-cache')
+        createReadStream(file).pipe(res)
+      })
+      // The gallery dashboards' YAML (GalleryYaml.vue links it): straight from
+      // doc/gallery/dashboards/ here; docs:build copies it (buildEnd below).
+      server.middlewares.use(`${BASE}gallery/yaml`, (req, res, next) => {
+        const name = decodeURIComponent((req.url ?? '/').split('?')[0]).replace(/^\//, '')
+        const file = resolve(GALLERY_YAML_DIR, name)
+        if (!/^[\w-]+\.yaml$/.test(name) || !existsSync(file)) return next()
+        res.setHeader('Content-Type', 'text/yaml; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-cache')
+        createReadStream(file).pipe(res)
+      })
+      // llms.txt / llms-full.txt are written into the built site by docs:build
+      // (scripts/generate-llms-txt.js); the dev server makes them on each request
+      // (scripts/lib/llms-txt.js).
+      const LLMS: Record<string, typeof buildLlmsTxt> = { 'llms.txt': buildLlmsTxt, 'llms-full.txt': buildLlmsFull }
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url ?? '').split('?')[0]
+        const build = path.startsWith(BASE) ? LLMS[path.slice(BASE.length)] : undefined
+        if (!build) return next()
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-cache')
+        res.end(build({ base: BASE, version: pkg.version }) + '\n')
+      })
+    },
+  }
+}
+
+// One sidebar for the developer docs (architecture + development), D3 decision 3.
+const devSidebar = [
+    {
+      text: 'Developer Guide',
+      items: [
+        { text: 'Overview',           link: '/development/' },
+        { text: 'Custom Card',        link: '/development/custom-card' },
+        { text: 'Colour Resolution',  link: '/development/colour-resolution' },
+        { text: 'Building a Studio Editor', link: '/development/building-an-editor' },
+        { text: 'Building a Pack',    link: '/development/building-a-pack' },
+        { text: 'Adding a Card Option', link: '/development/adding-a-card-option' },
+        { text: 'Adding a Core Service', link: '/development/adding-a-core-service' },
+        { text: 'Testing',            link: '/development/testing' },
+        { text: 'Type Checking',      link: '/development/typescript' },
+      ],
+    },
+    {
+      text: 'API Reference',
+      collapsed: false,
+      items: [
+        { text: 'Animation API',    link: '/development/anim-api' },
+        { text: 'Assets API',       link: '/development/assets-api' },
+        { text: 'Backend WS API',   link: '/development/backend-api' },
+        { text: 'Debug API',        link: '/development/debug-api' },
+        { text: 'Helpers API',      link: '/development/helpers-api' },
+      ],
+    },
+    {
+      text: 'CSS & Theming',
+      collapsed: false,
+      items: [
+        { text: 'Home Assistant CSS Variables', link: '/development/ha-css-vars' },
+      ],
+    },
+    {
+      text: 'Architecture',
+      items: [
+        { text: 'Overview',         link: '/architecture/' },
+        { text: 'Systems Overview', link: '/architecture/systems-arch' },
+        { text: 'Home Assistant Integration',   link: '/architecture/ha-integration' },
+      ],
+    },
+    {
+      text: 'Cards',
+      collapsed: false,
+      items: [
+        { text: 'Card Foundation',  link: '/architecture/cards/lcards-card-foundation' },
+        { text: 'Layout View and Layout Card', link: '/architecture/layout-view' },
+        { text: 'Shell Strategy',   link: '/architecture/shell-strategy' },
+        { text: 'Charts',           link: '/architecture/charts' },
+        { text: 'Astrometrics',     link: '/architecture/astrometrics' },
+        { text: 'MSD Pipeline',     link: '/architecture/msd/' },
+        { text: 'Routing Engine (RouterCore)', link: '/architecture/msd/routing' },
+      ],
+    },
+    {
+      text: 'Animation Architecture',
+      collapsed: false,
+      items: [
+        { text: 'Overview', link: '/architecture/animations/' },
+      ],
+    },
+    {
+      text: 'Core Subsystems',
+      collapsed: true,
+      items: [
+        { text: 'Overview',             link: '/architecture/subsystems/' },
+        { text: 'Action Handler',       link: '/architecture/subsystems/action-handler' },
+        { text: 'Animation Manager',    link: '/architecture/subsystems/animation-manager' },
+        { text: 'Asset Manager',        link: '/architecture/subsystems/asset-manager' },
+        { text: 'Borg Assimilation',    link: '/architecture/subsystems/borg-assimilation' },
+        { text: 'Component Manager',    link: '/architecture/subsystems/component-manager' },
+        { text: 'Config Manager',       link: '/architecture/subsystems/config-manager' },
+        { text: 'Connection Overlay',   link: '/architecture/subsystems/connection-overlay' },
+        { text: 'DataSource System',    link: '/architecture/subsystems/datasource-system' },
+        { text: 'Device Identity',      link: '/architecture/subsystems/device-identity' },
+        { text: 'Helper Manager',       link: '/architecture/subsystems/helper-manager' },
+        { text: 'Integration Service',  link: '/architecture/subsystems/integration-service' },
+        { text: 'Pack System',          link: '/architecture/subsystems/pack-system' },
+        { text: 'Portal Overlay Manager', link: '/architecture/subsystems/portal-overlay-manager' },
+        { text: 'Rules Engine',         link: '/architecture/subsystems/rules-engine' },
+        { text: 'Scoped Settings',      link: '/architecture/subsystems/scoped-settings' },
+        { text: 'Screen Effect System', link: '/architecture/subsystems/screen-effects' },
+        { text: 'Sound System',         link: '/architecture/subsystems/sound-system' },
+        { text: 'Style Preset Manager', link: '/architecture/subsystems/style-preset-manager' },
+        { text: 'Systems Manager',      link: '/architecture/subsystems/systems-manager' },
+        { text: 'Template System',      link: '/architecture/subsystems/template-system' },
+        { text: 'Theme System',         link: '/architecture/subsystems/theme-system' },
+        { text: 'Validation Service',   link: '/architecture/subsystems/validation-service' },
+      ],
+    },
+    {
+      text: 'Internals',
+      collapsed: true,
+      items: [
+        { text: 'Background Animations',  link: '/architecture/internals/background-animation-system' },
+        { text: 'DataSource Buffers',     link: '/architecture/internals/datasource-buffers' },
+        { text: 'Home Assistant Entity Display',      link: '/architecture/internals/ha-entity-display' },
+        { text: 'Home Assistant Services (internals)', link: '/architecture/internals/ha-services' },
+        { text: 'Persistent Storage',     link: '/architecture/internals/storage' },
+        { text: 'Shape & Texture System', link: '/architecture/internals/shape-texture-system' },
+      ],
+    },
+]
+
 export default withMermaid(defineConfig({
   title: 'LCARdS',
   description: 'LCARS-inspired card components for Home Assistant',
-  // Custom domain (lcards.unimatrix01.ca) — GitHub Pages serves from root, no subpath needed
-  base: '/',
+  // Custom domain (lcards.unimatrix01.ca); the channel's folder on it (see BASE above)
+  base: BASE,
 
   ignoreDeadLinks: false,
+
+  // "Last updated" date at the foot of each page (from git).
+  lastUpdated: true,
 
   // Default to dark mode (matches LCARS aesthetic)
   appearance: 'dark',
 
-  // Output goes to doc/.vitepress/dist (VitePress default — consistent across environments)
+  // Output goes to doc/.vitepress/dist (VitePress default: consistent across environments)
 
-  sitemap: {
-    hostname: SITE_URL,
-  },
+  // Only the stable root is indexed: /dev/ and /v/* are noindex and have no sitemap.
+  ...(CHANNEL === 'latest' ? { sitemap: { hostname: SITE_ROOT } } : {}),
 
   head: [
+    ...(CHANNEL === 'latest' ? [] : [['meta', { name: 'robots', content: 'noindex' }] as [string, Record<string, string>]]),
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', {
       rel: 'stylesheet',
@@ -96,6 +340,30 @@ export default withMermaid(defineConfig({
     ]
   ],
 
+  // The gallery dashboards' YAML next to the built site (GalleryYaml.vue links it).
+  buildEnd(siteConfig) {
+    const dir = resolve(siteConfig.outDir, 'gallery/yaml')
+    mkdirSync(dir, { recursive: true })
+    for (const name of readdirSync(GALLERY_YAML_DIR).filter(f => f.endsWith('.yaml'))) {
+      copyFileSync(resolve(GALLERY_YAML_DIR, name), resolve(dir, name))
+    }
+  },
+
+  // Release pages take their description from the summary; the home page gets a
+  // "What's new" hero action for the newest released version.
+  transformPageData(pageData) {
+    const path = pageData.relativePath
+    if (/^releases\/(?!index\.md$)/.test(path) && pageData.frontmatter.summary) {
+      pageData.description = pageData.frontmatter.summary
+    }
+    if (path === 'index.md' && latestRelease && pageData.frontmatter.hero?.actions) {
+      pageData.frontmatter.hero.actions = [
+        ...pageData.frontmatter.hero.actions,
+        { theme: 'alt', text: `What's new in ${latestRelease.version}`, link: latestRelease.link },
+      ]
+    }
+  },
+
   // ── Mermaid config ────────────────────────────────────────────────────────
   mermaid: {
     // theme is controlled via CSS variables in the custom theme
@@ -106,6 +374,8 @@ export default withMermaid(defineConfig({
     config(md) {
       tabsMarkdownPlugin(md)
       vPreBracesRule(md)
+      liveDemoFence(md)
+      releaseMetaRule(md)
     },
   },
 
@@ -113,39 +383,93 @@ export default withMermaid(defineConfig({
   // AnimationPlayground.vue dynamically imports the real src/core/packs/animations
   // preset modules (so docs demos never drift from shipped behaviour). Those
   // modules reference __LCARDS_VERSION__, normally injected by the app's own
-  // vite.config.js — redefine it here so the docs client bundle resolves it too.
+  // vite.config.js: redefine it here so the docs client bundle resolves it too.
   vite: {
+    plugins: [devBundlePlugin()],
     define: {
       __LCARDS_VERSION__: JSON.stringify(pkg.version),
+    },
+    // mermaid's core build imports some CommonJS/UMD-only packages directly.
+    // The dev server must pre-bundle them or the browser fails with "does not
+    // provide an export named 'default'". vitepress-plugin-mermaid's own
+    // include list (merged with this one) misses these (fastdom is new in
+    // mermaid 11.17; fcose is used by architecture diagrams, duration by gantt).
+    optimizeDeps: {
+      include: [
+        'mermaid > fastdom',
+        'mermaid > fastdom/extensions/fastdom-promised.js',
+        'mermaid > cytoscape-fcose',
+        'mermaid > dayjs/plugin/duration.js',
+      ],
     },
   },
 
   themeConfig: {
     siteTitle: 'LCARdS',
 
+    // Read by VersionSwitcher.vue / VersionBanner.vue (theme/): which channel this
+    // build is, and its LCARdS version. The list of channels comes from /versions.json.
+    docsChannel: { channel: CHANNEL, version: pkg.version, base: BASE },
+
     nav: [
       {
         text: 'Getting Started',
-        activeMatch: '/getting-started/',
+        // The Help & Tools pages share the /getting-started/ folder (their URLs predate the split).
+        activeMatch: '/getting-started/(?!(ai-assistance|config-checker|preview|getting-help)(\\.html)?$)',
         items: [
           { text: 'What is LCARdS?',      link: '/getting-started/what-is-lcards' },
           { text: 'Installation',          link: '/getting-started/installation' },
-          { text: 'Coming from CB-LCARS', link: '/getting-started/cb-lcars-migration' },
+          { text: 'Building a Dashboard', link: '/getting-started/building-dashboards' },
+          { text: 'Dashboard Strategies', link: '/getting-started/dashboard-strategies' },
+          { text: 'Section Strategies', link: '/getting-started/section-strategies' },
+          { text: 'Design It with AI',    link: '/getting-started/ai-assistance' },
+          { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
+          { text: 'Build by Hand',        link: '/getting-started/build-by-hand' },
+          { text: 'Bring It to Life',     link: '/getting-started/bring-it-to-life' },
+          { text: 'Designing LCARS Screens', link: '/getting-started/lcars-design' },
+          { text: 'LCARS Patterns',       link: '/getting-started/lcars-patterns' },
+          { text: 'Live Demo',            link: '/getting-started/live-demo' },
+        ],
+      },
+      {
+        text: 'Help & Tools',
+        activeMatch: '/getting-started/(ai-assistance|config-checker|preview|getting-help)',
+        items: [
+          { text: 'Getting AI Help',      link: '/getting-started/ai-assistance' },
+          { text: 'Check Your Config',    link: '/getting-started/config-checker' },
+          { text: 'Preview Your YAML',    link: '/getting-started/preview' },
+          { text: 'Troubleshooting',      link: '/getting-started/getting-help' },
         ],
       },
       {
         text: 'Configuration',
         activeMatch: '/configuration/',
         items: [
-          { text: 'Overview & Setup',  link: '/configuration/' },
-          { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
-          { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
-          { text: 'Connectivity',      link: '/configuration/connectivity' },
-          { text: 'Helpers',           link: '/configuration/persistent-helpers' },
-          { text: 'Sounds',            link: '/configuration/sounds' },
-          { text: 'Users & Devices',   link: '/configuration/users-devices' },
-          { text: 'HA Actions',         link: '/configuration/ha-actions' },
-          { text: 'Using browser_mod', link: '/configuration/browser-mod' },
+          {
+            text: 'Setup',
+            items: [
+              { text: 'Overview & Setup',  link: '/configuration/' },
+              { text: 'Helpers',           link: '/configuration/persistent-helpers' },
+              { text: 'Users & Devices',   link: '/configuration/users-devices' },
+            ],
+          },
+          {
+            text: 'Look & Sound',
+            items: [
+              { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
+              { text: 'HA-LCARS Theme Lab', link: '/configuration/ha-lcars-theme-lab' },
+              { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
+              { text: 'Sound Configuration', link: '/configuration/sounds' },
+            ],
+          },
+          {
+            text: 'Integrations',
+            items: [
+              { text: 'Home Assistant Actions',        link: '/configuration/ha-actions' },
+              { text: 'Using browser_mod', link: '/configuration/browser-mod' },
+              { text: 'Connectivity',      link: '/configuration/connectivity' },
+            ],
+          },
         ],
       },
       {
@@ -158,58 +482,45 @@ export default withMermaid(defineConfig({
               { text: 'Overview',          link: '/cards/' },
               { text: 'Common Properties', link: '/cards/common' },
               { text: 'Main Engineering',  link: '/cards/main-engineering' },
-              { text: 'Getting AI Help',   link: '/cards/ai-assistance' },
+              { text: 'Card Features →',   link: '/core/' },
             ],
           },
           {
             text: 'Card Reference',
             items: [
               { text: 'Alert Overlay', link: '/cards/alert-overlay/' },
+              { text: 'Astrometrics',  link: '/cards/astrometrics/' },
               { text: 'Button',        link: '/cards/button/' },
               { text: 'Chart',         link: '/cards/chart/' },
               { text: 'Data Grid',     link: '/cards/data-grid/' },
               { text: 'Elbow',         link: '/cards/elbow/' },
+              { text: 'Layout Card',   link: '/cards/layout-card/' },
               { text: 'Layout View',   link: '/cards/layout-view/' },
               { text: 'MSD',           link: '/cards/msd/' },
               { text: 'Select Menu',   link: '/cards/select-menu/' },
               { text: 'Slider',        link: '/cards/slider-card/' },
             ],
           },
-          {
-            text: 'Card Features',
-            items: [
-              { text: 'Actions',           link: '/core/actions' },
-              { text: 'Animations',        link: '/core/animations' },
-              { text: 'Colours',           link: '/core/colours' },
-              { text: 'Data Sources',      link: '/core/datasources/' },
-              { text: 'Presets',           link: '/core/presets' },
-              { text: 'Rules Engine',      link: '/core/rules/' },
-              { text: 'Sounds',            link: '/core/sounds' },
-              { text: 'Styles',            link: '/core/styles' },
-              { text: 'Templates',         link: '/core/templates/' },
-              { text: 'Text Fields',       link: '/core/text-fields' },
-            ],
-          },
         ],
       },
       {
-        text: 'Core',
+        text: 'Features',
         activeMatch: '/core/',
         items: [
           {
-            text: 'Per-Card Options',
+            text: 'On Every Card',
             items: [
               { text: 'Overview',    link: '/core/' },
               { text: 'Actions',     link: '/core/actions' },
               { text: 'Colours',     link: '/core/colours' },
               { text: 'Presets',     link: '/core/presets' },
-              { text: 'Sounds',      link: '/core/sounds' },
+              { text: 'Card Sounds',      link: '/core/sounds' },
               { text: 'Styles',      link: '/core/styles' },
               { text: 'Text Fields', link: '/core/text-fields' },
             ],
           },
           {
-            text: 'Core Services',
+            text: 'Shared Services',
             items: [
               { text: 'Data Sources', link: '/core/datasources/' },
               { text: 'Rules Engine', link: '/core/rules/' },
@@ -231,31 +542,31 @@ export default withMermaid(defineConfig({
         ],
       },
       {
-        text: 'Architecture',
-        activeMatch: '/architecture/',
+        text: 'Developers',
+        activeMatch: '/(architecture|development)/',
         items: [
-          { text: 'Systems Overview',   link: '/architecture/systems-arch' },
-          { text: 'HA Integration',     link: '/architecture/ha-integration' },
-          { text: 'Card Foundation',    link: '/architecture/cards/lcards-card-foundation' },
-          { text: 'Layout View',        link: '/architecture/layout-view' },
-          { text: 'MSD Pipeline',       link: '/architecture/msd/' },
-          { text: 'Routing Engine (RouterCore)', link: '/architecture/msd/routing' },
-          { text: 'Animation Architecture', link: '/architecture/animations/' },
-          { text: 'Core Subsystems →',       link: '/architecture/subsystems/' },
-          { text: 'Internals →',             link: '/architecture/internals/' },
-        ],
-      },
-      {
-        text: 'Developer',
-        activeMatch: '/development/',
-        items: [
+          {
+            text: 'Architecture',
+            items: [
+              { text: 'Systems Overview',   link: '/architecture/systems-arch' },
+              { text: 'Home Assistant Integration',     link: '/architecture/ha-integration' },
+              { text: 'Card Foundation',    link: '/architecture/cards/lcards-card-foundation' },
+              { text: 'Layout View',        link: '/architecture/layout-view' },
+              { text: 'MSD Pipeline',       link: '/architecture/msd/' },
+              { text: 'Routing Engine (RouterCore)', link: '/architecture/msd/routing' },
+              { text: 'Animation Architecture', link: '/architecture/animations/' },
+              { text: 'Core Subsystems →',       link: '/architecture/subsystems/' },
+              { text: 'Internals →',             link: '/architecture/internals/' },
+            ],
+          },
           {
             text: 'Guide',
             items: [
               { text: 'Overview',         link: '/development/' },
               { text: 'Custom Card',      link: '/development/custom-card' },
               { text: 'Colour Resolution',        link: '/development/colour-resolution' },
-              { text: 'Building an Editor', link: '/development/building-an-editor' },
+              { text: 'Type Checking',    link: '/development/typescript' },
+              { text: 'Building a Studio Editor', link: '/development/building-an-editor' },
               { text: 'Building a Pack',  link: '/development/building-a-pack' },
             ],
           },
@@ -272,27 +583,72 @@ export default withMermaid(defineConfig({
           {
             text: 'CSS & Theming',
             items: [
-              { text: 'HA CSS Variables', link: '/development/ha-css-vars' },
-            ],
-          },
-          {
-            text: 'Internals',
-            items: [
-              { text: 'Codebase Review', link: '/dev/codebase-review' },
+              { text: 'Home Assistant CSS Variables', link: '/development/ha-css-vars' },
             ],
           },
         ],
       },
+      { text: 'Live Demo', link: '/getting-started/live-demo', activeMatch: '/getting-started/live-demo' },
+      { text: 'Releases', link: '/releases/', activeMatch: '/releases/' },
       { text: 'About', link: '/credits' },
     ],
 
     sidebar: {
+      '/releases/': [
+        { text: 'Releases', items: [{ text: 'All releases', link: '/releases/' }] },
+        ...releases.some(r => r.status === 'testing') ? [{
+          text: 'In testing',
+          items: releases.filter(r => r.status === 'testing').map(r => ({ text: `${r.version} (dev builds)`, link: r.link })),
+        }] : [],
+        {
+          text: 'Released',
+          items: releases.filter(r => r.status === 'released').map(r => ({ text: r.version, link: r.link })),
+        },
+      ],
       '/getting-started/': [
         {
           text: 'Getting Started',
           items: [
             { text: 'What is LCARdS?',           link: '/getting-started/what-is-lcards' },
             { text: 'Installation',               link: '/getting-started/installation' },
+            // Building first (get a screen up: a strategy or a gallery sample), then the design reference
+            {
+              text: 'Building a Dashboard',
+              collapsed: true,
+              items: [
+                { text: 'Overview',             link: '/getting-started/building-dashboards' },
+                { text: 'Dashboard Strategies', link: '/getting-started/dashboard-strategies' },
+                { text: 'Section Strategies',   link: '/getting-started/section-strategies' },
+                // the AI route in table order; the page itself lives under Help & Tools
+                { text: 'Design It with AI',    link: '/getting-started/ai-assistance' },
+                { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
+                { text: 'Build by Hand',        link: '/getting-started/build-by-hand' },
+                { text: 'Bring It to Life',     link: '/getting-started/bring-it-to-life' },
+              ],
+            },
+            {
+              text: 'Designing LCARS Screens',
+              collapsed: true,
+              items: [
+                { text: 'Overview',       link: '/getting-started/lcars-design' },
+                { text: 'LCARS Patterns', link: '/getting-started/lcars-patterns' },
+              ],
+            },
+          ],
+        },
+        {
+          text: 'Help & Tools',
+          items: [
+            { text: 'Getting AI Help',         link: '/getting-started/ai-assistance' },
+            { text: 'Check Your Config',       link: '/getting-started/config-checker' },
+            { text: 'Preview Your YAML',       link: '/getting-started/preview' },
+            { text: 'Troubleshooting',         link: '/getting-started/getting-help' },
+          ],
+        },
+        {
+          text: 'More',
+          collapsed: true,
+          items: [
             { text: 'Coming from CB-LCARS',    link: '/getting-started/cb-lcars-migration' },
           ],
         },
@@ -305,97 +661,215 @@ export default withMermaid(defineConfig({
             { text: 'Overview',          link: '/cards/' },
             { text: 'Common Properties', link: '/cards/common' },
             { text: 'Main Engineering',  link: '/cards/main-engineering' },
-            { text: 'Getting AI Help',   link: '/cards/ai-assistance' },
           ],
         },
         {
           text: 'Card Reference',
           collapsed: false,
           items: [
-            { text: 'Button',         link: '/cards/button/' },
-            { text: 'Elbow',          link: '/cards/elbow/' },
-            { text: 'Slider',         link: '/cards/slider-card/' },
-            { text: 'Chart',          link: '/cards/chart/' },
-            { text: 'Data Grid',      link: '/cards/data-grid/' },
+            {
+              text: 'Button',
+              collapsed: true,
+              items: [
+                { text: 'Overview',   link: '/cards/button/' },
+                { text: 'Style, Text and Hover', link: '/cards/button/styles' },
+                { text: 'Icons', link: '/cards/button/icons' },
+                { text: 'Textures and Backgrounds', link: '/cards/button/textures' },
+                { text: 'D-pads, Alerts and Brackets', link: '/cards/button/components' },
+                { text: 'Custom SVG', link: '/cards/button/custom-svg' },
+                { text: 'Playground', link: '/cards/button/playground' },
+              ],
+            },
+            {
+              text: 'Elbow',
+              collapsed: true,
+              items: [
+                { text: 'Overview',   link: '/cards/elbow/' },
+                { text: 'Bars and Curves', link: '/cards/elbow/bars' },
+                { text: 'Frames', link: '/cards/elbow/frame' },
+                { text: 'Colour, Text and Effects', link: '/cards/elbow/appearance' },
+                { text: 'Symbiont', link: '/cards/elbow/symbiont' },
+                { text: 'Playground', link: '/cards/elbow/playground' },
+              ],
+            },
+            {
+              text: 'Slider',
+              collapsed: true,
+              items: [
+                { text: 'Overview',                link: '/cards/slider-card/' },
+                { text: 'Pills and Gauges',        link: '/cards/slider-card/styles' },
+                { text: 'Ring, Shaped and Picard', link: '/cards/slider-card/components' },
+                { text: 'Ranges and Markers',      link: '/cards/slider-card/ranges' },
+                { text: 'Control and Motion',      link: '/cards/slider-card/control' },
+                { text: 'Playground',              link: '/cards/slider-card/playground' },
+              ],
+            },
+            {
+              text: 'Chart',
+              collapsed: true,
+              items: [
+                { text: 'Overview',        link: '/cards/chart/' },
+                { text: 'Series and Time', link: '/cards/chart/series' },
+                { text: 'Chart Types',     link: '/cards/chart/types' },
+                { text: 'Styling',         link: '/cards/chart/styling' },
+                { text: 'Axes and Labels', link: '/cards/chart/labels' },
+                { text: 'Examples',        link: '/cards/chart/examples' },
+                { text: 'Playground',      link: '/cards/chart/playground' },
+                { text: 'Upgrading',     link: '/cards/chart/upgrading' },
+              ],
+            },
+            {
+              text: 'Data Grid',
+              collapsed: true,
+              items: [
+                { text: 'Overview',            link: '/cards/data-grid/' },
+                { text: 'Data and Cells',      link: '/cards/data-grid/data' },
+                { text: 'Styling and Animation', link: '/cards/data-grid/styling' },
+                { text: 'Playground',          link: '/cards/data-grid/playground' },
+                { text: 'Upgrading',           link: '/cards/data-grid/upgrading' },
+              ],
+            },
+            { text: 'Layout Card',    link: '/cards/layout-card/' },
             { text: 'Layout View',    link: '/cards/layout-view/' },
             {
               text: 'MSD',
               collapsed: true,
               items: [
-                { text: 'Overview',         link: '/cards/msd/' },
-                { text: 'Quick Start',      link: '/cards/msd/quick-start' },
-                { text: 'Control Overlay',  link: '/cards/msd/control-overlay' },
-                { text: 'Line Overlay',     link: '/cards/msd/line-overlay' },
-                { text: 'Routing Concepts', link: '/cards/msd/routing-concepts' },
-                { text: 'Routing & Channels', link: '/cards/msd/routing' },
-                { text: 'Shape Overlay',    link: '/cards/msd/shape-overlay' },
-                { text: 'Manual Routing',   link: '/cards/msd/manual-routing' },
-                { text: 'Base SVG Filters', link: '/cards/msd/base-svg-filters' },
+                { text: 'Overview',               link: '/cards/msd/' },
+                { text: 'Getting Started',        link: '/cards/msd/quick-start' },
+                { text: 'Background and Anchors', link: '/cards/msd/background' },
+                { text: 'Control Overlay',        link: '/cards/msd/control-overlay' },
+                { text: 'Line Overlay',           link: '/cards/msd/line-overlay' },
+                { text: 'Shape Overlay',          link: '/cards/msd/shape-overlay' },
+                { text: 'Line Routing',           link: '/cards/msd/routing' },
+                { text: 'Manual Routing',         link: '/cards/msd/manual-routing' },
+                { text: 'Animations and Rules',   link: '/cards/msd/animations' },
+                { text: 'Base SVG Filters',       link: '/cards/msd/base-svg-filters' },
               ],
             },
-            { text: 'Select Menu',    link: '/cards/select-menu/' },
-            { text: 'Alert Overlay',  link: '/cards/alert-overlay/' },
+            {
+              text: 'Select Menu',
+              collapsed: true,
+              items: [
+                { text: 'Overview',   link: '/cards/select-menu/' },
+                { text: 'Options and Actions', link: '/cards/select-menu/options' },
+                { text: 'Grid and Sizing', link: '/cards/select-menu/layout' },
+                { text: 'Styles', link: '/cards/select-menu/styles' },
+                { text: 'Playground', link: '/cards/select-menu/playground' },
+              ],
+            },
+            {
+              text: 'Alert Overlay',
+              collapsed: true,
+              items: [
+                { text: 'Overview',   link: '/cards/alert-overlay/' },
+                { text: 'Position and Screen Effects', link: '/cards/alert-overlay/overlay' },
+                { text: 'Alert Band', link: '/cards/alert-overlay/band' },
+                { text: 'Symbol and Content', link: '/cards/alert-overlay/symbol' },
+                { text: 'Per-Condition Settings', link: '/cards/alert-overlay/conditions' },
+                { text: 'Raising and Dismissing', link: '/cards/alert-overlay/raising' },
+              ],
+            },
+            {
+              text: 'Astrometrics',
+              collapsed: true,
+              items: [
+                { text: 'Overview', link: '/cards/astrometrics/' },
+                { text: 'Getting Started', link: '/cards/astrometrics/start' },
+                { text: 'Starters', link: '/cards/astrometrics/starters' },
+                { text: 'Points',   link: '/cards/astrometrics/points' },
+                {
+                  text: 'Objects',
+                  collapsed: true,
+                  items: [
+                    { text: 'Overview',                   link: '/cards/astrometrics/objects' },
+                    { text: 'Grids, Spheres and Volumes', link: '/cards/astrometrics/objects/surfaces' },
+                    { text: 'Lines and Light',            link: '/cards/astrometrics/objects/lines' },
+                    { text: 'Space Phenomena',            link: '/cards/astrometrics/objects/space' },
+                    { text: 'Ships and Stations',         link: '/cards/astrometrics/objects/ships' },
+                  ],
+                },
+                { text: 'Camera and Views', link: '/cards/astrometrics/camera' },
+                { text: 'Scene and Looks',  link: '/cards/astrometrics/scene' },
+                { text: 'Live Data', link: '/cards/astrometrics/data' },
+                { text: 'Effects',  link: '/cards/astrometrics/effects' },
+                { text: 'Scale',    link: '/cards/astrometrics/scale' },
+                { text: 'Your Own Models', link: '/cards/astrometrics/models' },
+              ],
+            },
           ],
         },
         {
-          text: 'Card Features',
-          collapsed: false,
-          items: [
-            { text: 'Actions',               link: '/core/actions' },
-            { text: 'Animations',             link: '/core/animations' },
-            { text: 'Background Animations',  link: '/core/effects/background-animations' },
-            { text: 'Screen Effects',         link: '/core/effects/screen-effects' },
-            { text: 'Colours',               link: '/core/colours' },
-            { text: 'Data Sources',          link: '/core/datasources/' },
-            { text: 'Presets',               link: '/core/presets' },
-            { text: 'Rules Engine',          link: '/core/rules/' },
-            { text: 'Sounds',                link: '/core/sounds' },
-            { text: 'Styles',                link: '/core/styles' },
-            { text: 'Templates',             link: '/core/templates/' },
-            { text: 'Text Fields',           link: '/core/text-fields' },
-          ],
+          text: 'Card Features →',
+          link: '/core/',
         },
       ],
 
       '/configuration/': [
         {
-          text: 'Configuration',
+          text: 'Setup',
           items: [
             { text: 'Overview & Setup',  link: '/configuration/' },
-            { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
-            { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
-            { text: 'Connectivity',      link: '/configuration/connectivity' },
             { text: 'Helpers',           link: '/configuration/persistent-helpers' },
-            { text: 'Sounds',            link: '/configuration/sounds' },
             { text: 'Users & Devices',   link: '/configuration/users-devices' },
-            { text: 'HA Actions',         link: '/configuration/ha-actions' },
+          ],
+        },
+        {
+          text: 'Look & Sound',
+          items: [
+            { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
+            { text: 'HA-LCARS Theme Lab', link: '/configuration/ha-lcars-theme-lab' },
+            { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
+            { text: 'Sound Configuration', link: '/configuration/sounds' },
+          ],
+        },
+        {
+          text: 'Integrations',
+          items: [
+            { text: 'Home Assistant Actions',        link: '/configuration/ha-actions' },
             { text: 'Using browser_mod', link: '/configuration/browser-mod' },
+            { text: 'Connectivity',      link: '/configuration/connectivity' },
           ],
         },
       ],
 
       '/core/': [
         {
-          text: '← Back to Cards',
-          link: '/cards/',
-        },
-        {
-          text: 'Overview',
+          text: 'Features',
           link: '/core/',
         },
         {
-          text: 'Per-Card Options',
+          text: 'On Every Card',
           items: [
             { text: 'Actions',     link: '/core/actions' },
-            { text: 'Colours',     link: '/core/colours' },
+            {
+              text: 'Colours',
+              collapsed: true,
+              items: [
+                { text: 'Overview',               link: '/core/colours' },
+                { text: 'Colour Values',          link: '/core/colours/values' },
+                { text: 'State Maps',             link: '/core/colours/state-maps' },
+                { text: 'Attributes and Buckets', link: '/core/colours/attributes' },
+              ],
+            },
             { text: 'Presets',     link: '/core/presets' },
-            { text: 'Sounds',      link: '/core/sounds' },
+            { text: 'Card Sounds',      link: '/core/sounds' },
             { text: 'Styles',      link: '/core/styles' },
-            { text: 'Text Fields', link: '/core/text-fields' },
+            {
+              text: 'Text Fields',
+              collapsed: true,
+              items: [
+                { text: 'Overview',                      link: '/core/text-fields' },
+                { text: 'Placing Text',                  link: '/core/text-fields-placement' },
+                { text: 'Zones',                         link: '/core/text-fields-zones' },
+                { text: 'Fonts, Colour and Backgrounds', link: '/core/text-fields-style' },
+                { text: 'Content and Formats',           link: '/core/text-fields-content' },
+              ],
+            },
           ],
         },
         {
-          text: 'Core Services',
+          text: 'Shared Services',
           collapsed: false,
           items: [
             {
@@ -412,6 +886,9 @@ export default withMermaid(defineConfig({
               items: [
                 { text: 'Overview',   link: '/core/rules/' },
                 { text: 'Conditions', link: '/core/rules/conditions' },
+                { text: 'Targets and Changes',    link: '/core/rules/changes' },
+                { text: 'Priority and Debugging', link: '/core/rules/priority' },
+                { text: 'Examples',               link: '/core/rules/examples' },
               ],
             },
             {
@@ -441,6 +918,8 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview',               link: '/core/animations' },
+                { text: 'Triggers',               link: '/core/animations/triggers' },
+                { text: 'Timing and Easing',      link: '/core/animations/timing-and-easing' },
                 { text: 'Preset Reference',        link: '/core/animations/preset-reference' },
                 { text: 'Entity Change Triggers', link: '/core/animations/entity-change-triggers' },
                 { text: 'Rule-based Animations',  link: '/core/animations/rule-based-animations' },
@@ -451,125 +930,27 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview',          link: '/core/effects/background-animations' },
+                { text: 'Stacking and Zoom', link: '/core/effects/background-animations/stacking-and-zoom' },
+                { text: 'Binding and Animation', link: '/core/effects/background-animations/binding-and-animation' },
                 { text: 'Preset Reference',  link: '/core/effects/background-animations/preset-reference' },
               ],
             },
-            { text: 'Borg Assimilation',  link: '/core/borg' },
+            {
+              text: 'Borg Assimilation',
+              collapsed: true,
+              items: [
+                { text: 'Overview',     link: '/core/borg' },
+                { text: 'Borg Actions', link: '/core/borg-actions' },
+              ],
+            },
             { text: 'Filters',            link: '/core/effects/filters' },
             { text: 'Screen Effects',     link: '/core/effects/screen-effects' },
           ],
         },
       ],
 
-      '/architecture/': [
-        {
-          text: 'Architecture',
-          items: [
-            { text: 'Systems Overview', link: '/architecture/systems-arch' },
-            { text: 'HA Integration',   link: '/architecture/ha-integration' },
-          ],
-        },
-        {
-          text: 'Cards',
-          collapsed: false,
-          items: [
-            { text: 'Card Foundation',  link: '/architecture/cards/lcards-card-foundation' },
-            { text: 'Layout View',      link: '/architecture/layout-view' },
-            { text: 'MSD Pipeline',     link: '/architecture/msd/' },
-            { text: 'Routing Engine (RouterCore)', link: '/architecture/msd/routing' },
-          ],
-        },
-        {
-          text: 'Animation Architecture',
-          collapsed: false,
-          items: [
-            { text: 'Overview', link: '/architecture/animations/' },
-          ],
-        },
-        {
-          text: 'Core Subsystems',
-          collapsed: false,
-          items: [
-            { text: 'Animation Manager',    link: '/architecture/subsystems/animation-manager' },
-            { text: 'Asset Manager',        link: '/architecture/subsystems/asset-manager' },
-            { text: 'Component Manager',    link: '/architecture/subsystems/component-manager' },
-            { text: 'Connection Overlay',   link: '/architecture/subsystems/connection-overlay' },
-            { text: 'DataSource System',    link: '/architecture/subsystems/datasource-system' },
-            { text: 'Device Identity',      link: '/architecture/subsystems/device-identity' },
-            { text: 'Helper Manager',       link: '/architecture/subsystems/helper-manager' },
-            { text: 'Integration Service',  link: '/architecture/subsystems/integration-service' },
-            { text: 'Pack System',          link: '/architecture/subsystems/pack-system' },
-            { text: 'Rules Engine',         link: '/architecture/subsystems/rules-engine' },
-            { text: 'Scoped Settings',      link: '/architecture/subsystems/scoped-settings' },
-            { text: 'Screen Effect System', link: '/architecture/subsystems/screen-effects' },
-            { text: 'Sound System',         link: '/architecture/subsystems/sound-system' },
-            { text: 'Style Preset Manager', link: '/architecture/subsystems/style-preset-manager' },
-            { text: 'Systems Manager',      link: '/architecture/subsystems/systems-manager' },
-            { text: 'Template System',      link: '/architecture/subsystems/template-system' },
-            { text: 'Theme System',         link: '/architecture/subsystems/theme-system' },
-            { text: 'Validation Service',   link: '/architecture/subsystems/validation-service' },
-          ],
-        },
-        {
-          text: 'Internals',
-          collapsed: false,
-          items: [
-            { text: 'Background Animations',  link: '/architecture/internals/background-animation-system' },
-            { text: 'DataSource Buffers',     link: '/architecture/internals/datasource-buffers' },
-            { text: 'HA Entity Display',      link: '/architecture/internals/ha-entity-display' },
-            { text: 'HA Services (internals)', link: '/architecture/internals/ha-services' },
-            { text: 'Persistent Storage',     link: '/architecture/internals/storage' },
-            { text: 'Shape & Texture System', link: '/architecture/internals/shape-texture-system' },
-          ],
-        },
-      ],
-
-      '/development/': [
-        {
-          text: 'Developer Guide',
-          items: [
-            { text: 'Overview',           link: '/development/' },
-            { text: 'Custom Card',        link: '/development/custom-card' },
-            { text: 'Colour Resolution',  link: '/development/colour-resolution' },
-            { text: 'Building an Editor', link: '/development/building-an-editor' },
-            { text: 'Building a Pack',    link: '/development/building-a-pack' },
-          ],
-        },
-        {
-          text: 'API Reference',
-          collapsed: false,
-          items: [
-            { text: 'Animation API',    link: '/development/anim-api' },
-            { text: 'Assets API',       link: '/development/assets-api' },
-            { text: 'Backend WS API',   link: '/development/backend-api' },
-            { text: 'Debug API',        link: '/development/debug-api' },
-            { text: 'Helpers API',      link: '/development/helpers-api' },
-          ],
-        },
-        {
-          text: 'CSS & Theming',
-          collapsed: false,
-          items: [
-            { text: 'HA CSS Variables', link: '/development/ha-css-vars' },
-          ],
-        },
-        {
-          text: 'Internals',
-          collapsed: false,
-          items: [
-            { text: 'Codebase Review',  link: '/dev/codebase-review' },
-          ],
-        },
-      ],
-
-      '/dev/': [
-        {
-          text: 'Internals',
-          items: [
-            { text: 'Codebase Review', link: '/dev/codebase-review' },
-          ],
-        },
-      ],
+      '/architecture/': devSidebar,
+      '/development/': devSidebar,
     },
 
     socialLinks: [
@@ -582,8 +963,8 @@ export default withMermaid(defineConfig({
     },
 
     footer: {
-      message: 'Released under the MIT License. | <a href="/credits">License &amp; Disclaimer</a>',
-      copyright: '© 2026 snootched | LCARdS | <a href="/credits">About &amp; Credits</a>',
+      message: `Released under the MIT License. | <a href="${BASE}credits">About</a>`,
+      copyright: `© 2026 snootched | LCARdS`,
     },
 
     search: {

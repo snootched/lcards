@@ -11,7 +11,7 @@
  * Fonts included: Antonio (external), Jeffries, Microgramma,
  * Tungsten, and all other fonts defined in core_fonts.json.
  *
- * Pack system guide: doc/architecture/pack-system.md
+ * Pack system guide: doc/architecture/subsystems/pack-system.md
  */
 
 import coreFontsJson from './core_fonts.json';

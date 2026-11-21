@@ -17,7 +17,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { fireEvent } from 'custom-card-helpers';
 import { configToYaml } from '../utils/yaml-utils.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 
 // Import shared form components
 import '../components/shared/lcards-message.js';
@@ -33,7 +33,15 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
         super();
         this.cardType = 'msd';
         this._cardPickerDialogRef = null;
+        /** @type {any} Open studio dialog, kept in sync with hass */
+        this._studio = null;
         lcardsLog.debug('[LCARdSMSDEditor] Editor initialized with cardType: msd (1 tab: Configuration Studio launcher)');
+    }
+
+    /** @param {Map<string, unknown>} changedProps */
+    updated(changedProps) {
+        super.updated(changedProps);
+        if (changedProps.has('hass') && this._studio) this._studio.hass = this.hass;
     }
 
     /**
@@ -89,7 +97,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
             <!-- Studio Launcher Card (Top Priority) -->
             <div class="info-card">
                 <div class="info-card-content">
-                    <h3>🖼️ MSD Configuration Studio</h3>
+                    <h3>MSD Configuration Studio</h3>
                     <p>
                         <strong>Full-screen visual editor</strong> with live preview
                         <br />
@@ -99,7 +107,6 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
                 </div>
                 <div class="info-card-actions">
                     <ha-button
-                        raised
                         @click=${this._openMsdStudio}>
                         <ha-icon icon="mdi:monitor-dashboard" slot="start"></ha-icon>
                         Open Configuration Studio
@@ -130,7 +137,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
             <!-- Sizing -->
             <lcards-form-section
                 header="Sizing"
-                description="Override card dimensions — useful in stacks, overlays, or any auto-height container"
+                description="Override card dimensions: useful in stacks, overlays, or any auto-height container"
                 icon="mdi:resize"
                 ?expanded=${false}
                 ?outlined=${true}
@@ -182,21 +189,18 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
 
         // Create ha-dialog (runs in editor context - simple DOM)
         const dialog = document.createElement('ha-dialog');
-        // @ts-ignore - TS2339: auto-suppressed
         dialog.headerTitle = 'Select Card Type';
 
         // Build lovelace object for hui-card-picker
         const lovelace = this._getLovelace();
 
         this._cardPickerDialogRef = dialog;
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog, this);
 
         // Open dialog first so it's visible and upgraded
-        // @ts-ignore - TS2339: auto-suppressed
         dialog.open = true;
 
         // Wait for dialog to render
-        // @ts-ignore - TS2339: auto-suppressed
         await dialog.updateComplete;
 
         // Create hui-card-picker as direct child of ha-dialog
@@ -204,9 +208,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
 
         // CRITICAL: Set hass and lovelace BEFORE appending to DOM
         // This ensures firstUpdated() has the data it needs
-        // @ts-ignore - TS2339: auto-suppressed
         picker.hass = this.hass;
-        // @ts-ignore - TS2339: auto-suppressed
         picker.lovelace = lovelace;
 
         // Style the picker
@@ -221,22 +223,17 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
 
         if (picker) {
             // Force render if needed
-            // @ts-ignore - TS2339: auto-suppressed
             if (typeof picker.requestUpdate === 'function') {
-                // @ts-ignore - TS2339: auto-suppressed
                 picker.requestUpdate();
             }
 
             // Wait for picker to render
-            // @ts-ignore - TS2339: auto-suppressed
             if (picker.updateComplete) {
-                // @ts-ignore - TS2339: auto-suppressed
                 await picker.updateComplete;
             }
 
             // Listen for card selection
             picker.addEventListener('config-changed', (pickerEvent) => {
-                // @ts-ignore - TS2339: auto-suppressed
                 lcardsLog.debug('[MSDEditor] Card selected:', pickerEvent.detail?.config?.type);
 
                 // Proxy result back to MSD Studio Dialog via document event
@@ -246,14 +243,12 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
                     detail: {
                         requestId,
                         context,
-                        // @ts-ignore - TS2339: auto-suppressed
                         config: pickerEvent.detail.config
                     }
                 });
                 document.dispatchEvent(resultEvent);
 
                 // Close picker dialog
-                // @ts-ignore - TS2339: auto-suppressed
                 dialog.open = false;
             });
         } else {
@@ -261,7 +256,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
         }
 
         // Handle dialog close
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._cardPickerDialogRef === dialog) {
                 this._cardPickerDialogRef = null;
@@ -307,12 +302,11 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
         lcardsLog.debug('[MSDEditor] Opening MSD Configuration Studio');
 
         const dialog = document.createElement('lcards-msd-studio-dialog');
-        // @ts-ignore - TS2339: auto-suppressed
         dialog.hass = this.hass;
 
         // Deep clone current config
-        // @ts-ignore - TS2339: auto-suppressed
         dialog.config = JSON.parse(JSON.stringify(this.config || {}));
+        this._studio = dialog;
 
         // Listen for card picker results and forward to dialog
         const cardPickerResultHandler = (e) => {
@@ -327,11 +321,9 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
 
         // Listen for config changes
         dialog.addEventListener('config-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
             lcardsLog.debug('[MSDEditor] Studio config changed:', e.detail.config);
 
             // Replace config entirely (don't merge)
-            // @ts-ignore - TS2339: auto-suppressed
             this.config = e.detail.config;
 
             // Sync to YAML and notify HA
@@ -346,9 +338,10 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
         });
 
         // Cleanup on close
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             this.removeEventListener('card-picker-result', cardPickerResultHandler);
             dialog.remove();
+            if (this._studio === dialog) this._studio = null;
         });
 
         // Mount inside <home-assistant>'s shadow root (not document.body) so

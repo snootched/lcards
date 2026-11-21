@@ -35,10 +35,7 @@ export function originBadge(resolvedScope, isAdminTarget = false) {
       .label=${label}
       style="
         --ha-assist-chip-filled-container-color: ${bg};
-        --md-assist-chip-label-text-color: ${fg};
-        --md-sys-color-on-surface: ${fg};
-        --ha-assist-chip-container-height: 22px;
-        --md-assist-chip-label-text-font-size: 0.7rem;
+        --ha-assist-chip-label-text-color: ${fg};
       "
     ></ha-assist-chip>`;
 }

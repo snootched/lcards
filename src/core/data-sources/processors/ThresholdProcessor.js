@@ -15,7 +15,7 @@ import { Processor } from './BaseProcessor.js';
  * ```yaml
  * processor_name:
  *   type: threshold
- *   from: source_processor  # Optional
+ *   input_source: source_processor  # Optional
  *   threshold: 20
  *   above: 1                # Value when above threshold
  *   below: 0                # Value when below threshold

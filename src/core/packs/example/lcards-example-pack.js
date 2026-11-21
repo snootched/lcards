@@ -3,20 +3,26 @@
  *
  * This file is the canonical template for creating a new LCARdS pack.
  * It demonstrates every key the pack format supports, with inline
- * documentation for each section.  Copy this file to a new folder,
+ * documentation for each section.  Copy this file to the packs root,
  * rename everything from 'example' to your pack name, and delete the
  * sections you don't need.
  *
  * ─────────────────────────────────────────────────────────────────────
  * Quick-start checklist
  * ─────────────────────────────────────────────────────────────────────
- *  1. Copy this folder to  src/core/packs/<your-pack-name>/
- *  2. Rename  lcards-example-pack.js  →  lcards-<your-pack-name>-pack.js
- *  3. Set  id, name, version, description  at the bottom
- *  4. Fill in only the sections that apply; delete the rest
+ *  1. Copy this file to the packs root as
+ *       src/core/packs/lcards-<your-pack-name>-pack.js
+ *     (every built-in pack is one file there; this one sits in example/
+ *     only so it is never loaded)
+ *  2. Set  id, name, version, description  at the bottom
+ *  3. Fill in only the sections that apply; delete the rest
+ *  4. Put asset files under src/assets/{sounds,msd,fonts,images}/ (the
+ *     build copies them next to lcards.js, served at /lcards/...)
  *  5. Import the pack in  src/core/packs/loadBuiltinPacks.js  and add it
- *     to  BUILTIN_REGISTRY  (and optionally  alwaysLoad)
- *  6. npm run build  →  hard-refresh HA  →  check Pack Explorer
+ *     to  BUILTIN_REGISTRY, then make it load: add its id to  alwaysLoad
+ *     (or to  CORE_REQUESTED_PACK_IDS ). A pack in neither list is
+ *     registered nowhere and never loads.
+ *  6. npm run build  →  hard-refresh Home Assistant  →  check Pack Explorer
  *
  * Pack system reference: doc/architecture/subsystems/pack-system.md
  */
@@ -36,8 +42,10 @@ const STYLE_PRESETS = {
   button: {
     /**
      * Every button preset should declare at minimum: card.color.background.*
-     * and text.default.  Use theme tokens ('{theme:…}') wherever possible
-     * so the preset works across all themes.
+     * and text.default.  Use theme tokens ('theme:<token path>', paths from
+     * src/core/packs/themes/tokens/lcardsDefaultTokens.js) wherever possible
+     * so the preset follows the active theme.  Real presets to copy from:
+     * src/core/packs/style-presets/buttons/index.js.
      */
     'example-lozenge': {
       // Override the shape rendered by the button card
@@ -47,24 +55,24 @@ const STYLE_PRESETS = {
       card: {
         color: {
           background: {
-            default:     '{theme:palette.primary}',
-            active:      '{theme:palette.primary}',
-            inactive:    '{theme:palette.inactive}',
-            unavailable: '{theme:palette.unavailable}',
-            hover:       '{theme:palette.primary-light}',
-            pressed:     '{theme:palette.primary-dark}'
+            default:     'theme:components.button.background.default',
+            active:      'theme:components.button.background.active',
+            inactive:    'theme:components.button.background.inactive',
+            unavailable: 'theme:components.button.background.unavailable',
+            hover:       'theme:components.button.background.hover',
+            pressed:     'theme:components.button.background.pressed'
           }
         }
       },
       text: {
         default: {
-          font_family:    '{theme:components.button.text.font_family}',
-          font_size:      '{theme:components.button.text.font_size}',
+          font_family:    'theme:components.button.text.font_family',
+          font_size:      'theme:components.button.text.font_size',
           text_transform: 'uppercase',
           color: {
-            default:     '{theme:components.button.text.color.active}',
-            inactive:    '{theme:components.button.text.color.inactive}',
-            unavailable: '{theme:components.button.text.color.unavailable}'
+            default:     'theme:components.button.text.color.active',
+            inactive:    'theme:components.button.text.color.inactive',
+            unavailable: 'theme:components.button.text.color.unavailable'
           }
         }
       }
@@ -73,21 +81,16 @@ const STYLE_PRESETS = {
 
   slider: {
     /**
-     * Slider presets follow the same pattern.
+     * Slider presets keep their styling under style.* (see
+     * src/core/packs/style-presets/sliders/index.js).
      * Unused preset types (button, slider, …) can simply be omitted.
      */
     'example-gauge': {
-      height: 60,
-      card: {
-        color: {
-          track: {
-            default:  '{theme:palette.surface}',
-            active:   '{theme:palette.surface}'
-          },
-          fill: {
-            default:  '{theme:palette.primary}',
-            active:   '{theme:palette.primary}'
-          }
+      style: {
+        track: {
+          orientation: 'horizontal',
+          height:      'theme:components.slider.track.height',
+          background:  'theme:components.slider.track.background'
         }
       }
     }
@@ -153,8 +156,9 @@ const THEMES = {
   'example-theme': {
     id:   'example-theme',
     name: 'Example Theme',
-    // tokens: { palette: { primary: '#FF9C00', … }, … }
-    // See src/core/packs/themes/builtin-themes.js for the full token schema.
+    // tokens: { colors: { ui: { primary: 'var(--lcars-orange)', … } }, components: { … } }
+    // The full token tree: src/core/packs/themes/tokens/lcardsDefaultTokens.js
+    // (registered by src/core/packs/builtin-themes.js).
     tokens: {}
   }
 };
@@ -162,30 +166,30 @@ const THEMES = {
 // ─────────────────────────────────────────────────────────────────────
 // RULES
 //
-// Conditional style patches distributed to RulesEngine.
-// Rules fire when their conditions are met and apply CSS/style patches
-// to registered card overlays.
+// Rules distributed to RulesEngine. A rule's `when` is its condition
+// (entity/state, above/below, all/any/not, templates); while it matches,
+// `apply.overlays` merges a config patch into every card it selects
+// (by id, `tag:<name>`, `type:<card type>` or `pattern:<regex>`).
 //
-// Schema reference: doc/architecture/subsystems/rules-engine.md
+// User docs: doc/core/rules/ (conditions.md, changes.md)
+// Engine:    doc/architecture/subsystems/rules-engine.md
 // ─────────────────────────────────────────────────────────────────────
 const RULES = [
   {
     id:          'example-rule',
-    description: 'Turn all buttons with tag "example" red when active',
+    description: 'Turn every card tagged "example" red while the light is on',
     enabled:     true,
-    conditions: [
-      // Match cards that have the 'example' tag AND whose entity is 'on'
-      { type: 'tag',    value: 'example' },
-      { type: 'state',  entity: '{config.entity}', operator: '==', value: 'on' }
-    ],
-    patches: [
-      {
-        target: { tag: 'example' },
-        style: {
-          card: { color: { background: { active: '#CC0000' } } }
+    // Replace light.example with a real entity
+    when: { entity: 'light.example', state: 'on' },
+    apply: {
+      overlays: {
+        'tag:example': {
+          style: {
+            card: { color: { background: 'var(--lcars-alert-red, var(--lcards-orange-dark))' } }
+          }
         }
       }
-    ]
+    }
   }
 ];
 
@@ -196,13 +200,14 @@ const RULES = [
 // Once registered, assets appear in the Config Panel "Sound" tab
 // override picker for per-event assignment.
 //
-// URL convention for HACS-distributed packs:
-//   /hacsfiles/<your-pack-hacs-id>/sounds/<file>.mp3
+// URL convention (as the built-in sound packs): files in
+// src/assets/sounds/<your-pack-id>/ are copied next to lcards.js and
+// served at  /lcards/sounds/<your-pack-id>/<file>.mp3
 //
 // Access at runtime (indirect — via SoundManager):
 //   window.lcards.core.soundManager.play('card_tap')
 // ─────────────────────────────────────────────────────────────────────
-const BASE_AUDIO_URL = '/hacsfiles/lcards-example/sounds';
+const BASE_AUDIO_URL = '/lcards/sounds/lcards_example';
 
 const AUDIO_ASSETS = {
   example_tap: {
@@ -221,12 +226,13 @@ const AUDIO_ASSETS = {
 // Named schemes that map SoundManager event keys to audio asset keys.
 // Selecting a scheme in the Config Panel applies all its mappings at once.
 //
-// Supported event keys (see SoundManager for the full list):
+// Event keys (the full list with labels: SOUND_EVENT_LABELS in
+// src/core/sound/SoundManager.js), for example:
 //   card_tap, card_hold, card_double_tap, card_hover
 //   toggle_on, toggle_off
-//   slider_grab, slider_release, slider_change
-//   nav_forward, nav_back
-//   alert_red, alert_yellow, alert_clear
+//   slider_drag_start, slider_drag_end, slider_change
+//   menu_expand, nav_page, dialog_open, dialog_close
+//   alert_red, alert_yellow, alert_blue, alert_clear
 //
 // null  = explicitly silence that event in this scheme
 // omit  = fall through to the system default
@@ -246,14 +252,14 @@ const SOUND_SCHEMES = {
 // SVG images registered with AssetManager for use as MSD backgrounds
 // or card imagery.
 //
-// URL convention for HACS-distributed packs:
-//   /hacsfiles/<your-pack-hacs-id>/svg/<file>.svg
+// URL convention (as builtin-msd.js): files in src/assets/msd/ are
+// served at  /lcards/msd/<file>.svg
 // ─────────────────────────────────────────────────────────────────────
-const BASE_SVG_URL = '/hacsfiles/lcards-example/svg';
+const BASE_SVG_URL = '/lcards/msd';
 
 const SVG_ASSETS = {
   'example-bg': {
-    url:      `${BASE_SVG_URL}/background.svg`,
+    url:      `${BASE_SVG_URL}/example-background.svg`,
     metadata: {
       name:        'Example Background',
       description: 'A placeholder MSD background',
@@ -267,12 +273,22 @@ const SVG_ASSETS = {
 // FONT ASSETS
 //
 // Web fonts registered with AssetManager.
-// URL can be an absolute external URL (set external: true)
-// or a local HACS path.
+// `url` is a CSS file holding the @font-face rule(s), not the font file:
+// AssetManager.loadFont() adds it to the page as a <link rel="stylesheet">.
+// The CSS then points at the font file. Name the font-family after the
+// asset key, and start the key with lcards_: a card loads a font on demand
+// when its font_family names an lcards_* key. ExampleFont.css:
+//   @font-face {
+//     font-family: 'lcards_example_font';
+//     src: url('ExampleFont.woff2') format('woff2');
+//   }
+// It can be a local path (files in src/assets/fonts/ are served at
+// /lcards/fonts/, as core-fonts-pack.js), or an external stylesheet URL
+// such as Google Fonts (set external: true).
 // ─────────────────────────────────────────────────────────────────────
 const FONT_ASSETS = {
-  'example-font': {
-    url:         '/hacsfiles/lcards-example/fonts/ExampleFont.woff2',
+  'lcards_example_font': {
+    url:         '/lcards/fonts/ExampleFont.css',
     displayName: 'Example Font',
     category:    'display',
     description: 'A placeholder display font',
@@ -292,7 +308,7 @@ export const LCARDS_EXAMPLE_PACK = {
   id:          'lcards_example',
   name:        'LCARdS Example',
   version:     '1.0.0',
-  description: 'Full-feature example pack — template for third-party pack authors',
+  description: 'Full-feature example pack: template for third-party pack authors',
 
   // ── Data sections (all optional — delete what you don't use) ─────
   style_presets: STYLE_PRESETS,

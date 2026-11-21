@@ -13,6 +13,9 @@
  * - Duplicate state functionality
  * - LCARS aesthetic with rounded corners
  *
+ * With `valueKind: 'number'` each state takes a number instead of a colour (a number
+ * that follows an entity by state: the astrometrics settings).
+ *
  * @example
  * <lcards-color-section-v2
  *   .editor=${this}
@@ -29,6 +32,8 @@ import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 import { editorWidgetStyles } from './editor-widget-styles.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-color-picker.js';
+import { createDialogFooter, mountDialogNearHomeAssistant, onDialogClosed } from '../../../utils/lcards-shared-helpers.js';
+import { resolveColor } from '../../../core/themes/resolve-color.js';
 
 export class LCARdSColorSectionV2 extends LitElement {
 
@@ -52,6 +57,9 @@ export class LCARdSColorSectionV2 extends LitElement {
 
             // Show color preview bar
             showPreview: { type: Boolean },
+
+            // What each state holds: 'color' (default) or 'number'
+            valueKind: { type: String },
 
             // CSS variable prefixes to scan
             variablePrefixes: { type: Array },
@@ -78,6 +86,7 @@ export class LCARdSColorSectionV2 extends LitElement {
         this.suggestedStates = ['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero', 'hover', 'pressed'];
         this.allowCustomStates = true;
         this.showPreview = true;
+        this.valueKind = 'color';
         this.variablePrefixes = ['--lcards-', '--lcars-', '--cblcars-'];
         this._expandedStates = new Set();
         this._customStateInput = '';
@@ -216,6 +225,7 @@ export class LCARdSColorSectionV2 extends LitElement {
 
                 .custom-state-input {
                     display: flex;
+                    flex-wrap: wrap;
                     gap: 8px;
                     align-items: center;
                     padding-top: 12px;
@@ -230,15 +240,15 @@ export class LCARdSColorSectionV2 extends LitElement {
                     margin-left: 8px;
                 }
 
+                /* ha-icon-button (WebAwesome) draws its icon in currentColor */
                 .editor-item-actions ha-icon-button {
                     --ha-icon-button-size: 40px;
                     --mdc-icon-size: 20px;
-                    --md-icon-button-icon-color: var(--primary-text-color);
-                    --md-icon-button-hover-icon-color: var(--error-color);
+                    color: var(--primary-text-color);
                 }
 
                 .editor-item-actions ha-icon-button:hover {
-                    --md-icon-button-icon-color: var(--error-color);
+                    color: var(--error-color);
                 }
 
                 /* Expand icon spacing */
@@ -305,7 +315,7 @@ export class LCARdSColorSectionV2 extends LitElement {
                 header="${this.header}"
                 description="${this.description}"
                 ?expanded=${this.expanded}
-                icon="mdi:palette"
+                icon=${this.valueKind === 'number' ? 'mdi:numeric' : 'mdi:palette'}
                 outlined>
 
                 <!-- Existing States (List) -->
@@ -338,18 +348,18 @@ export class LCARdSColorSectionV2 extends LitElement {
                         • <strong>default</strong> → fallback for all other states
                         <br><br>
                         Numeric states (e.g. counts, sensor values):<br>
-                        • <strong>zero</strong> → entity state is exactly 0 — higher priority than ranges<br>
-                        • <strong>above:N</strong> → value &gt; N — e.g. <code>above:50</code><br>
-                        • <strong>at_least:N</strong> → value ≥ N — e.g. <code>at_least:50</code><br>
-                        • <strong>below:N</strong> → value &lt; N — e.g. <code>below:20</code><br>
-                        • <strong>at_most:N</strong> → value ≤ N — e.g. <code>at_most:20</code><br>
-                        • <strong>between:N:M</strong> → N ≤ value ≤ M — e.g. <code>between:20:80</code><br>
-                        • <strong>between_exclusive:N:M</strong> → N &lt; value &lt; M — e.g. <code>between_exclusive:20:80</code><br>
+                        • <strong>zero</strong> → entity state is exactly 0, higher priority than ranges<br>
+                        • <strong>above:N</strong> → value &gt; N, e.g. <code>above:50</code><br>
+                        • <strong>at_least:N</strong> → value ≥ N, e.g. <code>at_least:50</code><br>
+                        • <strong>below:N</strong> → value &lt; N, e.g. <code>below:20</code><br>
+                        • <strong>at_most:N</strong> → value ≤ N, e.g. <code>at_most:20</code><br>
+                        • <strong>between:N:M</strong> → N ≤ value ≤ M, e.g. <code>between:20:80</code><br>
+                        • <strong>between_exclusive:N:M</strong> → N &lt; value &lt; M, e.g. <code>between_exclusive:20:80</code><br>
                         When multiple ranges match, the most specific one wins (narrowest / highest above/at_least / lowest below/at_most).<br>
-                        • <strong>non_zero</strong> → any non-zero number — catch-all when no range matched<br>
-                        <br>
+                        • <strong>non_zero</strong> → any non-zero number, catch-all when no range matched<br>
+                        ${this.valueKind === 'number' ? '' : html`<br>
                         Interactive element states (if supported by card):<br>
-                        • <strong>hover</strong> · <strong>pressed</strong>
+                        • <strong>hover</strong> · <strong>pressed</strong>`}
                     </div>
                     ` : ''}
                 </div>
@@ -368,8 +378,8 @@ export class LCARdSColorSectionV2 extends LitElement {
     _renderEmptyState() {
         return html`
             <div class="empty-state">
-                <ha-icon icon="mdi:palette"></ha-icon>
-                <div style="font-weight: 500; margin-bottom: 8px;">No color states configured</div>
+                <ha-icon icon=${this.valueKind === 'number' ? 'mdi:numeric' : 'mdi:palette'}></ha-icon>
+                <div style="font-weight: 500; margin-bottom: 8px;">${this.valueKind === 'number' ? 'No states yet' : 'No color states configured'}</div>
                 <div style="font-size: 13px;">
                     Add a suggested state or create a custom state below
                 </div>
@@ -395,10 +405,10 @@ export class LCARdSColorSectionV2 extends LitElement {
                     <!-- State Info -->
                     <div class="editor-item-info">
                         <div class="editor-item-title">${this._formatStateLabel(state)}</div>
-                        <div class="editor-item-subtitle">${color || 'Not set'}</div>
+                        <div class="editor-item-subtitle">${color === '' || color === undefined || color === null ? 'Not set' : String(color)}</div>
 
                         <!-- Color Preview Bar -->
-                        ${color && this.showPreview ? html`
+                        ${color && this.showPreview && this.valueKind !== 'number' ? html`
                             <div class="color-preview-bar"
                                 style="background: ${this._resolveColorForPreview(color)}">
                             </div>
@@ -421,8 +431,18 @@ export class LCARdSColorSectionV2 extends LitElement {
                     </ha-icon>
                 </div>
 
-                <!-- Content (Color Picker) -->
-                ${isExpanded ? html`
+                <!-- Content (a number box, or the Color Picker) -->
+                ${isExpanded && this.valueKind === 'number' ? html`
+                    <div class="editor-item-content">
+                        <ha-selector
+                            .hass=${this.editor.hass}
+                            .label=${'Value'}
+                            .selector=${{ number: { mode: 'box', step: 'any' } }}
+                            .value=${typeof color === 'number' ? color : null}
+                            @value-changed=${(e) => this._handleColorChange(state, e)}>
+                        </ha-selector>
+                    </div>
+                ` : isExpanded ? html`
                     <div class="editor-item-content">
                         <lcards-color-picker
                             .hass=${this.editor.hass}
@@ -476,7 +496,7 @@ export class LCARdSColorSectionV2 extends LitElement {
                 ${this.allowCustomStates ? html`
                     <div class="custom-state-input">
                         <ha-selector
-                            style="flex:1;"
+                            style="flex:1; min-width:160px;"
                             .hass=${this.editor.hass}
                             .label=${'Custom State Name'}
                             .selector=${{ text: {} }}
@@ -597,8 +617,10 @@ export class LCARdSColorSectionV2 extends LitElement {
      * @private
      */
     _handleColorChange(state, e) {
+        e?.stopPropagation?.(); // committed through the editor below
         const currentStates = this._getCurrentStates();
-        currentStates[state] = e.detail.value;
+        const v = e.detail.value;
+        currentStates[state] = this.valueKind === 'number' ? (v === '' || v === null || v === undefined || !Number.isFinite(Number(v)) ? 0 : Number(v)) : v;
         this.editor._setConfigValue(this.basePath, currentStates);
         lcardsLog.debug('[ColorSectionV2] Color changed', { state, value: e.detail.value });
     }
@@ -607,10 +629,14 @@ export class LCARdSColorSectionV2 extends LitElement {
 
     /**
      * Handle custom state input change
-     * @param {Event} e - input event
+     * @param {CustomEvent} e - input event
      * @private
      */
     _handleCustomStateInput(e) {
+        // Draft inputs are this section's own: their events must not reach a parent
+        // that listens for value-changed (the Astrometrics Studio took a draft
+        // threshold as its whole labels block and cleared it).
+        e?.stopPropagation?.();
         this._customStateInput = e.detail.value ?? '';
     }
 
@@ -654,7 +680,7 @@ export class LCARdSColorSectionV2 extends LitElement {
         // Clear input
         this._customStateInput = '';
 
-        lcardsLog.info('[ColorSectionV2] Added custom state', { state: stateName });
+        lcardsLog.debug('[ColorSectionV2] Added custom state', { state: stateName });
     }
 
     /**
@@ -663,25 +689,28 @@ export class LCARdSColorSectionV2 extends LitElement {
      * @private
      */
     _handleRangeOperatorChange(e) {
+        e?.stopPropagation?.();
         this._rangeOperator = /** @type {CustomEvent} */ (e).detail.value;
     }
 
     /**
      * Handle range min/threshold input
-     * @param {Event} e
+     * @param {CustomEvent} e
      * @private
      */
     _handleRangeMinChange(e) {
+        e?.stopPropagation?.();
         const v = e.detail?.value;
         this._rangeMin = v !== null && v !== undefined ? String(v) : '';
     }
 
     /**
      * Handle range max input (between only)
-     * @param {Event} e
+     * @param {CustomEvent} e
      * @private
      */
     _handleRangeMaxChange(e) {
+        e?.stopPropagation?.();
         const v = e.detail?.value;
         this._rangeMax = v !== null && v !== undefined ? String(v) : '';
     }
@@ -743,7 +772,7 @@ export class LCARdSColorSectionV2 extends LitElement {
         this._rangeMin = '';
         this._rangeMax = '';
 
-        lcardsLog.info('[ColorSectionV2] Added range condition', { key });
+        lcardsLog.debug('[ColorSectionV2] Added range condition', { key });
     }
 
     /**
@@ -760,15 +789,15 @@ export class LCARdSColorSectionV2 extends LitElement {
             return;
         }
 
-        // Add new state with empty value
-        const newStates = { ...currentStates, [state]: '' };
+        // Add new state with empty value (a number starts at 0: a state needs a number)
+        const newStates = { ...currentStates, [state]: this.valueKind === 'number' ? 0 : '' };
         this.editor._setConfigValue(this.basePath, newStates);
 
         // Auto-expand new state for immediate editing
         this._expandedStates.add(state);
         this.requestUpdate();
 
-        lcardsLog.info('[ColorSectionV2] Added state', { state });
+        lcardsLog.debug('[ColorSectionV2] Added state', { state });
     }
 
     /**
@@ -778,7 +807,7 @@ export class LCARdSColorSectionV2 extends LitElement {
      * @private
      */
     async _deleteState(e, state) {
-        e.stopPropagation();
+        e?.stopPropagation?.();
 
         const confirmed = await this._showConfirmDialog(
             'Delete State',
@@ -794,7 +823,7 @@ export class LCARdSColorSectionV2 extends LitElement {
         this._expandedStates.delete(state);
         this.requestUpdate();
 
-        lcardsLog.info('[ColorSectionV2] Deleted state', { state });
+        lcardsLog.debug('[ColorSectionV2] Deleted state', { state });
     }
 
 
@@ -843,89 +872,7 @@ export class LCARdSColorSectionV2 extends LitElement {
             color = color.replace(/match-light/g, this._resolveMatchLightColor());
         }
 
-        // Check if it's a computed token
-        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix'];
-        const isComputedToken = validFunctions.some(fn => color.startsWith(`${fn}(`));
-
-        if (isComputedToken) {
-            try {
-                const match = color.match(/^(\w+)\((.+)\)$/);
-                if (match) {
-                    const [, funcName, argsStr] = match;
-                    const args = this._splitArguments(argsStr);
-
-                    if (args.length >= 2) {
-                        const baseColor = this._resolveColorForPreview(args[0].trim());
-                        const amount = parseFloat(args[1]);
-
-                        switch (funcName) {
-                            case 'lighten': return ColorUtils.lighten(baseColor, amount);
-                            case 'darken': return ColorUtils.darken(baseColor, amount);
-                            case 'alpha': return ColorUtils.alpha(baseColor, amount);
-                            case 'saturate': return ColorUtils.saturate(baseColor, amount);
-                            case 'desaturate': return ColorUtils.desaturate(baseColor, amount);
-                            case 'mix':
-                                if (args.length === 3) {
-                                    const color2 = this._resolveColorForPreview(args[1].trim());
-                                    const ratio = parseFloat(args[2]);
-                                    return ColorUtils.mix(baseColor, color2, ratio);
-                                }
-                        }
-                    }
-                }
-            } catch (error) {
-                lcardsLog.warn('[ColorSectionV2] Failed to resolve computed color:', error);
-            }
-        }
-
-        // Handle CSS variables via DOM
-        if (color.includes('var(')) {
-            try {
-                const temp = document.createElement('div');
-                temp.style.color = color;
-                document.body.appendChild(temp);
-                const computed = getComputedStyle(temp).color;
-                document.body.removeChild(temp);
-                return computed;
-            } catch (err) {
-                return color;
-            }
-        }
-
-        return color;
-    }
-
-    /**
-     * Split function arguments handling nested parentheses
-     * @param {string} argsStr - Arguments string
-     * @returns {Array<string>} Array of arguments
-     * @private
-     */
-    _splitArguments(argsStr) {
-        const args = [];
-        let current = '';
-        let depth = 0;
-
-        for (const char of argsStr) {
-            if (char === '(') {
-                depth++;
-                current += char;
-            } else if (char === ')') {
-                depth--;
-                current += char;
-            } else if (char === ',' && depth === 0) {
-                args.push(current.trim());
-                current = '';
-            } else {
-                current += char;
-            }
-        }
-
-        if (current) {
-            args.push(current.trim());
-        }
-
-        return args;
+        return resolveColor(color, { concrete: true, element: this, fallback: color });
     }
 
     /**     * Format state name as readable label
@@ -981,9 +928,7 @@ export class LCARdSColorSectionV2 extends LitElement {
     async _showDialog(title, message, type = 'info') {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.headerTitle = title;
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -992,21 +937,20 @@ export class LCARdSColorSectionV2 extends LitElement {
             dialog.appendChild(content);
 
             const closeButton = document.createElement('ha-button');
-            closeButton.slot = 'footer';
             closeButton.textContent = 'OK';
+            closeButton.autofocus = true;
             closeButton.addEventListener('click', () => {
-                // @ts-ignore - TS2551: auto-suppressed
-                dialog.close();
-                resolve();
+                dialog.open = false; // ha-dialog has no close(); the 'closed' listener removes it
+                resolve(undefined);
             });
 
-            dialog.appendChild(closeButton);
+            dialog.appendChild(createDialogFooter({ primary: [closeButton] }));
 
-            dialog.addEventListener('closed', () => {
+            onDialogClosed(dialog, () => {
                 dialog.remove();
             });
 
-            document.body.appendChild(dialog);
+            mountDialogNearHomeAssistant(dialog, this);
         });
     }
 
@@ -1020,9 +964,7 @@ export class LCARdSColorSectionV2 extends LitElement {
     async _showConfirmDialog(title, message) {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.headerTitle = title;
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -1035,8 +977,8 @@ export class LCARdSColorSectionV2 extends LitElement {
             const cancelButton = document.createElement('ha-button');
             cancelButton.textContent = 'Cancel';
             cancelButton.setAttribute('appearance', 'plain');
+            cancelButton.autofocus = true;
             cancelButton.addEventListener('click', () => {
-                // @ts-ignore - TS2339: auto-suppressed
                 dialog.open = false;
                 resolve(false);
             });
@@ -1046,22 +988,17 @@ export class LCARdSColorSectionV2 extends LitElement {
             confirmButton.textContent = 'Delete';
             confirmButton.setAttribute('variant', 'danger');
             confirmButton.addEventListener('click', () => {
-                // @ts-ignore - TS2339: auto-suppressed
                 dialog.open = false;
                 resolve(true);
             });
 
-            const footerDiv = document.createElement('div');
-            footerDiv.slot = 'footer';
-            footerDiv.appendChild(cancelButton);
-            footerDiv.appendChild(confirmButton);
-            dialog.appendChild(footerDiv);
+            dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [confirmButton] }));
 
-            dialog.addEventListener('closed', () => {
+            onDialogClosed(dialog, () => {
                 dialog.remove();
             });
 
-            document.body.appendChild(dialog);
+            mountDialogNearHomeAssistant(dialog, this);
         });
     }
 }

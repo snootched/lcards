@@ -1,0 +1,17 @@
+# the level texture's color is its fill; map_range takes entity like everywhere else (doc/cards/button/textures.md)
+type: custom:lcards-button
+preset: capped
+text:
+  name:
+    content: LEVEL
+    show: true
+shape_texture:
+  preset: level
+  opacity: 0.8
+  config:
+    color: "#3366cc"
+    fill_pct:
+      map_range:
+        entity: sensor.demo_humidity
+        input: [0, 100]
+        output: [0, 100]

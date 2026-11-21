@@ -1,0 +1,36 @@
+# A layout card (default height 100%) in a 40px row shares the row between its two
+# buttons; the same layout card in an auto row is not definite, its buttons keep
+# their preset's floor (strategies-plan S1.2b)
+type: custom:lcards-layout-card
+layout:
+  height: 300px
+  grid-template-columns: 1fr 1fr
+  grid-template-rows: 40px auto
+  grid-template-areas: |
+    "short short"
+    "auto auto"
+cards:
+  - type: custom:lcards-layout-card
+    layout:
+      grid-gap: 4px
+      grid-template-columns: 1fr
+      grid-template-rows: 1fr 1fr
+    view_layout:
+      grid-area: short
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+      - type: custom:lcards-button
+        preset: lozenge
+  - type: custom:lcards-layout-card
+    layout:
+      grid-gap: 4px
+      grid-template-columns: 1fr
+      grid-template-rows: 1fr 1fr
+    view_layout:
+      grid-area: auto
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+      - type: custom:lcards-button
+        preset: lozenge

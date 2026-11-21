@@ -241,7 +241,6 @@ export class LCARdSBorderEditor extends LitElement {
 
                 ${isUnified ? html`
                     <ha-selector
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .label=${'Width (px)'}
                         .selector=${{
@@ -259,7 +258,6 @@ export class LCARdSBorderEditor extends LitElement {
                 ` : html`
                     <div class="per-side-grid">
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Top (px)'}
                             .selector=${{
@@ -275,7 +273,6 @@ export class LCARdSBorderEditor extends LitElement {
                             @value-changed=${(e) => this._updateBorderProperty('width.top', e.detail.value)}>
                         </ha-selector>
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Right (px)'}
                             .selector=${{
@@ -291,7 +288,6 @@ export class LCARdSBorderEditor extends LitElement {
                             @value-changed=${(e) => this._updateBorderProperty('width.right', e.detail.value)}>
                         </ha-selector>
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Bottom (px)'}
                             .selector=${{
@@ -307,7 +303,6 @@ export class LCARdSBorderEditor extends LitElement {
                             @value-changed=${(e) => this._updateBorderProperty('width.bottom', e.detail.value)}>
                         </ha-selector>
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Left (px)'}
                             .selector=${{
@@ -526,12 +521,16 @@ export class LCARdSBorderEditor extends LitElement {
 
         let current = updatedConfig;
         for (let i = 0; i < keys.length - 1; i++) {
-            if (!current[keys[i]] || typeof current[keys[i]] !== 'object') {
-                current[keys[i]] = {};
+            const key = keys[i];
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') return; // never config (prototype pollution)
+            if (!current[key] || typeof current[key] !== 'object') {
+                current[key] = {};
             }
-            current = current[keys[i]];
+            current = current[key];
         }
-        current[keys[keys.length - 1]] = value;
+        const last = keys[keys.length - 1];
+        if (last === '__proto__' || last === 'constructor' || last === 'prototype') return;
+        current[last] = value;
 
         this._borderConfig = updatedConfig;
 

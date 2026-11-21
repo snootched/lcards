@@ -1,0 +1,4 @@
+# Read-only ring: a sensor (auto-locked), no pointer overlay
+type: custom:lcards-slider
+entity: sensor.demo_temperature
+preset: ring

@@ -1,0 +1,45 @@
+# Button presets (D1c): every built-in button preset. The standard presets and the panels
+# follow input_boolean.lcards_test_lights (tap any to toggle it); the bar labels are text bars.
+title: Button presets
+path: button-presets
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: lozenge, text: {name: {content: LIGHTS, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: lozenge, icon: mdi:lightbulb, text: {name: {content: LOZENGE, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: lozenge-right, icon: mdi:lightbulb, text: {name: {content: LOZENGE-RIGHT, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: bullet, icon: mdi:lightbulb, text: {name: {content: BULLET, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: bullet-right, icon: mdi:lightbulb, text: {name: {content: BULLET-RIGHT, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: capped, icon: mdi:lightbulb, text: {name: {content: CAPPED, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: capped-right, icon: mdi:lightbulb, text: {name: {content: CAPPED-RIGHT, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: barrel, icon: mdi:lightbulb, text: {name: {content: BARREL, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: barrel-right, icon: mdi:lightbulb, text: {name: {content: BARREL-RIGHT, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: filled, icon: mdi:lightbulb, text: {name: {content: FILLED, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: filled-right, icon: mdi:lightbulb, text: {name: {content: FILLED-RIGHT, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: outline, icon: mdi:lightbulb, text: {name: {content: OUTLINE, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: outline-right, icon: mdi:lightbulb, text: {name: {content: OUTLINE-RIGHT, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: icon, icon: mdi:lightbulb, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: text-only, icon: mdi:lightbulb, text: {name: {content: TEXT-ONLY, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 8, rows: 1}}
+  - type: grid
+    column_span: 4
+    cards:
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: panel-light, text: {label: {content: PANEL-LIGHT}}, tap_action: {action: toggle}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: toggle-tab, text: {name: {content: TOGGLE-TAB, show: true}}, tap_action: {action: toggle}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: panel-flagged, text: {label: {content: PANEL-FLAGGED}}, tap_action: {action: toggle}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-button, entity: input_boolean.lcards_test_lights, preset: panel-dark, text: {label: {content: PANEL-DARK}}, tap_action: {action: toggle}, grid_options: {columns: 12, rows: 2}}
+  - type: grid
+    column_span: 4
+    cards:
+      - {type: custom:lcards-button, preset: bar-label-base, interactive: false, text: {label: {content: BAR-LABEL-BASE}}, grid_options: {columns: 24, rows: 1}}
+      - {type: custom:lcards-button, preset: bar-label-left, interactive: false, text: {label: {content: BAR-LABEL-LEFT}}, grid_options: {columns: 24, rows: 1}}
+      - {type: custom:lcards-button, preset: bar-label-center, interactive: false, text: {label: {content: BAR-LABEL-CENTER}}, grid_options: {columns: 24, rows: 1}}
+      - {type: custom:lcards-button, preset: bar-label-right, interactive: false, text: {label: {content: BAR-LABEL-RIGHT}}, grid_options: {columns: 24, rows: 1}}
+      - {type: custom:lcards-button, preset: bar-label-square, interactive: false, text: {label: {content: BAR-LABEL-SQUARE}}, grid_options: {columns: 24, rows: 1}}
+      - {type: custom:lcards-button, preset: bar-label-lozenge, interactive: false, text: {label: {content: BAR-LABEL-LOZENGE}}, grid_options: {columns: 24, rows: 1}}
+      - {type: custom:lcards-button, preset: bar-label-bullet-left, interactive: false, text: {label: {content: BAR-LABEL-BULLET-LEFT}}, grid_options: {columns: 24, rows: 1}}
+      - {type: custom:lcards-button, preset: bar-label-bullet-right, interactive: false, text: {label: {content: BAR-LABEL-BULLET-RIGHT}}, grid_options: {columns: 24, rows: 1}}
+      - {type: custom:lcards-button, preset: bar-label-capped-left, interactive: false, text: {label: {content: BAR-LABEL-CAPPED-LEFT}}, grid_options: {columns: 24, rows: 1}}
+      - {type: custom:lcards-button, preset: bar-label-capped-right, interactive: false, text: {label: {content: BAR-LABEL-CAPPED-RIGHT}}, grid_options: {columns: 24, rows: 1}}

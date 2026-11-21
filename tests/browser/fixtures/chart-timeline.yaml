@@ -1,0 +1,13 @@
+# rangeBar timeline (E1.2): a thermostat's sample state runs and a mode selector
+# (chart-sizing.spec.js: bars in state colours, a state change opens a new bar)
+type: custom:lcards-chart
+chart_type: rangeBar
+graph_span: 12h
+sources:
+  - entity: climate.demo_hall
+    name: Hall
+    color:
+      heat: '#ff7700'
+      cool: '#4455ff'
+  - entity: input_select.demo_mode
+    name: Mode

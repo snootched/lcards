@@ -5,6 +5,120 @@
  * Uses shared schema components from common-schemas.js for consistency.
  */
 
+/** How an alert shows: the modal overlay or the band across the screen. */
+const displaySchema = {
+    type: 'string',
+    enum: ['overlay', 'band'],
+    default: 'overlay',
+    description:
+        'overlay = backdrop and the alert symbol (or content card) in the middle, the dashboard blocked until dismissed; ' +
+        'band = a row of dashes across the screen with the symbol in the middle, the dashboard stays usable (click the symbol to dismiss)',
+};
+
+/** Settings for `display: band`. */
+const bandSchema = {
+    type: 'object',
+    description: 'Alert band settings (display: band). A row of dashes in the condition colour across the screen, with the alert symbol in the middle.',
+    properties: {
+        position: {
+            type: 'string',
+            pattern: '^(top|center|bottom|-?\\d+(\\.\\d+)?%)$',
+            default: 'center',
+            description: 'Where the band sits: top, center, bottom, or a percentage of the screen height for the band centre (e.g. 75%)',
+            examples: ['center', 'bottom', '75%'],
+        },
+        height: {
+            type: 'string',
+            default: 'clamp(24px, 4vh, 64px)',
+            description: 'Dash height (CSS length)',
+            examples: ['48px', '5vh'],
+        },
+        dash_width: { type: 'number', minimum: 1, default: 8, description: 'Dash width in px' },
+        dash_gap: { type: 'number', minimum: 0, default: 12, description: 'Space between dashes in px' },
+        dash_radius: {
+            oneOf: [
+                { type: 'number', minimum: 0 },
+                { type: 'string', const: 'pill' },
+            ],
+            default: 0,
+            description: 'Dash corner radius in px, or pill for fully rounded ends',
+            examples: [2, 'pill'],
+        },
+        grow: {
+            type: 'number',
+            minimum: 1,
+            maximum: 4,
+            default: 1,
+            description: 'Peak dash height as a multiple of the band height, following the animation: the dashes swell as the sweep passes (or all together with flash). 1 = no growth',
+            examples: [1.5, 2],
+        },
+        emblem: { type: 'boolean', default: true, description: 'Show the alert symbol (or the content card) in the middle of the band. Without it, only auto-dismiss or the alert mode changing hides the band' },
+        emblem_scale: { type: 'number', minimum: 1, maximum: 10, default: 4, description: 'Height of the symbol as a multiple of the band height' },
+        animation: {
+            type: 'string',
+            enum: ['sweep', 'flash', 'none'],
+            default: 'sweep',
+            description: 'sweep = a flash runs outward from the symbol; flash = all dashes pulse together; none = still. Reduced-motion settings turn it off',
+        },
+        direction: {
+            type: 'string',
+            enum: ['outward', 'inward'],
+            default: 'outward',
+            description: 'Sweep direction: outward from the symbol, or inward from the screen edges',
+        },
+        speed: {
+            type: 'number',
+            minimum: 0.25,
+            maximum: 4,
+            default: 1,
+            description: 'Animation speed multiplier (2 = twice as fast). The alert symbol bars follow it unless alert_button.speed is set',
+            examples: [0.5, 2],
+        },
+        phase: {
+            type: 'number',
+            minimum: 0,
+            maximum: 360,
+            description: 'Lock the band animation to the alert symbol bar sweep, this many degrees later (the symbol innermost bars light at 150, so 180 makes an outward sweep carry on out of the symbol). Unset = not locked. Needs the symbol and the same speed for both',
+            examples: [180],
+        },
+        color: { type: 'string', description: 'Dash colour (default: the condition alert colour from the theme)', examples: ['theme:colors.alert.red', 'var(--lcars-orange)'] },
+    },
+    additionalProperties: false,
+};
+
+/**
+ * A patch on the built-in alert symbol (the alert component of lcards-button):
+ * deep-merged over it, card level first, then the condition's. Every lcards-button
+ * key applies except type, component and preset.
+ */
+const alertButtonSchema = {
+    type: 'object',
+    description:
+        'Changes to the built-in alert symbol (an lcards-button with the alert component), merged over it: ' +
+        'any lcards-button key (text fields, style, animations, sounds, ...) except type, component and preset, ' +
+        'which stay fixed so each condition keeps its own colours. Only set what you want to change.',
+    properties: {
+        text: {
+            type: 'object',
+            description: 'Text field changes, as lcards-button text: e.g. text.sub_text.content, text.alert_text.color, text.sub_text.font_size',
+            additionalProperties: true,
+        },
+        alert: {
+            type: 'object',
+            description: 'Alert component settings: e.g. alert.color.shape, alert.color.bars',
+            additionalProperties: true,
+        },
+        speed: {
+            type: 'number',
+            minimum: 0.25,
+            maximum: 4,
+            description: 'Speed multiplier for the alert symbol bar sweep (2 = twice as fast). In band mode it follows band.speed unless set',
+            examples: [0.5, 2],
+        },
+    },
+    additionalProperties: true,
+};
+
 export const alertOverlaySchema = {
     $schema: 'http://json-schema.org/draft-07/schema#',
     $id: 'https://github.com/snootched/lcards/schemas/alert-overlay-schema',
@@ -47,7 +161,7 @@ export const alertOverlaySchema = {
         },
         layers: {
             oneOf: [
-                { type: 'null', description: 'null — explicitly disables all screen effect layers (useful as a per-condition override).' },
+                { type: 'null', description: 'null: explicitly disables all screen effect layers (useful as a per-condition override).' },
                 {
                     type: 'object',
                     description: 'Screen effect layers applied independently behind the overlay. Absent slot = disabled; null slot = explicitly cleared.',
@@ -93,6 +207,8 @@ export const alertOverlaySchema = {
                 },
             ],
         },
+        display: displaySchema,
+        band: bandSchema,
         position: {
             type: 'string',
             enum: [
@@ -106,16 +222,16 @@ export const alertOverlaySchema = {
         },
         width: {
             type: 'string',
-            description: 'Global content card width (CSS value)',
-            default: 'auto',
-            examples: ['auto', '400px', '50%'],
+            description: 'Content card width (CSS value). Percentages are of the screen. Default 60%.',
+            default: '60%',
+            examples: ['60%', '400px', '50vw'],
         },
         height: {
             type: 'string',
-            description: 'Global content card height (CSS value)',
-            default: 'auto',
-            examples: ['auto', '300px', '40%'],
+            description: 'Content card height (CSS value). Percentages are of the screen. Default: 50% for the built-in alert symbol when no width is set either; otherwise the content sizes itself (auto).',
+            examples: ['50%', '300px', 'auto'],
         },
+        alert_button: { ...alertButtonSchema, description: 'Changes to the built-in alert symbol for every condition (conditions.<key>.alert_button merges over it). Any lcards-button key except type, component and preset, which stay fixed so each condition keeps its own colours.' },
         conditions: {
             type: 'object',
             description: 'Per-condition overrides. Keys match alert mode values (red_alert, yellow_alert, etc.)',
@@ -124,34 +240,14 @@ export const alertOverlaySchema = {
                 properties: {
                     content: {
                         type: 'object',
-                        description: 'HA card config to render inside the overlay for this condition',
+                        description: 'Home Assistant card config to render inside the overlay for this condition',
                         properties: {
                             type: { type: 'string', description: 'Card type (e.g. custom:lcards-button)' },
                         },
                         required: ['type'],
                         additionalProperties: true,
                     },
-                    alert_button: {
-                        type: 'object',
-                        description:
-                            'Patch merged on top of the default lcards-button alert card for this condition. ' +
-                            'Only specify fields to override — type, component, and preset are inherited from the built-in default. ' +
-                            'Supports all lcards-button text and alert config keys. ' +
-                            'Ignored when `content` is also specified (content takes full precedence).',
-                        properties: {
-                            text: {
-                                type: 'object',
-                                description: 'Text field overrides — e.g. text.sub_text.content or text.alert_text.content',
-                                additionalProperties: true,
-                            },
-                            alert: {
-                                type: 'object',
-                                description: 'Alert component config overrides — e.g. alert.color.shape, alert.color.bars',
-                                additionalProperties: true,
-                            },
-                        },
-                        additionalProperties: true,
-                    },
+                    alert_button: { ...alertButtonSchema, description: 'Changes to the alert symbol for this condition, over the card alert_button. Ignored when content is set (content replaces the symbol).' },
                     backdrop: {
                         type: 'object',
                         description: '[DEPRECATED] Migrated at runtime to layers. Still accepted for backward compatibility.',
@@ -182,8 +278,10 @@ export const alertOverlaySchema = {
                             'bottom-left', 'bottom', 'bottom-center', 'bottom-right',
                         ],
                     },
-                    width:  { type: 'string', description: 'Per-condition content card width' },
-                    height: { type: 'string', description: 'Per-condition content card height' },
+                    display: { type: 'string', enum: displaySchema.enum, description: 'Presentation for this condition (overlay or band); falls back to the card display' },
+                    band: { ...bandSchema, description: 'Band settings for this condition, merged over the card band' },
+                    width:  { type: 'string', description: 'Content card width for this condition (CSS value); falls back to the card width' },
+                    height: { type: 'string', description: 'Content card height for this condition (CSS value); falls back to the card height' },
                     auto_dismiss_seconds: {
                         type: 'number',
                         minimum: 1,

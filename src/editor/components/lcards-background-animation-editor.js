@@ -27,9 +27,11 @@ import './shared/lcards-color-picker.js';
 import './shared/lcards-color-list.js';
 import './shared/lcards-form-section.js';
 import './shared/lcards-message.js';
-import './editors/lcards-color-section.js';
+import './shared/lcards-asset-source-picker.js';
 import { BACKGROUND_PRESET_DOCS_URL } from './shared/docs-links.js';
+import { SCHEMA_SECTIONS, GRID_PRESETS, GRID_VIEW_KEYS, schemaFields, withViewDefault } from './background-animation-fields.js';
 import { infoGuideStyles } from './shared/info-guide-styles.js';
+import { renderInfoGuide } from './shared/info-guide.js';
 import { searchableSelectStyles } from './shared/searchable-select-styles.js';
 
 export class LCARdSBackgroundAnimationEditor extends LitElement {
@@ -40,9 +42,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       _expandedIndex: { type: Number },
       _draggedIndex: { type: Number },
       _expandedEffects: { type: Object },
-      _imageSrcModes:  { type: Object, state: true },
       _insetEnabled: { type: Boolean, state: true },
-      _expandedGuideIndices: { state: true } // Set<number> — which effects' "How this effect works" info guide is open
     };
   }
 
@@ -265,10 +265,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     this._expandedIndex = null;
     this._draggedIndex = null;
     this._expandedEffects = {};
-    this._imageSrcModes   = {};
-    this._currentEffectIndex = null; // Track current effect for color section
     this._insetEnabled = false;
-    this._expandedGuideIndices = new Set();
   }
 
   /**
@@ -282,16 +279,6 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     if (!c) return { inset: null, fps: null, effects: [] };
     if (Array.isArray(c)) return { inset: null, fps: null, effects: c };
     return { inset: c.inset ?? null, fps: c.fps ?? null, effects: c.effects ?? [] };
-  }
-
-  /**
-   * Config value setter required by lcards-color-section
-   * Uses _currentEffectIndex to update the correct effect
-   */
-  _setConfigValue(path, value) {
-    if (this._currentEffectIndex !== null) {
-      this._updateEffectConfig(this._currentEffectIndex, path, value);
-    }
   }
 
   render() {
@@ -512,6 +499,20 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           .helper=${this._getPresetHelp(preset)}
           @value-changed=${(e) => this._updateEffect(index, 'preset', e.detail.value)}
         ></ha-selector>
+        ${/** @type {any} */ (BACKGROUND_PRESETS)[preset]?.renderer === 'webgl' ? html`
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ select: { mode: 'dropdown', options: [
+              { value: 'auto', label: 'Auto: WebGL when available' },
+              { value: 'webgl', label: 'WebGL (Canvas2D without it)' },
+              { value: 'canvas', label: 'Canvas2D only' }
+            ] } }}
+            .value=${effect.renderer ?? 'auto'}
+            .label=${'Renderer'}
+            .helper=${'How this effect is drawn. Canvas2D only uses no GPU.'}
+            @value-changed=${(e) => this._updateEffect(index, 'renderer', e.detail.value === 'auto' ? undefined : e.detail.value)}
+          ></ha-selector>
+        ` : ''}
       </lcards-form-section>
 
       ${this._renderEffectInfoGuide(preset, index)}
@@ -519,8 +520,46 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       <!-- Preset Configuration -->
       ${this._renderPresetConfig(effect, index)}
 
+      <!-- Speed + binding glide -->
+      ${this._renderTimingSection(effect, index)}
+
       <!-- Zoom Wrapper -->
       ${this._renderZoomSection(effect, index)}
+    `;
+  }
+
+  /**
+   * Whole-effect speed multiplier (not for static presets, or shimmer, whose
+   * own speed is its sweep) and the glide of entity-bound values.
+   */
+  _renderTimingSection(effect, index) {
+    const preset = effect.preset || 'grid';
+    const config = effect.config || {};
+    const hasSpeed = !['shimmer', 'image', 'solid'].includes(preset);
+    const speed = typeof config.speed === 'number' ? config.speed : 1;
+    return html`
+      <lcards-form-section header="Timing" icon="mdi:timer-outline" ?expanded=${false}>
+        <div class="param-grid">
+          ${hasSpeed ? html`
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 10, step: 0.1, mode: 'slider' } }}
+              .value=${speed}
+              .label=${'Speed'}
+              .helper=${'Time multiplier for the whole effect: 2 is twice as fast, 0 freezes it'}
+              @value-changed=${(e) => this._updateEffectConfig(index, 'speed', e.detail.value)}
+            ></ha-selector>
+          ` : ''}
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: 0, max: 5000, step: 50, mode: 'box', unit_of_measurement: 'ms' } }}
+            .value=${effect.transition ?? 500}
+            .label=${'Binding transition'}
+            .helper=${'How long an entity-bound value glides to its new value (0 snaps)'}
+            @value-changed=${(e) => this._updateEffect(index, 'transition', e.detail.value)}
+          ></ha-selector>
+        </div>
+      </lcards-form-section>
     `;
   }
 
@@ -537,19 +576,14 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     const presetInfo = BACKGROUND_PRESETS[preset];
     if (!presetInfo?.guide) return '';
 
-    const expanded = this._expandedGuideIndices.has(index);
     const docsUrl = `${BACKGROUND_PRESET_DOCS_URL}#${preset}`;
     const guide = presetInfo.guide;
 
     return html`
-      <div class="preset-info-guide">
-        <div class="preset-info-guide-header" @click=${() => this._toggleGuideExpanded(index)}>
-          <ha-icon icon="mdi:information-outline"></ha-icon>
-          <span>How ${presetInfo.name} works</span>
-          <ha-icon icon="mdi:chevron-down" class="guide-chevron ${expanded ? 'expanded' : ''}"></ha-icon>
-        </div>
-        ${expanded ? html`
-          <div class="preset-info-guide-body">
+      ${renderInfoGuide({
+        header: `How ${presetInfo.name} works`,
+        icon: 'mdi:information-outline',
+        body: html`
             ${this._splitIntoSentences(guide.summary).map(s => html`<p>${s}</p>`)}
             ${guide.params?.length ? html`
               <strong>Params:</strong>
@@ -557,40 +591,26 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
                 ${guide.params.map(p => html`
                   <li>
                     <code>${p.key}</code>${p.default !== undefined ? html` (default: <code>${JSON.stringify(p.default)}</code>)` : ''}
-                    ${p.description ? ` — ${p.description}` : ''}
+                    ${p.description ? `: ${p.description}` : ''}
                   </li>
                 `)}
               </ul>
             ` : ''}
             <strong>Example:</strong>
-            <pre class="preset-info-guide-example">${guide.example}</pre>
+            <pre class="info-guide-example">${guide.example}</pre>
             ${guide.tip ? html`
-              <p class="preset-info-guide-tip"><strong>Tip:</strong> ${guide.tip}</p>
+              <p class="info-guide-tip"><strong>Tip:</strong> ${guide.tip}</p>
             ` : ''}
             ${this._renderEntityBindingNote()}
-            <div class="preset-info-guide-links">
+            <div class="info-guide-links">
               <a href=${docsUrl} target="_blank" rel="noopener noreferrer">View full docs →</a>
             </div>
-          </div>
-        ` : ''}
-      </div>
+          `,
+      })}
     `;
   }
 
-  /**
-   * @private
-   */
-  _toggleGuideExpanded(index) {
-    const updated = new Set(this._expandedGuideIndices);
-    if (updated.has(index)) {
-      updated.delete(index);
-    } else {
-      updated.add(index);
-    }
-    this._expandedGuideIndices = updated;
-  }
-
-  /**
+    /**
    * @private
    */
   _splitIntoSentences(text) {
@@ -601,6 +621,11 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
   _renderPresetConfig(effect, index) {
     const preset = effect.preset || 'grid';
     const config = effect.config || {};
+
+    // Presets edited from their params schema (the WebGL scenes)
+    if (SCHEMA_SECTIONS[preset]) {
+      return html`${this._renderSchemaSections(preset, config, index)}`;
+    }
 
     // Starfield uses different sections
     if (preset === 'starfield') {
@@ -651,12 +676,95 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       return html`${this._renderSolidSection(config, index)}`;
     }
 
-    // Grid presets use pattern/major-minor/scrolling/color sections
+    // Grid presets use pattern/major-minor/scrolling/color sections, then
+    // the WebGL view and camera group
     return html`
       ${this._renderPatternSection(preset, config, index)}
       ${this._renderMajorMinorSection(preset, config, index)}
       ${this._renderScrollingSection(config, index)}
       ${this._renderColorSection(preset, config, index)}
+      ${GRID_PRESETS.includes(preset) ? this._renderGridViewSection(preset, config, index) : ''}
+    `;
+  }
+
+  /**
+   * Sections built from a preset's params schema (SCHEMA_SECTIONS).
+   * @param {string} preset
+   * @param {Record<string, any>} config
+   * @param {number} index
+   */
+  _renderSchemaSections(preset, config, index) {
+    return html`
+      ${SCHEMA_SECTIONS[preset].map((section) => this._renderSchemaSection(section.header, section.icon, schemaFields(preset, section.keys), config, index))}
+      ${preset === 'warp-starfield' ? html`
+        <lcards-form-section header="Colours" icon="mdi:palette" ?expanded=${true}>
+          <lcards-color-list
+            .hass=${this.hass}
+            .colors=${config.colors || (config.color ? [config.color] : [])}
+            .label=${'Star colours'}
+            .description=${'Each star takes one of these. Empty: moonlight, which follows the alert palette.'}
+            @colors-changed=${(e) => this._updateEffectConfig(index, 'colors', e.detail.colors)}
+          ></lcards-color-list>
+        </lcards-form-section>
+      ` : ''}
+    `;
+  }
+
+  /**
+   * One section of schema fields: number, select and boolean fields in a
+   * grid, colour fields with their label and helper.
+   * @param {string} header
+   * @param {string} icon
+   * @param {import('./background-animation-fields.js').EditorField[]} fields
+   * @param {Record<string, any>} config
+   * @param {number} index
+   */
+  _renderSchemaSection(header, icon, fields, config, index) {
+    const plain = fields.filter((f) => f.type !== 'color');
+    const colors = fields.filter((f) => f.type === 'color');
+    return html`
+      <lcards-form-section header=${header} icon=${icon} ?expanded=${true}>
+        ${plain.length ? html`<div class="param-grid">${plain.map((f) => this._renderField(f, config, index))}</div>` : ''}
+        ${colors.map((f) => this._renderColorSlot(f, config, index))}
+      </lcards-form-section>
+    `;
+  }
+
+  /**
+   * The grid presets' view, surface, camera and scan keys (WebGL only).
+   * @param {string} preset
+   * @param {Record<string, any>} config
+   * @param {number} index
+   */
+  _renderGridViewSection(preset, config, index) {
+    const fields = schemaFields(preset, GRID_VIEW_KEYS).map((f) => withViewDefault(f, config));
+    return html`
+      <lcards-form-section header="View, surface and camera (WebGL)" icon="mdi:axis-arrow" ?expanded=${false}>
+        <div class="param-grid">${fields.filter((f) => f.type !== 'color').map((f) => this._renderField(f, config, index))}</div>
+        ${fields.filter((f) => f.type === 'color').map((f) => this._renderColorSlot(f, config, index))}
+      </lcards-form-section>
+    `;
+  }
+
+  /**
+   * A labelled colour picker for one config key.
+   * @param {{ key: string, label: string, helper?: string }} slot
+   * @param {Record<string, any>} config
+   * @param {number} index
+   */
+  _renderColorSlot(slot, config, index) {
+    return html`
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; padding: 2px 8px;">${slot.label}</div>
+        <lcards-color-picker
+          .hass=${this.hass}
+          .value=${config[slot.key] || ''}
+          .variablePrefixes=${['--lcards-', '--lcars-', '--cblcars-']}
+          ?showPreview=${true}
+          @value-changed=${(e) => this._updateEffectConfig(index, slot.key, e.detail.value)}>
+        </lcards-color-picker>
+        ${slot.helper ? html`<div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px; padding: 0 8px;">${slot.helper}</div>` : ''}
+      </div>
     `;
   }
 
@@ -681,7 +789,10 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     // too, but GridEffect also honours them directly on the base 'grid'
     // preset; 'dots' had no UI path to it at all before this).
     if (preset === 'grid') {
-      fields.push({ key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical', 'diagonal', 'hexagonal', 'dots'], default: 'both' });
+      fields.push({ key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical', 'diagonal', 'hexagonal', 'dots', 'polar'], default: 'both' });
+      if (config.pattern === 'polar') {
+        fields.push(...schemaFields('grid', ['spoke_count', 'polar_x', 'polar_y']));
+      }
       if (config.pattern === 'dots') {
         fields.push({ key: 'dot_radius', label: 'Dot Radius (px)', type: 'number', min: 0.5, max: 10, step: 0.5, default: 2 });
       }
@@ -809,6 +920,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           ${this._renderField({ key: 'max_radius', label: 'Max Cloud Radius', type: 'number', min: 0.1, max: 1, step: 0.05, default: 0.4, helper: 'Fraction of canvas size (0-1)' }, config, index)}
           ${this._renderField({ key: 'min_opacity', label: 'Min Cloud Opacity', type: 'number', min: 0, max: 1, step: 0.1, default: 0.3 }, config, index)}
           ${this._renderField({ key: 'max_opacity', label: 'Max Cloud Opacity', type: 'number', min: 0, max: 1, step: 0.1, default: 0.8 }, config, index)}
+          ${schemaFields('nebula', ['volumetric']).map((f) => this._renderField(f, config, index))}
         </div>
       </lcards-form-section>
 
@@ -866,10 +978,10 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       <lcards-form-section
         header="Fill"
         icon="mdi:water"
-        description="Floods or drains a waterline over the terrain above — doesn't change the terrain itself"
+        description="Floods or drains a waterline over the terrain above; doesn't change the terrain itself"
         ?expanded=${true}>
         <div class="param-grid">
-          ${this._renderField({ key: 'fill_level', label: 'Fill Level', type: 'number', min: 0, max: 0.95, step: 0.05, default: 0, helper: '0 = no water, full terrain visible. Raise it to flood the lowest rings — they become Fill Colour instead of their normal colour, leaving isolated nebula-like blobs at the peaks.' }, config, index)}
+          ${this._renderField({ key: 'fill_level', label: 'Fill Level', type: 'number', min: 0, max: 0.95, step: 0.05, default: 0, helper: '0 = no water, full terrain visible. Raise it to flood the lowest rings: they become Fill Colour instead of their normal colour, leaving isolated nebula-like blobs at the peaks.' }, config, index)}
           ${this._renderField({ key: 'fill_color', label: 'Fill Colour', type: 'color', default: '', fullWidth: true, helper: 'Leave empty for literal transparency (the card background shows through as "space"). Set a colour (e.g. black) to bake the void into the effect itself.' }, config, index)}
         </div>
       </lcards-form-section>
@@ -880,7 +992,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         description="What fills each contour ring above the waterline"
         ?expanded=${true}>
         <div class="param-grid">
-          ${this._renderField({ key: 'blend_colors', label: 'Blend Between Colours', type: 'boolean', default: true, helper: 'On = colours (and the Fill waterline) fade smoothly. Off = every edge is a hard cutoff with no blending anywhere — flat, solid rings and a crisp shoreline, matching real contour maps and the reference site\'s look.' }, config, index)}
+          ${this._renderField({ key: 'blend_colors', label: 'Blend Between Colours', type: 'boolean', default: true, helper: 'On = colours (and the Fill waterline) fade smoothly. Off = every edge is a hard cutoff with no blending anywhere: flat, solid rings and a crisp shoreline, matching real contour maps and the reference site\'s look.' }, config, index)}
         </div>
         <lcards-color-list
           .hass=${this.hass}
@@ -901,7 +1013,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           <ha-input
             type="number"
             label="Rows (blank = auto)"
-            helper="Leave empty to fill card height automatically"
+            hint="Leave empty to fill card height automatically"
             min="1"
             max="50"
             step="1"
@@ -912,7 +1024,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           <ha-input
             type="number"
             label="Columns (blank = auto)"
-            helper="Leave empty to fill card width automatically"
+            hint="Leave empty to fill card width automatically"
             min="1"
             max="100"
             step="1"
@@ -979,7 +1091,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           @value-changed=${(e) => this._updateEffectConfig(index, 'pattern', e.detail.value)}
         ></ha-selector>
         ${(config.pattern ?? 'default') === 'custom' ? html`
-          <lcards-message type="info" .message=${'Custom timing requires a YAML-supplied "timing" array of { duration, delay } objects — one per row. Edit this card\'s YAML directly to set the timing property.'}></lcards-message>
+          <lcards-message type="info" .message=${'Custom timing requires a YAML-supplied "timing" array of { duration, delay } objects, one per row. Edit this card\'s YAML directly to set the timing property.'}></lcards-message>
         ` : ''}
         <div class="param-grid">
           ${this._renderField({ key: 'speed_multiplier', label: 'Speed Multiplier (1.0 = normal)', type: 'number', min: 0.1, max: 10, step: 0.1, default: 1.0, helper: '2.0 = twice as fast, 0.5 = half speed' }, config, index)}
@@ -1014,28 +1126,22 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
   }
 
   _renderColorSection(preset, config, index) {
-    // Store current effect index for _setConfigValue callback
-    this._currentEffectIndex = index;
-
-    const colorPaths = [{ path: 'color', label: 'Line Colour', helper: 'Main line colour' }];
+    const slots = [{ key: 'color', label: 'Line Colour', helper: 'Main line colour' }];
 
     if (preset === 'grid' || preset === 'grid-hexagonal') {
-      colorPaths.push({ path: 'color_major', label: 'Major Line Colour', helper: 'Leave empty to use same as main colour' });
+      slots.push({ key: 'color_major', label: 'Major Line Colour', helper: 'Leave empty to use same as main colour' });
     }
 
     if (preset === 'grid' || preset === 'grid-diagonal' || preset === 'grid-hexagonal') {
-      colorPaths.push({ path: 'fill_color', label: 'Fill Colour', helper: 'Cell/area background fill (leave empty for transparent)' });
+      slots.push({ key: 'fill_color', label: 'Fill Colour', helper: 'Cell/area background fill (leave empty for transparent)' });
     }
 
+    // Each picker closes over its own effect index, so several expanded
+    // effects never write into each other.
     return html`
-      <lcards-color-section
-        .editor=${this}
-        header="Colours"
-        .colorPaths=${colorPaths}
-        .getConfigValue=${(path) => config[path] || ''}
-        ?expanded=${true}
-        ?useColorPicker=${true}>
-      </lcards-color-section>
+      <lcards-form-section header="Colours" icon="mdi:palette" ?expanded=${true}>
+        ${slots.map(slot => this._renderColorSlot(slot, config, index))}
+      </lcards-form-section>
     `;
   }
 
@@ -1134,119 +1240,21 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     `;
   }
 
-  /**
-   * Return a combined list of builtin image options from both the `image` and `svg`
-   * asset registries.  Each entry is `{ value: 'builtin:key', label: key }`.
-   * @returns {Array<{value:string, label:string}>}
-   */
-  _getAvailableImages() {
-    const am = window.lcards?.core?.assetManager;
-    if (!am) return [];
-    // Only genuinely curated, pack-provided assets belong here —
-    // listAssets()/listImages() return every registered key, including ones
-    // dynamically registered from a user's Custom URL or HA Media pick
-    // (they persist in the registry for the rest of the page session once
-    // picked), which never carry a `pack` metadata field the way
-    // pack-provided entries always do. Without this filter, a previously-
-    // picked media-source:// id or custom URL leaks into this list
-    // permanently as a mangled, unresolvable "builtin:<raw value>" entry —
-    // see the matching fix in lcards-msd-studio-dialog.js's _getAvailableSvgs().
-    const isPackAsset = (type, key) => !!am.getMetadata?.(type, key)?.pack;
-    const svgKeys   = (am.listAssets?.('svg') ?? []).filter(key => isPackAsset('svg', key));
-    const imgKeys   = (am.listImages?.()      ?? []).filter(key => isPackAsset('image', key));
-    const all       = [...new Set([...svgKeys, ...imgKeys])].sort();
-    return all.map(key => ({ value: `builtin:${key}`, label: key }));
-  }
-
-  /**
-   * Handle image source mode change for a specific effect index.
-   * When switching to 'asset' mode and the current value is not a builtin reference,
-   * automatically select the first available image.
-   * @param {number} index
-   * @param {string} mode  'asset' | 'custom' | 'media'
-   * @param {string} currentSource
-   */
-  _handleImageSrcModeChange(index, mode, currentSource) {
-    this._imageSrcModes = { ...this._imageSrcModes, [index]: mode };
-    if (mode === 'asset' && !currentSource?.startsWith('builtin:')) {
-      const available = this._getAvailableImages();
-      if (available.length > 0) {
-        this._updateEffectConfig(index, 'source', available[0].value);
-      }
-    }
-  }
-
   _renderImageBackgroundSection(config, index) {
     const source = config.source ?? config.url ?? '';
-    const mode   = this._imageSrcModes[index] ?? (
-      source.startsWith('builtin:') ? 'asset' :
-      source.startsWith('media-source://') ? 'media' :
-      'custom'
-    );
-    const availableImages = this._getAvailableImages();
-    const showHttpWarning = mode === 'custom' && source.startsWith('http:') &&
-      typeof location !== 'undefined' && location.protocol === 'https:';
-    const mediaValue = source.startsWith('media-source://')
-      ? { media_content_id: source, media_content_type: '' }
-      : undefined;
 
     return html`
       <lcards-form-section header="Image" icon="mdi:image" ?expanded=${true}>
         <div class="param-grid">
-          <!-- Source mode selector (full width) -->
-          <ha-selector
-            .hass=${this.hass}
-            .selector=${{ select: { mode: 'dropdown', options: [
-              { value: 'asset',  label: 'Asset Library (builtin images & SVGs)' },
-              { value: 'custom', label: 'Custom URL / Template' },
-              { value: 'media',  label: 'Browse HA Media' }
-            ]}}}
-            .value=${mode}
-            .label=${'Image Source'}
-            @value-changed=${(e) => this._handleImageSrcModeChange(index, e.detail.value, source)}
+          <lcards-asset-source-picker .hass=${this.hass} .value=${source}
+            .label=${'Image Source'} .assetLabel=${'Built-in Image'}
+            .assetHelper=${'Images and SVGs registered in the Asset Library'}
+            .customLabel=${'Image URL'}
+            .customHelper=${'Path to image: /local/images/room.jpg · https://… · or a template: {entity.attributes.entity_picture}'}
+            .mediaHelper=${'Browse or upload an image via the Home Assistant media library'}
+            @value-changed=${(e) => { e.stopPropagation(); this._updateEffectConfig(index, 'source', e.detail.value); }}
             style="grid-column: 1 / -1"
-          ></ha-selector>
-
-          ${mode === 'asset' ? html`
-            <!-- Asset picker -->
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ select: { mode: 'dropdown', custom_value: availableImages.length >= 10, options: availableImages }}}
-              .value=${availableImages.some(o => o.value === source) ? source : (availableImages[0]?.value ?? '')}
-              .label=${'Built-in Image'}
-              .helper=${'Images and SVGs registered in the Asset Library'}
-              @value-changed=${(e) => this._updateEffectConfig(index, 'source', e.detail.value)}
-              style="grid-column: 1 / -1"
-            ></ha-selector>
-          ` : mode === 'media' ? html`
-            <!-- HA media library picker -->
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ media: { accept: ['image/*'] } }}
-              .value=${mediaValue}
-              .label=${'HA Media'}
-              .helper=${'Browse or upload an image via the Home Assistant media library'}
-              @value-changed=${(e) => this._updateEffectConfig(index, 'source', e.detail.value?.media_content_id ?? '')}
-              style="grid-column: 1 / -1"
-            ></ha-selector>
-          ` : html`
-            <!-- Custom URL / template input -->
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ text: {} }}
-              .value=${source}
-              .label=${'Image URL'}
-              .helper=${'Path to image: /local/images/room.jpg · https://… · or a template: {entity.attributes.entity_picture}'}
-              @value-changed=${(e) => this._updateEffectConfig(index, 'source', e.detail.value)}
-              style="grid-column: 1 / -1"
-            ></ha-selector>
-          `}
-
-          ${showHttpWarning ? html`
-            <div style="grid-column:1/-1">
-              <lcards-message type="warning" .message=${'http:// URLs will be blocked as mixed content when Home Assistant is served over HTTPS. Use an https:// URL or a /local/ path instead.'}></lcards-message>
-            </div>
-          ` : ''}
+          ></lcards-asset-source-picker>
 
           <!-- Size -->
           <ha-selector
@@ -1398,6 +1406,24 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       `;
     }
 
+    if (field.type === 'list') {
+      // Numbers as comma-separated text; cleared text removes the key
+      return html`
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ text: {} }}
+          .value=${Array.isArray(value) ? value.join(', ') : ''}
+          .label=${field.label}
+          .helper=${field.helper}
+          @value-changed=${(e) => {
+            const nums = String(e.detail.value ?? '').split(',').map((v) => v.trim()).filter(Boolean).map(Number);
+            if (nums.some((n) => !Number.isFinite(n))) return;
+            this._updateEffectConfig(index, field.key, nums.length ? nums : undefined);
+          }}
+        ></ha-selector>
+      `;
+    }
+
     return html`
       <ha-selector
         .hass=${this.hass}
@@ -1412,13 +1438,10 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
   _renderEntityBindingNote() {
     return html`
-      <lcards-message type="info">
-        <strong>Entity Binding:</strong> To reactively tie any parameter to an entity (e.g. speed to brightness), edit this card’s YAML directly.<br><br>
-        <strong>map_range</strong> (recommended):<br>
-        <code>scroll_speed_x: { map_range: { attribute: brightness, input: [0,255], output: [-200,200] } }</code><br><br>
-        <strong>Template</strong> (advanced):<br>
-        <code>fill_pct: "[[[return entity.attributes.brightness / 2.55]]]"</code>
-      </lcards-message>
+      <p class="info-guide-tip"><strong>Follow an entity:</strong> any parameter can track an entity (speed to brightness,
+        say), in this card's YAML. <code>map_range</code> is the usual way; a template is the advanced one.</p>
+      <pre class="info-guide-example">scroll_speed_x: { map_range: { attribute: brightness, input: [0, 255], output: [-200, 200] } }
+fill_pct: "[[[return entity.attributes.brightness / 2.55]]]"</pre>
     `;
   }
 
@@ -1767,17 +1790,6 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     });
     this._expandedEffects = newExpanded;
 
-    // Update image source mode state
-    const newSrcModes = {};
-    Object.keys(this._imageSrcModes).forEach(key => {
-      const idx = parseInt(key);
-      if (idx < index) {
-        newSrcModes[idx] = this._imageSrcModes[idx];
-      } else if (idx > index) {
-        newSrcModes[idx - 1] = this._imageSrcModes[idx];
-      }
-    });
-    this._imageSrcModes = newSrcModes;
 
     this._emitChange(updatedEffects, inset);
   }
@@ -1789,6 +1801,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       ...updatedEffects[index],
       [key]: value
     };
+    // undefined removes the key (e.g. renderer back to its default)
+    if (value === undefined) delete updatedEffects[index][key];
 
     // Reset config when preset changes
     if (key === 'preset') {
@@ -1801,13 +1815,10 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
   _updateEffectConfig(index, key, value) {
     const { effects, inset } = this._normalizedConfig;
     const updatedEffects = [...effects];
-    updatedEffects[index] = {
-      ...updatedEffects[index],
-      config: {
-        ...updatedEffects[index].config,
-        [key]: value
-      }
-    };
+    const config = { ...updatedEffects[index].config, [key]: value };
+    // undefined removes the key (a cleared list field)
+    if (value === undefined) delete config[key];
+    updatedEffects[index] = { ...updatedEffects[index], config };
     this._emitChange(updatedEffects, inset);
   }
 
@@ -1906,24 +1917,24 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
   _handleDragStart(e, index) {
     this._draggedIndex = index;
-    e.dataTransfer.effectAllowed = 'move';
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', e.target.innerHTML);
   }
 
   _handleDragEnd(e) {
     this._draggedIndex = null;
     // Remove all drag-over classes
-    this.shadowRoot.querySelectorAll('.effect-item').forEach(item => {
+    this.shadowRoot?.querySelectorAll('.effect-item').forEach(item => {
       item.classList.remove('drag-over');
     });
   }
 
   _handleDragOver(e, index) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 
     // Add drag-over visual indicator
-    const items = this.shadowRoot.querySelectorAll('.effect-item');
+    const items = this.shadowRoot?.querySelectorAll('.effect-item') ?? [];
     items.forEach(item => item.classList.remove('drag-over'));
     items[index]?.classList.add('drag-over');
   }
@@ -1962,26 +1973,11 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
     this._expandedEffects = newExpandedState;
 
-    // Update image source mode state to follow moved items
-    const newSrcModeState = {};
-    Object.keys(this._imageSrcModes).forEach(oldIndex => {
-      const idx = parseInt(oldIndex);
-      let newIndex = idx;
-      if (idx === dragIndex) {
-        newIndex = dropIndex;
-      } else if (dragIndex < dropIndex && idx > dragIndex && idx <= dropIndex) {
-        newIndex = idx - 1;
-      } else if (dragIndex > dropIndex && idx >= dropIndex && idx < dragIndex) {
-        newIndex = idx + 1;
-      }
-      newSrcModeState[newIndex] = this._imageSrcModes[oldIndex];
-    });
-    this._imageSrcModes = newSrcModeState;
 
     this._draggedIndex = null;
 
     // Remove drag-over class
-    this.shadowRoot.querySelectorAll('.effect-item').forEach(item => {
+    this.shadowRoot?.querySelectorAll('.effect-item').forEach(item => {
       item.classList.remove('drag-over');
     });
 
@@ -1999,6 +1995,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
    *
    * @param {Array} effects - Updated effects array
    * @param {Object|string|null} inset - Canvas inset value (null = no inset / bare array form)
+   * @param {number} [fps] - Frame rate, when set
    */
   _emitChange(effects, inset, fps) {
     // fps arg: explicit value overrides; undefined = preserve whatever is in current config.

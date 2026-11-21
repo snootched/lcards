@@ -1,0 +1,13 @@
+# style.text.default.color set by the user beats the preset's text.default.color
+type: custom:lcards-button
+entity: switch.demo_switch
+preset: lozenge
+text:
+  label:
+    content: OFFLINE
+    show: true
+style:
+  text:
+    default:
+      color:
+        inactive: var(--lcards-orange)

@@ -2,7 +2,7 @@
 /**
  * @fileoverview MSD Routing Concepts — Illustrative Diagram Generator
  *
- * Renders the 4 small SVG diagrams embedded in doc/cards/msd/routing-concepts.md
+ * Renders the 4 small SVG diagrams embedded in doc/cards/msd/routing.md
  * (obstacle avoidance, automatic bundling, channel preference, crossing
  * avoidance) directly from RouterCore's own computed output — each line's `d`
  * path is used verbatim (real corner-rounding included via

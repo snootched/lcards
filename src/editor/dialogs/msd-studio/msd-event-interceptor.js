@@ -21,9 +21,10 @@ export class MSDEventInterceptor {
         this._boundCardPickerHandler = null;
         this._boundDialogClosedHandler = null;
         this._boundElementEditorHandler = null;
+        /** @type {{active: boolean, timestamp: number, savedState: any}} */
         this._elementEditSession = {
             active: false,
-            timestamp: null,
+            timestamp: 0, // never; arithmetic treats it exactly like the old null
             savedState: null
         };
         this._lastElementEditorLogTime = 0;
@@ -59,7 +60,7 @@ export class MSDEventInterceptor {
 
                         // Process card addition
                         this.dialog._handleCardPickerSelection(e.detail.config);
-                        return false;
+                        return;
                     }
                 }
             }
@@ -121,7 +122,7 @@ export class MSDEventInterceptor {
     /**
      * Comprehensive detection for element editor events
      * Critical for picture-elements cards
-     * @param {Event} e - Event to check
+     * @param {Event & { detail?: any }} e - Event to check (custom events carry detail)
      * @returns {boolean}
      * @private
      */
@@ -132,11 +133,8 @@ export class MSDEventInterceptor {
         const shouldLog = now - this._lastElementEditorLogTime > this._elementEditorLogThrottle;
 
         // Check event detail for element editor markers
-        // @ts-ignore - TS2339: auto-suppressed
         if (e.detail) {
-            // @ts-ignore - TS2339: auto-suppressed
             if (e.detail.fromElementEditor || e.detail.elementConfig ||
-                // @ts-ignore - TS2339: auto-suppressed
                 e.detail.elementToEdit || e.detail.element) {
                 if (shouldLog) {
                     lcardsLog.debug('[MSDEventInterceptor] 🔍 Element editor detected via event detail');
@@ -148,20 +146,14 @@ export class MSDEventInterceptor {
 
         // Check event path for element editor components
         const path = e.composedPath ? e.composedPath() : [];
-        for (const node of path) {
-            // @ts-ignore - TS2339: auto-suppressed
+        for (const node of /** @type {HTMLElement[]} */ (path)) {
             if (!node || !node.localName) continue;
 
-            // @ts-ignore - TS2339: auto-suppressed
             if (node.localName === "hui-element-editor" ||
-                // @ts-ignore - TS2339: auto-suppressed
                 node.localName === "hui-dialog-edit-element" ||
-                // @ts-ignore - TS2339: auto-suppressed
                 node.localName === "hui-card-element-editor" ||
-                // @ts-ignore - TS2339: auto-suppressed
                 node.localName.includes("element-editor")) {
                 if (shouldLog) {
-                    // @ts-ignore - TS2339: auto-suppressed
                     lcardsLog.debug('[MSDEventInterceptor] 🔍 Element editor detected via path:', node.localName);
                     this._lastElementEditorLogTime = now;
                 }

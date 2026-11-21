@@ -1,0 +1,9 @@
+# A button with no entity and no action is decorative by default: arrow cursor and no
+# hover colour (button-interactive in cards.spec.js). The harness mounts one card, so
+# the interactive twin is button-decorative-twin.yaml.
+type: custom:lcards-button
+preset: lozenge
+text:
+  label:
+    content: TITLE
+    show: true

@@ -32,17 +32,17 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
-import { parseLayoutConfig } from '../views/layout-grid-utils.js';
+import { visibilityPasses } from '../utils/visibility-conditions.js';
+import { parseLayoutConfig, cellHeightDefinite, gridHeightIsDefinite, resolveVisibilityTracks, isAutoPlaced } from '../views/layout-grid-utils.js';
 import {
     buildGridStyle,
     applyCardPlacement,
     applyGridItemHeight,
     renderAreaSurfaces,
+    placeGridChildren,
+    inFittedCell,
 } from '../views/layout-render.js';
 
-// Static import so getConfigElement() can return the editor synchronously
-// (the bundle is a single file; no code-splitting).
-import '../editor/cards/lcards-layout-card-editor.js';
 import { layoutCardSchema } from './schemas/layout-card-schema.js';
 
 export class LCARdSLayoutCard extends LitElement {
@@ -52,6 +52,7 @@ export class LCARdSLayoutCard extends LitElement {
     static properties = {
         hass:     { attribute: false },
         editing:  { type: Boolean },   // set by the editor to reserve the overlay gutter
+        preview:  { type: Boolean },   // set by hui-card in dashboard edit mode
         _config:  { state: true },
         _columns: { state: true },
         _rows:    { state: true },
@@ -67,8 +68,93 @@ export class LCARdSLayoutCard extends LitElement {
         this._areas    = [['.', '.']];
         this._gap      = '5px';
         this.editing   = false;
+        this.preview   = false;
         this._cardElements = [];
         this._helpers  = null;
+        /** @type {{ mql: MediaQueryList, handler: () => void }[]} */
+        this._mediaQueryLists = [];
+        // A child's hui-card fires a bubbling, composed `card-visibility-changed`
+        // when it hides or shows itself: re-resolve the collapsed tracks.
+        this._visibilityRaf = 0;
+        this._onCardVisibilityChanged = () => {
+            cancelAnimationFrame(this._visibilityRaf);
+            this._visibilityRaf = requestAnimationFrame(() => this._applyVisibilityTracks());
+        };
+    }
+
+    connectedCallback() {
+        super.connectedCallback();
+        this._setupMediaQueries();
+
+        this.addEventListener('card-visibility-changed', this._onCardVisibilityChanged);
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        this._teardownMediaQueries();
+        this.removeEventListener('card-visibility-changed', this._onCardVisibilityChanged);
+        cancelAnimationFrame(this._visibilityRaf);
+    }
+
+    /**
+     * Collapse the row or column of a hidden child (resolveVisibilityTracks, the
+     * layout view's rule): a track goes to 0 when every child with a Visibility
+     * condition that sits in it alone is hidden, and the `fr` tracks take the
+     * space. Written on the grid node after Lit's own style, so it survives
+     * re-renders (updated() calls it again). Every track is open while the
+     * dashboard or the Layout Studio is editing.
+     */
+    _applyVisibilityTracks() {
+        const grid = /** @type {HTMLElement | null} */ (this.renderRoot?.querySelector('#grid-root'));
+        if (!grid) return;
+        const cards = (this._config?.cards ?? []).flatMap((cfg, i) => {
+            const area = cfg?.view_layout?.['grid-area'];
+            if (!area) return [];
+            const conditional = !!cfg?.visibility?.length;
+            const h = cfg.layout?.height;
+            return [{ area, conditional, hidden: conditional && !!this._cardElements?.[i]?.hidden, targetHeight: h && h !== 'auto' && h !== '100%' ? h : null }];
+        });
+        if (!cards.some((c) => c.conditional)) return;
+        const { rows, columns } = resolveVisibilityTracks(this._activeGrid(), cards, !!(this.preview || this.editing));
+        grid.style.gridTemplateRows = rows.join(' ');
+        grid.style.gridTemplateColumns = columns.join(' ');
+    }
+
+    /** Re-render when a `layout.mediaquery` query starts or stops matching. */
+    _setupMediaQueries() {
+        this._teardownMediaQueries();
+        if (!this.isConnected) return;
+        for (const query of Object.keys(this._config?.layout?.mediaquery ?? {})) {
+            try {
+                const mql = window.matchMedia(query);
+                const handler = () => this.requestUpdate();
+                mql.addEventListener('change', handler);
+                this._mediaQueryLists.push({ mql, handler });
+            } catch { /* ignore invalid queries */ }
+        }
+    }
+
+    _teardownMediaQueries() {
+        for (const { mql, handler } of this._mediaQueryLists) mql.removeEventListener('change', handler);
+        this._mediaQueryLists = [];
+    }
+
+    /**
+     * The grid tracks, areas and gap to draw: the editor state, or with
+     * `layout.mediaquery` overrides matching (as the layout view applies them)
+     * the layout with those overrides merged in. The studio always edits the base.
+     */
+    _activeGrid() {
+        const base = { columns: this._columns, rows: this._rows, areas: this._areas, gap: this._gap };
+        const { mediaquery, ...layout } = this._config?.layout ?? {};
+        if (!mediaquery || typeof mediaquery !== 'object' || this.editing) return base;
+        let merged = null;
+        for (const [query, override] of Object.entries(mediaquery)) {
+            try {
+                if (override && window.matchMedia(query).matches) merged = { ...(merged ?? layout), ...override };
+            } catch { /* ignore invalid queries */ }
+        }
+        return merged ? parseLayoutConfig(merged) : base;
     }
 
     static getStubConfig() {
@@ -81,7 +167,10 @@ export class LCARdSLayoutCard extends LitElement {
         };
     }
 
-    static getConfigElement() {
+    static async getConfigElement() {
+        // Editors load on demand (HA awaits getConfigElement), keeping them out of
+        // the bundle every dashboard loads.
+        await import('../editor/cards/lcards-layout-card-editor.js');
         return document.createElement('lcards-layout-card-editor');
     }
 
@@ -111,6 +200,7 @@ export class LCARdSLayoutCard extends LitElement {
         this._rows    = rows;
         this._areas   = areas;
         this._gap     = gap;
+        this._setupMediaQueries();
 
         // Only rebuild child elements when the cards list actually changed — layout
         // edits (resize/areas) just re-place the existing children.
@@ -157,12 +247,26 @@ export class LCARdSLayoutCard extends LitElement {
             if (customElements.get('hui-card')) {
                 const el = document.createElement('hui-card');
                 el.config = cardConfig;
-                el.editMode = false;
+                el.preview = this.preview;
                 if (this._hass) el.hass = this._hass;
                 return el;
             }
             if (this._helpers?.createCardElement) {
                 const el = this._helpers.createCardElement(cardConfig);
+                el.preview = this.preview;
+                if (this._hass) el.hass = this._hass;
+                return el;
+            }
+            // Outside HA's frontend (docs live demos, the browser test harness) there is
+            // neither: build a registered custom card directly.
+            const tag = typeof cardConfig?.type === 'string' && cardConfig.type.startsWith('custom:') ? cardConfig.type.slice(7) : null;
+            if (tag && customElements.get(tag)) {
+                const el = /** @type {any} */ (document.createElement(tag));
+                el.setConfig?.(cardConfig);
+                el.preview = this.preview;
+                // hui-card checks Visibility conditions; without it, this card does
+                // (_applyFallbackVisibility, on every hass update)
+                if (Array.isArray(cardConfig.visibility) && cardConfig.visibility.length) el._lcardsVisibility = cardConfig.visibility;
                 if (this._hass) el.hass = this._hass;
                 return el;
             }
@@ -179,6 +283,31 @@ export class LCARdSLayoutCard extends LitElement {
         for (const el of this._cardElements ?? []) {
             try { el.hass = this._hass; } catch { /* ignore */ }
         }
+        this._applyFallbackVisibility();
+    }
+
+    /**
+     * Outside Home Assistant's frontend (no hui-card: the docs, the browser test
+     * harness) a child built directly carries its Visibility conditions here: hide it
+     * as hui-card would (`hidden`, plus display none, since a card's own :host display
+     * outranks the attribute), show every child while editing, and collapse its
+     * track as for a hui-card child.
+     */
+    _applyFallbackVisibility() {
+        let changed = false;
+        for (const el of /** @type {any[]} */ (this._cardElements ?? [])) {
+            if (!el?._lcardsVisibility) continue;
+            const hide = !(this.preview || this.editing) && !visibilityPasses(el._lcardsVisibility, this._hass);
+            if (!!el.hidden !== hide) {
+                el.hidden = hide;
+                el.style.display = hide ? 'none' : '';
+                changed = true;
+            }
+        }
+        if (changed) {
+            cancelAnimationFrame(this._visibilityRaf);
+            this._visibilityRaf = requestAnimationFrame(() => this._applyVisibilityTracks());
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -193,40 +322,67 @@ export class LCARdSLayoutCard extends LitElement {
         // max-content and the whole card collapses.
         this.style.height = this._config?.layout?.height ?? '100%';
 
-        if (changed.has('_config') || changed.has('_columns') || changed.has('_rows')
+        // Like hui-stack-card: in edit mode, children stay visible even when their
+        // Visibility conditions are not met.
+        if (changed.has('preview')) {
+            for (const el of this._cardElements ?? []) el.preview = this.preview;
+        }
+        if (changed.has('preview') || changed.has('editing')) this._applyFallbackVisibility();
+
+        // The parent grid's fitted-cell mark (inFittedCell) changed since the last
+        // placement: applyCardPlacement asked for this update.
+        const fitChanged = this._placedInFittedCell !== undefined && this._placedInFittedCell !== inFittedCell(this);
+        if (fitChanged || changed.has('_config') || changed.has('_columns') || changed.has('_rows')
             || changed.has('_areas') || changed.has('_gap') || changed.has('editing')) {
             this._placeCards();
         }
+        // Lit wrote the configured tracks back with the style attribute
+        this._applyVisibilityTracks();
     }
 
     render() {
         const layout = this._config?.layout ?? {};
-        const gridStyle = buildGridStyle(layout, this._columns, this._rows, this._areas, this._gap, {
-            withGutter: false,
+        const { columns, rows, areas, gap } = this._activeGrid();
+        const gridStyle = buildGridStyle(layout, columns, rows, areas, gap, {
+            // The layout studio sets `editing` while its grid editor is on the canvas.
+            editMode: this.editing ? 'grid' : null,
             defaultHeight: '100%',
         });
         return html`<div id="grid-root" style="${gridStyle}"></div>`;
     }
 
     _placeCards() {
-        const grid = this.renderRoot?.querySelector('#grid-root');
+        const grid = /** @type {HTMLElement | null} */ (this.renderRoot?.querySelector('#grid-root'));
         if (!grid) return;
-        grid.innerHTML = '';
-
         const layout       = this._config?.layout ?? {};
         const cardMargin   = layout.card_margin ?? null;
         const cardOverflow = layout.card_overflow ?? 'visible';
 
-        renderAreaSurfaces(grid, layout, this._areas);
+        const active = this._activeGrid();
+        const surfaces = document.createDocumentFragment();
+        renderAreaSurfaces(surfaces, layout, active.areas);
+        // A % height (100% by default) is definite when this card's own cell is: a
+        // layout card filling a fixed cell gives its fr and % rows a definite height.
+        const height = layout.height ?? '100%';
+        const gridDefinite = gridHeightIsDefinite(height)
+            || (String(height).trim().endsWith('%') && inFittedCell(this));
+        this._placedInFittedCell = inFittedCell(this);
 
+        const autoRows = layout['grid-auto-rows'] ?? null;
+        let autoIndex = 0;
         (this._cardElements ?? []).forEach((cardEl, i) => {
             const childCfg     = this._config?.cards?.[i];
             const viewLayout   = childCfg?.view_layout ?? {};
             const areaSettings = layout.areas?.[viewLayout['grid-area']] ?? {};
-            applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings);
+            const auto         = isAutoPlaced(viewLayout)
+                ? { index: autoIndex++, columns: active.columns?.length ?? 1, autoRows } : null;
+            const cellFits     = cellHeightDefinite(active.rows, active.areas, viewLayout, gridDefinite, auto);
+            applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings, { cellFits });
             applyGridItemHeight(cardEl, childCfg);
-            grid.appendChild(cardEl);
         });
+        // cards already in place stay put (no disconnect and reconnect, #409)
+        placeGridChildren(grid, this._cardElements ?? [], surfaces);
+        this._applyVisibilityTracks();
     }
 
     static styles = css`

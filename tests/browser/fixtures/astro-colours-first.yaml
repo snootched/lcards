@@ -1,0 +1,17 @@
+# Bound colours from the first frame, with no state change: the nebula makes the
+# first build wait for the effects chunk, and the card's first patch (the bound
+# values) arrived while the world was not built and was dropped (2026-11-08).
+type: custom:lcards-astrometrics-card
+height: 300
+camera: { views: { v: { target: [0, 0, 0], yaw: 20, tilt: 30, distance: 200 } } }
+objects:
+  - type: grid
+    id: deck
+    shape: plane
+    size: 160
+    color: { entity: input_boolean.lcards_test_nothing, default: "#ff9900" }
+  - type: nebula
+    id: cloud
+    radius: 30
+    clouds: [{ xyz: [0, 20, 0], radius: 20 }, { xyz: [40, 20, 0], radius: 20 }]
+    colors: ["#3366ff", { entity: input_select.lcards_test_nothing, default: "#ff0000" }]

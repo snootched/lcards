@@ -1,0 +1,15 @@
+# Segmented elbow sized from the HA-LCARS helpers (bar_width / bar_height: theme)
+type: custom:lcards-elbow
+elbow:
+  type: header-left
+  style: segmented
+  segments:
+    gap: 4
+    outer_segment:
+      bar_width: theme
+      bar_height: theme
+      color: "#ff9900"
+    inner_segment:
+      bar_width: 30
+      bar_height: 10
+      color: "#3366cc"

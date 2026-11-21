@@ -22,6 +22,7 @@ import { dpadVoyagerComponents } from './dpad_voyager/index.js';
 import { sliderComponents } from './sliders/index.js';
 import { elbowComponents } from './elbows/index.js';
 import { alertComponents } from './alert/index.js';
+import { bracketsComponents } from './brackets/index.js';
 
 /**
  * Component registry mapping component names to their presets
@@ -33,6 +34,7 @@ export const components = {
     ...sliderComponents,         // Slider components (basic, picard, picard-vertical)
     ...elbowComponents,          // Elbow components (header-left, header-right, footer-left, footer-right)
     ...alertComponents,          // Alert components (alert)
+    ...bracketsComponents,       // Bracket arcs (brackets)
 };
 
 /**

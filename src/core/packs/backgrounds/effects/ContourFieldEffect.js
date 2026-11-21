@@ -17,6 +17,26 @@
 import { BaseEffect } from './BaseEffect.js';
 import { _fbm, parseColorToRgba } from '../../textures/effects/noise-helpers.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
+import { numProp } from './animatable-props.js';
+
+/**
+ * Where a seed starts the field (the shared _fbm hash isn't seeded): a scroll
+ * offset in px. The WebGL version starts at the same place, so a seed draws
+ * the same field on both.
+ * @param {number} seed
+ * @returns {{ x: number, y: number }}
+ */
+export function contourSeedOffset(seed) {
+  let s = (seed >>> 0) || 1;
+  const rng = () => {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  return { x: rng() * 10000, y: rng() * 10000 };
+}
 
 /**
  * ContourFieldEffect - Topographic-style banded noise field
@@ -24,6 +44,15 @@ import { lcardsLog } from '../../../../utils/lcards-logging.js';
  * @extends BaseEffect
  */
 export class ContourFieldEffect extends BaseEffect {
+  // Band and noise keys re-bake the field, so they are not tweened (a binding snaps them)
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    scroll_speed_x: numProp('scrollSpeedX'),
+    scroll_speed_y: numProp('scrollSpeedY')
+  };
+
+  static recolorFields = ['_stops', '_fillColor'];
+
   /**
    * Padding (in buffer-cell units) added around the visible canvas in the
    * cached bake buffer. The field is static-and-panning, not continuously
@@ -37,6 +66,11 @@ export class ContourFieldEffect extends BaseEffect {
    * generous even at unusually fast configured scroll speeds (tens of px/s).
    */
   static BAKE_PAD_CELLS = 32;
+
+  /** The bake holds the colours: bake again with the new ones */
+  _afterRecolor() {
+    this._bakeDirty = true;
+  }
 
   /**
    * @param {object} [config={}]
@@ -66,6 +100,12 @@ export class ContourFieldEffect extends BaseEffect {
    */
   constructor(config = {}) {
     super(/** @type {any} */ (config));
+    /** @type {HTMLCanvasElement} offscreen buffer, created by _ensureBuffer() before any use */
+    this._offCanvas = /** @type {any} */ (null);
+    /** @type {CanvasRenderingContext2D} its 2D context */
+    this._offCtx = /** @type {any} */ (null);
+    /** @type {ImageData} its pixel buffer */
+    this._imgData = /** @type {any} */ (null);
 
     this.seed = config.seed ?? 1;
     this.noiseScale = config.noiseScale ?? 0.01;
@@ -81,28 +121,19 @@ export class ContourFieldEffect extends BaseEffect {
     const colorInput = (config.colors && config.colors.length) ? config.colors : (config.color ? [config.color] : DEFAULT_COLORS);
     const colors = Array.isArray(colorInput) ? colorInput : [colorInput];
 
-    // Two-step colour resolution for Canvas2D: theme token resolver, then CSS-var/format parsing
-    const resolver = window.lcards?.core?.themeManager?.resolver;
-    const resolveColor = (c) => (resolver ? resolver.resolve(c, c) : c);
-    this._stops = colors.map((c) => parseColorToRgba(resolveColor(c), c));
+    // Concrete colours for Canvas2D, then RGBA bytes
+    const concrete = (c) => resolveColor(c, { concrete: true });
+    this._stops = colors.map((c) => parseColorToRgba(concrete(c), c));
     if (this._stops.length === 1) this._stops.push(this._stops[0]);
 
     // null = literal transparency below fillLevel (default); set only when the
-    // user explicitly configures a fillColor, so we never coerce an unparseable
-    // value (e.g. the CSS keyword 'transparent', which parseColorToRgba can't
-    // read) into opaque black.
-    this._fillColor = config.fillColor ? parseColorToRgba(resolveColor(config.fillColor), config.fillColor) : null;
+    // user explicitly configures a fillColor.
+    this._fillColor = config.fillColor ? parseColorToRgba(concrete(config.fillColor), config.fillColor) : null;
 
     // Seed a starting sample offset (the shared _fbm hash itself isn't seeded)
-    let s = (this.seed >>> 0) || 1;
-    const rng = () => {
-      s = (s + 0x6D2B79F5) | 0;
-      let t = Math.imul(s ^ (s >>> 15), 1 | s);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-    this._scrollOffsetX = rng() * 10000;
-    this._scrollOffsetY = rng() * 10000;
+    const start = contourSeedOffset(this.seed);
+    this._scrollOffsetX = start.x;
+    this._scrollOffsetY = start.y;
 
     // Reusable scratch object for _colorAtBand()'s blend path — avoids a
     // heap allocation per sampled cell (hundreds of thousands per bake at
@@ -133,8 +164,8 @@ export class ContourFieldEffect extends BaseEffect {
   update(deltaTime, canvasWidth, canvasHeight) {
     super.update(deltaTime, canvasWidth, canvasHeight);
     const dt = deltaTime / 1000;
-    this._scrollOffsetX += this.scrollSpeedX * dt;
-    this._scrollOffsetY += this.scrollSpeedY * dt;
+    this._scrollOffsetX += this.scrollSpeedX * this.speed * dt;
+    this._scrollOffsetY += this.scrollSpeedY * this.speed * dt;
   }
 
   /**
@@ -148,7 +179,7 @@ export class ContourFieldEffect extends BaseEffect {
     this._offCanvas = document.createElement('canvas');
     this._offCanvas.width = bw;
     this._offCanvas.height = bh;
-    this._offCtx = this._offCanvas.getContext('2d');
+    this._offCtx = /** @type {CanvasRenderingContext2D} */ (this._offCanvas.getContext('2d'));
     this._imgData = this._offCtx.createImageData(bw, bh);
   }
 
@@ -435,9 +466,10 @@ export class ContourFieldEffect extends BaseEffect {
   }
 
   destroy() {
-    this._offCanvas = null;
-    this._offCtx = null;
-    this._imgData = null;
+    // Released; _ensureBuffer() recreates them before any further use.
+    this._offCanvas = /** @type {any} */ (null);
+    this._offCtx = /** @type {any} */ (null);
+    this._imgData = /** @type {any} */ (null);
     super.destroy();
   }
 }

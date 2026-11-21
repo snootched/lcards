@@ -30,8 +30,6 @@ import { CoreValidationService } from './validation-service/index.js';
 import { ComponentManager } from './components/ComponentManager.js';
 
 import { StylePresetManager } from './presets/StylePresetManager.js';
-import { AnimationRegistry } from './animation/AnimationRegistry.js';
-import { LCARdSActionHandler } from '../base/LCARdSActionHandler.js';
 import { CoreConfigManager } from './config-manager/index.js';
 import { injectPalette } from './themes/paletteInjector.js';
 import { PackManager } from './PackManager.js';
@@ -59,6 +57,9 @@ import { PortalOverlayManager } from './services/PortalOverlayManager.js';
  * - Multi-instance support
  */
 class LCARdSCore {
+    /** How often the global HASS feed checks <home-assistant>.hass (ms). */
+    static GLOBAL_HASS_POLL_MS = 500;
+
     constructor() {
         // ===== SHARED SYSTEMS (Lazy-initialized) =====
         this.systemsManager = null;      // Entity state tracking
@@ -69,8 +70,6 @@ class LCARdSCore {
         this.performanceMonitor = null;  // Performance monitoring (Phase 2a)
         this.validationService = null;   // Config validation and error reporting (Phase 2a)
         this.stylePresetManager = null;  // Unified style system: presets + CSS utilities (Phase 2b)
-        this.animationRegistry = null;   // Animation instance caching (Phase 2b)
-        this.actionHandler = null;       // Unified action handling system
         this.configManager = null;       // Unified configuration processing
         this.packManager = null;         // Pack loading and registration (Phase 4)
         this.assetManager = null;        // Asset management system (Phase 4)
@@ -111,10 +110,17 @@ class LCARdSCore {
      * @returns {Promise<void>}
      */
     async initialize(hass) {
-        // Return existing promise if already initializing
+        // Already initializing: wait, then apply THIS caller's hass. Module load
+        // starts init with a connection-less stub; a real hass arriving meanwhile
+        // (config panel, first card) must not be dropped, or services such as
+        // IntegrationService don't see a connection until the next state change.
+        // Capture the promise first — the first caller's `finally` nulls it.
         if (this._coreInitPromise) {
             lcardsLog.debug('[LCARdSCore] Core initialization already in progress, waiting...');
-            return this._coreInitPromise;
+            const pending = this._coreInitPromise;
+            await pending;
+            if (hass) this._updateHass(hass);
+            return;
         }
 
         // Return immediately if already initialized
@@ -161,7 +167,9 @@ class LCARdSCore {
             lcardsLog.debug('[LCARdSCore] ✅ DataSourceManager created (MSD will initialize)');
 
             // Initialize RulesManager (Phase 1c)
-            this.rulesManager = new RulesEngine();
+            // With the shared DataSourceManager (created just above): rule conditions that
+            // name a data source resolve against it and re-check when the source updates
+            this.rulesManager = new RulesEngine([], this.dataSourceManager);
             // 🔗 CRITICAL: Connect systemsManager so RulesEngine can access overlay registry
             this.rulesManager.systemsManager = this.systemsManager;
             lcardsLog.debug('[LCARdSCore] ✅ RulesManager initialized and connected to SystemsManager');
@@ -203,14 +211,6 @@ class LCARdSCore {
             this.stylePresetManager = new StylePresetManager();
             lcardsLog.debug('[LCARdSCore] ✅ StylePresetManager created (awaiting pack loading)');
 
-            // Initialize AnimationRegistry (Phase 2b) - ✅ Real MSD AnimationRegistry as singleton
-            this.animationRegistry = new AnimationRegistry();
-            lcardsLog.debug('[LCARdSCore] ✅ AnimationRegistry initialized');
-
-            // Initialize ActionHandler (Phase 2c) - ✅ Unified action handling for all cards
-            this.actionHandler = new LCARdSActionHandler();
-            lcardsLog.debug('[LCARdSCore] ✅ ActionHandler initialized');
-
             // Initialize AssetManager (Phase 2d) - ✅ Unified asset management system
             this.assetManager = new AssetManager();
             await this.assetManager.initialize();
@@ -233,7 +233,7 @@ class LCARdSCore {
             // Initialize PackManager (Phase 2e) - ✅ Centralized pack loading and registration
             // PackManager is the ONLY place that loads builtin packs
             this.packManager = new PackManager(this);
-            await this.packManager.loadBuiltinPacks(['core', 'lcards_buttons', 'lcards_sliders', 'lcars_fx', 'builtin_themes']);
+            await this.packManager.loadBuiltinPacks();
             lcardsLog.debug('[LCARdSCore] PackManager loaded all packs and registered to managers');
 
             // Load fonts flagged autoLoad:true in core_fonts.json (currently just Antonio).
@@ -288,7 +288,6 @@ class LCARdSCore {
             // Create BorgAssimilationManager — Easter egg orchestrator.
             // Depends on screenEffectManager and themeManager, both ready at this point.
             this.borgAssimilationManager = new BorgAssimilationManager();
-            window.lcards.core.borgAssimilationManager = this.borgAssimilationManager;
             lcardsLog.debug('[LCARdSCore] ✅ BorgAssimilationManager created');
 
             // Create IntegrationService — it self-probes on the first _updateHass
@@ -308,7 +307,6 @@ class LCARdSCore {
             // Provides named-slot show/hide API consumed by ConnectionOverlayService,
             // lcards-alert-overlay, and the show_portal_card HA service.
             this.portalOverlayManager = new PortalOverlayManager();
-            window.lcards.core.portalOverlayManager = this.portalOverlayManager;
             lcardsLog.debug('[LCARdSCore] ✅ PortalOverlayManager created');
 
             // Create ConnectionOverlayService — monitors hass connection state and
@@ -332,7 +330,7 @@ class LCARdSCore {
             // block core initialisation — cards render with theme defaults first, then
             // re-render via the lcards:theme-overrides-changed event once overrides arrive.
             this.integrationService.onReady().then(() => {
-                return this.themeManager.loadOverrides();
+                return this.themeManager?.loadOverrides();
             }).then(() => {
                 lcardsLog.debug('[LCARdSCore] ✅ Theme overrides loaded from scoped storage');
             }).catch(err => {
@@ -340,15 +338,16 @@ class LCARdSCore {
             });
 
             // Load connection overlay config from scoped settings (fire-and-forget).
-            // The service starts with built-in defaults / localStorage cache so cards
-            // are never blocked on this.
+            // The service starts with its built-in defaults (an in-memory value) so
+            // cards are never blocked on this.
             this.integrationService.onReady().then(() => {
-                return this.connectionOverlayService.initialize();
+                return this.connectionOverlayService?.initialize();
             }).catch(err => {
                 lcardsLog.warn('[LCARdSCore] ConnectionOverlayService config load failed:', err);
             });
 
             this._coreInitialized = true;
+            this._startGlobalHassFeed();
 
             // Mount global UI sound listener and alert subscription (after core is marked ready)
             this.soundManager.mountGlobalUIListener();
@@ -377,18 +376,20 @@ class LCARdSCore {
             }
 
             lcardsLog.info('[LCARdSCore] ✅ Core systems initialized successfully');
-            this.soundManager.ensureReady().then(() => {
+            this.soundManager?.ensureReady().then(() => {
                 // window flag clears on any true page load (including hard refresh) but survives
                 // SPA navigation and module re-init, so system_ready only plays once per page load
                 if (!/** @type {any} */ (window)._lcardsSystemReadyPlayed) {
                     /** @type {any} */ (window)._lcardsSystemReadyPlayed = true;
-                    this.soundManager.play('system_ready');
+                    this.soundManager?.play('system_ready');
                 }
             });
 
         } catch (error) {
             lcardsLog.error('[LCARdSCore] ❌ Core initialization failed:', error);
-            this.soundManager.play('error');
+            // ?. : init can fail before the sound manager exists, and a TypeError here
+            // would replace the real error being rethrown below.
+            this.soundManager?.play('error');
             this._coreInitialized = false;
             throw error;
         }
@@ -435,6 +436,7 @@ class LCARdSCore {
     async _registerCardInternal(cardId, card, config) {
         lcardsLog.debug(`[LCARdSCore] Registering card: ${cardId}`);
 
+        if (!this.systemsManager) throw new Error('[LCARdSCore] Cannot register a card before the core is initialized');
         // Create card context via SystemsManager
         const systemsContext = this.systemsManager.registerCard(cardId, card, config);
 
@@ -456,18 +458,9 @@ class LCARdSCore {
             componentManager: this.componentManager,
 
             // Convenience methods - prefer SystemsManager for entity access (has caching)
-            getEntityState: (entityId) => this.systemsManager.getEntityState(entityId),
-            subscribeToEntity: (entityId, callback) => this.systemsManager.subscribeToEntity(entityId, callback, cardId),
-            unsubscribeFromEntity: (entityId, callback) => this.systemsManager.unsubscribeFromEntity(entityId, callback),
-
-            // Data source methods (for advanced use cases)
-            subscribeToDataSource: (entityId, callback) => /** @type {any} */ (this.dataSourceManager)?.subscribeToEntity(entityId, callback),
-            getDataSourceState: (entityId) => /** @type {any} */ (this.dataSourceManager)?.getEntityState(entityId),
-
-            // Rules methods (for advanced rule-based overlays)
-            addRule: (rule) => /** @type {any} */ (this.rulesManager)?.addRule(rule),
-            removeRule: (ruleId) => /** @type {any} */ (this.rulesManager)?.removeRule(ruleId),
-            evaluateRules: () => /** @type {any} */ (this.rulesManager)?.evaluateAll((entityId) => this.systemsManager.getEntityState(entityId)),
+            getEntityState: (entityId) => this.systemsManager?.getEntityState(entityId),
+            subscribeToEntity: (entityId, callback) => this.systemsManager?.subscribeToEntity(entityId, callback, cardId),
+            unsubscribeFromEntity: (entityId, callback) => this.systemsManager?.unsubscribeFromEntity(entityId, callback),
 
             // Lifecycle
             destroy: () => this.unregisterCard(cardId)
@@ -476,7 +469,7 @@ class LCARdSCore {
         this._cardInstances.set(cardId, cardContext);
         this._cardLoadOrder.push(cardId);
 
-        lcardsLog.info(`[LCARdSCore] ✅ Card registered: ${cardId}`);
+        lcardsLog.debug(`[LCARdSCore] ✅ Card registered: ${cardId}`);
         return cardContext;
     }
 
@@ -510,7 +503,7 @@ class LCARdSCore {
             this._cardLoadOrder.splice(loadOrderIndex, 1);
         }
 
-        lcardsLog.info(`[LCARdSCore] ✅ Card unregistered: ${cardId}`);
+        lcardsLog.debug(`[LCARdSCore] ✅ Card unregistered: ${cardId}`);
     }
 
     /**
@@ -590,6 +583,30 @@ class LCARdSCore {
     }
 
     /**
+     * Keep core's HASS live where no LCARdS card feeds it.
+     *
+     * Cards forward HASS via ingestHass(), and skip it when none of their own
+     * entities changed. On pages without LCARdS cards (e.g. Developer Tools)
+     * nothing fed core, so portal overlay cards froze at their first render;
+     * an overlay card can also watch entities no LCARdS card does. HA keeps the
+     * live HASS on <home-assistant> and fires no change event, so poll its
+     * identity, only while no card is registered or an overlay shows a card.
+     * @private
+     */
+    _startGlobalHassFeed() {
+        if (this._globalHassTimer) return;
+        this._globalHassTimer = setInterval(() => {
+            const needsFeed = this._cardInstances.size === 0
+                || this.portalOverlayManager?.hasActiveContent();
+            if (!needsFeed) return;
+            const hass = /** @type {any} */ (document.querySelector('home-assistant'))?.hass;
+            if (hass && hass !== this._currentHass && hass !== this._pendingHass) {
+                this.ingestHass(hass);
+            }
+        }, LCARdSCore.GLOBAL_HASS_POLL_MS);
+    }
+
+    /**
      * Ingest HASS updates (called from card HASS update handlers)
      * Deduplicates multiple per-tick calls so only one _updateHass propagation fires per microtask.
      * @param {Object} hass - Updated HASS instance
@@ -625,8 +642,6 @@ class LCARdSCore {
             animationManager:   this.animationManager   ? this.animationManager.getDebugInfo()   : null,
             validationService:  this.validationService  ? this.validationService.getDebugInfo()  : null,
             stylePresetManager: this.stylePresetManager ? this.stylePresetManager.getDebugInfo() : null,
-            animationRegistry:  this.animationRegistry  ? this.animationRegistry.getDebugInfo()  : null,
-            actionHandler:      this.actionHandler      ? this.actionHandler.getDebugInfo()      : null,
             configManager:      this.configManager      ? this.configManager.getDebugInfo()      : null,
             assetManager:       this.assetManager       ? this.assetManager.getDebugInfo()       : null,
             packManager:        this.packManager        ? this.packManager.getDebugInfo()        : null,
@@ -687,28 +702,6 @@ class LCARdSCore {
             });
         }
         return result;
-    }
-
-    /**
-     * Get the number of registered rules
-     * @returns {number} Number of rules
-     */
-    getRulesCount() {
-        if (!this.rulesManager) {
-            return 0;
-        }
-        return /** @type {any} */ (this.rulesManager).getRulesCount();
-    }
-
-    /**
-     * Get rules information
-     * @returns {Object} Rules information
-     */
-    getRulesInfo() {
-        if (!this.rulesManager) {
-            return {};
-        }
-        return /** @type {any} */ (this.rulesManager).getRulesInfo();
     }
 
     /**
@@ -795,7 +788,10 @@ class LCARdSCore {
      * Destroy the core and all systems
      */
     destroy() {
-        lcardsLog.info('[LCARdSCore] 🚨 Destroying core systems...');
+        lcardsLog.debug('[LCARdSCore] 🚨 Destroying core systems...');
+
+        clearInterval(this._globalHassTimer ?? undefined);
+        this._globalHassTimer = null;
 
         // Unregister all cards
         Array.from(this._cardInstances.keys()).forEach(cardId => {
@@ -824,7 +820,7 @@ class LCARdSCore {
         }
 
         if (this.animationManager) {
-            /** @type {any} */ (this.animationManager).destroy();
+            this.animationManager.dispose();
             this.animationManager = null;
         }
 
@@ -836,16 +832,6 @@ class LCARdSCore {
         if (this.stylePresetManager) {
             this.stylePresetManager.destroy();
             this.stylePresetManager = null;
-        }
-
-        if (this.animationRegistry) {
-            this.animationRegistry.destroy();
-            this.animationRegistry = null;
-        }
-
-        if (this.actionHandler) {
-            this.actionHandler.destroy();
-            this.actionHandler = null;
         }
 
         if (this.assetManager) {
@@ -873,7 +859,7 @@ class LCARdSCore {
         this._currentHass = null;
         this._pendingCards = [];
 
-        lcardsLog.info('[LCARdSCore] ✅ Core systems destroyed');
+        lcardsLog.debug('[LCARdSCore] ✅ Core systems destroyed');
     }
 }
 

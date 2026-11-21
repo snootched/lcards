@@ -1,0 +1,23 @@
+# Gallery video for classic-wings.yaml: each wing follows its own side (port flow and coil, starboard flow and
+# field, each side's injector and vent), and the centre engages warp and steps the warp factor for both.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/classic-wings.yaml --video
+steps:
+- {wait: 1000}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 45}]
+- {wait: 1200}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_toggle}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_value, value: 75}]
+- {wait: 1200}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 90}]
+- {wait: 1200}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_warp}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_warp_factor, value: 9}]
+- {wait: 1500}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 82}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 64}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_value, value: 40}]
+- {wait: 1000}
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_warp}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_toggle}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_warp_factor, value: 3.8}]
+tail: 1500

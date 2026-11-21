@@ -16,6 +16,7 @@ import { BaseEffect }     from './BaseEffect.js';
 import { loadImage }      from '../../shared/ImageLoader.js';
 import { ImageDrawUtils } from '../../shared/ImageDrawUtils.js';
 import { lcardsLog }      from '../../../../utils/lcards-logging.js';
+import { numProp }        from './animatable-props.js';
 
 /**
  * Draws a static (or entity-reactive) image across the full background canvas.
@@ -26,6 +27,11 @@ import { lcardsLog }      from '../../../../utils/lcards-logging.js';
  * @extends BaseEffect
  */
 export class ImageEffect extends BaseEffect {
+    // Static: no speed. draw() reads _opacity; keep BaseEffect's opacity in step
+    static animatableProps = {
+        opacity: numProp('_opacity', { min: 0, max: 1, after: (e) => { e.opacity = e._opacity; } })
+    };
+
     /**
      * @param {Object}  config
      * @param {string}  [config.source='']        - Image source: URL, /local/ path, builtin:key, or template.

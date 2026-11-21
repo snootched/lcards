@@ -23,7 +23,7 @@ const root      = resolve(__dirname, '..');
 const SRC  = resolve(root, 'src/assets');
 const DEST = resolve(root, 'custom_components/lcards');
 
-const ASSET_DIRS = ['fonts', 'msd', 'sounds', 'images'];
+const ASSET_DIRS = ['fonts', 'msd', 'sounds', 'images', 'models'];
 
 console.log('\n📁 Copying assets → custom_components/lcards/\n');
 

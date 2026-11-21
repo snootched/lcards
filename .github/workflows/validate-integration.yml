@@ -2,32 +2,39 @@ name: Validate
 
 on:
   push:
-    branches: [ "main", "dev", "develop" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main", "dev", "develop" ]
+    branches: [ "main", "dev" ]
   schedule:
     - cron: "0 0 * * *"
   workflow_dispatch:
   workflow_call:  # allow release.yml (and others) to call this as a gate
 
+# Checkout and tests only: the token needs no write access (CodeQL actions/missing-workflow-permissions)
+permissions:
+  contents: read
+
+# A newer push to the same pull request or to dev cancels the older run. Runs on
+# main, manual and scheduled runs, and the Release gate (workflow_call: github.workflow
+# is then "Release", its own group) always finish.
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && github.ref != 'refs/heads/main' }}
+
 jobs:
   validate-hassfest:
     name: Hassfest Validation
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: home-assistant/actions/hassfest@master
 
   validate-hacs:
     name: HACS Validation
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: HACS validation
         uses: hacs/action@main
@@ -36,15 +43,14 @@ jobs:
 
   validate-css-vars:
     name: Validate CSS Variables
+    if: github.event_name != 'schedule'   # the daily run is HACS + Hassfest only
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -57,15 +63,14 @@ jobs:
 
   validate-doc-examples:
     name: Validate Documentation Examples
+    if: github.event_name != 'schedule'   # the daily run is HACS + Hassfest only
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -76,21 +81,64 @@ jobs:
       - name: Run documentation YAML validator
         run: npm run validate:doc-examples:strict
 
+      - name: Schema description check
+        run: npm run validate:schema-descriptions
+
+      - name: Docs em-dash check
+        run: node scripts/check-doc-em-dashes.js
+
+      # The docs site build, its #anchor check and the live-demo tests run in the
+      # Docs workflow (before it deploys), not here.
+
+  test:
+    name: Tests and Typecheck
+    if: github.event_name != 'schedule'   # the daily run is HACS + Hassfest only
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Typecheck (zero TypeScript errors)
+        run: npm run typecheck
+
+      # Browser component tests run against the built bundle. Visual baselines
+      # (test:visual) and real-HA tests (test:ha) stay local-only.
+      - name: Build bundle for browser tests
+        run: npm run build:integration
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser component tests
+        run: npm run test:browser
+
   validate-build:
     name: Validate Build
+    if: github.event_name != 'schedule'   # the daily run is HACS + Hassfest only
     runs-on: ubuntu-latest
     needs:
+      - test
       - validate-css-vars
       - validate-version
       - validate-structure
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -110,6 +158,20 @@ jobs:
           else
             echo "✅ lcards.js — $(du -sh custom_components/lcards/lcards.js | cut -f1)"
           fi
+          # lcards.js is a loader stub; the bundle itself is chunks/lcards-main-*.js
+          if ! ls custom_components/lcards/chunks/lcards-main-*.js >/dev/null 2>&1; then
+            echo "❌ Missing main chunk: custom_components/lcards/chunks/lcards-main-*.js"
+            ERRORS=$((ERRORS + 1))
+          fi
+          # Pre-compressed siblings served by HA when the browser accepts them
+          for EXT in br gz; do
+            if [ ! -f "custom_components/lcards/lcards.js.$EXT" ]; then
+              echo "❌ Missing custom_components/lcards/lcards.js.$EXT"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "✅ lcards.js.$EXT: $(du -sh custom_components/lcards/lcards.js.$EXT | cut -f1)"
+            fi
+          done
           for DIR in fonts msd sounds; do
             if [ ! -d "custom_components/lcards/$DIR" ]; then
               echo "❌ Missing asset dir: custom_components/lcards/$DIR"
@@ -122,12 +184,11 @@ jobs:
 
   validate-version:
     name: Validate Version Format
+    if: github.event_name != 'schedule'   # the daily run is HACS + Hassfest only
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check version format
         run: |
@@ -146,12 +207,11 @@ jobs:
 
   validate-structure:
     name: Validate Project Structure
+    if: github.event_name != 'schedule'   # the daily run is HACS + Hassfest only
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check required files
         run: |
@@ -164,6 +224,7 @@ jobs:
             "README.md"
             "LICENSE"
             "src/lcards.js"
+            "src/lcards-main.js"
             "src/assets"
             "custom_components/lcards/__init__.py"
             "custom_components/lcards/manifest.json"

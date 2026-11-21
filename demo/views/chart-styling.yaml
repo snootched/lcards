@@ -1,0 +1,94 @@
+# Charts (rebuilt, R3): styling. A week of a real sensor as a weather-style
+# panel (gradient, reference lines, formatters), and SHIELDS against fixed
+# lines: drag the slider across them.
+title: Chart styling
+path: chart-styling
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SHIELDS } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-chart
+        chart_type: area
+        graph_span: 1h
+        sources:
+          - entity: input_number.lcards_test_shields
+            name: Shields
+            unit: "%"
+            curve: stepline
+        yaxis:
+          - { id: percent, min: 0, max: 100 }
+        style:
+          colors: { series: [ "var(--lcars-blue)" ] }
+          fill: { type: gradient, gradient: { opacityFrom: 0.6, opacityTo: 0.05 } }
+          yaxis: { decimals: 0 }
+          thresholds:
+            - { value: 75, label: Nominal, color: var(--lcars-green) }
+            - { value: 25, label: Critical, color: var(--lcars-red), dash: true }
+          legend: { show: true, position: top }
+          animation: { preset: lcars_standard }
+        grid_options: { columns: 24, rows: 5 }
+      - type: custom:lcards-chart
+        chart_type: area
+        graph_span: 48h
+        sources:
+          - entity: sensor.desk_sensor_temperature
+            name: Desk
+            unit: °C
+            float_precision: 1
+            group_by: { func: avg, duration: 30min }
+          - entity: sensor.desk_sensor_temperature
+            name: Desk, 30 min peak
+            type: line
+            stroke_width: 1
+            curve: stepline
+            group_by: { func: max, duration: 30min }
+        style:
+          colors: { series: [ "var(--lcars-orange)", "var(--lcards-moonlight)" ] }
+          fill: { type: gradient, gradient: { opacityFrom: 0.6, opacityTo: 0.05 } }
+          thresholds:
+            - { value: 18, label: Cool, color: var(--lcars-blue), dash: true }
+            - { value: 19.5, label: Warm, color: var(--lcars-red) }
+          legend: { show: true, position: top }
+          formatters:
+            xaxis_label: "ddd HH:mm"
+            tooltip: "{seriesName}, {x|ddd [at] HH:mm}: {y}"
+        grid_options: { columns: 24, rows: 5 }
+      - type: custom:lcards-chart
+        chart_type: column
+        graph_span: 7d
+        span: { end: day }
+        sources:
+          - entity: sensor.desk_sensor_temperature
+            name: Daily high
+            unit: °C
+            float_precision: 1
+            statistics: { type: max, period: day }
+        style:
+          colors: { series: [ "var(--lcars-yellow)" ] }
+          data_labels: { show: true, font_size: 10 }
+          yaxis: { decimals: 0 }
+          chart_options: { plotOptions: { bar: { borderRadius: 4 } } }
+        grid_options: { columns: 24, rows: 5 }
+      - type: custom:lcards-chart
+        chart_type: rangeArea
+        graph_span: 3d
+        sources:
+          - entity: sensor.desk_sensor_temperature
+            name: Desk, low to high
+            group_by: { func: minmax, duration: 3h }
+        style:
+          colors: { series: [ "var(--lcars-african-violet)" ] }
+          legend: { show: true, position: top }
+        grid_options: { columns: 24, rows: 5 }

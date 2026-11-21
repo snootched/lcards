@@ -1,0 +1,7 @@
+# doc/cards/button/index.md: decorative bar-label section header
+type: custom:lcards-button
+preset: bar-label-left
+interactive: false
+text:
+  label:
+    content: NAVIGATION

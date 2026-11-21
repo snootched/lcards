@@ -33,8 +33,9 @@ export const BUILTIN_THEMES_PACK = {
   /**
    * Chart Animation Presets
    *
-   * Pre-configured animation profiles for ApexCharts.
-   * Uses native ApexCharts animation system (no Anime.js integration yet).
+   * Pre-configured animation profiles for ApexCharts (`chart.animations`).
+   * Easing names must be ApexCharts 7 `ApexEasing` names; unknown names
+   * silently fall back to easeInOutSine.
    */
   chartAnimationPresets: {
     /**
@@ -43,7 +44,7 @@ export const BUILTIN_THEMES_PACK = {
      */
     lcars_standard: {
       enabled: true,
-      easing: 'easeinout',
+      easing: 'easeInOutCubic',
       speed: 800,
       animateGradually: {
         enabled: true,
@@ -61,7 +62,7 @@ export const BUILTIN_THEMES_PACK = {
      */
     lcars_dramatic: {
       enabled: true,
-      easing: 'easeout',
+      easing: 'easeOutCubic',
       speed: 1200,
       animateGradually: {
         enabled: true,
@@ -79,7 +80,7 @@ export const BUILTIN_THEMES_PACK = {
      */
     lcars_minimal: {
       enabled: true,
-      easing: 'easein',
+      easing: 'easeInCubic',
       speed: 400,
       animateGradually: {
         enabled: false
@@ -113,7 +114,7 @@ export const BUILTIN_THEMES_PACK = {
      */
     lcars_alert: {
       enabled: true,
-      easing: 'easeout',
+      easing: 'easeOutCubic',
       speed: 600,
       animateGradually: {
         enabled: true,

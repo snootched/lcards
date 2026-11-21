@@ -16,7 +16,7 @@ import { Processor } from './BaseProcessor.js';
  * ```yaml
  * processor_name:
  *   type: smooth
- *   from: source_processor  # Optional
+ *   input_source: source_processor  # Optional
  *   method: exponential  # exponential, moving_average, gaussian
  *   window: 10           # Window size (samples or time)
  *   alpha: 0.3           # For exponential method
@@ -33,6 +33,7 @@ export class SmoothProcessor extends Processor {
     // State for smoothing methods
     this._previousValue = null;
     this._windowValues = [];
+    this._gaussianInputs = [];
   }
 
   _doProcess(value, timestamp, mainBuffer, processingResults) {
@@ -95,12 +96,13 @@ export class SmoothProcessor extends Processor {
    * @private
    */
   _gaussianSmoothing(value, mainBuffer) {
-    // Get recent values from buffer
-    const allData = mainBuffer.getAll();
-    if (allData.length < 3) return value;
+    // This processor's own recent inputs (with input_source they are another
+    // processor's output, not the raw values in the main buffer)
+    this._gaussianInputs.push({ v: value });
+    if (this._gaussianInputs.length > this.window) this._gaussianInputs.shift();
+    if (this._gaussianInputs.length < 3) return value;
 
-    // Use last 'window' values
-    const recentData = allData.slice(-this.window);
+    const recentData = this._gaussianInputs;
 
     // Calculate Gaussian weights
     const sigma = this.window / 4; // Standard deviation

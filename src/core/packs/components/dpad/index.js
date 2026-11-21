@@ -197,30 +197,6 @@ export const dpadComponents = {
         // Preset support (backward-compatible stub so validatePreset / getPresetNames
         // are available on all components without special-casing in the button card)
         presets: { default: {} },
-        /*
-        presets: {
-            default: {
-                segments: {
-                    default: {
-                        animations: [
-                            {
-                                trigger: 'on_load',
-                                preset: 'draw',
-                                params: {
-                                    duration: 2500,
-                                    ease: 'inOutQuad',
-                                    loop: false,
-                                    alternate: true,
-                                    max_scale: 1.15,
-                                    max_brightness: 1.4
-                                }
-                            }
-                        ]
-                    }
-                }
-
-            }
-        },*/
 
         validatePreset(presetName) {
             return presetName in this.presets;
@@ -249,11 +225,11 @@ export const dpadComponents = {
                         entity: 'media_player.living_room',
                         dpad: {
                             segments: {
-                                up: { tap_action: { action: 'call-service', service: 'media_player.volume_up' } },
-                                down: { tap_action: { action: 'call-service', service: 'media_player.volume_down' } },
-                                left: { tap_action: { action: 'call-service', service: 'media_player.media_previous_track' } },
-                                right: { tap_action: { action: 'call-service', service: 'media_player.media_next_track' } },
-                                center: { tap_action: { action: 'call-service', service: 'media_player.media_play_pause' } },
+                                up: { tap_action: { action: 'perform-action', perform_action: 'media_player.volume_up' } },
+                                down: { tap_action: { action: 'perform-action', perform_action: 'media_player.volume_down' } },
+                                left: { tap_action: { action: 'perform-action', perform_action: 'media_player.media_previous_track' } },
+                                right: { tap_action: { action: 'perform-action', perform_action: 'media_player.media_next_track' } },
+                                center: { tap_action: { action: 'perform-action', perform_action: 'media_player.media_play_pause' } },
                             },
                         },
                     },
@@ -265,13 +241,13 @@ export const dpadComponents = {
                         entity: 'remote.roku',
                         dpad: {
                             segments: {
-                                up: { tap_action: { action: 'call-service', service: 'remote.send_command', data: { command: 'up' } } },
-                                down: { tap_action: { action: 'call-service', service: 'remote.send_command', data: { command: 'down' } } },
-                                left: { tap_action: { action: 'call-service', service: 'remote.send_command', data: { command: 'left' } } },
-                                right: { tap_action: { action: 'call-service', service: 'remote.send_command', data: { command: 'right' } } },
-                                center: { tap_action: { action: 'call-service', service: 'remote.send_command', data: { command: 'select' } } },
-                                'up-left': { tap_action: { action: 'call-service', service: 'remote.send_command', data: { command: 'home' } } },
-                                'up-right': { tap_action: { action: 'call-service', service: 'remote.send_command', data: { command: 'back' } } },
+                                up: { tap_action: { action: 'perform-action', perform_action: 'remote.send_command', data: { command: 'up' } } },
+                                down: { tap_action: { action: 'perform-action', perform_action: 'remote.send_command', data: { command: 'down' } } },
+                                left: { tap_action: { action: 'perform-action', perform_action: 'remote.send_command', data: { command: 'left' } } },
+                                right: { tap_action: { action: 'perform-action', perform_action: 'remote.send_command', data: { command: 'right' } } },
+                                center: { tap_action: { action: 'perform-action', perform_action: 'remote.send_command', data: { command: 'select' } } },
+                                'up-left': { tap_action: { action: 'perform-action', perform_action: 'remote.send_command', data: { command: 'home' } } },
+                                'up-right': { tap_action: { action: 'perform-action', perform_action: 'remote.send_command', data: { command: 'back' } } },
                             },
                         },
                     },

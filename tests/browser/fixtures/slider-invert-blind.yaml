@@ -1,0 +1,29 @@
+# GitHub #411: a blind slider (fill from the top = the lowered part, drag up =
+# open) built with control.invert_value + style.track.invert_fill, as reported.
+# Every number the slider shows, and every range and marker, is in the entity's
+# values.
+type: custom:lcards-slider
+preset: gauge-left-border
+entity: input_number.demo_level
+height: 400
+control:
+  invert_value: true
+style:
+  track:
+    orientation: vertical
+    invert_fill: true
+  gauge:
+    scale:
+      labels:
+        enabled: true
+  ranges:
+    # the closed end of the blind (entity 0 to 20): at the bottom of the track
+    - min: 0
+      max: 20
+      color: var(--lcars-alert-red)
+    # a value marker at 75 (entity value): a quarter of the way down
+    - value: 75
+      indicator:
+        type: line
+drag_badge:
+  enabled: true

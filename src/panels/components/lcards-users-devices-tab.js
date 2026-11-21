@@ -29,6 +29,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { DEVICE_KEY_DISPLAY_NAME, DEVICE_KEY_LAST_SEEN, DEVICE_KEY_USER_AGENT } from '../../core/services/ScopedSettingsConstants.js';
 import '../../editor/components/shared/lcards-form-section.js';
+import { surfaceStyles } from '../../editor/base/surface-styles.js';
 
 export class LCARdsUsersDevicesTab extends LitElement {
   static get properties() {
@@ -283,7 +284,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
   }
 
   _formatDate(isoString) {
-    if (!isoString) return '—';
+    if (!isoString) return '-';
     try {
       return new Date(isoString).toLocaleString();
     } catch {
@@ -321,10 +322,10 @@ export class LCARdsUsersDevicesTab extends LitElement {
 
   _renderCurrentSession() {
     const dim = this._dim();
-    const deviceId = dim?.deviceId ?? '—';
+    const deviceId = dim?.deviceId ?? '-';
     const lastSeen = this._formatDate(dim?.lastSeen);
     const userName = this.hass?.user?.name ?? 'Unknown';
-    const userId = this.hass?.user?.id ?? '—';
+    const userId = this.hass?.user?.id ?? '-';
 
     return html`
       <lcards-form-section
@@ -380,7 +381,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
                       placeholder="e.g. Kitchen Tablet"
                     />
                     <ha-button @click=${this._saveDeviceName}>Save</ha-button>
-                    <ha-button @click=${this._cancelEditName}>Cancel</ha-button>
+                    <ha-button appearance="plain" @click=${this._cancelEditName}>Cancel</ha-button>
                   </div>
                 `
                 : html`
@@ -477,7 +478,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
                               <span>Clear all overrides for <strong>${displayName ?? u.id}</strong>?</span>
                               <div class="confirm-actions">
                                 <ha-button class="danger-btn" variant="danger" @click=${this._executeDeleteUser}>Delete</ha-button>
-                                <ha-button @click=${this._cancelDeleteUser}>Cancel</ha-button>
+                                <ha-button appearance="plain" @click=${this._cancelDeleteUser}>Cancel</ha-button>
                               </div>
                             </div>
                           `
@@ -561,7 +562,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
                                 placeholder="Device name…"
                               />
                               <ha-button @click=${this._executeRenameDevice}>Save</ha-button>
-                              <ha-button @click=${this._cancelRenameDevice}>Cancel</ha-button>
+                              <ha-button appearance="plain" @click=${this._cancelRenameDevice}>Cancel</ha-button>
                             </div>
                           `
                           : html`<span>${name ?? html`<em class="muted">Unnamed</em>`}</span>`}
@@ -576,7 +577,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
                               <span>Remove <strong>${name ?? d.id}</strong>?</span>
                               <div class="confirm-actions">
                                 <ha-button class="danger-btn" variant="danger" @click=${this._executeDeleteDevice}>Delete</ha-button>
-                                <ha-button @click=${this._cancelDeleteDevice}>Cancel</ha-button>
+                                <ha-button appearance="plain" @click=${this._cancelDeleteDevice}>Cancel</ha-button>
                               </div>
                             </div>
                           `
@@ -606,7 +607,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
   // ─────────────────────────────────────────────────────── styles ──────────
 
   static get styles() {
-    return css`
+    return [surfaceStyles, css`
       :host {
         flex: 1;
         display: flex;
@@ -615,27 +616,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
         overflow: hidden;
       }
 
-      .studio-layout {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        background: var(--primary-background-color);
-        min-height: 0;
-        border-radius: var(--ha-card-border-radius, 12px);
-        padding: 16px;
-      }
 
-      .scrollable-body {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: hidden;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        padding-bottom: 8px;
-        --lcards-section-spacing: 0;
-      }
 
       /* ── Banners ── */
       .banner {
@@ -648,11 +629,6 @@ export class LCARdsUsersDevicesTab extends LitElement {
         font-size: 0.9em;
         flex-shrink: 0;
         margin-bottom: 8px;
-      }
-      .banner.error {
-        background: color-mix(in srgb, var(--error-color, #f44336) 15%, transparent);
-        border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--error-color, #f44336) 40%, transparent);
-        color: var(--primary-text-color);
       }
       .banner ha-button { margin-left: auto; }
 
@@ -685,7 +661,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
         align-items: center;
         gap: 6px;
         min-width: 150px;
-        font-size: 0.8rem;
+        font-size: 0.8em;
         color: var(--secondary-text-color);
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -699,7 +675,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
 
       .field-value {
         flex: 1;
-        font-size: 0.9rem;
+        font-size: 0.9em;
         color: var(--primary-text-color);
         word-break: break-all;
       }
@@ -721,7 +697,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
         border-radius: var(--ha-border-radius-sm);
         color: var(--primary-text-color);
         padding: 5px 8px;
-        font-size: 0.9rem;
+        font-size: 0.9em;
         outline: none;
       }
       .inline-input:focus {
@@ -736,13 +712,13 @@ export class LCARdsUsersDevicesTab extends LitElement {
       .data-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 0.85rem;
+        font-size: 0.85em;
       }
 
       .data-table th {
         text-align: left;
         padding: 6px 8px;
-        font-size: 0.75rem;
+        font-size: 0.85em;
         text-transform: uppercase;
         letter-spacing: 0.04em;
         color: var(--secondary-text-color);
@@ -837,9 +813,9 @@ export class LCARdsUsersDevicesTab extends LitElement {
 
       /* ── Utilities ── */
       .mono { font-family: monospace; }
-      .small { font-size: 0.75rem; }
+      .small { font-size: 0.75em; }
       .muted { color: var(--secondary-text-color); font-style: italic; }
-    `;
+    `];
   }
 }
 

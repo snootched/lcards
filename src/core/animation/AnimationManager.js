@@ -10,16 +10,15 @@
  *
  * Architecture Integration:
  * - Initialized in SystemsManager Phase 5 (after AdvancedRenderer)
- * - Uses existing AnimationRegistry for performance caching
  * - Leverages existing anime.js v4 integration via window.lcards.anim
  * - Works with existing preset system in lcards-anim-presets.js
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { AnimationRegistry } from './AnimationRegistry.js';
 import { TriggerManager } from './TriggerManager.js';
 import { BaseService } from '../BaseService.js';
 import { resolveAnimCommandParams, resolveAnimParam } from './resolveAnimParams.js';
+import { prefersReducedMotion, onReducedMotionChange } from '../../utils/reduced-motion.js';
 
 export class AnimationManager extends BaseService {
   constructor(systemsManager) {
@@ -27,10 +26,7 @@ export class AnimationManager extends BaseService {
     this.systemsManager = systemsManager;
 
     // Core components
-    this.registry = new AnimationRegistry();
     this.scopes = new Map(); // overlayId -> { scope, overlay, activeAnimations, triggerManager }
-    this.customPresets = new Map(); // preset name -> preset definition
-    this.timelines = new Map(); // timelineId -> timeline instance
 
     // Animation tracking
     this.activeAnimations = new Map(); // overlayId -> Set<animation instances>
@@ -52,10 +48,274 @@ export class AnimationManager extends BaseService {
     // entities.js processEvent()).
     this._lastHass = null;
 
+    // Stop bookkeeping (see _stopToken): a stop bumps a counter for the whole scope,
+    // one trigger, or one animation definition. An instance whose playAnimation()
+    // started before that stop is reverted the moment it exists, so a quick
+    // mouseleave or a while-condition that clears mid-start cannot leave it running.
+    /** @type {WeakMap<object, {all: number, triggers: Map<string, number>, defs: WeakMap<object, number>}>} */
+    this._stopCounters = new WeakMap();
+    // Animation definition each tracked instance was started from (per-animation stop)
+    /** @type {WeakMap<object, object>} */
+    this._instanceDefs = new WeakMap();
+
     // State
     this.initialized = false;
 
+    // Reduced motion switched on while animations run: settle them (see
+    // _settleForReducedMotion). Switching it off needs nothing: the next trigger plays.
+    /** @type {(() => void)|null} */
+    this._unsubscribeReducedMotion = onReducedMotionChange((reduced) => {
+      if (reduced) this._settleAllForReducedMotion();
+    });
+
     lcardsLog.debug('[AnimationManager] Created');
+  }
+
+  /**
+   * Under prefers-reduced-motion an animation does not play: a finite one jumps to
+   * its end frame (complete(), so entrance and on_show animations still leave the
+   * content visible and onComplete still fires), a looping one is reverted to its
+   * pre-animation state. CSS keyframe handles (march) and anything else without a
+   * finite iteration count count as looping.
+   * @param {any} instance - anime.js animation/timeline or LCARdS CSS animation handle
+   * @private
+   */
+  _settleForReducedMotion(instance) {
+    try {
+      const finite = typeof instance.complete === 'function' && Number.isFinite(instance.iterationCount);
+      if (finite) instance.complete();
+      else if (typeof instance.revert === 'function') instance.revert();
+      else instance.pause?.();
+    } catch (error) {
+      lcardsLog.warn('[AnimationManager] Error settling animation for reduced motion:', error);
+    }
+  }
+
+  /**
+   * Settle every tracked running animation in every scope (reduced motion turned on).
+   * @private
+   */
+  _settleAllForReducedMotion() {
+    let settled = 0;
+    this.scopes.forEach((scopeData, scopeId) => {
+      scopeData.runningInstances?.forEach((instances, trigger) => {
+        const kept = [];
+        instances.forEach((instance) => {
+          if (!instance || instance.completed) return;
+          if (this._instanceDefs.get(instance)?.essential_motion === true) {
+            kept.push(instance); // essential_motion: keeps playing
+            return;
+          }
+          this._settleForReducedMotion(instance);
+          settled++;
+        });
+        if (kept.length) scopeData.runningInstances.set(trigger, kept);
+        else scopeData.runningInstances.delete(trigger);
+      });
+      this._clearAllSpeedBindingsForScope(scopeId, scopeData);
+    });
+    lcardsLog.debug(`[AnimationManager] Reduced motion on: settled ${settled} running animation(s)`);
+  }
+
+  /**
+   * @param {object} scopeData
+   * @returns {{all: number, triggers: Map<string, number>, defs: WeakMap<object, number>}}
+   * @private
+   */
+  _counters(scopeData) {
+    let counters = this._stopCounters.get(scopeData);
+    if (!counters) {
+      counters = { all: 0, triggers: new Map(), defs: new WeakMap() };
+      this._stopCounters.set(scopeData, counters);
+    }
+    return counters;
+  }
+
+  /**
+   * Snapshot of the stops that apply to one animation: it changes when the scope,
+   * its trigger or the definition itself is stopped.
+   * @param {object} scopeData
+   * @param {string} trigger
+   * @param {object} animDef
+   * @returns {string}
+   * @private
+   */
+  _stopToken(scopeData, trigger, animDef) {
+    const counters = this._counters(scopeData);
+    return `${counters.all}:${counters.triggers.get(trigger) ?? 0}:${counters.defs.get(animDef) ?? 0}`;
+  }
+
+  /**
+   * Record a stop of one definition, one trigger, or (neither given) the whole scope.
+   * @param {object} scopeData
+   * @param {string|null} trigger
+   * @param {object|null} animDef
+   * @private
+   */
+  _recordStop(scopeData, trigger, animDef) {
+    const counters = this._counters(scopeData);
+    if (animDef) counters.defs.set(animDef, (counters.defs.get(animDef) ?? 0) + 1);
+    else if (trigger) counters.triggers.set(trigger, (counters.triggers.get(trigger) ?? 0) + 1);
+    else counters.all++;
+  }
+
+  /**
+   * Track a started instance under its trigger, dropping finished ones.
+   * @param {object} scopeData
+   * @param {string} trigger
+   * @param {any} instance
+   * @param {object} animDef
+   * @private
+   */
+  _trackInstance(scopeData, trigger, instance, animDef) {
+    const live = (scopeData.runningInstances.get(trigger) || []).filter(i => i && !i.completed);
+    live.push(instance);
+    scopeData.runningInstances.set(trigger, live);
+    this._instanceDefs.set(instance, animDef);
+  }
+
+  /**
+   * Revert a running instance to its pre-animation state (pause when it cannot revert).
+   * @param {any} instance
+   * @returns {boolean} whether it was still running
+   * @private
+   */
+  _revertInstance(instance) {
+    if (!instance || instance.completed) return false;
+    try {
+      if (typeof instance.revert === 'function') instance.revert();
+      else instance.pause?.();
+      return true;
+    } catch (error) {
+      lcardsLog.warn('[AnimationManager] Error stopping instance:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Revert every tracked instance of a scope and forget them.
+   * @param {object} scopeData
+   * @returns {number} how many were still running
+   * @private
+   */
+  _revertAllInstances(scopeData) {
+    let stopped = 0;
+    scopeData.runningInstances?.forEach((instances) => {
+      instances.forEach((instance) => { if (this._revertInstance(instance)) stopped++; });
+    });
+    scopeData.runningInstances?.clear();
+    return stopped;
+  }
+
+  /**
+   * Whether a running animation should outlive a scope rebuild (a card re-render).
+   * Not `while` animations (the new TriggerManager re-seeds them), not on_show (it
+   * replays itself, see onOverlayRendered), and on_load only when it will not fire
+   * again on the new scope.
+   * @param {string} trigger
+   * @param {any} animDef
+   * @param {boolean} onLoadFired - the new scope's flag
+   * @returns {boolean}
+   * @private
+   */
+  _carriesOver(trigger, animDef, onLoadFired) {
+    if (!animDef || animDef.while) return false;
+    if (trigger === 'on_show') return false;
+    if (trigger === 'on_load' || trigger === undefined) return onLoadFired;
+    return true;
+  }
+
+  /**
+   * The background effect handles of the card that owns `element` (the nearest
+   * LCARdS card up the DOM and shadow roots that supports background_animation;
+   * an embedded card stops the climb even without a background of its own).
+   * A re-render can leave the scope holding a detached element (its card is
+   * then unreachable by walking up), so the card found when the scope was
+   * registered is the fallback.
+   * @param {any} element - The scope element
+   * @param {number|string|undefined} index - `effect:` from the animation
+   * @param {any} [cardHost] - The scope's card, remembered at registration
+   * @returns {any[]} EffectHandles
+   * @private
+   */
+  _resolveBackgroundTargets(element, index, cardHost = null) {
+    const host = this._findBackgroundHost(element) ?? cardHost;
+    return host?._backgroundRenderer?.getHandles?.(index) ?? [];
+  }
+
+  /**
+   * The nearest card up the DOM and shadow roots that supports background_animation.
+   * @param {any} element
+   * @returns {any}
+   * @private
+   */
+  _findBackgroundHost(element) {
+    let node = element;
+    while (node) {
+      if ('_backgroundRenderer' in node) return node;
+      node = node.parentNode ?? node.host ?? null;
+    }
+    return null;
+  }
+
+  /**
+   * Whether every element an instance animates is still in the document. Timelines
+   * and CSS handles expose no targets and count as not connected (they are replayed).
+   * @param {any} instance
+   * @returns {boolean}
+   * @private
+   */
+  _targetsConnected(instance) {
+    const targets = instance?.targets;
+    return Array.isArray(targets) && targets.length > 0 && targets.every(t => t?.isConnected);
+  }
+
+  /**
+   * Split a torn-down scope's running instances for the rebuilt scope: ones whose
+   * elements survived the re-render keep running and move over; ones whose elements
+   * were replaced are reverted and replayed on the new elements from where they
+   * were. Everything else is reverted, as before.
+   *
+   * One animation can report several instances (stagger-flash: one per element), so
+   * the split is per animation: all its instances survived, or it is replayed once.
+   * Replaying per instance multiplied it on every re-render (6 handles became 6
+   * replays of 6 handles each, and so on), which hung the page.
+   * @param {object} oldScope
+   * @param {boolean} onLoadFired - the new scope's flag
+   * @returns {{ keep: {trigger: string, instance: any, animDef: any}[], replay: {animDef: any, time: number}[] }}
+   * @private
+   */
+  _carryOverInstances(oldScope, onLoadFired) {
+    /** @type {{trigger: string, instance: any, animDef: any}[]} */
+    const keep = [];
+    /** @type {{animDef: any, time: number}[]} */
+    const replay = [];
+    /** @type {Map<any, {trigger: string, instances: any[]}>} live instances that may carry over, by animation */
+    const byDef = new Map();
+    oldScope.runningInstances?.forEach((instances, trigger) => {
+      instances.forEach((instance) => {
+        if (!instance || instance.completed) return;
+        const animDef = this._instanceDefs.get(instance);
+        if (!this._carriesOver(trigger, animDef, onLoadFired)) {
+          this._revertInstance(instance);
+          return;
+        }
+        // _carriesOver() only passes instances with their animation
+        const group = byDef.get(animDef) ?? { trigger, instances: /** @type {any[]} */ ([]) };
+        group.instances.push(instance);
+        byDef.set(animDef, group);
+      });
+    });
+    byDef.forEach(({ trigger, instances }, animDef) => {
+      if (instances.every(i => this._targetsConnected(i))) {
+        instances.forEach(instance => keep.push({ trigger, instance, animDef }));
+        return;
+      }
+      replay.push({ animDef, time: Number(instances[0].currentTime) || 0 });
+      instances.forEach(instance => this._revertInstance(instance));
+    });
+    oldScope.runningInstances?.clear();
+    return { keep, replay };
   }
 
   /**
@@ -196,8 +456,6 @@ export class AnimationManager extends BaseService {
    *
    * @param {Array} overlays - Overlay configurations from merged config
    * @param {Object} [options] - Additional options
-   * @param {Object} [options.customPresets] - User-defined animation_presets
-   * @param {Object} [options.timelines] - Timeline configurations
    * @param {Object} [options.suppressMountWarning] - Suppress mount element warning (for core singleton init)
    */
   async initialize(overlays = [], options = {}) {
@@ -210,14 +468,6 @@ export class AnimationManager extends BaseService {
       }
       if (!this.mountEl && !options.suppressMountWarning) {
         lcardsLog.warn('[AnimationManager] No mountEl available - DOM queries may fail');
-      }
-
-      // Store custom presets for resolution
-      if (options.customPresets) {
-        Object.entries(options.customPresets).forEach(([name, preset]) => {
-          this.customPresets.set(name, preset);
-          lcardsLog.debug(`[AnimationManager] Registered custom preset: ${name}`);
-        });
       }
 
       // Register animations from overlay configs (don't execute yet - overlays may not be rendered)
@@ -250,14 +500,6 @@ export class AnimationManager extends BaseService {
         });
       });
 
-      // Store timeline configs (will be initialized when overlays are ready)
-      if (options.timelines) {
-        Object.entries(options.timelines).forEach(([timelineId, timelineConfig]) => {
-          lcardsLog.debug(`[AnimationManager] Stored timeline config: ${timelineId}`);
-        });
-        this.timelineConfigs = options.timelines;
-      }
-
       this.initialized = true;
 
       // Expose to global namespace for Runtime/Debug API
@@ -267,9 +509,7 @@ export class AnimationManager extends BaseService {
       }
 
       lcardsLog.debug('[AnimationManager] Animation system initialized', {
-        overlaysWithAnimations: this.registeredAnimations.size,
-        customPresets: this.customPresets.size,
-        timelines: Object.keys(options.timelines || {}).length
+        overlaysWithAnimations: this.registeredAnimations.size
       });
 
     } catch (error) {
@@ -312,6 +552,8 @@ export class AnimationManager extends BaseService {
       // Declared outside the if-block so it remains in scope when setting
       // triggerManager._isRecreation below (const/let are block-scoped in JS).
       let previouslyActiveWhileAnims = false;
+      /** @type {{ keep: {trigger: string, instance: any, animDef: any}[], replay: {animDef: any, time: number}[] }} */
+      let carried = { keep: [], replay: [] };
 
       if (existingScope) {
         lcardsLog.debug(`[AnimationManager] Scope exists for ${overlayId}, age: ${scopeAge}ms, preserving onLoadFired: ${preserveOnLoadFlag} (initial setup: ${isInitialSetup})`);
@@ -329,12 +571,16 @@ export class AnimationManager extends BaseService {
         // DOM element was replaced — without this guard the re-seed would fire even
         // on the first page load where no animation was ever running.
         previouslyActiveWhileAnims = existingScope.triggerManager?._whileActiveAnims?.size > 0;
-        existingScope.runningInstances.forEach((instances) => {
-          instances.forEach(instance => {
-            try { if (instance && !instance.completed) instance.revert?.(); } catch (e) {}
-          });
-        });
-        existingScope.runningInstances.clear();
+        // An on_show entrance cut short by this rebuild (the card re-renders right
+        // after it is attached) plays again on the new scope.
+        if (existingScope.runningInstances.get('on_show')?.some(i => i && !i.completed)) {
+          this._findShowHost(element)?._lcardsShown.delete(overlayId);
+          existingScope.shownOnce = false;
+        }
+        // Animations running when the card re-renders (a tap that toggles the entity,
+        // a flash on the state change that re-colours the card) carry over instead of
+        // being cut off; see _carryOverInstances
+        carried = this._carryOverInstances(existingScope, preserveOnLoadFlag);
         this._clearAllSpeedBindingsForScope(overlayId, existingScope);
         this._runElementCleanupFns(existingScope.element);
         if (existingScope.triggerManager) {
@@ -358,12 +604,15 @@ export class AnimationManager extends BaseService {
       // as that would bypass the check_on_load: false guard.
       const triggerManager = new TriggerManager(overlayId, element, this);
       triggerManager._isRecreation = !!existingScope && previouslyActiveWhileAnims;
+      triggerManager._isRebuild = !!existingScope;
 
       // Store scope and trigger manager
       this.scopes.set(overlayId, {
         scope: scope,
         overlay: overlayConfig,
         element: element,
+        // The card around the element, for target: background (see _resolveBackgroundTargets)
+        cardHost: this._findBackgroundHost(element) ?? existingScope?.cardHost ?? null,
         activeAnimations: new Set(),
         triggerManager: triggerManager,
         // Track running animation instances by trigger type for stopAnimations()
@@ -377,8 +626,18 @@ export class AnimationManager extends BaseService {
         // Track whether on_load animations have already fired
         // Preserve the flag if scope is being recreated (e.g., on element changes)
         onLoadFired: preserveOnLoadFlag,
+        // on_show outside an LCARdS card: plays once per scope id (see _maybeFireOnShow)
+        shownOnce: existingScope?.shownOnce ?? false,
         // Track when scope was created to distinguish initial setup from state changes
         createdAt: existingScope?.createdAt || now
+      });
+
+      const newScopeData = this.scopes.get(overlayId);
+      carried.keep.forEach(({ trigger, instance, animDef }) => this._trackInstance(newScopeData, trigger, instance, animDef));
+      carried.replay.forEach(({ animDef, time }) => {
+        this.playAnimation(overlayId, animDef, { seek: time }).catch((error) => {
+          lcardsLog.warn(`[AnimationManager] Replay after re-render failed for ${overlayId}:`, error);
+        });
       });
 
       // Get registered animations for this overlay
@@ -413,6 +672,8 @@ export class AnimationManager extends BaseService {
         if (sd) sd.onLoadFired = true;
       }
 
+      this._maybeFireOnShow(overlayId);
+
       lcardsLog.debug(`[AnimationManager] ✅ Initialized ${animations.length} animations for overlay: ${overlayId}`);
 
     } catch (error) {
@@ -425,6 +686,7 @@ export class AnimationManager extends BaseService {
    *
    * @param {string} overlayId - Overlay identifier
    * @param {Object} animDef - Animation definition
+   * @param {{batchShouldFire?: boolean|null}} [options] - batchShouldFire: precomputed on_load decision for a batch
    */
   async registerAnimation(overlayId, animDef, { batchShouldFire = null } = {}) {
     // Respect the enabled flag — false suppresses registration entirely
@@ -443,7 +705,7 @@ export class AnimationManager extends BaseService {
 
     lcardsLog.debug(`[AnimationManager] Registering animation for ${overlayId} with trigger: ${trigger}`);
 
-    // Resolve preset_ref to actual definition
+    // Check the preset it names exists
     const resolvedAnimDef = this.resolveAnimationDefinition(animDef);
 
     // Register with trigger manager
@@ -483,7 +745,7 @@ export class AnimationManager extends BaseService {
    * @param {Object} animDef - Animation definition with trigger: on_datasource_change
    */
   setupDatasourceListenerForAnimation(overlayId, animDef) {
-    const dataSourceManager = this.systemsManager?.dataSourceManager;
+    const dataSourceManager = this._getDataSourceManager();
 
     if (!dataSourceManager) {
       lcardsLog.warn('[AnimationManager] DataSourceManager not available for datasource triggers');
@@ -515,8 +777,14 @@ export class AnimationManager extends BaseService {
       return;
     }
 
+    // DataSource.subscribe() hands a new subscriber the current point right away
+    // (hydration); that is not a change, so skip a point we had already seen.
+    let lastSeenT = source.getCurrentData?.()?.t ?? null;
+
     // Subscribe to datasource updates
     const unsubscribe = source.subscribe((data) => {
+      if (data?.t != null && data.t === lastSeenT) return;
+      lastSeenT = data?.t ?? null;
       lcardsLog.debug(`[AnimationManager] 📊 Datasource change: ${datasourceName} (overlay: ${overlayId})`, data);
 
       // Extract value based on path if needed
@@ -575,7 +843,69 @@ export class AnimationManager extends BaseService {
    * @param {string} overlayId - Overlay identifier
    * @param {string} trigger - Trigger type (on_tap, on_hold, on_hover, etc.)
    */
-  async triggerAnimations(overlayId, trigger) {
+  /**
+   * Play a scope's on_show animations once per connection of the card it lives in.
+   * HA attaches a card each time it appears (view opened, visibility condition met,
+   * back from another view), and LCARdSNativeCard resets `_lcardsShown` on every
+   * connect; a scope rebuilt during the same connection (re-render, effects restart)
+   * doesn't replay. Scopes outside any LCARdS card play once.
+   *
+   * @param {string} scopeId - Scope key (overlay id or segment scope key)
+   */
+  _maybeFireOnShow(scopeId) {
+    const scopeData = this.scopes.get(scopeId);
+    if (!scopeData?.element?.isConnected) return;
+    if (!scopeData.triggerManager?.registrations.get('on_show')?.length) return;
+
+    const host = this._findShowHost(scopeData.element);
+    if (host) {
+      if (host._lcardsShown.has(scopeId)) return;
+      host._lcardsShown.add(scopeId);
+    } else {
+      if (scopeData.shownOnce) return;
+      scopeData.shownOnce = true;
+    }
+    lcardsLog.debug(`[AnimationManager] Executing on_show animations for ${scopeId}`);
+    this.triggerAnimations(scopeId, 'on_show');
+  }
+
+  /**
+   * The nearest LCARdS card (shadow host carrying `_lcardsShown`) around an element.
+   * @param {Element} element
+   * @returns {any|null}
+   * @private
+   */
+  _findShowHost(element) {
+    let node = /** @type {any} */ (element);
+    while (node) {
+      if (node._lcardsShown instanceof Set) return node;
+      const root = /** @type {any} */ (node.getRootNode?.());
+      node = root && root !== node ? (root.host ?? null) : null;
+    }
+    return null;
+  }
+
+  /**
+   * A card was attached to the page: play on_show for every scope inside it that
+   * hasn't played for this connection (scopes that weren't rebuilt on reconnect).
+   * Called by LCARdSNativeCard after its first render following each connect.
+   * @param {Element} card
+   */
+  onCardShown(card) {
+    for (const [scopeId, scopeData] of this.scopes) {
+      if (scopeData.element && this._findShowHost(scopeData.element) === card) this._maybeFireOnShow(scopeId);
+    }
+  }
+
+  /**
+   * Play every animation registered on a scope for one trigger.
+   * @param {string} overlayId
+   * @param {string} trigger
+   * @param {{ pointer?: { clientX: number, clientY: number }|null, fromState?: string, toState?: string }} [context] - pointer: the tap
+   *   that fired it, for stagger `from: 'pointer'` (tap-ripple). fromState / toState: the
+   *   card entity change behind an on_entity_change trigger (gates from_state / to_state)
+   */
+  async triggerAnimations(overlayId, trigger, context = {}) {
     const scopeData = this.scopes.get(overlayId);
 
     if (!scopeData) {
@@ -612,8 +942,16 @@ export class AnimationManager extends BaseService {
         lcardsLog.debug(`[AnimationManager] ⏭️ Skipping while-gated animation in triggerAnimations (handled by TriggerManager) for ${overlayId}`);
         continue;
       }
+      // A card's own entity change: an on_entity_change animation naming its
+      // `entity` is TriggerManager's (subscribed, gated); the rest still honour
+      // from_state / to_state
+      if (trigger === 'on_entity_change' && 'toState' in context) {
+        if (animDef.entity) continue;
+        if (animDef.to_state !== undefined && String(context.toState) !== String(animDef.to_state)) continue;
+        if (animDef.from_state !== undefined && String(context.fromState) !== String(animDef.from_state)) continue;
+      }
       try {
-        await this.playAnimation(overlayId, animDef);
+        await this.playAnimation(overlayId, animDef, context.pointer ? { pointer: context.pointer } : {});
       } catch (error) {
         lcardsLog.error(`[AnimationManager] Failed to play animation for ${overlayId}:`, error);
       }
@@ -624,10 +962,17 @@ export class AnimationManager extends BaseService {
    * Stop animations for a specific overlay and optional trigger type
    * Used primarily to stop looping hover animations when pointer leaves
    *
+   * Stopped instances revert to their pre-animation state: inline styles and, since
+   * anime.js 4.4, SVG/DOM attributes (fill, stroke, stroke-dashoffset, ...) as captured
+   * when the animation was created. An animation of the same scope/trigger/definition
+   * that is still starting (playAnimation awaiting targets) is reverted as soon as it exists.
+   *
    * @param {string} overlayId - Overlay identifier
-   * @param {string} [trigger] - Optional trigger type to stop (stops all if not specified)
+   * @param {string|null} [trigger] - Optional trigger type to stop (stops all if not specified)
+   * @param {object|null} [animDef] - Optional: stop only the instances started from this
+   *   definition (a `while` condition ending stops its own animation, not its trigger's others)
    */
-  stopAnimations(overlayId, trigger = null) {
+  stopAnimations(overlayId, trigger = null, animDef = null) {
     const resolved = this._resolveScopeFromOverlay(overlayId);
     if (!resolved) {
       lcardsLog.debug(`[AnimationManager] No scope found for ${overlayId}`);
@@ -635,146 +980,39 @@ export class AnimationManager extends BaseService {
     }
 
     const { scopeId, scopeData } = resolved;
-    if (!scopeData.scope) {
-      lcardsLog.debug(`[AnimationManager] Scope ${scopeId} has no anime scope`);
-      return;
-    }
-
     lcardsLog.debug(`[AnimationManager] stopAnimations called for ${scopeId}, trigger=${trigger}`);
+    this._recordStop(scopeData, trigger, animDef);
 
     if (trigger) {
-      // Get anime instances tracked for this trigger
       const instances = scopeData.runningInstances.get(trigger) || [];
+      const stopping = animDef ? instances.filter(i => this._instanceDefs.get(i) === animDef) : instances;
+      let stopped = 0;
+      stopping.forEach(instance => { if (this._revertInstance(instance)) stopped++; });
 
-      if (instances.length === 0) {
-        lcardsLog.debug(`[AnimationManager] No tracked instances for trigger ${trigger} on ${overlayId}`);
-        // Fallback: try scope.children
-        this._stopAnimationsFromScopeChildren(scopeData, trigger);
-        return;
+      const remaining = animDef ? instances.filter(i => !stopping.includes(i)) : [];
+      if (remaining.length > 0) {
+        scopeData.runningInstances.set(trigger, remaining);
+      } else {
+        scopeData.runningInstances.delete(trigger);
+        this._clearSpeedBindingForTrigger(overlayId, scopeData, trigger);
       }
 
-      // Pause and complete each tracked instance
-      let stopped = 0;
-      instances.forEach(instance => {
-        try {
-          if (instance && !instance.completed) {
-            // Revert animation - removes all transformations and returns to original state
-            // This is better than seek(0) which goes to first animation frame
-            if (instance.revert) {
-              instance.revert();
-              stopped++;
-            } else {
-              // Fallback: pause if revert not available
-              lcardsLog.warn(`[AnimationManager] Instance has no revert() method, using pause()`);
-              instance.complete = true;
-              instance.pause();
-              stopped++;
-            }
-          }
-        } catch (error) {
-          lcardsLog.warn(`[AnimationManager] Error stopping instance:`, error);
-        }
-      });
-
-      // Clear tracked instances for this trigger
-      scopeData.runningInstances.delete(trigger);
-      this._clearSpeedBindingForTrigger(overlayId, scopeData, trigger);
-
       lcardsLog.debug(`[AnimationManager] ⏸️ Stopped ${stopped} animation(s) for trigger ${trigger} on ${overlayId}`);
-
     } else {
-      // Stop all animations
-      let stopped = 0;
-      scopeData.runningInstances.forEach((instances, trig) => {
-        instances.forEach(instance => {
-          try {
-            if (instance && !instance.completed) {
-              // Revert to remove all transformations
-              if (instance.revert) {
-                instance.revert();
-                stopped++;
-              } else {
-                instance.complete = true;
-                instance.pause();
-                stopped++;
-              }
-            }
-          } catch (error) {
-            lcardsLog.warn(`[AnimationManager] Error stopping instance:`, error);
-          }
-        });
-      });
-
-      scopeData.runningInstances.clear();
+      const stopped = this._revertAllInstances(scopeData);
       this._clearAllSpeedBindingsForScope(overlayId, scopeData);
       lcardsLog.debug(`[AnimationManager] ⏹️ Stopped ${stopped} animation(s) on ${overlayId}`);
     }
   }
 
   /**
-   * Fallback: Try to stop animations by inspecting scope.children
-   * @private
-   */
-  _stopAnimationsFromScopeChildren(scopeData, trigger) {
-    const children = scopeData.scope.children || [];
-
-    if (children.length === 0) {
-      return;
-    }
-
-    let stopped = 0;
-    children.forEach(child => {
-      try {
-        // Anime instances have .completed, .paused, .pause(), .play() methods
-        if (child && !child.completed && !child.paused) {
-          // Use revert to return to original state
-          if (child.revert) {
-            child.revert();
-            stopped++;
-          } else {
-            child.complete = true;
-            child.pause();
-            stopped++;
-          }
-        }
-      } catch (error) {
-        // Silently ignore - might not be an anime instance
-      }
-    });
-
-    if (stopped > 0) {
-      lcardsLog.debug(`[AnimationManager] ⏸️ Stopped ${stopped} animation(s) via scope.children (fallback)`);
-    }
-  }  /**
-   * Resolve animation definition from preset or custom preset
+   * Copy an animation definition, warning when the preset it names is not registered
    *
    * @param {Object} animDef - Raw animation definition
    * @returns {Object} Resolved animation definition
    */
   resolveAnimationDefinition(animDef) {
-    let resolved = { ...animDef };
-
-    // Check if preset refers to a custom preset (supports both built-in and custom)
-    if (animDef.preset) {
-      const customPreset = this.customPresets.get(animDef.preset);
-      if (customPreset) {
-        // Get the base preset name from the custom preset
-        const basePresetName = customPreset._basePreset || customPreset.preset || customPreset.type;
-
-        // Merge: base preset params < custom preset params < animDef params
-        resolved = {
-          ...customPreset,
-          ...animDef,
-          preset: basePresetName // Use the base preset for execution
-        };
-
-        // Clean up internal fields
-        delete resolved._basePreset;
-        delete resolved.type;
-
-        lcardsLog.debug(`[AnimationManager] Resolved custom preset: ${animDef.preset} -> ${basePresetName}`);
-      }
-    }
+    const resolved = { ...animDef };
 
     // Verify preset exists if specified
     if (resolved.preset) {
@@ -850,6 +1088,11 @@ export class AnimationManager extends BaseService {
       const overlayRegistry = this.systemsManager.getOverlayRegistry?.() || this.systemsManager._overlayRegistry;
       const overlayMetadata = overlayRegistry?.get(overlayId);
 
+      if (overlayMetadata?.animationScope && this.scopes.has(overlayMetadata.animationScope)) {
+        const scopeId = overlayMetadata.animationScope;
+        return { scopeId, scopeData: this.scopes.get(scopeId) };
+      }
+
       if (overlayMetadata) {
         // Use stored type field from overlay metadata
         const cardType = overlayMetadata.type;
@@ -878,9 +1121,12 @@ export class AnimationManager extends BaseService {
    *
    * @param {string} overlayId - Overlay identifier
    * @param {Object} animDef - Animation definition (already resolved)
+   * @param {{ seek?: number, pointer?: { clientX: number, clientY: number } }} [options] - seek: start
+   *   this far in (ms); used to resume an animation a card re-render cut off. pointer: the tap
+   *   that triggered it (stagger `from: 'pointer'`)
    * @returns {Promise<Object|null>} Animation instance
    */
-  async playAnimation(overlayId, animDef) {
+  async playAnimation(overlayId, animDef, options = {}) {
     const resolved = this._resolveScopeFromOverlay(overlayId);
     if (!resolved) {
       lcardsLog.warn(`[AnimationManager] Cannot play animation - overlay not found: ${overlayId}`);
@@ -888,6 +1134,9 @@ export class AnimationManager extends BaseService {
     }
 
     const { scopeId, scopeData } = resolved;
+    // Taken before the first await: a stop that lands while this animation is still
+    // starting changes the token, and onInstanceCreated below reverts the late instance.
+    const stopToken = this._stopToken(scopeData, animDef.trigger, animDef);
 
     try {
       // Resolve datasource-driven parameters if needed
@@ -938,6 +1187,14 @@ export class AnimationManager extends BaseService {
             lcardsLog.warn(`[AnimationManager] Target not found: "${spec}" for overlay ${overlayId}`);
           }
         }
+      } else if (finalAnimDef.target === 'background') {
+        // The card's background_animation effects (one entry with `effect: N`)
+        const handles = this._resolveBackgroundTargets(overlayElement, finalAnimDef.effect, scopeData.cardHost);
+        if (handles.length === 0) {
+          lcardsLog.warn(`[AnimationManager] target: background found no background effect${finalAnimDef.effect !== undefined ? ` at index ${finalAnimDef.effect}` : ''} for ${overlayId}`);
+          return null;
+        }
+        targetElements.push(...handles);
       } else if (finalAnimDef.target) {
         // Single target specified (string selector or element)
 
@@ -1078,6 +1335,7 @@ export class AnimationManager extends BaseService {
         type: finalAnimDef.preset || finalAnimDef.type,
         targets: targetElements,  // Pass resolved DOM elements, not original selectors
         root: scopeData.element.getRootNode(),
+        pointer: options.pointer ?? null,
         // Pass params nested (not spread) so preset factories can still read
         // preset-specific fields via `def.params || def` (e.g. pulse's max_scale/
         // max_brightness) WITHOUT those fields also leaking onto animOptions
@@ -1104,18 +1362,40 @@ export class AnimationManager extends BaseService {
         )
       };
 
-      // Prepare array to collect anime instances created by animateElement
-      if (!scopeData.runningInstances.has(animDef.trigger)) {
-        scopeData.runningInstances.set(animDef.trigger, []);
-      }
-      const instancesArray = scopeData.runningInstances.get(animDef.trigger);
-
       // Callback to track instances as they're created
+      // essential_motion: the animation carries meaning (an alert flash) and plays anyway
+      const reducedMotion = prefersReducedMotion() && animDef.essential_motion !== true;
       const onInstanceCreated = (instance) => {
-        if (instance) {
-          instancesArray.push(instance);
-          lcardsLog.debug(`[AnimationManager] 📌 Tracked anime instance for trigger: ${animDef.trigger}`);
+        if (!instance) return;
+        if (this._stopToken(scopeData, animDef.trigger, animDef) !== stopToken) {
+          // Stopped while this was still starting
+          this._revertInstance(instance);
+          lcardsLog.debug(`[AnimationManager] Stopped before it started: ${animDef.trigger} animation on ${overlayId}`);
+          return;
         }
+        const currentScope = this.scopes.get(scopeId);
+        if (currentScope !== scopeData) {
+          // The overlay was destroyed or rebuilt (a re-render) while this was starting
+          if (currentScope && this._carriesOver(animDef.trigger, animDef, currentScope.onLoadFired)) {
+            if (this._targetsConnected(instance)) {
+              this._trackInstance(currentScope, animDef.trigger, instance, animDef);
+              return;
+            }
+            this._revertInstance(instance);
+            this.playAnimation(overlayId, animDef, options).catch(() => {});
+            return;
+          }
+          this._revertInstance(instance);
+          return;
+        }
+        if (reducedMotion) {
+          this._settleForReducedMotion(instance);
+          lcardsLog.debug(`[AnimationManager] Reduced motion: settled ${animDef.trigger} animation on ${overlayId}`);
+          return;
+        }
+        this._trackInstance(scopeData, animDef.trigger, instance, animDef);
+        if ((options.seek ?? 0) > 0 && typeof instance.seek === 'function') instance.seek(options.seek);
+        lcardsLog.debug(`[AnimationManager] 📌 Tracked anime instance for trigger: ${animDef.trigger}`);
       };
 
       // Execute animation via animateElement with callback
@@ -1160,6 +1440,16 @@ export class AnimationManager extends BaseService {
   }
 
   /**
+   * The page's DataSourceManager. It lives on the core singleton, not on the
+   * systems manager this manager was built with (CoreSystemsManager has none).
+   * @returns {any}
+   * @private
+   */
+  _getDataSourceManager() {
+    return this.systemsManager?.dataSourceManager || window.lcards?.core?.dataSourceManager || null;
+  }
+
+  /**
    * Resolve datasource-driven parameters in animation definition
    *
    * @param {Object} animDef - Animation definition
@@ -1167,7 +1457,7 @@ export class AnimationManager extends BaseService {
    */
   async resolveDatasourceParams(animDef) {
     const resolved = {};
-    const dataSourceManager = this.systemsManager?.dataSourceManager;
+    const dataSourceManager = this._getDataSourceManager();
 
     if (!dataSourceManager) {
       return resolved;
@@ -1179,7 +1469,7 @@ export class AnimationManager extends BaseService {
       const datasource = dataSourceManager.getSource(animDef.datasource);
       if (datasource) {
         const currentData = datasource.getCurrentData();
-        datasourceValue = currentData?.value;
+        datasourceValue = currentData?.v ?? null;
       }
     }
 
@@ -1386,6 +1676,11 @@ export class AnimationManager extends BaseService {
       });
       keysToRemove.forEach(key => this.datasourceSubscriptions.delete(key));
 
+      // Stop its animations: the anime.js scope never tracked them (see animateElement),
+      // so without this a loop keeps running on the detached element
+      this._revertAllInstances(scopeData);
+      this._clearAllSpeedBindingsForScope(overlayId, scopeData);
+
       // Cleanup trigger manager
       if (scopeData.triggerManager) {
         scopeData.triggerManager.destroy();
@@ -1485,7 +1780,10 @@ export class AnimationManager extends BaseService {
    * Cleanup all resources
    */
   dispose() {
-    lcardsLog.info('[AnimationManager] 🧹 Disposing animation system');
+    lcardsLog.debug('[AnimationManager] 🧹 Disposing animation system');
+
+    this._unsubscribeReducedMotion?.();
+    this._unsubscribeReducedMotion = null;
 
     // ✨ NEW: Cleanup all datasource subscriptions
     lcardsLog.debug(`[AnimationManager] Cleaning up ${this.datasourceSubscriptions.size} datasource subscriptions`);
@@ -1508,14 +1806,13 @@ export class AnimationManager extends BaseService {
 
     // Clear all maps
     this.scopes.clear();
-    this.customPresets.clear();
-    this.timelines.clear();
     this.activeAnimations.clear();
     this.registeredAnimations.clear();
+    this._entityToSpeedBindings.clear();
 
     this.initialized = false;
 
-    lcardsLog.info('[AnimationManager] ✅ Animation system disposed');
+    lcardsLog.debug('[AnimationManager] ✅ Animation system disposed');
   }
 
   // ============================================================================
@@ -1608,6 +1905,8 @@ export class AnimationManager extends BaseService {
       // Same rationale as onOverlayRendered() — must run after the full batch (#386).
       scopeData.triggerManager.finalizeRegistrations();
 
+      this._maybeFireOnShow(scopeKey);
+
       lcardsLog.debug(`[AnimationManager] ✅ Registered ${animations.length} animations for segment: ${scopeKey}`);
 
     } catch (error) {
@@ -1667,7 +1966,7 @@ export class AnimationManager extends BaseService {
    *
    * @param {string} cardId - Card identifier
    * @param {string} segmentId - Segment identifier
-   * @param {string} [trigger] - Optional trigger type to stop (stops all if not specified)
+   * @param {string|null} [trigger] - Optional trigger type to stop (stops all if not specified)
    */
   stopSegmentAnimations(cardId, segmentId, trigger = null) {
     const scopeKey = `${cardId}:segment:${segmentId}`;
@@ -1709,8 +2008,6 @@ export class AnimationManager extends BaseService {
       type: 'AnimationManager',
       initialized: this.initialized || false,
       scopesCount: this.scopes?.size || 0,
-      customPresetsCount: this.customPresets?.size || 0,
-      timelinesCount: this.timelines?.size || 0,
       activeAnimationsCount: this.activeAnimations?.size || 0,
       registeredAnimationsCount: this.registeredAnimations?.size || 0,
       hasMountEl: !!this.mountEl,

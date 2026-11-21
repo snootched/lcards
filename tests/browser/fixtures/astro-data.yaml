@@ -1,0 +1,50 @@
+# Astrometrics live data (astrometrics.spec.js, E3a): a top-down orthographic
+# map. shuttle: placed from device_tracker.shuttle (added by the test), its
+# label templated from the entity, its colour a state map. lamp: a state
+# colour map on switch.demo_switch, and a rule target (input_boolean.demo_toggle
+# on: green, the globe hidden, the route recoloured (that object rebuilt),
+# and tag:outpost relabelled, over its explicit text.label.content, with an
+# MSD-style style: { color }). luna: a sky template. A path follows the
+# shuttle.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: top
+  views:
+    top: { target: [0, 0, 0], tilt: 90, distance: 260, projection: orthographic }
+labels:
+  default: { font_family: "Antonio, sans-serif", text_transform: uppercase }
+  styles:
+    alert: { font_size: 16, font_weight: bold, priority: 90 }
+points:
+  - id: shuttle
+    entity: device_tracker.shuttle
+    xyz: {}
+    marker: reticle
+    color: { default: "rgb(0, 0, 255)", not_home: "rgb(255, 0, 0)" }
+    text:
+      label: { content: "{entity.attributes.friendly_name}" }
+      status: { content: "{entity.state}", position: bottom-right, font_size: 10, background: { default: black } }
+  - id: lamp
+    entity: switch.demo_switch
+    xyz: [-60, 0, 0]
+    marker: square
+    style: alert
+    label: Lamp
+    color: { active: "rgb(255, 165, 0)", inactive: "rgb(128, 128, 128)" }
+  - { id: luna, xyz: [0, 0, -60], label: "LUNA {sky.moon.illumination}%" }
+  - { id: sol, xyz: [0, 0, 60], label: "SOL {sky.sun.altitude}" }
+  - { id: base, xyz: [60, 0, 0], marker: dot, text: { label: { content: BASE } }, tags: [outpost] }
+objects:
+  - { type: grid, id: floor, shape: plane, size: [240, 160], line_spacing: 20 }
+  - { type: sphere, id: earth, radius: 12, at: [0, 0, 40] }
+  - { type: path, id: route, from: base, to: shuttle }
+rules:
+  - id: lamp_alert
+    when: { entity: input_boolean.demo_toggle, state: "on" }
+    apply:
+      overlays:
+        lamp: { color: "rgb(0, 255, 0)" }
+        earth: { visible: false }
+        route: { color: "rgb(255, 0, 0)" }
+        "tag:outpost": { label: BASE ALERT, style: { color: "rgb(255, 255, 0)" } }

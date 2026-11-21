@@ -20,6 +20,7 @@ integration is installed and set up via the HA integrations UI.
 import logging
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import MAJOR_VERSION, MINOR_VERSION
 from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ from homeassistant.helpers import config_validation as cv
 
 from .const import (
     DOMAIN,
+    MIN_HA_VERSION,
     CONF_SHOW_PANEL, DEFAULT_SHOW_PANEL,
     CONF_SIDEBAR_TITLE, DEFAULT_SIDEBAR_TITLE,
     CONF_SIDEBAR_ICON, DEFAULT_SIDEBAR_ICON,
@@ -56,6 +58,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     These must be available even before a config entry exists so that
     the frontend can probe lcards/info after a hot-reload.
     """
+    if (MAJOR_VERSION, MINOR_VERSION) < MIN_HA_VERSION:
+        _LOGGER.error(
+            "LCARdS requires Home Assistant %s.%s or newer (running %s.%s) — "
+            "not loading. Update Home Assistant or install an older LCARdS release.",
+            *MIN_HA_VERSION, MAJOR_VERSION, MINOR_VERSION,
+        )
+        return False
+
     _LOGGER.debug("LCARdS: registering static paths and WebSocket API")
     await async_register_static_path(hass)
     async_setup_ws(hass)

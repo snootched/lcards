@@ -1,0 +1,45 @@
+# Voyager D-pad (D1c): component dpad_voyager, every shape of the artwork its own
+# segment. The arrows step VALUE, the centre and the corners toggle helpers.
+title: Voyager D-pad
+path: button-dpad-voyager
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: VALUE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        component: dpad_voyager
+        dpad_voyager:
+          segments:
+            up_arrow:
+              tap_action: { action: perform-action, perform_action: input_number.increment, target: { entity_id: input_number.lcards_test_value } }
+            right_arrow:
+              tap_action: { action: perform-action, perform_action: input_number.increment, target: { entity_id: input_number.lcards_test_value } }
+            down_arrow:
+              tap_action: { action: perform-action, perform_action: input_number.decrement, target: { entity_id: input_number.lcards_test_value } }
+            left_arrow:
+              tap_action: { action: perform-action, perform_action: input_number.decrement, target: { entity_id: input_number.lcards_test_value } }
+            center:
+              entity: input_boolean.lcards_test_lights
+              tap_action: { action: toggle }
+              style: { fill: { active: var(--lcards-orange), inactive: var(--lcards-gray) } }
+            up_left:
+              entity: input_boolean.lcards_test_doors
+              tap_action: { action: toggle }
+              style: { fill: { active: var(--lcards-orange), inactive: var(--lcards-gray) } }
+            up_right:
+              entity: input_boolean.lcards_test_toggle
+              tap_action: { action: toggle }
+              style: { fill: { active: var(--lcards-orange), inactive: var(--lcards-gray) } }
+        grid_options: { columns: 24, rows: 7 }

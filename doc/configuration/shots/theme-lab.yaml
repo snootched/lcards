@@ -1,0 +1,56 @@
+# Pictures for doc/configuration/ha-lcars-theme-lab.md (cropped to the lab, so no sidebar or user names):
+#   node scripts/release-shots.mjs --list doc/configuration/shots/theme-lab.yaml --out doc/public/img/theme-lab
+- path: /lcards-config?tab=theme
+  viewport: &id003
+  - 1400
+  - 1000
+  settle: 4000
+  selector: lcards-theme-generator-view
+  padding: 0
+  name: start
+  steps:
+  - &id001
+    click: ha-tab-group-tab[value="generator"]
+  - &id002
+    wait: 3000
+- path: /lcards-config?tab=theme
+  viewport:
+  - 1400
+  - 1500
+  settle: 4000
+  selector: lcards-form-section[header="Palette Seed"]
+  padding: 4
+  name: palette-seed
+  steps:
+  - *id001
+  - *id002
+  - eval: '(() => { const walk = (n) => { for (const e of n.querySelectorAll(''*'')) { if ((e.tagName === ''LCARDS-FORM-SECTION'' && e.getAttribute(''header'') === ''Palette Seed'') || (e.classList && e.classList.contains(''Palette Seed''))) { e.scrollIntoView({ block: ''start'' }); return true; } if
+      (e.shadowRoot && walk(e.shadowRoot)) return true; } return false; }; walk(document); })()'
+  - wait: 1500
+- path: /lcards-config?tab=theme
+  viewport: *id003
+  settle: 4000
+  selector: lcards-theme-generator-view
+  padding: 0
+  name: preview
+  steps:
+  - *id001
+  - *id002
+  - click: ha-button:has-text("Preview & Export")
+  - wait: 3000
+- path: /lcards-config?tab=theme
+  viewport:
+  - 1400
+  - 1300
+  settle: 4000
+  selector: .gen-export-box
+  padding: 4
+  name: export
+  steps:
+  - *id001
+  - *id002
+  - click: ha-button:has-text("Preview & Export")
+  - wait: 3000
+  - eval: '(() => { const walk = (n) => { for (const e of n.querySelectorAll(''*'')) { if ((e.tagName === ''LCARDS-FORM-SECTION'' && e.getAttribute(''header'') === ''gen-export-box'') || (e.classList && e.classList.contains(''gen-export-box''))) { e.scrollIntoView({ block: ''start'' }); return true; }
+      if (e.shadowRoot && walk(e.shadowRoot)) return true; } return false; }; walk(document); })()'
+  - wait: 1500

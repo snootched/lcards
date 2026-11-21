@@ -1,0 +1,2021 @@
+# Astrometrics showcase (R4d), written by scripts/make-astro-showcase.mjs: do not
+# edit by hand, change the script (or the starters it is built on) and run it.
+# The Star Trek galaxy with the real Sol system and a Bajor system inside it,
+# the 18 stops down the left, the controls along the bottom. Helpers in
+# tests/ha/ha-client.mjs; uses: script.lcards_test_tour,
+# automation.lcards_test_alert, automation.lcards_test_date (demo/package.yaml).
+title: Astrometrics showcase
+path: astro-showcase
+type: custom:lcards-layout-view
+layout:
+  height: calc(100dvh - var(--header-height, 56px))
+  min-height: 1250px
+  padding: 12px
+  grid-gap: 8px
+  grid-template-columns: 90px 170px minmax(0, 1fr)
+  grid-template-rows: 80px minmax(0, 1fr) 326px 44px
+  grid-template-areas: '"head head head" "arm stops scene" "arm stops controls" "foot foot foot"'
+cards:
+  - type: custom:lcards-elbow
+    view_layout:
+      grid-area: head
+    elbow:
+      type: header-left
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: arm
+    layout:
+      grid-gap: 6px
+      grid-template-columns: minmax(0, 1fr)
+      grid-template-rows: 3fr 1fr 1fr 5fr 1fr 2fr
+    cards:
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: 47-2201, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.primary}}}
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: 03-118, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.secondary}}}
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: ASTRO, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.tertiary}}}
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: '87867', position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.primary}}}
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: LCARS, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.card.topColor}}}
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: 04-1701, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.primary}}}
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: stops
+    layout:
+      grid-gap: 8px
+      grid-template-columns: minmax(0, 1fr)
+      grid-template-rows: repeat(18, minmax(0, 1fr))
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: GALAXY, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: galaxy
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: FEDERATION, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: federation
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: SOL SYSTEM, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: sol
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: EARTH, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: earth
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: MARS, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: mars
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: JUPITER, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: jupiter
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: SATURN, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: saturn
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: PLUTO, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: pluto
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: CRYSTALLINE ENTITY, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: entity
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: NEXUS, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: nexus
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: BAJOR SYSTEM, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: bajor_system
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: DEEP SPACE 9, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: ds9
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: WORMHOLE, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: wormhole
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: NEBULA, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: nebula
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: BADLANDS, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: badlands
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: BORG CUBE, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: cube
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: IDRAN, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: gamma
+      - type: custom:lcards-button
+        preset: lozenge
+        height: 44
+        text:
+          name: {content: DELTA BADLANDS, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: delta_badlands
+  - type: custom:lcards-astrometrics-card
+    id: astro_showcase
+    points:
+      - id: core
+        xyz:
+          - 0
+          - 0
+          - 0
+        label: GALACTIC CORE
+        style: major
+        tap_action:
+          action: fly-to
+          view: barrier
+        hide_in_systems: true
+      - id: alpha
+        polar:
+          - 40000
+          - 225
+        alt: 6000
+        label: ALPHA QUADRANT
+        style: title
+        min_distance: 70000
+        hide_in_systems: true
+      - id: beta
+        polar:
+          - 40000
+          - 135
+        alt: 6000
+        label: BETA QUADRANT
+        style: title
+        min_distance: 70000
+        hide_in_systems: true
+      - id: gamma_q
+        polar:
+          - 40000
+          - 315
+        alt: 6000
+        label: GAMMA QUADRANT
+        style: title
+        min_distance: 70000
+        hide_in_systems: true
+      - id: delta_q
+        polar:
+          - 40000
+          - 45
+        alt: 6000
+        label: DELTA QUADRANT
+        style: title
+        min_distance: 70000
+        hide_in_systems: true
+      - id: federation_name
+        xyz:
+          - -9000
+          - 1500
+          - 26000
+        label: UNITED FEDERATION OF PLANETS
+        style: minor
+        color: var(--lcars-blue)
+        min_distance: 2500
+        hide_in_systems: true
+        tags:
+          - federation
+      - id: klingon_name
+        xyz:
+          - -9000
+          - 5000
+          - 26000
+        label: KLINGON EMPIRE
+        style: minor
+        color: var(--lcars-red)
+        min_distance: 2500
+        hide_in_systems: true
+      - id: romulan_name
+        xyz:
+          - -9000
+          - 8500
+          - 26000
+        label: ROMULAN STAR EMPIRE
+        style: minor
+        color: var(--lcars-green)
+        min_distance: 2500
+        hide_in_systems: true
+      - id: cardassian_name
+        xyz:
+          - -9000
+          - 12000
+          - 26000
+        label: CARDASSIAN UNION
+        style: minor
+        color: var(--lcars-orange)
+        min_distance: 2500
+        hide_in_systems: true
+      - id: dominion_name
+        xyz:
+          - -41000
+          - 1500
+          - -25500
+        label: THE DOMINION
+        style: major
+        color: var(--lcars-violet)
+        hide_in_systems: true
+      - id: borg_name
+        xyz:
+          - 24000
+          - 1500
+          - -24000
+        label: BORG COLLECTIVE
+        style: major
+        color: var(--lcars-green)
+        hide_in_systems: true
+      - id: sol
+        xyz:
+          - 0
+          - 0
+          - 26000
+        marker: reticle
+        label: SOL
+        style: major
+        overlap: true
+        tap_action:
+          action: fly-to
+          view: neighbours
+        hide_in_systems: true
+        tags:
+          - federation
+      - id: vulcan
+        xyz:
+          - 4.54
+          - -10.02
+          - 26011.97
+        marker: dot
+        label: Vulcan (40 Eridani)
+        style: minor
+        priority: 90
+        color: var(--lcars-blue)
+        max_distance: 150
+        hide_in_systems: true
+        tags:
+          - federation
+      - id: andoria
+        xyz:
+          - 6.2
+          - 2.58
+          - 26009.29
+        marker: dot
+        label: Andoria (Procyon)
+        style: minor
+        priority: 90
+        color: var(--lcars-blue)
+        max_distance: 150
+        hide_in_systems: true
+        tags:
+          - federation
+      - id: tellar
+        xyz:
+          - -11.24
+          - -1.16
+          - 25998.48
+        marker: dot
+        label: Tellar (61 Cygni)
+        style: minor
+        priority: 90
+        color: var(--lcars-blue)
+        max_distance: 150
+        hide_in_systems: true
+        tags:
+          - federation
+      - id: alpha_centauri
+        xyz:
+          - 3.05
+          - -0.05
+          - 25996.87
+        marker: dot
+        label: Alpha Centauri
+        style: tiny
+        color: var(--lcards-moonlight)
+        max_distance: 150
+        hide_in_systems: true
+      - id: wolf_359
+        xyz:
+          - 3.94
+          - 6.53
+          - 26001.92
+        marker: dot
+        label: Wolf 359
+        style: tiny
+        color: var(--lcards-moonlight)
+        max_distance: 150
+        hide_in_systems: true
+      - id: vega
+        xyz:
+          - -21.83
+          - 8.25
+          - 25990.93
+        marker: dot
+        label: Vega
+        style: tiny
+        color: var(--lcards-moonlight)
+        max_distance: 150
+        hide_in_systems: true
+      - id: altair
+        xyz:
+          - -12.23
+          - -2.59
+          - 25988.89
+        marker: dot
+        label: Altair
+        style: tiny
+        color: var(--lcards-moonlight)
+        max_distance: 150
+        hide_in_systems: true
+      - id: qonos
+        xyz:
+          - 64
+          - 0
+          - 25910
+        marker: diamond
+        label: Qo'noS
+        style: minor
+        color: var(--lcars-red)
+        max_distance: 3000
+        hide_in_systems: true
+      - id: romulus
+        xyz:
+          - 112
+          - 0
+          - 26026
+        marker: diamond
+        label: Romulus
+        style: minor
+        color: var(--lcars-green)
+        max_distance: 3000
+        hide_in_systems: true
+      - id: remus
+        xyz:
+          - 113
+          - 0
+          - 26027.5
+        marker: dot
+        label: Remus
+        style: minor
+        color: var(--lcars-green)
+        max_distance: 3000
+        hide_in_systems: true
+      - id: bajor
+        xyz:
+          - -46
+          - 0
+          - 26024
+        marker: diamond
+        label: Bajor
+        style: minor
+        color: var(--lcars-yellow)
+        max_distance: 3000
+        priority: 85
+        tap_action:
+          action: fly-to
+          view: bajor
+        hide_in_systems: true
+      - id: cardassia
+        xyz:
+          - -50.9
+          - 0
+          - 26026
+        marker: diamond
+        label: Cardassia Prime
+        style: minor
+        color: var(--lcars-orange)
+        max_distance: 3000
+        hide_in_systems: true
+      - id: idran
+        xyz:
+          - -38000
+          - 0
+          - -32000
+        marker: diamond
+        label: IDRAN
+        style: minor
+        tap_action:
+          action: fly-to
+          view: gamma
+        hide_in_systems: true
+      - id: wormhole_gamma
+        xyz:
+          - -37997
+          - 1
+          - -31996.5
+        label: WORMHOLE (GAMMA END)
+        style: tiny
+        max_distance: 60
+        hide_in_systems: true
+      - id: wormhole_aim_gamma
+        at: wormhole_gamma
+        offset:
+          - 0
+          - 12566
+          - 0
+        hide_in_systems: true
+      - id: founders
+        xyz:
+          - -39500
+          - 0
+          - -31200
+        marker: dot
+        label: Founders' homeworld
+        style: tiny
+        max_distance: 20000
+        hide_in_systems: true
+      - id: unicomplex
+        xyz:
+          - 26000
+          - 0
+          - -26000
+        marker: diamond
+        label: Unicomplex
+        style: minor
+        max_distance: 60000
+        hide_in_systems: true
+      - id: ocampa
+        xyz:
+          - 37000
+          - 0
+          - -33000
+        marker: dot
+        label: OCAMPA
+        style: minor
+        color: var(--lcars-orange)
+        tap_action:
+          action: fly-to
+          view: delta
+        hide_in_systems: true
+      - id: nekrit
+        xyz:
+          - 31000
+          - 0
+          - -22000
+        marker: dot
+        label: Nekrit Expanse
+        style: tiny
+        color: var(--lcars-orange)
+        hide_in_systems: true
+      - id: northwest_passage
+        xyz:
+          - 22000
+          - 0
+          - -9000
+        marker: dot
+        label: Northwest Passage
+        style: tiny
+        color: var(--lcars-orange)
+        hide_in_systems: true
+      - id: endgame
+        xyz:
+          - 9000
+          - 0
+          - 8000
+        marker: dot
+        label: Transwarp conduit
+        style: tiny
+        color: var(--lcars-orange)
+        hide_in_systems: true
+      - id: ferenginar
+        xyz:
+          - -105.9
+          - 0
+          - 26028.1
+        marker: diamond
+        label: Ferenginar
+        style: minor
+        color: var(--lcars-yellow)
+        max_distance: 3000
+        hide_in_systems: true
+      - id: breen
+        xyz:
+          - -150
+          - 0
+          - 26095
+        marker: diamond
+        label: Breen
+        style: minor
+        color: var(--lcars-lilac)
+        max_distance: 3000
+        hide_in_systems: true
+      - id: tzenkethi
+        xyz:
+          - -175
+          - 0
+          - 26020
+        marker: diamond
+        label: Tzenkethi
+        style: minor
+        color: var(--lcars-magenta)
+        max_distance: 3000
+        hide_in_systems: true
+      - id: tholia
+        xyz:
+          - 40
+          - 0
+          - 26140
+        marker: diamond
+        label: Tholia
+        style: minor
+        color: var(--lcars-orange)
+        max_distance: 3000
+        hide_in_systems: true
+      - id: gorn
+        xyz:
+          - 150
+          - 0
+          - 25960
+        marker: diamond
+        label: Gorn Hegemony
+        style: minor
+        color: var(--lcars-green)
+        max_distance: 3000
+        hide_in_systems: true
+      - id: kazon_name
+        xyz:
+          - 37000
+          - 1500
+          - -33000
+        label: KAZON SECTS
+        style: minor
+        color: var(--lcars-orange)
+        hide_in_systems: true
+      - id: vidiian_name
+        xyz:
+          - 31000
+          - 1500
+          - -24000
+        label: VIDIIAN SODALITY
+        style: minor
+        color: var(--lcars-red)
+        hide_in_systems: true
+      - id: hirogen_name
+        xyz:
+          - 20000
+          - 1500
+          - -3000
+        label: HIROGEN HUNTING GROUNDS
+        style: minor
+        color: var(--lcars-violet)
+        hide_in_systems: true
+      - id: tw_hub
+        xyz:
+          - 22000
+          - 0
+          - -18000
+        marker: diamond
+        label: TRANSWARP HUB
+        style: minor
+        color: var(--lcars-green)
+        hide_in_systems: true
+      - id: tw_unicomplex
+        xyz:
+          - 26000
+          - 0
+          - -26000
+        marker: dot
+        label: Unicomplex
+        style: tiny
+        color: var(--lcars-green)
+        max_distance: 60000
+        hide_in_systems: true
+      - id: tw_exit_1
+        xyz:
+          - 36000
+          - 0
+          - -14000
+        marker: dot
+        label: Conduit exit
+        style: tiny
+        color: var(--lcars-green)
+        max_distance: 60000
+        hide_in_systems: true
+      - id: tw_exit_2
+        xyz:
+          - 18000
+          - 0
+          - -38000
+        marker: dot
+        label: Conduit exit
+        style: tiny
+        color: var(--lcars-green)
+        max_distance: 60000
+        hide_in_systems: true
+      - id: tw_exit_3
+        xyz:
+          - 8000
+          - 0
+          - -12000
+        marker: dot
+        label: Conduit exit
+        style: tiny
+        color: var(--lcars-green)
+        max_distance: 60000
+        hide_in_systems: true
+      - id: tw_earth
+        xyz:
+          - 0.6
+          - 0.2
+          - 25999.5
+        label: Transwarp aperture
+        style: tiny
+        color: var(--lcars-green)
+        max_distance: 30
+        hide_in_systems: true
+      - id: wormhole_aim_alpha
+        at: bajor
+        offset:
+          - 0
+          - 12566
+          - 0
+      - id: badlands_at
+        xyz:
+          - -30
+          - 0
+          - 26034
+      - id: delta_badlands_at
+        xyz:
+          - 37030
+          - 0
+          - -33020
+      - id: veridian
+        xyz:
+          - 26
+          - 0
+          - 25966
+        marker: dot
+        label: Veridian
+        style: tiny
+        color: var(--lcars-blue)
+        max_distance: 400
+        hide_in_systems: true
+      - id: melona
+        xyz:
+          - 22
+          - 0
+          - 26012
+        marker: dot
+        label: Melona IV
+        style: tiny
+        color: var(--lcars-blue)
+        max_distance: 400
+        hide_in_systems: true
+    objects:
+      - type: galaxy
+        id: milky_way
+        glow: 0.5
+      - type: beam
+        id: alpha_beta_line
+        from:
+          - 0
+          - 0
+          - -52000
+        to:
+          - 0
+          - 0
+          - 52000
+        width: 1.5
+        color: theme:colors.ui.secondary
+        min_distance: 2000
+        hide_in_systems: true
+      - type: beam
+        id: gamma_delta_line
+        from:
+          - -52000
+          - 0
+          - 0
+        to:
+          - 52000
+          - 0
+          - 0
+        width: 1.5
+        color: theme:colors.ui.secondary
+        min_distance: 2000
+        hide_in_systems: true
+      - type: grid
+        id: great_barrier
+        shape: sphere
+        radius: 7500
+        line_spacing_deg: 20
+        color: var(--lcars-yellow)
+        opacity: 0.4
+        scan:
+          period: 6
+        hide_in_systems: true
+      - type: glow
+        at: core
+        size: 7000
+        color: var(--lcars-yellow)
+        opacity: 0.5
+        hide_in_systems: true
+      - type: volume
+        id: federation_space
+        shape: prism
+        outline:
+          - [-4800, 23200]
+          - [-1200, 21800]
+          - [2200, 23000]
+          - [2600, 27200]
+          - [800, 30000]
+          - [-3200, 30400]
+          - [-5200, 27600]
+        height:
+          - -1200
+          - 1200
+        color: var(--lcars-blue)
+        faces:
+          opacity: 0.25
+        cells:
+          width: 2000
+          depth: 2000
+          height: 1200
+        min_distance: 6000
+        hide_in_systems: true
+      - type: volume
+        id: klingon_space
+        shape: prism
+        outline:
+          - [2400, 22600]
+          - [6200, 21400]
+          - [8400, 24200]
+          - [7400, 27600]
+          - [3000, 27000]
+        height:
+          - -1200
+          - 1200
+        color: var(--lcars-red)
+        faces:
+          opacity: 0.25
+        cells:
+          width: 2000
+          depth: 2000
+          height: 1200
+        min_distance: 6000
+        hide_in_systems: true
+      - type: volume
+        id: romulan_space
+        shape: prism
+        outline:
+          - [2800, 27400]
+          - [7200, 28000]
+          - [7800, 31800]
+          - [3600, 32600]
+          - [1200, 30400]
+        height:
+          - -1200
+          - 1200
+        color: var(--lcars-green)
+        faces:
+          opacity: 0.25
+        cells:
+          width: 2000
+          depth: 2000
+          height: 1200
+        min_distance: 6000
+        hide_in_systems: true
+      - type: volume
+        id: cardassian_space
+        shape: prism
+        outline:
+          - [-5400, 27800]
+          - [-8800, 26600]
+          - [-10400, 29600]
+          - [-8200, 32200]
+          - [-4600, 31000]
+        height:
+          - -1200
+          - 1200
+        color: var(--lcars-orange)
+        faces:
+          opacity: 0.25
+        cells:
+          width: 2000
+          depth: 2000
+          height: 1200
+        min_distance: 6000
+        hide_in_systems: true
+      - type: volume
+        id: dominion_space
+        shape: prism
+        outline:
+          - [-30000, -27000]
+          - [-41000, -22000]
+          - [-46000, -32000]
+          - [-40000, -41000]
+          - [-29000, -37000]
+        height:
+          - -1200
+          - 1200
+        color: var(--lcars-violet)
+        faces:
+          opacity: 0.25
+        cells:
+          width: 2000
+          depth: 2000
+          height: 1200
+        hide_in_systems: true
+      - type: volume
+        id: borg_space
+        shape: prism
+        outline:
+          - [14000, -14000]
+          - [30000, -10000]
+          - [40000, -24000]
+          - [32000, -40000]
+          - [16000, -34000]
+          - [10000, -22000]
+        height:
+          - -1200
+          - 1200
+        color: var(--lcars-green)
+        faces:
+          opacity: 0.25
+        cells:
+          width: 2000
+          depth: 2000
+          height: 1200
+        hide_in_systems: true
+      - type: grid
+        id: sectors
+        shape: plane
+        at: sol
+        size:
+          - 400
+          - 400
+        line_spacing: 20
+        major:
+          row_interval: 5
+        opacity: 0.5
+        max_distance: 3000
+        hide_in_systems: true
+      - type: volume
+        id: romulan_neutral_zone
+        shape: prism
+        at: sol
+        outline:
+          - [70, -40]
+          - [78, -40]
+          - [80, 60]
+          - [72, 60]
+        height:
+          - -4
+          - 4
+        color: var(--lcars-green)
+        faces:
+          opacity: 0.35
+        max_distance: 3000
+        hide_in_systems: true
+      - type: volume
+        id: cardassian_dmz
+        shape: prism
+        at: sol
+        outline:
+          - [-38, 12]
+          - [-42, 8]
+          - [-48, 34]
+          - [-44, 38]
+        height:
+          - -4
+          - 4
+        color: var(--lcars-orange)
+        faces:
+          opacity: 0.35
+        max_distance: 3000
+        hide_in_systems: true
+      - type: path
+        id: wormhole_link
+        points:
+          - wormhole_throat
+          - gamma_wormhole_throat
+        arc: 4000
+        color: var(--lcars-blue)
+        width: 8
+        line_look: tube
+        glow: 3
+        pulse: true
+        dash:
+          speed: 30
+        hide_in_systems:
+          - sol_system
+          - melona_system
+          - badlands_system
+          - delta_badlands_system
+          - nexus_system
+      - type: path
+        id: voyager_route
+        points:
+          - ocampa
+          - nekrit
+          - northwest_passage
+          - endgame
+          - sol
+        dash:
+          pattern: [10, 6]
+          speed: 40
+        color: var(--lcars-orange)
+        width: 2
+        hide_in_systems:
+          - melona_system
+          - badlands_system
+          - delta_badlands_system
+          - nexus_system
+      - type: volume
+        id: ferenginar_space
+        shape: prism
+        at: ferenginar
+        height:
+          - -6
+          - 6
+        color: var(--lcars-yellow)
+        faces:
+          opacity: 0.25
+        max_distance: 3000
+        outline:
+          - [-18, -10]
+          - [-4, -20]
+          - [16, -12]
+          - [20, 8]
+          - [4, 20]
+          - [-16, 14]
+        hide_in_systems: true
+      - type: volume
+        id: breen_space
+        shape: prism
+        at: breen
+        height:
+          - -6
+          - 6
+        color: var(--lcars-lilac)
+        faces:
+          opacity: 0.25
+        max_distance: 3000
+        outline:
+          - [-18, -10]
+          - [-4, -20]
+          - [16, -12]
+          - [20, 8]
+          - [4, 20]
+          - [-16, 14]
+        hide_in_systems: true
+      - type: volume
+        id: tzenkethi_space
+        shape: prism
+        at: tzenkethi
+        height:
+          - -6
+          - 6
+        color: var(--lcars-magenta)
+        faces:
+          opacity: 0.25
+        max_distance: 3000
+        outline:
+          - [-18, -10]
+          - [-4, -20]
+          - [16, -12]
+          - [20, 8]
+          - [4, 20]
+          - [-16, 14]
+        hide_in_systems: true
+      - type: volume
+        id: tholia_space
+        shape: prism
+        at: tholia
+        height:
+          - -6
+          - 6
+        color: var(--lcars-orange)
+        faces:
+          opacity: 0.25
+        max_distance: 3000
+        outline:
+          - [-18, -10]
+          - [-4, -20]
+          - [16, -12]
+          - [20, 8]
+          - [4, 20]
+          - [-16, 14]
+        hide_in_systems: true
+      - type: volume
+        id: gorn_space
+        shape: prism
+        at: gorn
+        height:
+          - -6
+          - 6
+        color: var(--lcars-green)
+        faces:
+          opacity: 0.25
+        max_distance: 3000
+        outline:
+          - [-18, -10]
+          - [-4, -20]
+          - [16, -12]
+          - [20, 8]
+          - [4, 20]
+          - [-16, 14]
+        hide_in_systems: true
+      - type: volume
+        id: kazon_space
+        shape: prism
+        outline:
+          - [33000, -38000]
+          - [41000, -36000]
+          - [42000, -29000]
+          - [35000, -27000]
+          - [31000, -31000]
+        height:
+          - -1000
+          - 1000
+        color: var(--lcars-orange)
+        faces:
+          opacity: 0.25
+        cells:
+          width: 2000
+          depth: 2000
+          height: 1000
+        hide_in_systems: true
+      - type: volume
+        id: vidiian_space
+        shape: prism
+        outline:
+          - [30000, -29000]
+          - [35000, -26000]
+          - [33000, -20000]
+          - [27000, -21000]
+        height:
+          - -1000
+          - 1000
+        color: var(--lcars-red)
+        faces:
+          opacity: 0.25
+        cells:
+          width: 2000
+          depth: 2000
+          height: 1000
+        hide_in_systems: true
+      - type: volume
+        id: hirogen_space
+        shape: prism
+        outline:
+          - [16000, -8000]
+          - [26000, -6000]
+          - [27000, 2000]
+          - [17000, 3000]
+          - [12000, -2000]
+        height:
+          - -1000
+          - 1000
+        color: var(--lcars-violet)
+        faces:
+          opacity: 0.25
+        cells:
+          width: 2000
+          depth: 2000
+          height: 1000
+        hide_in_systems: true
+      - type: path
+        id: conduit_tw_unicomplex
+        points:
+          - tw_hub
+          - tw_unicomplex
+        arc: 1500
+        dash:
+          pattern: [4, 6]
+          speed: 60
+        color: var(--lcars-green)
+        width: 1.5
+        glow: true
+        hide_in_systems: true
+      - type: path
+        id: conduit_tw_exit_1
+        points:
+          - tw_hub
+          - tw_exit_1
+        arc: 1500
+        dash:
+          pattern: [4, 6]
+          speed: 60
+        color: var(--lcars-green)
+        width: 1.5
+        glow: true
+        hide_in_systems: true
+      - type: path
+        id: conduit_tw_exit_2
+        points:
+          - tw_hub
+          - tw_exit_2
+        arc: 1500
+        dash:
+          pattern: [4, 6]
+          speed: 60
+        color: var(--lcars-green)
+        width: 1.5
+        glow: true
+        hide_in_systems: true
+      - type: path
+        id: conduit_tw_exit_3
+        points:
+          - tw_hub
+          - tw_exit_3
+        arc: 1500
+        dash:
+          pattern: [4, 6]
+          speed: 60
+        color: var(--lcars-green)
+        width: 1.5
+        glow: true
+        hide_in_systems: true
+      - type: path
+        id: conduit_tw_earth
+        points:
+          - tw_hub
+          - tw_earth
+        arc: 6000
+        dash:
+          pattern: [4, 6]
+          speed: 60
+        color: var(--lcars-green)
+        width: 1.5
+        glow: true
+        hide_in_systems: true
+      - type: system
+        id: badlands_system
+        at: badlands_at
+        units: ly
+        points:
+          - {id: badlands_centre, xyz: [0, 0, 0]}
+          - {id: badlands_heart, at: badlands_centre, label: BADLANDS, style: major, max_distance: 60}
+        objects:
+          - {type: nebula, id: badlands_plasma, at: badlands_heart, preset: badlands, size: [10, 2.8, 10], max_distance: 60}
+      - type: system
+        id: delta_badlands_system
+        at: delta_badlands_at
+        units: ly
+        points:
+          - {id: delta_badlands_centre, xyz: [0, 0, 0]}
+          - {id: delta_badlands_heart, at: delta_badlands_centre, label: BADLANDS, style: major, max_distance: 60}
+        objects:
+          - {type: nebula, id: delta_badlands_plasma, at: delta_badlands_heart, preset: badlands_voyager, size: [10, 3.2, 10], max_distance: 60}
+      - type: system
+        id: nexus_system
+        at: veridian
+        units: ly
+        points:
+          - {id: nexus_centre, xyz: [0, 0, 0]}
+          - {id: nexus_heart, polar: [3, 0], object: nexus_track, label: NEXUS, style: major, max_distance: 60}
+        objects:
+          - {type: ring, id: nexus_track, at: nexus_centre, radius: 3, spin: 2, width: 0.5, opacity: 0, max_distance: 60}
+          - {type: nebula, id: nexus_ribbon, at: nexus_heart, preset: nexus, size: [2, 0.5, 0.5], face: motion, rotation: [-90, 0, 0], max_distance: 60}
+      - type: system
+        id: melona_system
+        at: melona
+        units: km
+        points:
+          - {id: entity_centre, xyz: [0, 0, 0]}
+          - {id: entity_core, at: entity_centre}
+          - {id: entity_tag, at: entity_core, offset: [0, 1.68, 0], label: CRYSTALLINE ENTITY, style: major}
+          - {id: entity_ship_at, at: entity_core, offset: [-2.1, -0.09, 0.3], label: USS ENTERPRISE, style: minor}
+          - {id: entity_view, at: entity_core, offset: [-0.8, 0, 0]}
+          - {id: melona_iv, xyz: [-9000, 7500, -40000], label: MELONA IV, style: minor, max_distance: 200000}
+        objects:
+          - {type: crystalline, id: entity_crystal, at: entity_core, size: 3, spin: 2, color: {entity: input_select.lcards_test_color, LAVENDER: 'var(--lcars-african-violet, var(--lcards-blue-light))', ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium)}}
+          - {type: model, id: entity_ship, src: builtin:galaxy_class, at: entity_ship_at, size: 0.642}
+          - {type: beam, id: entity_beam, from: entity_core, to: entity_ship_at, width: 10, color: var(--lcards-moonlight), pulse: true}
+          - {type: sphere, id: melona_body, at: melona_iv, radius: 5000, fill: {effect: {preset: rocky}}, spin: 3, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+      - type: system
+        id: sol_system
+        at: sol
+        units: km
+        points:
+          - {id: sun, xyz: [0, 0, 0], label: SOL, style: major}
+          - {id: mercury, body: mercury, marker: dot, label: MERCURY, style: tiny}
+          - {id: venus, body: venus, marker: dot, label: VENUS, style: tiny}
+          - {id: earth, body: earth, marker: dot, label: EARTH, style: minor, tap_action: {action: fly-to, view: earth}}
+          - {id: mars, body: mars, marker: dot, label: MARS, style: minor, tap_action: {action: fly-to, view: mars}}
+          - {id: ceres, body: ceres, marker: dot, label: CERES, style: tiny}
+          - {id: jupiter, body: jupiter, marker: dot, label: JUPITER, style: minor, tap_action: {action: fly-to, view: jupiter}}
+          - {id: saturn, body: saturn, marker: dot, label: SATURN, style: minor, tap_action: {action: fly-to, view: saturn}}
+          - {id: uranus, body: uranus, marker: dot, label: URANUS, style: tiny}
+          - {id: neptune, body: neptune, marker: dot, label: NEPTUNE, style: tiny, tap_action: {action: fly-to, view: neptune}}
+          - {id: pluto, body: pluto, marker: dot, label: PLUTO, style: tiny, tap_action: {action: fly-to, view: pluto}}
+          - {id: moon, body: moon, label: LUNA, style: tiny, max_distance: 19220000}
+          - {id: phobos, body: phobos, label: PHOBOS, style: tiny, max_distance: 468750}
+          - {id: deimos, body: deimos, label: DEIMOS, style: tiny, max_distance: 1172850}
+          - {id: io, body: io, label: IO, style: tiny, max_distance: 21090000}
+          - {id: europa, body: europa, label: EUROPA, style: tiny, max_distance: 33555000}
+          - {id: ganymede, body: ganymede, label: GANYMEDE, style: tiny, max_distance: 53520000}
+          - {id: callisto, body: callisto, label: CALLISTO, style: tiny, max_distance: 94135000}
+          - {id: titan, body: titan, label: TITAN, style: tiny, max_distance: 61095000}
+          - {id: triton, body: triton, label: TRITON, style: tiny, max_distance: 17740000}
+          - {id: charon, body: charon, label: CHARON, style: tiny, max_distance: 980000}
+          - {id: home, latlon: {entity: zone.home}, object: earth_body, alt: 50, marker: reticle, label: HOME, style: tiny, color: var(--lcars-orange), max_distance: 200000}
+          - {id: sun_reading, at: home, offset: [0, 900, 0], label: 'SUN {states.sun.sun.attributes.elevation}°', style: tiny, max_distance: 200000}
+          - {id: spacedock, at: earth, offset: [-21082, 0, 36515], label: SPACEDOCK, style: tiny, marker: starbase, max_distance: 3000000}
+          - {id: yards, at: mars, offset: [0, 300, 20400], label: UTOPIA PLANITIA, style: tiny, marker: starbase, max_distance: 2000000}
+          - {id: dock_2, at: yards, offset: [3, 0, 0]}
+          - {id: dock_3, at: yards, offset: [-3, 0, 0]}
+          - {id: ship_in_dock, object: drydock_1, part: berth}
+          - {id: patrol, polar: [12000, 0], object: patrol_orbit, marker: ship, label: USS ENTERPRISE, style: tiny, max_distance: 400000}
+          - {id: iss, satellite: iss, object: earth_body, marker: dot, label: ISS, style: tiny, color: var(--lcars-orange), max_distance: 400000}
+        objects:
+          - {type: glow, at: sun, size: 9000000, color: var(--lcars-yellow)}
+          - {type: sphere, id: sun_body, at: sun, radius: 695700, body: sun, image: builtin:sun_sdo, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: ring, id: mercury_orbit, orbit: mercury, width: 1, opacity: 0.5, tags: [orbits]}
+          - {type: ring, id: venus_orbit, orbit: venus, width: 1, opacity: 0.5, tags: [orbits]}
+          - {type: ring, id: earth_orbit, orbit: earth, width: 1, opacity: 0.7, tags: [orbits], color: var(--lcars-blue)}
+          - {type: ring, id: mars_orbit, orbit: mars, width: 1, opacity: 0.5, tags: [orbits]}
+          - {type: ring, id: ceres_orbit, orbit: ceres, width: 1, opacity: 0.5, tags: [orbits]}
+          - {type: ring, id: jupiter_orbit, orbit: jupiter, width: 1, opacity: 0.5, tags: [orbits]}
+          - {type: ring, id: saturn_orbit, orbit: saturn, width: 1, opacity: 0.5, tags: [orbits]}
+          - {type: ring, id: uranus_orbit, orbit: uranus, width: 1, opacity: 0.5, tags: [orbits]}
+          - {type: ring, id: neptune_orbit, orbit: neptune, width: 1, opacity: 0.5, tags: [orbits]}
+          - {type: ring, id: pluto_orbit, orbit: pluto, width: 1, opacity: 0.5, tags: [orbits]}
+          - {type: ring, id: moon_orbit, at: earth, orbit: moon, width: 1, opacity: 0.4, tags: [orbits], max_distance: 19220000}
+          - {type: ring, id: phobos_orbit, at: mars, orbit: phobos, width: 1, opacity: 0.4, tags: [orbits], max_distance: 468750}
+          - {type: ring, id: deimos_orbit, at: mars, orbit: deimos, width: 1, opacity: 0.4, tags: [orbits], max_distance: 1172850}
+          - {type: ring, id: io_orbit, at: jupiter, orbit: io, width: 1, opacity: 0.4, tags: [orbits], max_distance: 21090000}
+          - {type: ring, id: europa_orbit, at: jupiter, orbit: europa, width: 1, opacity: 0.4, tags: [orbits], max_distance: 33555000}
+          - {type: ring, id: ganymede_orbit, at: jupiter, orbit: ganymede, width: 1, opacity: 0.4, tags: [orbits], max_distance: 53520000}
+          - {type: ring, id: callisto_orbit, at: jupiter, orbit: callisto, width: 1, opacity: 0.4, tags: [orbits], max_distance: 94135000}
+          - {type: ring, id: titan_orbit, at: saturn, orbit: titan, width: 1, opacity: 0.4, tags: [orbits], max_distance: 61095000}
+          - {type: ring, id: triton_orbit, at: neptune, orbit: triton, width: 1, opacity: 0.4, tags: [orbits], max_distance: 17740000}
+          - {type: ring, id: charon_orbit, at: pluto, orbit: charon, width: 1, opacity: 0.4, tags: [orbits], max_distance: 980000}
+          - {type: sphere, id: mercury_body, at: mercury, radius: 2439.7, body: mercury, image: builtin:mercury_messenger, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: venus_body, at: venus, radius: 6051.8, body: venus, fill: {effect: {preset: clouds}}, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: earth_body, at: earth, radius: 6371, body: earth, image: builtin:earth_blue_marble, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: mars_body, at: mars, radius: 3389.5, body: mars, image: builtin:mars_viking, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: ceres_body, at: ceres, radius: 469.7, body: ceres, image: builtin:ceres_dawn, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: jupiter_body, at: jupiter, radius: 69911, body: jupiter, image: builtin:jupiter_cassini, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: saturn_body, at: saturn, radius: 58232, body: saturn, fill: {effect: {preset: ringed_giant}}, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: uranus_body, at: uranus, radius: 25362, body: uranus, fill: {effect: {preset: ice_giant}}, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: neptune_body, at: neptune, radius: 24622, body: neptune, fill: {effect: {preset: storm_giant}}, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: pluto_body, at: pluto, radius: 1188.3, body: pluto, image: builtin:pluto_new_horizons, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: moon_body, at: moon, radius: 1737.4, body: moon, image: builtin:moon_lroc, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: phobos_body, at: phobos, radius: 11.08, body: phobos, image: builtin:phobos_viking, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: deimos_body, at: deimos, radius: 6.27, body: deimos, fill: {color: var(--lcards-gray-medium), opacity: 1}, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: io_body, at: io, radius: 1821.6, body: io, image: builtin:io_galileo, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: europa_body, at: europa, radius: 1560.8, body: europa, image: builtin:europa_galileo, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: ganymede_body, at: ganymede, radius: 2634.1, body: ganymede, image: builtin:ganymede_galileo, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: callisto_body, at: callisto, radius: 2410.3, body: callisto, image: builtin:callisto_galileo, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: titan_body, at: titan, radius: 2574.7, body: titan, image: builtin:titan_cassini, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: triton_body, at: triton, radius: 1353.4, body: triton, image: builtin:triton_voyager, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: sphere, id: charon_body, at: charon, radius: 606, body: charon, image: builtin:charon_new_horizons, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: ring, id: saturn_rings, at: saturn, radius: 140180, body: saturn, band: {image: builtin:saturn_rings, inner_radius: 66900}}
+          - {type: belt, id: main_belt, at: sun, radius: [314155528.46999997, 493672973.30999994], thickness: 22439680.604999997, count: 1500, size: [5, 300], tumble: 0, seed: 4}
+          - {type: belt, id: kuiper_belt, at: sun, radius: [4487936121, 7479893534.999999], thickness: 448793612.09999996, count: 2000, size: [50, 1200], tumble: 0, seed: 9, color: var(--lcars-blue)}
+          - {type: model, id: spacedock_model, at: spacedock, src: builtin:earth_spacedock, size: 5.48, material: original}
+          - {type: model, id: drydock_1, at: yards, src: builtin:utopia_planitia_drydock, size: 0.76, material: original}
+          - {type: model, id: drydock_2, at: dock_2, src: builtin:utopia_planitia_drydock, size: 0.76, material: original}
+          - {type: model, id: drydock_3, at: dock_3, src: builtin:utopia_planitia_drydock, size: 0.76, material: original}
+          - {type: model, id: ship_building, at: ship_in_dock, src: builtin:galaxy_class, size: 0.6425, material: original}
+          - {type: ring, id: patrol_orbit, at: earth, radius: 12000, inclination: 28, spin: 20, width: 1, opacity: 0.35, color: var(--lcars-blue), tags: [orbits]}
+          - {type: model, id: patrol_ship, at: patrol, src: builtin:constitution_class_refit, size: 0.305, face: motion, material: original}
+          - {type: trail, point: patrol, length: 8, width: 2, color: var(--lcars-blue)}
+          - {type: ring, id: iss_orbit, satellite: iss, width: 1.5, color: var(--lcars-orange), max_distance: 400000, tags: [orbits]}
+          - {type: satellites, id: gps, group: gps, object: earth_body, color: var(--lcars-yellow), orbits: {width: 0.75, opacity: 0.35}, max_distance: 600000}
+          - {type: satellites, id: weather, group: geostationary, object: earth_body, color: var(--lcars-blue), label: true, orbits: {width: 1, opacity: 0.5}, max_distance: 600000}
+      - type: system
+        id: bajor_system
+        at: bajor
+        units: km
+        points:
+          - {id: bhavael, xyz: [0, 0, 0], label: B'HAVA'EL, style: minor}
+          - {id: bajor_world, polar: [150000000, 300], marker: dot, label: BAJOR, style: minor, max_distance: 900000000}
+          - {id: bajor_wormhole, polar: [232000000, 46], alt: 20, label: THE WORMHOLE, style: minor, max_distance: 30000}
+          - {id: ds9, at: bajor_wormhole, offset: [190, -60, 290], marker: starbase, label: DEEP SPACE 9, style: minor, max_distance: 60000, card: {show: always, position: top-right, width: 180, card: {type: custom:lcards-button, preset: lozenge, entity: input_number.lcards_test_shields, text: {name: {content: 'SHIELDS {entity.state}', show: true}}}}}
+          - {id: cube, at: bajor_wormhole, offset: [2600, 400, -1800], label: BORG CUBE, style: minor, color: var(--lcars-green), max_distance: 20000}
+          - {id: nebula, polar: [236000000, 52], label: CHIN'TOKA NEBULA, style: minor, max_distance: 3000000}
+          - {id: route_a, at: nebula, offset: [-90000, 2000, -30000]}
+          - {id: route_b, at: nebula, offset: [90000, -2000, 30000]}
+          - {id: rock_at, at: ds9, offset: [-1.35, -0.4, 1.3]}
+          - {id: enterprise_d_at, object: ds9_model, xyz: [12, 493, 374], label: USS ENTERPRISE NCC-1701-D, style: tiny, max_distance: 30}
+          - {id: comet_ring_centre, at: bhavael, offset: [270000000, 0, 0]}
+          - {id: comet_body, polar: [330000000, 270], object: comet_orbit, label: COMET, style: tiny, tap_action: {action: fly-to}}
+          - {id: denorios_rock_body, at: rock_at, label: DENORIOS ASTEROID, style: minor, offset: [0, 0.4, 0], tap_action: {action: fly-to}, max_distance: 60}
+          - {id: wormhole_throat, object: wormhole_mouth, xyz: [0, -60, 0]}
+          - {id: wormhole_out, object: wormhole_mouth, xyz: [0, 240, 0]}
+          - {id: wormhole_haze, object: wormhole_mouth, xyz: [0, 64, 0]}
+          - {id: wormhole_shaft_1, object: wormhole_mouth, xyz: [0, 6, 0]}
+          - {id: wormhole_shaft_2, object: wormhole_mouth, xyz: [0, 19.333, 0]}
+          - {id: wormhole_shaft_3, object: wormhole_mouth, xyz: [0, 32.667, 0]}
+          - {id: wormhole_shaft_4, object: wormhole_mouth, xyz: [0, 46, 0]}
+          - {id: wormhole_shaft_5, object: wormhole_mouth, xyz: [0, 59.333, 0]}
+          - {id: wormhole_shaft_6, object: wormhole_mouth, xyz: [0, 72.667, 0]}
+          - {id: wormhole_shaft_7, object: wormhole_mouth, xyz: [0, 86, 0]}
+          - {id: wormhole_shaft_8, object: wormhole_mouth, xyz: [0, 99.333, 0]}
+          - {id: wormhole_shaft_9, object: wormhole_mouth, xyz: [0, 112.667, 0]}
+          - {id: wormhole_shaft_10, object: wormhole_mouth, xyz: [0, 126, 0]}
+          - {id: wormhole_shaft_11, object: wormhole_mouth, xyz: [0, 139.333, 0]}
+          - {id: wormhole_shaft_12, object: wormhole_mouth, xyz: [0, 152.667, 0]}
+          - {id: wormhole_shaft_13, object: wormhole_mouth, xyz: [0, 166, 0]}
+          - {id: wormhole_shaft_14, object: wormhole_mouth, xyz: [0, 179.333, 0]}
+          - {id: wormhole_shaft_15, object: wormhole_mouth, xyz: [0, 192.667, 0]}
+          - {id: wormhole_shaft_16, object: wormhole_mouth, xyz: [0, 206, 0]}
+        objects:
+          - {type: glow, at: bhavael, size: 9000000, color: var(--lcars-yellow)}
+          - {type: sphere, id: bhavael_body, at: bhavael, radius: 650000, fill: {color: var(--lcars-yellow)}, color: var(--lcars-orange), tags: [planets]}
+          - {type: sphere, id: bajor_body, at: bajor_world, radius: 6300, fill: {effect: {preset: terran}}, spin: 4, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+          - {type: ring, id: bajor_orbit, radius: 150000000, width: 1, opacity: 0.5, tags: [orbits]}
+          - {type: belt, id: denorios_belt, at: bhavael, radius: [222000000, 242000000], thickness: 2000000, count: 1500, size: [0.5, 30], tumble: 0, seed: 21}
+          - {type: model, id: ds9_model, at: ds9, src: builtin:deep_space_nine, size: 1.452, material: original}
+          - {type: model, id: enterprise_d, at: enterprise_d_at, src: builtin:galaxy_class, size: 0.6425, rotation: [0, 288, 0], material: original}
+          - {type: sphere, id: ds9_shields, at: ds9, radius: 1.4, fill: {color: var(--lcars-blue)}, color: var(--lcars-blue), line_spacing_deg: 20, opacity: {entity: input_number.lcards_test_shields, output: [0, 0.45]}}
+          - {type: grid, id: wormhole_mouth, shape: well, well: {shape: trumpet, throat: 0.1}, at: bajor_wormhole, face: wormhole_aim_gamma, radius: {entity: input_number.lcards_test_power, output: [6, 40], default: 6, smooth: 1500}, depth: 60, line_spacing_deg: 20, color: var(--lcars-blue), scan: {period: 4}, look: diagram, deform: [{type: twist, angle: 60, anchor: top}, {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: {entity: input_number.lcards_test_power, output: [0, 0.1], default: 0}}]}
+          - {type: ring, id: wormhole_ring, at: bajor_wormhole, face: wormhole_aim_gamma, radius: 70, dash: {pattern: [6, 10], speed: 40}, width: 2, spin: {entity: input_number.lcards_test_power, output: [0, 90], default: 0}, look: diagram}
+          - {type: glow, id: wormhole_glow, at: bajor_wormhole, color: var(--lcars-blue), size: {entity: input_number.lcards_test_power, output: [20, 200], default: 20}, look: diagram}
+          - {type: grid, id: wormhole_funnel, shape: well, well: {shape: trumpet, throat: 0.07, to: {profile: [0.02, 0.02]}, morph: {entity: input_number.lcards_test_power, output: [1, 0], default: 1, smooth: 1200}}, at: bajor_wormhole, face: wormhole_aim_gamma, radius: 60, depth: {entity: input_number.lcards_test_power, output: [1.2, 60], default: 1.2, smooth: 700}, line_width: 0, edges: false, look: realistic, fill: {effect: {type: swirl, colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)], speed: 12, turbulence: 0.8, num_octaves: 5}}, deform: [{type: twist, angle: 80, anchor: top, period: 6}, {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: {entity: input_number.lcards_test_power, output: [0, 0.1], default: 0}}]}
+          - {type: nebula, id: wormhole_gas, render: volume, shape: whirlpool, at: bajor_wormhole, face: wormhole_aim_gamma, look: realistic, radius: {entity: input_number.lcards_test_power, output: [9.45, 63], default: 9.45, smooth: 1500}, opacity: {entity: input_number.lcards_test_power, output: [0, 1], default: 0}, arms: {count: 3, pitch: 18}, thickness: 0.1, turbulence: 0.6, seed: 4, colors: [var(--lcards-moonlight), var(--lcars-violet), var(--lcards-blue-medium), var(--lcards-blue-dark)], core: {color: var(--lcards-orange-lightest)}, spin: {entity: input_number.lcards_test_power, output: [4, 15], default: 4}}
+          - {type: galaxy, id: wormhole_vortex, at: bajor_wormhole, face: wormhole_aim_gamma, look: realistic, radius: {entity: input_number.lcards_test_power, output: [1.2, 60], default: 1.2, smooth: 1500}, opacity: {entity: input_number.lcards_test_power, output: [0, 0.45], default: 0, smooth: 1500}, arms: {count: 4, pitch: 20, color: var(--lcards-blue-light)}, bar: {length: 0}, thickness: 0.02, stars: {count: 9000}, seed: 4, glow: 0, dust: {amount: 0}, core: {color: var(--lcards-moonlight)}, spin: {entity: input_number.lcards_test_power, output: [5, 25], default: 5}}
+          - {type: glow, id: wormhole_heart, at: bajor_wormhole, color: var(--lcards-orange-lightest), size: {entity: input_number.lcards_test_power, output: [8, 32], default: 8}, look: realistic}
+          - {type: glow, id: wormhole_light_1, at: wormhole_shaft_1, size: {entity: input_number.lcards_test_power, output: [0.56, 28], default: 0.56, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0, 0.69], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_2, at: wormhole_shaft_2, size: {entity: input_number.lcards_test_power, output: [0.656, 32.8], default: 0.656, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.026, 0.626], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_3, at: wormhole_shaft_3, size: {entity: input_number.lcards_test_power, output: [0.752, 37.6], default: 0.752, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.049, 0.564], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_4, at: wormhole_shaft_4, size: {entity: input_number.lcards_test_power, output: [0.848, 42.4], default: 0.848, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.069, 0.505], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_5, at: wormhole_shaft_5, size: {entity: input_number.lcards_test_power, output: [0.944, 47.2], default: 0.944, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.085, 0.448], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_6, at: wormhole_shaft_6, size: {entity: input_number.lcards_test_power, output: [1.04, 52], default: 1.04, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.098, 0.394], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_7, at: wormhole_shaft_7, size: {entity: input_number.lcards_test_power, output: [1.136, 56.8], default: 1.136, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.108, 0.342], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_8, at: wormhole_shaft_8, size: {entity: input_number.lcards_test_power, output: [1.232, 61.6], default: 1.232, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.114, 0.293], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_9, at: wormhole_shaft_9, size: {entity: input_number.lcards_test_power, output: [1.328, 66.4], default: 1.328, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.116, 0.247], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_10, at: wormhole_shaft_10, size: {entity: input_number.lcards_test_power, output: [1.424, 71.2], default: 1.424, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.115, 0.204], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_11, at: wormhole_shaft_11, size: {entity: input_number.lcards_test_power, output: [1.52, 76], default: 1.52, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.11, 0.165], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_12, at: wormhole_shaft_12, size: {entity: input_number.lcards_test_power, output: [1.616, 80.8], default: 1.616, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.102, 0.13], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_13, at: wormhole_shaft_13, size: {entity: input_number.lcards_test_power, output: [1.712, 85.6], default: 1.712, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.091, 0.098], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_14, at: wormhole_shaft_14, size: {entity: input_number.lcards_test_power, output: [1.808, 90.4], default: 1.808, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.078, 0.072], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_15, at: wormhole_shaft_15, size: {entity: input_number.lcards_test_power, output: [1.904, 95.2], default: 1.904, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.065, 0.051], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: wormhole_light_16, at: wormhole_shaft_16, size: {entity: input_number.lcards_test_power, output: [2, 100], default: 2, smooth: 1500}, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [-0.06, 0.04], default: 0, smooth: 1500}, look: realistic}
+          - {type: nebula, id: wormhole_wisps, at: bajor_wormhole, radius: 72, count: 6, seed: 7, drift: 0.6, brightness: [0.15, 0.35], colors: [var(--lcars-violet), var(--lcards-blue-medium)], opacity: {entity: input_number.lcards_test_power, output: [0.1, 1], default: 0.1}, look: realistic}
+          - {type: nebula, id: wormhole_wisps_out, at: wormhole_haze, radius: 27, count: 3, seed: 3, drift: 1, brightness: [0.1, 0.25], colors: [var(--lcards-orange-lightest), var(--lcards-blue-light)], opacity: {entity: input_number.lcards_test_power, output: [0, 1], default: 0}, look: realistic}
+          - {type: path, id: wormhole_throat_tube, points: [bajor_wormhole, wormhole_throat], color: var(--lcars-blue), width: 8, line_look: tube, glow: 3, pulse: true, dash: {speed: 30}}
+          - {type: ring, id: comet_orbit, at: comet_ring_centre, radius: 330000000, spin: 9, width: 1, color: theme:colors.ui.secondary, opacity: 0.4}
+          - {type: comet, id: comet_comet, at: comet_body, light: bhavael, nucleus: {size: 500000}, tail: {length: 297000000}, coma: {size: 27500000}, activity: {mode: distance, range: [60000000, 600000000]}}
+          - {type: asteroid, id: denorios_rock_rock, at: rock_at, size: 0.5, seed: 7, light: bhavael}
+          - {type: nebula, id: chintoka, render: volume, shape: filaments, at: nebula, radius: 70000, seed: 5, colors: [var(--lcars-orange), var(--lcars-violet)], dust: {count: 3}, drift: 300, max_distance: 3000000}
+          - {type: path, id: patrol_route, points: [route_a, route_b], arc: 8000, dash: {pattern: [10, 8], speed: 40}, pulse: true, color: var(--lcars-orange), width: 2}
+          - {type: cube, id: borg_cube, at: cube, size: 3}
+      - type: system
+        id: gamma_system
+        at: wormhole_gamma
+        units: km
+        points:
+          - {id: gamma_mouth, xyz: [0, 0, 0], label: THE WORMHOLE (GAMMA), style: minor, max_distance: 30000}
+          - {id: gamma_wormhole_throat, object: gamma_wormhole_mouth, xyz: [0, -60, 0]}
+          - {id: gamma_wormhole_out, object: gamma_wormhole_mouth, xyz: [0, 240, 0]}
+          - {id: gamma_wormhole_haze, object: gamma_wormhole_mouth, xyz: [0, 64, 0]}
+          - {id: gamma_wormhole_shaft_1, object: gamma_wormhole_mouth, xyz: [0, 6, 0]}
+          - {id: gamma_wormhole_shaft_2, object: gamma_wormhole_mouth, xyz: [0, 19.333, 0]}
+          - {id: gamma_wormhole_shaft_3, object: gamma_wormhole_mouth, xyz: [0, 32.667, 0]}
+          - {id: gamma_wormhole_shaft_4, object: gamma_wormhole_mouth, xyz: [0, 46, 0]}
+          - {id: gamma_wormhole_shaft_5, object: gamma_wormhole_mouth, xyz: [0, 59.333, 0]}
+          - {id: gamma_wormhole_shaft_6, object: gamma_wormhole_mouth, xyz: [0, 72.667, 0]}
+          - {id: gamma_wormhole_shaft_7, object: gamma_wormhole_mouth, xyz: [0, 86, 0]}
+          - {id: gamma_wormhole_shaft_8, object: gamma_wormhole_mouth, xyz: [0, 99.333, 0]}
+          - {id: gamma_wormhole_shaft_9, object: gamma_wormhole_mouth, xyz: [0, 112.667, 0]}
+          - {id: gamma_wormhole_shaft_10, object: gamma_wormhole_mouth, xyz: [0, 126, 0]}
+          - {id: gamma_wormhole_shaft_11, object: gamma_wormhole_mouth, xyz: [0, 139.333, 0]}
+          - {id: gamma_wormhole_shaft_12, object: gamma_wormhole_mouth, xyz: [0, 152.667, 0]}
+          - {id: gamma_wormhole_shaft_13, object: gamma_wormhole_mouth, xyz: [0, 166, 0]}
+          - {id: gamma_wormhole_shaft_14, object: gamma_wormhole_mouth, xyz: [0, 179.333, 0]}
+          - {id: gamma_wormhole_shaft_15, object: gamma_wormhole_mouth, xyz: [0, 192.667, 0]}
+          - {id: gamma_wormhole_shaft_16, object: gamma_wormhole_mouth, xyz: [0, 206, 0]}
+        objects:
+          - {type: grid, id: gamma_wormhole_mouth, shape: well, well: {shape: trumpet, throat: 0.1}, at: gamma_mouth, face: wormhole_aim_alpha, radius: {entity: input_number.lcards_test_power, output: [6, 40], default: 6, smooth: 1500}, depth: 60, line_spacing_deg: 20, color: var(--lcars-orange), scan: {period: 4}, look: diagram, deform: [{type: twist, angle: -60, anchor: top}, {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: {entity: input_number.lcards_test_power, output: [0, 0.1], default: 0}}]}
+          - {type: ring, id: gamma_wormhole_ring, at: gamma_mouth, face: wormhole_aim_alpha, radius: 70, dash: {pattern: [6, 10], speed: 40}, width: 2, spin: {entity: input_number.lcards_test_power, output: [0, -90], default: 0}, look: diagram, color: var(--lcars-orange)}
+          - {type: glow, id: gamma_wormhole_glow, at: gamma_mouth, color: var(--lcars-orange), size: {entity: input_number.lcards_test_power, output: [20, 200], default: 20}, look: diagram}
+          - {type: grid, id: gamma_wormhole_funnel, shape: well, well: {shape: trumpet, throat: 0.07, to: {profile: [0.02, 0.02]}, morph: {entity: input_number.lcards_test_power, output: [1, 0], default: 1, smooth: 1200}}, at: gamma_mouth, face: wormhole_aim_alpha, radius: 60, depth: {entity: input_number.lcards_test_power, output: [1.2, 60], default: 1.2, smooth: 700}, line_width: 0, edges: false, look: realistic, fill: {effect: {type: swirl, colors: [var(--lcards-moonlight), var(--lcards-yellow-lightest), var(--lcards-orange-light), var(--lcards-orange-medium), var(--lcards-yellow-medium), var(--lcards-orange-dark), var(--lcards-orange-medium-dark), var(--lcards-orange-darkest)], speed: -12, turbulence: 0.8, num_octaves: 5}}, deform: [{type: twist, angle: -80, anchor: top, period: 6}, {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: {entity: input_number.lcards_test_power, output: [0, 0.1], default: 0}}]}
+          - {type: nebula, id: gamma_wormhole_gas, render: volume, shape: whirlpool, at: gamma_mouth, face: wormhole_aim_alpha, look: realistic, radius: {entity: input_number.lcards_test_power, output: [9.45, 63], default: 9.45, smooth: 1500}, opacity: {entity: input_number.lcards_test_power, output: [0, 1], default: 0}, arms: {count: 3, pitch: 18}, thickness: 0.1, turbulence: 0.6, seed: 4, colors: [var(--lcards-moonlight), var(--lcards-orange-light), var(--lcards-orange-medium), var(--lcards-orange-darkest)], core: {color: var(--lcards-moonlight)}, spin: {entity: input_number.lcards_test_power, output: [-4, -15], default: -4}}
+          - {type: galaxy, id: gamma_wormhole_vortex, at: gamma_mouth, face: wormhole_aim_alpha, look: realistic, radius: {entity: input_number.lcards_test_power, output: [1.2, 60], default: 1.2, smooth: 1500}, opacity: {entity: input_number.lcards_test_power, output: [0, 0.45], default: 0, smooth: 1500}, arms: {count: 4, pitch: 20, color: var(--lcards-yellow-lightest)}, bar: {length: 0}, thickness: 0.02, stars: {count: 9000}, seed: 4, glow: 0, dust: {amount: 0}, core: {color: var(--lcards-moonlight)}, spin: {entity: input_number.lcards_test_power, output: [-5, -25], default: -5}}
+          - {type: glow, id: gamma_wormhole_heart, at: gamma_mouth, color: var(--lcards-moonlight), size: {entity: input_number.lcards_test_power, output: [8, 32], default: 8}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_1, at: gamma_wormhole_shaft_1, size: {entity: input_number.lcards_test_power, output: [0.56, 28], default: 0.56, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0, 0.69], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_2, at: gamma_wormhole_shaft_2, size: {entity: input_number.lcards_test_power, output: [0.656, 32.8], default: 0.656, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.026, 0.626], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_3, at: gamma_wormhole_shaft_3, size: {entity: input_number.lcards_test_power, output: [0.752, 37.6], default: 0.752, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.049, 0.564], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_4, at: gamma_wormhole_shaft_4, size: {entity: input_number.lcards_test_power, output: [0.848, 42.4], default: 0.848, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.069, 0.505], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_5, at: gamma_wormhole_shaft_5, size: {entity: input_number.lcards_test_power, output: [0.944, 47.2], default: 0.944, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.085, 0.448], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_6, at: gamma_wormhole_shaft_6, size: {entity: input_number.lcards_test_power, output: [1.04, 52], default: 1.04, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.098, 0.394], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_7, at: gamma_wormhole_shaft_7, size: {entity: input_number.lcards_test_power, output: [1.136, 56.8], default: 1.136, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.108, 0.342], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_8, at: gamma_wormhole_shaft_8, size: {entity: input_number.lcards_test_power, output: [1.232, 61.6], default: 1.232, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.114, 0.293], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_9, at: gamma_wormhole_shaft_9, size: {entity: input_number.lcards_test_power, output: [1.328, 66.4], default: 1.328, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.116, 0.247], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_10, at: gamma_wormhole_shaft_10, size: {entity: input_number.lcards_test_power, output: [1.424, 71.2], default: 1.424, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.115, 0.204], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_11, at: gamma_wormhole_shaft_11, size: {entity: input_number.lcards_test_power, output: [1.52, 76], default: 1.52, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.11, 0.165], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_12, at: gamma_wormhole_shaft_12, size: {entity: input_number.lcards_test_power, output: [1.616, 80.8], default: 1.616, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.102, 0.13], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_13, at: gamma_wormhole_shaft_13, size: {entity: input_number.lcards_test_power, output: [1.712, 85.6], default: 1.712, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.091, 0.098], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_14, at: gamma_wormhole_shaft_14, size: {entity: input_number.lcards_test_power, output: [1.808, 90.4], default: 1.808, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.078, 0.072], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_15, at: gamma_wormhole_shaft_15, size: {entity: input_number.lcards_test_power, output: [1.904, 95.2], default: 1.904, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.065, 0.051], default: 0, smooth: 1500}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_16, at: gamma_wormhole_shaft_16, size: {entity: input_number.lcards_test_power, output: [2, 100], default: 2, smooth: 1500}, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [-0.06, 0.04], default: 0, smooth: 1500}, look: realistic}
+          - {type: nebula, id: gamma_wormhole_wisps, at: gamma_mouth, radius: 72, count: 6, seed: 7, drift: 0.6, brightness: [0.15, 0.35], colors: [var(--lcards-orange-medium), var(--lcars-red)], opacity: {entity: input_number.lcards_test_power, output: [0.1, 1], default: 0.1}, look: realistic}
+          - {type: nebula, id: gamma_wormhole_wisps_out, at: gamma_wormhole_haze, radius: 27, count: 3, seed: 3, drift: 1, brightness: [0.1, 0.25], colors: [var(--lcards-yellow-lightest), var(--lcards-orange-light)], opacity: {entity: input_number.lcards_test_power, output: [0, 1], default: 0}, look: realistic}
+          - {type: path, id: gamma_wormhole_throat_tube, points: [gamma_mouth, gamma_wormhole_throat], color: var(--lcars-blue), width: 8, line_look: tube, glow: 3, pulse: true, dash: {speed: 30}}
+    camera:
+      view:
+        entity: input_number.lcards_test_stage
+        views:
+          - galaxy
+          - federation
+          - sol
+          - earth
+          - mars
+          - jupiter
+          - saturn
+          - pluto
+          - entity
+          - nexus
+          - bajor_system
+          - ds9
+          - wormhole
+          - nebula
+          - badlands
+          - cube
+          - gamma
+          - delta_badlands
+      fly_duration: 5000
+      buttons: true
+      views:
+        galaxy:
+          target: core
+          yaw: 20
+          tilt: 40
+          distance: 130000
+        quadrants:
+          target: core
+          tilt: 90
+          distance: 150000
+        federation:
+          target: sol
+          yaw: 200
+          tilt: 45
+          distance: 380
+        neighbours:
+          target: sol
+          yaw: 200
+          tilt: 35
+          distance: 50
+        bajor:
+          target: bajor
+          yaw: 160
+          tilt: 20
+          distance: 12
+        gamma:
+          target: gamma_mouth
+          yaw: 243
+          tilt: 5
+          distance: 320
+        delta:
+          target: ocampa
+          yaw: 330
+          tilt: 40
+          distance: 45000
+        barrier:
+          target: core
+          yaw: 40
+          tilt: 25
+          distance: 30000
+        sol:
+          target: sun
+          yaw: 40
+          tilt: 35
+          distance: 16000000000
+        earth:
+          target: earth
+          yaw: 225
+          tilt: 12
+          distance: 70000
+        mars:
+          target: ship_in_dock
+          yaw: 15
+          tilt: 10
+          distance: 2.2
+        jupiter:
+          target: jupiter
+          yaw: 200
+          tilt: 10
+          distance: 4500000
+        saturn:
+          target: saturn
+          yaw: 160
+          tilt: 20
+          distance: 3500000
+        neptune:
+          target: neptune
+          yaw: 160
+          tilt: 20
+          distance: 1000000
+        pluto:
+          target: pluto
+          yaw: 120
+          tilt: 25
+          distance: 9000000000
+        bajor_system:
+          target: bhavael
+          yaw: 30
+          tilt: 35
+          distance: 700000000
+        ds9:
+          target: ds9
+          yaw: 45
+          tilt: 0
+          distance: 5
+        wormhole:
+          target: bajor_wormhole
+          yaw: 63
+          tilt: 5
+          distance: 320
+        nebula:
+          target: nebula
+          yaw: 40
+          tilt: 8
+          distance: 110000
+        cube:
+          target: cube
+          yaw: 20
+          tilt: 10
+          distance: 12
+        entity:
+          target: entity_view
+          yaw: 0
+          tilt: 5
+          distance: 5
+        nexus:
+          target: nexus_heart
+          yaw: 8
+          tilt: 10
+          distance: 2
+        badlands:
+          target: badlands_heart
+          yaw: 210
+          tilt: 3
+          distance: 2.2
+        delta_badlands:
+          target: delta_badlands_heart
+          yaw: 200
+          tilt: 4
+          distance: 3.2
+      warp:
+        entity: input_boolean.lcards_test_warp_travel
+    backdrop:
+      stars:
+        count: 1500
+        spectrum: true
+    units: ly
+    look:
+      entity: input_select.lcards_test_look
+    warp:
+      entity: input_boolean.lcards_test_warp
+    warp_factor:
+      entity: input_number.lcards_test_warp_factor
+      output:
+        - 1
+        - 9.9
+    clock:
+      date: now
+      rate: '[[[ return ({ "PAUSED": 0, "LIVE": 1 / 86400, "1 H/S": 1 / 24, "1 D/S": 1, "30 D/S": 30, "1 Y/S": 365.25 })[states["input_select.lcards_test_rate"]?.state] ?? 1 / 24 ]]]'
+    rules:
+      - id: showcase_orbits_off
+        when:
+          entity: input_boolean.lcards_test_visible
+          state: 'off'
+        apply:
+          overlays: {tag:orbits: {visible: false}}
+      - id: showcase_grids_off
+        when:
+          entity: input_boolean.lcards_test_lights
+          state: 'off'
+        apply:
+          overlays: {tag:planets: {line_width: 0}}
+      - id: showcase_borg_incursion
+        when:
+          entity: input_boolean.lcards_test_toggle
+          state: 'on'
+        apply:
+          overlays: {cube: {at: ds9, offset: [40, 8, -25]}, borg_space: {outline: [[6000, -6000], [32000, 2000], [44000, -24000], [34000, -44000], [12000, -38000], [2000, -20000]]}, tag:federation: {color: var(--lcars-red)}}
+    view_layout:
+      grid-area: scene
+    height: 100%
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: controls
+    layout:
+      grid-gap: 8px 12px
+      grid-template-columns: repeat(12, minmax(0, 1fr))
+      grid-template-rows: 26px minmax(0, 1fr) minmax(0, 1fr) 26px minmax(0, 1fr) 26px minmax(0, 1fr)
+    cards:
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: SCENE}
+        view_layout:
+          grid-column: span 6
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: GUIDED TOUR}
+        view_layout:
+          grid-column: span 6
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_visible
+        text:
+          name: {content: ORBITS, show: true}
+        tap_action:
+          action: toggle
+        min_height: 0
+        view_layout:
+          grid-column: span 2
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_lights
+        text:
+          name: {content: PLANET GRIDS, show: true}
+        tap_action:
+          action: toggle
+        min_height: 0
+        view_layout:
+          grid-column: span 2
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_toggle
+        text:
+          name: {content: BORG INCURSION, show: true}
+        tap_action:
+          action: toggle
+        min_height: 0
+        view_layout:
+          grid-column: span 2
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: PREV, show: true}
+        tap_action:
+          action: perform-action
+          perform_action: input_number.decrement
+          target: {entity_id: input_number.lcards_test_stage}
+        min_height: 0
+        view_layout:
+          grid-column: span 1
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: script.lcards_test_tour
+        text:
+          name: {content: '[[[ return entity?.state === ''on'' ? ''STOP TOUR'' : ''PLAY TOUR'' ]]]', show: true}
+        tap_action:
+          action: toggle
+        min_height: 0
+        view_layout:
+          grid-column: span 2
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: NEXT, show: true}
+        tap_action:
+          action: perform-action
+          perform_action: input_number.increment
+          target: {entity_id: input_number.lcards_test_stage}
+        min_height: 0
+        view_layout:
+          grid-column: span 1
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_warp_travel
+        text:
+          name: {content: WARP TRAVEL, show: true}
+        tap_action:
+          action: toggle
+        min_height: 0
+        view_layout:
+          grid-column: span 2
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: SHIELDS}
+        style:
+          shaped: {text_bands: {left: {size: 110}}}
+        min_height: 0
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: WORMHOLE}
+        style:
+          shaped: {text_bands: {left: {size: 110}}}
+        min_height: 0
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_rate
+        preset: toggle-tab
+        grid:
+          columns: 6
+        min_height: 0
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: ALERT}
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: LOOK}
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: CRYSTAL}
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_mode
+        preset: toggle-tab
+        grid:
+          columns: 3
+        options:
+          alpha: {label: GREEN}
+          beta: {label: YELLOW}
+          gamma: {label: RED}
+        min_height: 0
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_look
+        preset: toggle-tab
+        grid:
+          columns: 3
+        min_height: 0
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_color
+        preset: toggle-tab
+        grid:
+          columns: 3
+        min_height: 0
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: STARFIELD WARP}
+        view_layout:
+          grid-column: span 6
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: SCENE CLOCK}
+        view_layout:
+          grid-column: span 6
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_warp
+        text:
+          name: {content: ENGAGE, show: true}
+        tap_action:
+          action: toggle
+        min_height: 0
+        view_layout:
+          grid-column: span 2
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_warp_factor
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: FACTOR}
+        style:
+          shaped: {text_bands: {left: {size: 70}}}
+        min_height: 0
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_datetime.lcards_test_date
+        text:
+          name: {content: '[[[ return String(entity?.state ?? '''').slice(0, 10) ]]]', show: true}
+        tap_action:
+          action: more-info
+        min_height: 0
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: NOW, show: true}
+        tap_action:
+          action: set-clock
+          card: astro_showcase
+          date: now
+        min_height: 0
+        view_layout:
+          grid-column: span 2
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: foot
+    layout:
+      grid-gap: 6px
+      grid-template-columns: 150px minmax(0, 4fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr)
+      grid-template-rows: 18px 26px
+      grid-template-areas: '"sweep . . . ." "sweep f1 f2 f3 f4"'
+    cards:
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: sweep
+        elbow:
+          type: footer-left
+          segment: {bar_width: 90, bar_height: 26, color: theme:colors.ui.primary, outer_curve: 70, inner_curve: 26}
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: STELLAR CARTOGRAPHY, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.tertiary}}}
+        view_layout:
+          grid-area: f1
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: '541', position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.secondary}}}
+        view_layout:
+          grid-area: f2
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: ASTROMETRICS LAB, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.primary}}}
+        view_layout:
+          grid-area: f3
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: 47-2201, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.card.topColor}}}
+        view_layout:
+          grid-area: f4

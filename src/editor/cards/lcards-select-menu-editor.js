@@ -29,16 +29,16 @@ import '../components/editors/lcards-color-section-v2.js';
 // Utility tab components
 import '../components/datasources/lcards-datasource-editor-tab.js';
 import '../components/templates/lcards-template-evaluation-tab.js';
-import '../components/theme-browser/lcards-theme-token-browser-tab.js';
+import { renderInfoGuide } from '../components/shared/info-guide.js';
 import '../components/provenance/lcards-provenance-tab.js';
+import { createDialogFooter, mountDialogNearHomeAssistant, onDialogClosed } from '../../utils/lcards-shared-helpers.js';
 
-// @ts-ignore - TS2417: static side extends - getConfigElement signature
 const _overflowOpts = [
-    { value: 'visible', label: 'Visible — content paints outside the box' },
-    { value: 'hidden',  label: 'Hidden — clips without scroll' },
-    { value: 'clip',    label: 'Clip — hard clip, no programmatic scroll' },
-    { value: 'scroll',  label: 'Scroll — always shows scrollbar' },
-    { value: 'auto',    label: 'Auto — scrollbar only when needed' },
+    { value: 'visible', label: 'Visible: content paints outside the box' },
+    { value: 'hidden',  label: 'Hidden: clips without scroll' },
+    { value: 'clip',    label: 'Clip: hard clip, no programmatic scroll' },
+    { value: 'scroll',  label: 'Scroll: always shows scrollbar' },
+    { value: 'auto',    label: 'Auto: scrollbar only when needed' },
 ];
 
 export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
@@ -61,38 +61,38 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 .options-list {
                     display: flex;
                     flex-direction: column;
-                    gap: 16px;
+                    gap: var(--ha-space-4);
                 }
 
                 .option-row {
-                    background: var(--card-background-color, var(--ha-card-background, #1c1c1c));
-                    border: 1px solid var(--divider-color, #333);
+                    background: var(--card-background-color, var(--ha-card-background));
+                    border: var(--ha-border-width-sm) solid var(--divider-color);
                     border-radius: var(--ha-card-border-radius, 12px);
                     overflow: hidden;
-                    transition: transform 0.1s ease, opacity 0.1s ease;
+                    transition: transform var(--ha-animation-duration-fast, 0.1s) ease, opacity var(--ha-animation-duration-fast, 0.1s) ease;
                 }
                 .option-row.drag-over {
                     transform: translateY(-3px);
-                    border-color: var(--primary-color, #ff9900);
+                    border-color: var(--primary-color);
                 }
                 .option-row.dragging { opacity: 0.4; }
 
                 .option-header {
                     display: flex;
                     align-items: center;
-                    gap: 12px;
-                    padding: 12px;
+                    gap: var(--ha-space-3);
+                    padding: var(--ha-space-3);
                     cursor: pointer;
                     user-select: none;
-                    background: var(--secondary-background-color, #2d2d2d);
+                    background: var(--secondary-background-color);
                 }
                 .option-header:hover {
-                    background: var(--primary-background-color, #383838);
+                    background: var(--primary-background-color);
                 }
 
                 .drag-handle {
                     cursor: grab;
-                    color: var(--secondary-text-color, #888);
+                    color: var(--secondary-text-color);
                     flex-shrink: 0;
                     display: flex;
                     align-items: center;
@@ -101,7 +101,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 .drag-handle:active { cursor: grabbing; }
 
                 .option-icon {
-                    color: var(--primary-color, #ff9900);
+                    color: var(--primary-color);
                     --mdc-icon-size: 24px;
                     flex-shrink: 0;
                 }
@@ -114,8 +114,8 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 .option-title-row {
                     display: flex;
                     align-items: center;
-                    gap: 8px;
-                    margin-bottom: 4px;
+                    gap: var(--ha-space-2);
+                    margin-bottom: var(--ha-space-1);
                 }
 
                 .option-title {
@@ -125,21 +125,21 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
 
                 .option-details {
                     font-size: 12px;
-                    color: var(--secondary-text-color, #888);
+                    color: var(--secondary-text-color);
                     font-family: monospace;
                 }
 
                 .option-actions {
                     display: flex;
-                    gap: 4px;
+                    gap: var(--ha-space-1);
                 }
 
                 .layer-badge {
                     font-size: 11px;
-                    padding: 2px 8px;
+                    padding: 2px var(--ha-space-2);
                     background: var(--primary-color);
                     color: var(--text-primary-color);
-                    border-radius: 12px;
+                    border-radius: var(--ha-border-radius-lg);
                     font-weight: 600;
                 }
 
@@ -149,7 +149,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 }
 
                 .expand-icon {
-                    transition: transform 0.2s;
+                    transition: transform var(--ha-animation-duration-normal, 0.2s);
                     flex-shrink: 0;
                 }
 
@@ -158,9 +158,9 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 }
 
                 .option-body {
-                    padding: 16px 14px;
-                    background: var(--card-background-color, #1c1c1c);
-                    border-top: 1px solid var(--divider-color, #333);
+                    padding: var(--ha-space-4) 14px;
+                    background: var(--card-background-color);
+                    border-top: var(--ha-border-width-sm) solid var(--divider-color);
                     display: flex;
                     flex-direction: column;
                     gap: 10px;
@@ -169,9 +169,9 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 /* ── Add option row ── */
                 .add-option-row {
                     display: flex;
-                    gap: 8px;
+                    gap: var(--ha-space-2);
                     align-items: center;
-                    margin-top: 8px;
+                    margin-top: var(--ha-space-2);
                 }
                 .add-option-row ha-input { flex: 1; }
 
@@ -179,12 +179,12 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 .entity-sync-strip {
                     display: flex;
                     align-items: center;
-                    gap: 8px;
-                    padding: 8px 10px;
-                    background: color-mix(in srgb, var(--primary-color, #ff9900) 15%, transparent);
+                    gap: var(--ha-space-2);
+                    padding: var(--ha-space-2) 10px;
+                    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
                     border-radius: 6px;
                     font-size: 12px;
-                    margin-bottom: 8px;
+                    margin-bottom: var(--ha-space-2);
                 }
             `
         ];
@@ -210,7 +210,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         const spm   = window.lcards?.core?.stylePresetManager;
         const names = spm?.getAvailablePresets?.('button') || [];
         return [
-            { value: '', label: '\u2014 None \u2014' },
+            { value: '', label: '(None)' },
             ...names.map(name => ({
                 value: name,
                 label: name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -229,7 +229,10 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         }));
 
         if (Array.isArray(cfg)) {
+            // Spread first: per-option keys this editor has no field for (style,
+            // rules, sounds, variables, zones) must survive an edit.
             return cfg.map(o => ({
+                ...o,
                 value:             o.value,
                 label:             o.label             ?? o.value,
                 icon:              o.icon              ?? null,
@@ -241,6 +244,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         return eOpts.map(v => {
             const ov = cfg[v] || {};
             return {
+                ...ov,
                 value:             v,
                 label:             ov.label             ?? v,
                 icon:              ov.icon              ?? null,
@@ -266,14 +270,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         const eOpts = this.hass?.states[eid]?.attributes?.options || [];
         const byVal = Object.fromEntries(this._getWorkingOptionsList().map(o => [o.value, o]));
         const newOpts = eOpts.map(v => {
-            const prev  = byVal[v] || {};
-            const entry = { value: v };
-            if (prev.label && prev.label !== v) entry.label             = prev.label;
-            if (prev.icon)              entry.icon              = prev.icon;
-            if (prev.tap_action)        entry.tap_action        = prev.tap_action;
-            if (prev.hold_action)       entry.hold_action       = prev.hold_action;
-            if (prev.double_tap_action) entry.double_tap_action = prev.double_tap_action;
-            return entry;
+            return this._minimal({ ...(byVal[v] || {}), value: v });
         });
         this._updateConfig({ options: newOpts });
     }
@@ -290,8 +287,11 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         this._updateConfig({ options: opts });
     }
 
+    /** An option without its defaults; keys the editor has no field for are kept. */
     _minimal(row) {
-        const out = { value: row.value };
+        const { value, label, icon, tap_action, hold_action, double_tap_action, ...rest } = row;
+        const out = { value };
+        for (const [k, v] of Object.entries(rest)) if (v !== undefined && v !== null) out[k] = v;
         if (row.label && row.label !== row.value) out.label             = row.label;
         if (row.icon)              out.icon              = row.icon;
         if (row.tap_action)        out.tap_action        = row.tap_action;
@@ -410,12 +410,12 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
 
             <lcards-form-section
                 header="Card Dimensions"
-                description="Override height/width — most layouts size automatically"
+                description="Override height/width: most layouts size automatically"
                 icon="mdi:resize"
                 ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--ha-space-2)">
                     ${FormField.renderField(this, 'height')}
                     ${FormField.renderField(this, 'width')}
                     ${FormField.renderField(this, 'min_height')}
@@ -445,41 +445,27 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 outlined>
 
                 <lcards-message type=${template ? 'success' : 'info'}>
-                    ${template ? html`
-                        A button template is configured. The settings below describe what
-                        the template controls — click <strong>Edit Button Style…</strong> to change it.
-                    ` : html`
-                        No template set yet. Click <strong>Configure Button Style…</strong> to open
-                        the full lcards-button editor and define the shared look for every option button.
-                    `}
-                    <ul style="margin:8px 0 0;padding-left:18px;line-height:1.9">
-                        <li>
-                            <strong>style</strong> — fill colour, border, radius per state
-                            (<code>active</code> = selected option, <code>inactive</code> = all others,
-                            <code>hover</code>, <code>pressed</code>…)
-                        </li>
-                        <li>
-                            <strong>text.default</strong> — font size, weight, transform, letter-spacing
-                            for all text layers
-                        </li>
-                        <li>
-                            <strong>text.label</strong> — styling for the button's primary
-                            <em>label</em> layer (centered text), which displays each option's
-                            <strong>Label</strong> field (set per-option on the Options tab).
-                            The label <em>content</em> is always injected from the option —
-                            only style properties (colour, size, weight…) belong here.
-                        </li>
-                        <li><strong>min_height / padding</strong> — button sizing</li>
-                        <li><strong>animations</strong> — entrance/exit effects</li>
-                    </ul>
-                    <div style="margin-top:6px;font-size:12px;color:var(--secondary-text-color)">
-                        Preset is set on the Config tab. Each option's label, icon, and actions
-                        are set on the Options tab and are never part of this template.
-                    </div>
+                    ${template
+                        ? html`A button template is set. <strong>Edit Button Style…</strong> changes it.`
+                        : html`No template yet. <strong>Configure Button Style…</strong> opens the button editor to set the look of every option.`}
                 </lcards-message>
 
-                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-                    <ha-button raised @click=${() => this._openButtonTemplateEditor()}>
+                ${renderInfoGuide({
+                    header: 'What the template covers',
+                    body: html`
+                        <ul>
+                            <li><strong>style</strong>: fill, border and radius per state (<code>active</code> is the selected option, <code>inactive</code> the others, plus <code>hover</code> and <code>pressed</code>).</li>
+                            <li><strong>text.default</strong>: font size, weight, transform and letter-spacing for all text.</li>
+                            <li><strong>text.label</strong>: the style of each option's label (its text always comes from the option).</li>
+                            <li><strong>min_height</strong> / <strong>padding</strong>: button size.</li>
+                            <li><strong>animations</strong>: entrance and exit effects.</li>
+                        </ul>
+                        <p>The preset is on the Config tab; each option's label, icon and actions are on the Options tab, never in the template.</p>
+                    `,
+                })}
+
+                <div style="display:flex;gap:var(--ha-space-2);flex-wrap:wrap;margin-top:var(--ha-space-2)">
+                    <ha-button @click=${() => this._openButtonTemplateEditor()}>
                         <ha-icon icon="mdi:pencil" slot="start"></ha-icon>
                         ${template ? 'Edit Button Style…' : 'Configure Button Style…'}
                     </ha-button>
@@ -506,11 +492,11 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 outlined>
 
                 <lcards-message type="info">
-                    Defaults: 1 column, 56 px row height — matching a standard HA button card row.
+                    Defaults: 1 column, 56 px row height, matching a standard Home Assistant button card row.
                     Increase columns to show options side-by-side.
                 </lcards-message>
 
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--ha-space-2);margin-top:var(--ha-space-2)">
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'Columns'}
@@ -531,6 +517,18 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                         .value=${g['grid-auto-rows'] || ''}
                         @value-changed=${(e) => this._setConfigValue('grid.grid-auto-rows', e.detail.value || undefined)}>
                     </ha-selector>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Rows'}
+                        .helper=${'Number of rows (e.g. 2) or CSS grid-template-rows. Blank: as many as the options need'}
+                        .selector=${{ text: {} }}
+                        .value=${g.rows !== undefined ? String(g.rows) : ''}
+                        @value-changed=${(e) => {
+                            const v = e.detail.value;
+                            const n = Number(v);
+                            this._setConfigValue('grid.rows', !v ? undefined : (isNaN(n) ? v : n));
+                        }}>
+                    </ha-selector>
                 </div>
             </lcards-form-section>
 
@@ -540,7 +538,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 icon="mdi:arrow-expand-all"
                 ?expanded=${true}
                 outlined>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--ha-space-2)">
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'Gap (all)'}
@@ -572,7 +570,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 icon="mdi:code-braces"
                 ?expanded=${false}
                 outlined>
-                <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;flex-direction:column;gap:var(--ha-space-2)">
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'grid-template-columns (overrides Columns above)'}
@@ -590,6 +588,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                                 options: [
                                     { value: '',              label: 'row (default)' },
                                     { value: 'column',        label: 'column' },
+                                    { value: 'dense',         label: 'dense' },
                                     { value: 'row dense',     label: 'row dense' },
                                     { value: 'column dense',  label: 'column dense' },
                                 ]
@@ -598,7 +597,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                         .value=${g['grid-auto-flow'] || ''}
                         @value-changed=${(e) => this._setConfigValue('grid.grid-auto-flow', e.detail.value || undefined)}>
                     </ha-selector>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--ha-space-2)">
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'justify-items'}
@@ -647,15 +646,15 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 ?expanded=${true}
                 outlined>
 
-                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                <div style="display:flex;gap:var(--ha-space-2);flex-wrap:wrap;margin-bottom:var(--ha-space-1)">
                     <ha-button
-                            ?raised=${!hasExplicit}
+                            appearance=${!hasExplicit ? 'accent' : 'outlined'}
                             @click=${() => hasExplicit ? this._requestConfirm('switch-to-entity') : null}>
                         <ha-icon icon="mdi:link-variant" slot="start"></ha-icon>
                         Entity-linked${!hasExplicit ? ' \u2713' : ''}
                     </ha-button>
                     <ha-button
-                            ?raised=${hasExplicit}
+                            appearance=${hasExplicit ? 'accent' : 'outlined'}
                             @click=${() => !hasExplicit ? this._requestConfirm('switch-to-manual') : null}>
                         <ha-icon icon="mdi:playlist-edit" slot="start"></ha-icon>
                         Manual / Overrides${hasExplicit ? ' \u2713' : ''}
@@ -793,7 +792,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         // (Editing in entity-linked mode auto-promotes to object-form overrides.)
         // Add / remove / reorder / rename value-key require interactive (manual) mode.
         return html`
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--ha-space-2)">
                     ${interactive ? html`
                         <ha-selector
                             .hass=${this.hass}
@@ -829,7 +828,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 </ha-selector>
 
                 <div style="font-size:12px;color:var(--secondary-text-color);margin-top:2px">
-                    <strong>Per-option actions</strong> — override card-level actions for this option only.
+                    <strong>Per-option actions</strong>: override card-level actions for this option only.
                     Leave as “None” to fall back to the card-level setting.
                 </div>
                 <ha-selector
@@ -871,7 +870,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
     _renderAddRow(interactive) {
         if (!interactive) {
             return html`
-                <ha-button style="margin-top:8px;width:100%" @click=${() => this._syncFromEntity()}>
+                <ha-button style="margin-top:var(--ha-space-2);width:100%" @click=${() => this._syncFromEntity()}>
                     <ha-icon icon="mdi:plus" slot="start"></ha-icon>
                     Switch to Manual mode to add / edit options
                 </ha-button>`;
@@ -912,17 +911,22 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
 
     _renderActionsTab() {
         return html`
-            <!-- Priority info first so user understands the model before configuring -->
-            <lcards-message type="info">
-                <strong>How actions work:</strong><br>
-                ① <strong>Per-option tap action</strong> (Options tab) — highest priority; overrides the card-level tap action for that specific option only.<br>
-                ② <strong>Card-level Tap Action</strong> (below) — applied to all options that have no per-option action set.<br>
-                ③ <strong>Default</strong> — when neither above is set, tapping calls <code>select_option</code> / <code>input_select.select_option</code> automatically.<br>
-                <hr style="border:none;border-top:1px solid var(--divider-color);margin:6px 0">
-                <strong>Hold</strong> and <strong>Double-Tap</strong> default to <em>no action</em>
-                (they will not fall through to the tap action). Set them here as a card-wide default,
-                or override per-option on the Options tab.
-            </lcards-message>
+            ${renderInfoGuide({
+                header: 'How actions work',
+                id: 'select-menu-actions',
+                body: html`
+                    <p>A tap uses the option's own action first, then the Tap Action below, then selects the option.</p>
+                    <ol>
+                        <li><strong>Per-option tap action</strong> (Options tab) wins, for that option only.</li>
+                        <li><strong>Tap Action</strong> (below) applies to every option without its own.</li>
+                        <li>Otherwise the tap selects the option (<code>select_option</code> / <code>input_select.select_option</code>).</li>
+                    </ol>
+                    <lcards-message type="info">
+                        <strong>Hold</strong> and <strong>Double-Tap</strong> do nothing unless set here (for all options)
+                        or per option; they don't fall back to the tap action.
+                    </lcards-message>
+                `,
+            })}
 
             <lcards-form-section
                 header="Tap Action"
@@ -1022,12 +1026,12 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         };
         const { title, body } = messages[this._confirmAction] || { title: 'Confirm', body: 'Are you sure?' };
         return html`
-            <ha-dialog open .headerTitle=${title} @closed=${() => this._cancelConfirm()}>
+            <ha-dialog open .headerTitle=${title} @closed=${(/** @type {Event} */ e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._cancelConfirm(); }}>
                 <p style="margin:0;line-height:1.6">${body}</p>
-                <div slot="footer" style="display:flex;gap:8px;justify-content:flex-end">
-                    <ha-button appearance="plain" variant="neutral" @click=${() => this._cancelConfirm()}>Cancel</ha-button>
-                    <ha-button variant="danger"                     @click=${() => this._executeConfirmedAction()}>Confirm</ha-button>
-                </div>
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" appearance="plain" variant="neutral" autofocus @click=${() => this._cancelConfirm()}>Cancel</ha-button>
+                    <ha-button slot="primaryAction" variant="danger" @click=${() => this._executeConfirmedAction()}>Confirm</ha-button>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }
@@ -1057,35 +1061,27 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         }));
 
         const dialog = document.createElement('ha-dialog');
-        // @ts-ignore - TS2339: auto-suppressed
         dialog.headerTitle = 'Button Style Template';
         dialog.setAttribute('prevent-scrim-close', '');
         this._buttonTemplateDialogRef = dialog;
 
         const container = document.createElement('div');
-        container.style.cssText = 'padding:16px;min-height:300px;min-width:min(480px,90vw);box-sizing:border-box';
+        container.style.cssText = 'padding:var(--ha-space-4);min-height:300px;min-width:min(480px,90vw);box-sizing:border-box';
 
         const editor = document.createElement('hui-card-element-editor');
-        // @ts-ignore - TS2339: auto-suppressed
         editor.hass     = this.hass;
-        // @ts-ignore - TS2339: auto-suppressed
         editor.lovelace = this._getButtonTemplateLovelace();
-        // @ts-ignore - TS2339: auto-suppressed
         editor.value    = editorValue;
 
         let pending = editorValue;
 
         editor.addEventListener('config-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
             if (e.detail?.config && typeof e.detail.config === 'object' && e.detail.config.type) {
-                // @ts-ignore - TS2339: auto-suppressed
                 pending = e.detail.config;
             }
         });
         editor.addEventListener('value-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
             if (e.detail?.value && typeof e.detail.value === 'object' && e.detail.value.type) {
-                // @ts-ignore - TS2339: auto-suppressed
                 pending = e.detail.value;
             }
         });
@@ -1093,15 +1089,10 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         container.appendChild(editor);
         dialog.appendChild(container);
 
-        const footer = document.createElement('div');
-        footer.setAttribute('slot', 'footer');
-        footer.style.cssText = 'display:flex;gap:8px;justify-content:flex-end';
-
         const cancelBtn = document.createElement('ha-button');
         cancelBtn.setAttribute('appearance', 'plain');
         cancelBtn.setAttribute('variant', 'neutral');
         cancelBtn.textContent = 'Cancel';
-        // @ts-ignore - TS2339: auto-suppressed
         cancelBtn.addEventListener('click', () => { dialog.open = false; });
 
         const saveBtn = document.createElement('ha-button');
@@ -1111,23 +1102,19 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
             if (pending?.type) {
                 this._updateConfig({ button_template: this._sanitizeButtonTemplate(pending) });
             }
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = false;
         });
 
-        footer.appendChild(cancelBtn);
-        footer.appendChild(saveBtn);
-        dialog.appendChild(footer);
+        dialog.appendChild(createDialogFooter({ secondary: [cancelBtn], primary: [saveBtn] }));
 
-        dialog.addEventListener('closed', () => {
+        onDialogClosed(dialog, () => {
             dialog.remove();
             if (this._buttonTemplateDialogRef === dialog) {
                 this._buttonTemplateDialogRef = null;
             }
         });
 
-        document.body.appendChild(dialog);
-        // @ts-ignore - TS2339: auto-suppressed
+        mountDialogNearHomeAssistant(dialog, this);
         setTimeout(() => { dialog.open = true; }, 10);
     }
 

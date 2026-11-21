@@ -18,9 +18,7 @@ import { lcardsLog } from './lcards-logging.js';
 
 /**
  * All known built-in HA card type → element name mappings.
- *
- * Keep in sync with MsdControlsRenderer._normalizeCardType().
- * This is the single authoritative source going forward.
+ * The single authoritative source for card-type normalization.
  */
 const BUILTIN_CARD_MAP = {
     // Entity display
@@ -76,9 +74,20 @@ const BUILTIN_CARD_MAP = {
 };
 
 /**
+ * Whether `cardType` (without a `custom:` prefix) is a known built-in HA card.
+ *
+ * @param {string} cardType
+ * @returns {boolean}
+ */
+export function isBuiltinCardType(cardType) {
+    return Object.prototype.hasOwnProperty.call(BUILTIN_CARD_MAP, cardType);
+}
+
+/**
  * Normalise a card type string to its HTML element name.
  * - Strips 'custom:' prefix from custom cards
- * - Maps HA built-in short names (e.g. 'light') to 'hui-*'
+ * - Maps HA built-in short names (e.g. 'light') to 'hui-*' (unlisted bare words follow
+ *   HA's 'hui-<type>-card' convention)
  *
  * @param {string} cardType - Raw card type from config
  * @returns {string|null} Element tag name, or null if falsy input
@@ -86,7 +95,10 @@ const BUILTIN_CARD_MAP = {
 export function normalizeHACardType(cardType) {
     if (!cardType) return null;
     if (cardType.startsWith('custom:')) return cardType.slice(7);
-    return BUILTIN_CARD_MAP[cardType] ?? cardType;
+    if (BUILTIN_CARD_MAP[cardType]) return BUILTIN_CARD_MAP[cardType];
+    // Custom element names always contain a hyphen, so a bare word is an HA built-in
+    // not listed above: use HA's own naming convention.
+    return cardType.includes('-') ? cardType : `hui-${cardType}-card`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

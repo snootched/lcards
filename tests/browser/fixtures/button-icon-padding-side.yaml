@@ -1,0 +1,14 @@
+# icon_style.padding_left is the left side of padding, and wins over padding.left (doc/cards/button/icons.md)
+type: custom:lcards-button
+entity: light.living_room
+preset: lozenge
+show_icon: true
+icon: mdi:sofa
+icon_style:
+  padding:
+    left: 4
+    top: 3
+  padding_left: 20
+text:
+  name:
+    show: true

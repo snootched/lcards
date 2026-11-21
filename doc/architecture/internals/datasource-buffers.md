@@ -6,7 +6,7 @@ Datasources use a buffer structure with **main buffers** and **processor buffers
 
 ## Buffer Structure
 
-Datasource data objects have the following structure (verified against `DataSource.js`'s emitted/returned shape):
+Datasource data objects have the following structure. Subscribers receive it from `DataSource._buildEmitData()` (`src/core/data-sources/DataSource.js:537`, the same shape for live, initial and periodic emits); `getCurrentData()` (`:798`) returns the same core fields:
 
 ```javascript
 {
@@ -16,9 +16,16 @@ Datasource data objects have the following structure (verified against `DataSour
     <processorKey>: <value>,  // Processor buffer 1
     <processorKey>: <value>,  // Processor buffer 2
     // ... additional processor buffers
-  }
+  },
+  buffer: <RollingBuffer>,      // The main buffer itself (all points)
+  stats: { ... },               // Counters (updates received, history loaded, ...)
+  entity: 'sensor.temperature', // The source entity
+  unit_of_measurement: '°F',    // From the config or the entity
+  historyReady: true            // History preload has added points
 }
 ```
+
+Emits add one flag on two occasions: `isInitialEmission: true` (the first emit after start, `_emitInitialData()`) and `isPeriodicUpdate: true` (the periodic re-emit of the last value). `getCurrentData()` has no `unit_of_measurement`, and adds `metadata`, `bufferSize` and `started`.
 
 ### Main Buffer (`v`)
 
@@ -37,7 +44,7 @@ const data = {
 
 ### Processor Buffers
 
-Processor buffers are named outputs from data processors. Each processor has a unique key:
+Processor buffers are named outputs from data processors. Each processor has a unique key. There are twelve processor types (`src/core/data-sources/processors/`: clamp, convert_unit, delta, duration, expression, rate, round, scale, smooth, statistics, threshold, trend); every one with its keys is in the [Processor Reference](../../core/datasources/processor-reference.md). A few examples:
 
 | Processor Type | Key | Example Value |
 |---------------|-----|---------------|
@@ -46,6 +53,10 @@ Processor buffers are named outputs from data processors. Each processor has a u
 | `rate` | Custom (e.g., `rate`) | `0.3` |
 | `threshold` | Custom (e.g., `is_high`) | `true` |
 
+### When buffers update
+
+Every accepted state change is pushed into the main buffer and run through every processor (so each processor buffer gains a point) as soon as it arrives. Subscribers are told about it through the emit throttle (`min_emit_ms`, `coalesce_ms`, `max_delay_ms`, `emit_on_same_value`; see [Emit throttle](../subsystems/datasource-system.md#emit-throttle)): a burst of changes can reach a subscriber as one call carrying the latest value, while the buffers still hold every point. Read the buffers rather than counting callbacks when every point matters.
+
 ## Accessing Buffer Values
 
 ### In Templates
@@ -53,16 +64,16 @@ Processor buffers are named outputs from data processors. Each processor has a u
 Reference buffers using dot notation:
 
 ```yaml alternatives
-# Main buffer — no format spec: HA-native (locale-formatted + unit, e.g. "23,4 °C")
+# Main buffer - no format spec: Home Assistant native (locale-formatted + unit, e.g. "23,4 °C")
 text: "{datasource:temp_sensor}"        # Uses .v
 text: "{ds:temp_sensor}"                # Short form
 
-# Processor buffer — no format spec: unit appended from entity metadata
+# Processor buffer - no format spec: unit appended from entity metadata
 text: "{datasource:temp_sensor.celsius}"
 
-# With format spec — you own the output (no auto-unit)
+# With format spec - you own the output (no auto-unit)
 text: "{ds:temp_sensor.rolling_avg:.1f}"           # "71.8"
-text: "{ds:temp_sensor.celsius:.1f} °C"            # "23.4 °C" — manual unit
+text: "{ds:temp_sensor.celsius:.1f} °C"            # "23.4 °C" - manual unit
 
 # Multiple in one string
 text: "Temp: {ds:temp_sensor.celsius:.1f} (avg: {ds:temp_sensor.rolling_avg:.1f})"
@@ -79,7 +90,7 @@ const data = source.getCurrentData();
 // Main buffer
 console.log(data.v);                     // 72.5
 
-// Processor buffers — nested under `processing`
+// Processor buffers - nested under `processing`
 console.log(data.processing.celsius);        // 22.5
 console.log(data.processing.rolling_avg);    // 71.8
 ```

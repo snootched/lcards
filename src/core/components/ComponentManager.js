@@ -60,7 +60,7 @@ export class ComponentManager {
             });
 
             this.initialized = true;
-            lcardsLog.info(`[ComponentManager] ✅ Initialized with ${registeredCount} components`);
+            lcardsLog.debug(`[ComponentManager] ✅ Initialized with ${registeredCount} components`);
 
         } catch (error) {
             lcardsLog.error('[ComponentManager] Initialization failed:', error);
@@ -79,15 +79,29 @@ export class ComponentManager {
             return;
         }
 
-        // Store component
-        this.components.set(name, component);
-
         // Infer type and categorize
         const type = this._inferComponentType(name, component);
-        if (!this.componentsByType.has(type)) {
-            this.componentsByType.set(type, new Map());
+
+        // A re-registration under another type leaves its old group (dropping
+        // the group once empty), so a name is only ever listed under one type.
+        const previous = this.components.get(name);
+        if (previous) {
+            const previousType = this._inferComponentType(name, previous);
+            const oldGroup = this.componentsByType.get(previousType);
+            if (previousType !== type && oldGroup) {
+                oldGroup.delete(name);
+                if (oldGroup.size === 0) this.componentsByType.delete(previousType);
+            }
         }
-        this.componentsByType.get(type).set(name, component);
+
+        // Store component
+        this.components.set(name, component);
+        let byName = this.componentsByType.get(type);
+        if (!byName) {
+            byName = new Map();
+            this.componentsByType.set(type, byName);
+        }
+        byName.set(name, component);
 
         lcardsLog.trace(`[ComponentManager] Registered component: ${name} (type: ${type})`);
     }

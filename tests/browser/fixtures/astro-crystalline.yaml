@@ -1,0 +1,12 @@
+# CE1 Crystalline Entity (astrometrics.spec.js, visual.spec.js): side on, the spine up the
+# middle, the starburst core, tiers of branches to both sides; units km, so 3 km tall by default.
+type: custom:lcards-astrometrics-card
+height: 400
+units: km
+camera:
+  view: side
+  views:
+    side: { target: [0, 0, 0], yaw: 90, tilt: 4, distance: 4.6 }
+    far: { target: [0, 0, 0], yaw: 90, tilt: 4, distance: 900 }
+objects:
+  - { type: crystalline, id: entity, seed: 7 }

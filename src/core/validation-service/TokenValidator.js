@@ -17,6 +17,7 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { docsUrl, DOCS } from '../../utils/docs-url.js';
 
 /**
  * Token Validator
@@ -183,7 +184,7 @@ export class TokenValidator {
         value: tokenPath,
         severity: 'error',
         suggestion: suggestion ? `Did you mean "${suggestion}"?` : 'Check your theme configuration',
-        helpUrl: 'https://lcards.unimatrix01.ca/core/themes/'
+        helpUrl: docsUrl(DOCS.themes)
       });
       return;
     }

@@ -14,7 +14,7 @@
  *   contained-footer-left, contained-footer-right
  *   (and any others exported from elbows/index.js)
  *
- * Pack system guide: doc/architecture/pack-system.md
+ * Pack system guide: doc/architecture/subsystems/pack-system.md
  */
 
 import { elbowComponents } from './components/elbows/index.js';
@@ -31,7 +31,7 @@ export const LCARDS_ELBOWS_PACK = {
   id:          'lcards_elbows',
   name:        'LCARdS Elbows',
   version:     __LCARDS_VERSION__,
-  description: 'Elbow component definitions — path generators and layout metadata for all elbow orientations',
+  description: 'Elbow component definitions: path generators and layout metadata for all elbow orientations',
 
   components: elbowComponents
 };

@@ -1,0 +1,382 @@
+# LCARS patterns, readouts: the patterns of doc/getting-started/lcars-patterns.md (D1c), its sample
+# entities swapped for lcards_test_* helpers. Each frame is one pattern.
+title: LCARS patterns, readouts
+path: lcars-patterns-readouts
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: STATUS ROWS
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 190px
+          grid-gap: 6px
+          grid-template-columns: 1fr
+          grid-template-rows: repeat(3, minmax(0, 1fr))
+        cards:
+          - type: custom:lcards-button
+            preset: bar-label-left
+            text: {label: {content: PRIMARY}}
+          - type: custom:lcards-button
+            preset: bar-label-left
+            text: {label: {content: SECONDARY}}
+          - type: custom:lcards-button
+            preset: bar-label-left
+            text: {label: {content: AUXILIARY}}
+        grid_options:
+          columns: full
+          rows: 4
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: READOUT ROWS
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 80px
+          grid-gap: 4px
+          grid-template-columns: 110px minmax(0, 1fr)
+          grid-template-rows: repeat(3, 24px)
+        cards:
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            text: {label: {content: PRIMARY, position: center-right}}
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_power
+            preset: gauge-basic
+            height: 24
+            style: {gauge: {scale: {labels: {enabled: false}}}}
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            text: {label: {content: SECONDARY, position: center-right}}
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_shields
+            preset: gauge-basic
+            height: 24
+            style: {gauge: {scale: {labels: {enabled: false}}}}
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            text: {label: {content: RESERVE, position: center-right}}
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_value
+            preset: gauge-basic
+            height: 24
+            style: {gauge: {scale: {labels: {enabled: false}}}}
+        grid_options:
+          columns: full
+          rows: 2
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: GAUGE BANK
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 420px
+          grid-gap: 6px
+          grid-template-columns: repeat(4, 60px)
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-slider
+            preset: picard-gauge-column
+            entity: input_number.lcards_test_temperature
+            text:
+              name:
+                content: "37-88"
+          - type: custom:lcards-slider
+            preset: picard-gauge-column
+            entity: input_number.lcards_test_humidity
+            text:
+              name:
+                content: "51-80"
+          - type: custom:lcards-slider
+            preset: picard-gauge-column
+            entity: input_number.lcards_test_value
+            text:
+              name:
+                content: "21-10"
+          - type: custom:lcards-slider
+            preset: picard-gauge-column
+            entity: input_number.lcards_test_power
+            text:
+              name:
+                content: "65-87"
+        grid_options:
+          columns: full
+          rows: 7
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: SELECTOR STRIP
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_color
+        preset: toggle-tab
+        grid:
+          columns: 4
+          gap: 6px
+        grid_options:
+          columns: 24
+          rows: 1
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: TILE WALL
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 170px
+          grid-gap: 10px
+          grid-template-columns: repeat(3, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-elbow
+            elbow: {type: frame, segment: {color: theme:colors.card.topColor}, frame: {bar_width: 4, bar_height: 4, outer_curve: 10}}
+            symbiont: {enabled: true, position: {top: 10, right: 10, bottom: 10, left: 10}, imprint: {enabled: false}, card: {type: custom:lcards-data-grid, data_mode: decorative, format: digit, grid: {grid-template-rows: 'repeat(4, auto)', grid-template-columns: 'repeat(3, minmax(0, 1fr))'}}}
+          - type: custom:lcards-elbow
+            elbow: {type: frame, segment: {color: theme:colors.card.topColor}, frame: {bar_width: 4, bar_height: 4, outer_curve: 10}}
+            symbiont: {enabled: true, position: {top: 10, right: 10, bottom: 10, left: 10}, imprint: {enabled: false}, card: {type: custom:lcards-data-grid, data_mode: decorative, format: hex, grid: {grid-template-rows: 'repeat(4, auto)', grid-template-columns: 'repeat(3, minmax(0, 1fr))'}}}
+          - type: custom:lcards-elbow
+            elbow: {type: frame, segment: {color: theme:colors.ui.tertiary}, frame: {bar_width: 4, bar_height: 4, outer_curve: 10}}
+            symbiont: {enabled: true, position: {top: 10, right: 10, bottom: 10, left: 10}, imprint: {enabled: false}, card: {type: custom:lcards-data-grid, data_mode: decorative, format: float, grid: {grid-template-rows: 'repeat(4, auto)', grid-template-columns: 'repeat(3, minmax(0, 1fr))'}}}
+        grid_options:
+          columns: full
+          rows: 3
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: LIST
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-data-grid
+        data_mode: data
+        rows:
+          - values: [Name, Station, Shift]
+            header: true
+          - - TUVOK
+            - SECURITY
+            - ALPHA
+          - - TORRES
+            - ENGINEERING
+            - BETA
+          - - PARIS
+            - CONN
+            - ALPHA
+          - - KIM
+            - OPS
+            - GAMMA
+        grid:
+          grid-template-columns: 1fr 1fr 90px
+          gap: 4px
+        style:
+          font_size: 20px
+        columns:
+          - style: {align: left, color: theme:colors.ui.tertiary}
+        grid_options:
+          columns: full
+          rows: 1
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: FLEET TILES
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 150px
+          grid-gap: 8px
+          grid-template-columns: repeat(3, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-elbow
+            elbow: {type: frame, segment: {color: theme:colors.card.topColor}, frame: {bar_width: 4, bar_height: 18, outer_curve: 8}}
+            text: {label: {content: NCC-1701-A, position: top-center, font_size: 14, color: theme:colors.ui.tertiary}, class: {content: CONSTITUTION, position: center, font_size: 18, color: theme:colors.ui.primary}}
+          - type: custom:lcards-elbow
+            elbow: {type: frame, segment: {color: theme:colors.ui.secondary}, frame: {bar_width: 4, bar_height: 18, outer_curve: 8}}
+            text: {label: {content: NCC-1701-C, position: top-center, font_size: 14, color: theme:colors.ui.tertiary}, class: {content: AMBASSADOR, position: center, font_size: 18, color: theme:colors.ui.primary}}
+          - type: custom:lcards-elbow
+            elbow: {type: frame, segment: {color: theme:colors.card.topColor}, frame: {bar_width: 4, bar_height: 18, outer_curve: 8}}
+            text: {label: {content: NCC-1701-E, position: top-center, font_size: 14, color: theme:colors.ui.tertiary}, class: {content: SOVEREIGN, position: center, font_size: 18, color: theme:colors.ui.primary}}
+        grid_options:
+          columns: full
+          rows: 3
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: BRACKETS AND SCOPES
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 300px
+          grid-gap: 12px
+          grid-template-columns: 300px
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            component: brackets
+            text: {label: {content: '88', show: true, position: center, font_size: 48, color: theme:colors.ui.tertiary}}
+        grid_options:
+          columns: 24
+          rows: 5
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: NUMBER CASCADE FILLER
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-data-grid
+        data_mode: decorative
+        grid_options:
+          columns: full
+          rows: 3
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: READINGS TABLE
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-data-grid
+        data_mode: data
+        grid_options:
+          columns: full
+          rows: 2
+        rows:
+          - values:
+              - 01-TMP
+              - input_number.lcards_test_temperature
+              - "{{ 'NOMINAL' if states('input_number.lcards_test_temperature') | float(0) < 24 else 'HIGH' }}"
+            style:
+              color: theme:colors.ui.secondary
+          - values:
+              - 02-HUM
+              - input_number.lcards_test_humidity
+              - NOMINAL
+            style:
+              color: theme:colors.ui.secondary
+          - values:
+              - 03-PWR
+              - value: input_number.lcards_test_power
+                style:
+                  color:
+                    default: theme:colors.ui.primary
+                    above:90: var(--lcars-alert-color, var(--lcards-orange-dark))
+              - "{{ 'HIGH' if states('input_number.lcards_test_power') | float(0) > 90 else 'NOMINAL' }}"
+            style:
+              color: theme:colors.ui.primary
+        columns:
+          - style:
+              align: left
+          - style:
+              align: right
+          - style:
+              align: left
+        grid:
+          grid-template-columns: 70px 70px 80px
+          grid-template-rows: repeat(3, 20px)
+          gap: 0px 10px
+        style:
+          font_size: 14
+          align: right
+          text_transform: uppercase

@@ -1,0 +1,14 @@
+# A dpad whose segments.default sets its own fill map without hover or pressed: the
+# theme's pointer colours still apply (tests/browser/button-fixes.spec.js)
+type: custom:lcards-button
+component: dpad
+dpad:
+  segments:
+    default:
+      style:
+        fill:
+          default: "#555555"
+          active: "#ff9900"
+    left:
+      entity: light.demo
+      tap_action: { action: none }

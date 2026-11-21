@@ -4,43 +4,28 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { ColorUtils } from '../../core/themes/ColorUtils.js';
+import { resolveColor } from '../../core/themes/resolve-color.js';
 
 // Counter for unique filter IDs
 let filterIdCounter = 0;
 
 /**
- * Resolve a color value (literal, theme: token, var(), or computed token like
- * alpha(var(--x), 0.5)) down to a concrete color usable in a raw SVG attribute.
- * Mirrors the theme:-strip + resolver.resolve + bare-var() cleanup steps in
- * LCARdSCard._resolveColorValue() — SVG attributes set via setAttribute() don't
- * get browser var() resolution the way CSS/Lit-bound values do.
+ * Concrete colour for a raw SVG attribute (setAttribute() gets no var()
+ * resolution): theme: tokens, computed expressions and CSS variables.
  * @param {string} rawColor
  * @param {Element} [element] - Context element for CSS custom property scoping
  * @returns {string}
  */
 function resolveFilterColor(rawColor, element) {
   if (typeof rawColor !== 'string' || !rawColor) return rawColor;
-
-  let value = rawColor;
-  const resolver = window.lcards?.core?.themeManager?.resolver;
-  if (resolver) {
-    const tokenPath = value.startsWith('theme:') ? value.slice(6) : value;
-    value = resolver.resolve(tokenPath, value, { element });
-  }
-
-  if (typeof value === 'string' && value.trim().startsWith('var(')) {
-    return ColorUtils.resolveCssVariable(value, rawColor, element) || rawColor;
-  }
-
-  return value || rawColor;
+  return resolveColor(rawColor, { concrete: true, element: element ?? null });
 }
 
 /**
  * Generate SVG filter primitive element from filter config
  * @param {Object} filter - Filter configuration {mode, type, value}
  * @param {string} inputSource - Input for this primitive (e.g., 'SourceGraphic', 'result1')
- * @param {string} resultName - Result name for this primitive's output
+ * @param {string|null} resultName - Result name for this primitive's output (null for the last one)
  * @param {Element} [contextElement] - Element used to scope theme/CSS-var color resolution
  * @returns {SVGElement|null} SVG filter primitive element (DOM node)
  * @private
@@ -148,9 +133,11 @@ function generateSvgFilterPrimitive(filter, inputSource, resultName, contextElem
       element.setAttribute('scale', v.scale ?? 10);
       element.setAttribute('xChannelSelector', v.xChannelSelector || 'R');
       element.setAttribute('yChannelSelector', v.yChannelSelector || 'G');
-      // feDisplacementMap needs two inputs
-      element.setAttribute('in', v.in || inputSource);
-      element.setAttribute('in2', v.in2 || 'SourceGraphic');
+      // feDisplacementMap needs two inputs: `in` is the image it warps (the blueprint),
+      // `in2` the map that warps it (the previous primitive, such as feTurbulence noise).
+      // They were the other way round: the noise was warped by the blueprint.
+      element.setAttribute('in', v.in || 'SourceGraphic');
+      element.setAttribute('in2', v.in2 || inputSource);
       if (resultName) element.setAttribute('result', resultName);
       break;
 
@@ -178,7 +165,10 @@ export function generateFilterString(filters, normalize = false) {
     return filters
       .filter(f => f.mode === 'css' || !f.mode) // Only CSS filters for now (SVG filters come later)
       .map(filter => {
-        const { type, value } = filter;
+        const { type } = filter;
+        // No value: the CSS function's own default (brightness() is 1, blur() is 0).
+        // Writing `undefined` made the whole filter list invalid, dropping every filter in it.
+        const value = filter.value ?? '';
 
         // Convert filter to CSS function string
         if (type === 'blur') {
@@ -190,7 +180,7 @@ export function generateFilterString(filters, normalize = false) {
         } else if (type === 'saturate') {
           return `saturate(${value})`;
         } else if (type === 'hue-rotate') {
-          const hueValue = String(value).endsWith('deg') ? value : `${value}deg`;
+          const hueValue = value === '' || String(value).endsWith('deg') ? value : `${value}deg`;
           return `hue-rotate(${hueValue})`;
         } else if (type === 'grayscale') {
           return `grayscale(${value})`;
@@ -203,7 +193,9 @@ export function generateFilterString(filters, normalize = false) {
         } else if (type === 'drop-shadow') {
           // value is object: {x, y, blur, color}
           if (typeof value === 'object' && value !== null) {
-            return `drop-shadow(${value.x || '0px'} ${value.y || '0px'} ${value.blur || '0px'} ${value.color || '#000'})`;
+            // numbers are px: a bare number makes the whole filter value invalid (every other CSS filter in it was lost)
+            const len = (/** @type {any} */ v) => (typeof v === 'number' ? `${v}px` : (v || '0px'));
+            return `drop-shadow(${len(value.x)} ${len(value.y)} ${len(value.blur)} ${value.color || '#000'})`;
           }
           return `drop-shadow(${value || '0px 0px 0px #000'})`;
         }
@@ -298,7 +290,7 @@ function expandCompoundFilters(svgFilters) {
 /**
  * Apply filters to a base SVG element (typically #msd-base-content group)
  * Handles both CSS filters and SVG filter primitives
- * @param {HTMLElement} svgElement - The SVG element/group to apply filters to
+ * @param {HTMLElement|SVGElement} svgElement - The SVG element/group to apply filters to
  * @param {Array|Object} filters - Filter array [{mode, type, value}] or legacy object {opacity, blur, etc.}
  * @param {number} [transition] - Transition duration in milliseconds (optional)
  */
@@ -328,8 +320,12 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
   }
 
   // Generate CSS filter string
-  const useNormalized = transition && transition > 0;
-  const cssFilterString = cssFilters.length > 0 ? generateFilterString(cssFilters, useNormalized) : '';
+  const useNormalized = !!(transition && transition > 0);
+  // the one-map form ({ opacity: 0.5, blur: 2px }) is read by generateFilterString as a map:
+  // wrapped in a list it had no type and gave nothing
+  const cssFilterString = !Array.isArray(filters) && filters && typeof filters === 'object'
+    ? generateFilterString(filters, useNormalized)
+    : cssFilters.length > 0 ? generateFilterString(cssFilters, useNormalized) : '';
 
   // Handle SVG filters
   let svgFilterId = null;
@@ -409,7 +405,9 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
   if (transition && transition > 0) {
     // Force a reflow to ensure transition is set before filter changes
     svgElement.style.transition = '';
-    void svgElement.offsetHeight; // Force reflow
+    // Force reflow. getBoundingClientRect() works on SVG too; offsetHeight is
+    // undefined on an SVG <g>, so it never forced anything there.
+    void svgElement.getBoundingClientRect();
 
     svgElement.style.transition = `filter ${transition}ms ease-in-out`;
 
@@ -450,7 +448,7 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
 
 /**
  * Transition from current filters to new filters
- * @param {HTMLElement} svgElement - The SVG element
+ * @param {HTMLElement|SVGElement} svgElement - The SVG element
  * @param {Array|Object} newFilters - New filter array or legacy object
  * @param {number} [duration=1000] - Transition duration in milliseconds
  * @returns {Promise} Resolves when transition completes
@@ -459,7 +457,7 @@ export function transitionBaseSvgFilters(svgElement, newFilters, duration = 1000
   return new Promise((resolve) => {
     if (!svgElement) {
       lcardsLog.warn('[BaseSvgFilters] No SVG element provided');
-      resolve();
+      resolve(undefined);
       return;
     }
 
@@ -471,14 +469,14 @@ export function transitionBaseSvgFilters(svgElement, newFilters, duration = 1000
     // Resolve after transition completes
     setTimeout(() => {
       lcardsLog.trace('[BaseSvgFilters] Transition complete');
-      resolve();
+      resolve(undefined);
     }, duration);
   });
 }
 
 /**
  * Clear all filters from a base SVG element
- * @param {HTMLElement} svgElement - The SVG element
+ * @param {HTMLElement|SVGElement} svgElement - The SVG element
  * @param {number} [transition] - Optional transition duration in milliseconds
  */
 export function clearBaseSvgFilters(svgElement, transition) {
@@ -514,7 +512,7 @@ export function clearBaseSvgFilters(svgElement, transition) {
 /**
  * Get current computed filter values from an element
  * This is useful for debugging and state inspection
- * @param {HTMLElement} svgElement - The SVG element
+ * @param {HTMLElement|SVGElement} svgElement - The SVG element
  * @returns {string} Current filter string
  */
 export function getCurrentFilters(svgElement) {

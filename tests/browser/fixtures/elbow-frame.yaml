@@ -1,0 +1,16 @@
+# doc/cards/elbow/index.md (Frame Type): segmented frame, open on the right
+type: custom:lcards-elbow
+elbow:
+  type: frame
+  style: segmented
+  segment:
+    color: "#ff9900"
+  frame:
+    bar_width: 30
+    right:
+      enabled: false
+    segments:
+      gap: 6
+      inner_frame:
+        bar_width: 10
+        color: "#99ccff"

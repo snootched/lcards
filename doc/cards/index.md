@@ -1,3 +1,7 @@
+---
+description: "Every LCARdS card at a glance (button, elbow, slider, chart, data grid, select menu, layout card, alert overlay, MSD, astrometrics) with links to each card's reference."
+---
+
 # The Fleet
 
 :::: tabs
@@ -9,9 +13,9 @@ All standard LCARS buttons, plus advanced multi-segment controls.
 ![Button Card](/img/lcards-button.png)
 
 - Built-in preset library: lozenge, bullet, capped, outline, pill, text, and more
-- **Component mode** — embed SVG components (D-pad, Alert, custom shapes) with per-segment interactivity
-- Canvas-based **background animations** — stackable layers with zoom and pan
-- Rules Engine integration — styles hot-patched at runtime
+- **Component mode**: embed SVG components (D-pad, Alert, custom shapes) with per-segment interactivity
+- Canvas-based **background animations**: stackable layers with zoom and pan
+- Rules Engine integration: styles hot-patched at runtime
 
 [Button Documentation](button/)
 
@@ -25,7 +29,7 @@ Classic LCARS corner designs.
 - Built-in preset library: `header-left`, `header-right`, `footer-left`, `footer-right` and more
 - **Simple** and **segmented** (Picard-style double elbow) styles
 - Fully configurable LCARS arc geometry or diagonal-cut corners
-- Symbiont support — embed other HA cards inside the elbow area
+- Symbiont support: embed other Home Assistant cards inside the elbow area
 - Animated 'textures' available
 
 [Elbow Documentation](elbow/)
@@ -41,7 +45,7 @@ Interactive sliders for display and control.
 - Built-in presets: **pills** (segmented bar) and **gauge** (ruler with tick marks)
 - Horizontal and vertical orientations with independent fill and control inversion
 - Separate min/max for display range vs. control range
-- Domain auto-detection — interactive for controllable domains, display-only for sensors
+- Domain auto-detection: interactive for controllable domains, display-only for sensors
 
 [Slider Documentation](slider-card/)
 
@@ -66,8 +70,8 @@ LCARS data grids with cascade animations.
 
 ![Data Grid Card](/img/lcards-data-grid.gif)
 
-- **Data mode** — real entity states, attributes, or template values
-- **Decorative mode** — cascading generated data for aesthetics
+- **Data mode**: real entity states, attributes, or template values
+- **Decorative mode**: cascading generated data for aesthetics
 - LCARS-style cascade animation with built-in speed presets
 - CSS Grid layout with full style cascading
 
@@ -75,13 +79,14 @@ LCARS data grids with cascade animations.
 
 === Chart
 
-**`lcards-chart`**
+#### **`lcards-chart`**
 LCARdS integrated charting via ApexCharts.
 
+![Chart card: a 24-hour temperature history as an orange area with a gradient fill, a blue smoothed line from a data source, and a dashed comfort threshold](/img/cards/chart.webp)
 
 - 15+ chart types: line, area, bar, pie, scatter, heatmap, radar, and more
-- Single entity, multi-entity, or data source with processor buffers
-- Moving averages, min/max, rolling statistics from data source integration
+- Entities, long-term statistics or data sources, with smoothing, min/max and rolling statistics
+- Threshold lines, gradient fills and theme colours that follow alert modes
 
 [Chart Documentation](chart/)
 
@@ -90,8 +95,9 @@ LCARdS integrated charting via ApexCharts.
 #### **`lcards-alert-overlay`**
 Full-screen dashboard overlay reacting to alert state.
 
+<video class="doc-video" src="/gallery/alert.webm" poster="/img/cards/alert-overlay.webp" title="Alert overlay: red alert covers a dashboard with a blurred backdrop and the red alert symbol, then yellow alert" autoplay loop muted playsinline></video>
 
-- Can configure to activate automatically on `input_select.lcards_alert_mode` change
+- Activates automatically when `input_select.lcards_alert_mode` changes (for example from `lcards.red_alert`)
 - Full-screen backdrop with blur + tint layers
 - Configurable per-condition content card, position, and size
 - Content is interactive, with tap outside to dismiss
@@ -100,16 +106,45 @@ Full-screen dashboard overlay reacting to alert state.
 
 === MSD
 
-#### **`lcards-msd`**
-Create your own Master Systems Display with controls and routable lines
+#### **`lcards-msd-card`**
+Create your own Master Systems Display with controls and routable lines.
 
+<video class="doc-video" src="/img/cards/msd-motion.webm" poster="/img/cards/msd.webp" title="MSD card: shield arcs around a starship blueprint turn orange, then red, as shields drop, with three controls joined to the ship by routed lines" autoplay loop muted playsinline></video>
 
-- Embed any HA card as a positioned **control overlay**
-- **Line overlays** — SVG lines with smart routing and avoid-obstacle algorithms
-- **Studio Editor** — visual configuration with live preview and drag-to-reposition
+- Embed any Home Assistant card as a positioned **control overlay**
+- **Line overlays**: SVG lines with smart routing and avoid-obstacle algorithms
+- **Studio Editor**: visual configuration with live preview and drag-to-reposition
 - Animate lines independently with rules
 
 [MSD Documentation](msd/)
+
+
+=== Astrometrics
+
+#### **`lcards-astrometrics-card`**
+3D scenes in the style of the astrometrics lab and stellar cartography.
+
+![Astrometrics card: a galaxy disc with bearing labels, the glowing galactic core, Federation and Borg space as see-through sectors, crossing beams and a small planet](/img/cards/astrometrics.webp)
+
+- Sector maps with lettered cells, galaxy discs with territories, planets with points on their surface
+- A sky dome with the sun and moon where they are now, from your Home Assistant location
+- Drag to orbit, zoom, tap a point to fly to it; named views
+- Draws only when something moves; every card shares one WebGL context
+
+[Astrometrics Documentation](astrometrics/)
+=== Layout Card
+
+#### **`lcards-layout-card`**
+A grid of cards inside one card: build a sub-grid anywhere.
+
+![Layout card: an LCARS frame of header and footer elbows around three buttons, a block of data cascade numbers and a vertical Picard-style slider](/img/cards/layout-card.webp)
+
+- CSS Grid with named areas: place each card by area, like the Layout View
+- **Layout Studio**: a full-screen visual editor to draw areas and place cards
+- Nest layout cards for deeper sub-grids
+- Child cards keep Home Assistant's own visibility conditions
+
+[Layout Card Documentation](layout-card/)
 
 ::::
 
@@ -119,14 +154,14 @@ Features and concepts shared across the card system:
 
 | Topic | What it covers |
 |-------|---------------|
-| [Common Card Properties](common.md) | `id`, `tags`, `height`, `width`, `grid_options` — properties shared by all cards |
+| [Common Card Properties](common.md) | `id`, `tags`, `height`, `width`, `grid_options`, properties shared by all cards |
 | [Colours](../core/colours.md) | Colour formats, state-based colour system, resolution order |
-| [Actions](../core/actions.md) | `tap_action`, `hold_action`, `double_tap_action` — all action types and options |
-| [Text Fields](../core/text-fields.md) | Multi-field text system — placement, fonts, colour, templates |
+| [Actions](../core/actions.md) | `tap_action`, `hold_action`, `double_tap_action`, all action types and options |
+| [Text Fields](../core/text-fields.md) | Multi-field text system: placement, fonts, colour, templates |
 | [Templates](../core/templates/) | Dynamic content: JS, Jinja2, LCARdS token data source templates |
 | [Animations](../core/animations.md) | Per-card animations with multiple trigger types |
 | [Background Animations](../core/effects/background-animations.md) | Canvas-based animated backgrounds (grid, starfield, nebula, etc.) |
 | [Sound Effects](../core/sounds.md) | LCARS-style audio feedback for interactions and alerts |
 | [Rules Engine](../core/rules/) | Advanced conditional system for styling applied across cards |
-| [Data Sources](../core/datasources/) | Subscribes to HA Entity to provide history and processing pipelines for cards to consume |
+| [Data Sources](../core/datasources/) | Subscribes to Home Assistant Entity to provide history and processing pipelines for cards to consume |
 | [Themes](../core/themes/) | Built-in token-based theming for providing colour, sizing etc. |

@@ -1,0 +1,16 @@
+# doc/cards/elbow/index.md (Using UIX with Symbiont): an embedded card with a uix block plus imprint
+type: custom:lcards-elbow
+elbow:
+  type: header-left
+symbiont:
+  enabled: true
+  card:
+    type: custom:lcards-button
+    preset: lozenge
+    uix:
+      style: |
+        :host { outline: 1px solid red; }
+  imprint:
+    background: "#123456"
+  custom_style: |
+    :host { opacity: 0.9; }

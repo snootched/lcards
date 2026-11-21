@@ -1,0 +1,17 @@
+# Layout card with layout.mediaquery: two buttons side by side on a wide
+# viewport, stacked under 700 px (the override's columns, rows and areas)
+type: custom:lcards-layout-card
+layout:
+  height: auto
+  grid-gap: 8px
+  grid-template-columns: repeat(2, minmax(0, 1fr))
+  grid-template-rows: 56px
+  grid-template-areas: '"a b"'
+  mediaquery:
+    "(max-width: 700px)":
+      grid-template-columns: minmax(0, 1fr)
+      grid-template-rows: repeat(2, 56px)
+      grid-template-areas: '"a" "b"'
+cards:
+  - { type: custom:lcards-button, preset: lozenge, view_layout: { grid-area: a }, text: { label: { content: "A", show: true } } }
+  - { type: custom:lcards-button, preset: lozenge, view_layout: { grid-area: b }, text: { label: { content: "B", show: true } } }

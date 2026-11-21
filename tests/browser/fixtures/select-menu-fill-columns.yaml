@@ -1,0 +1,9 @@
+# grid.height 100% shares the height between rows, not options (4 options in 2 columns: 2 rows)
+type: custom:lcards-select-menu
+entity: input_select.demo_mode
+preset: lozenge
+grid:
+  columns: 2
+  gap: 4px
+  grid-auto-rows: minmax(40px, 120px)
+  height: 100%

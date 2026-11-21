@@ -1,0 +1,4 @@
+# preset: toggle-tab (doc/core/presets.md): dark tab, the state shows as a line along the top
+type: custom:lcards-button
+entity: input_boolean.demo_toggle
+preset: toggle-tab

@@ -253,8 +253,9 @@ export class ErrorFormatter {
     const template = this.templates.get(error.type) || 'Validation error: {message}';
     const suggestionTemplate = this.suggestions.get(error.type) || 'Check your configuration';
 
-    const message = this._interpolateTemplate(template, error.context || error);
-    const suggestion = this._interpolateTemplate(suggestionTemplate, error.context || error);
+    const vars = { message: error.message, ...(error.context || error) };
+    const message = this._interpolateTemplate(template, vars);
+    const suggestion = this._interpolateTemplate(suggestionTemplate, vars);
 
     return {
       ...error,
@@ -286,7 +287,7 @@ export class ErrorFormatter {
    *
    * @private
    * @param {Object} error - Error object
-   * @returns {string} Suggestion
+   * @returns {string|null} Suggestion, or null when there is none for this error type
    */
   _getSuggestion(error) {
     const template = this.suggestions.get(error.type);
@@ -316,7 +317,7 @@ export class ErrorFormatter {
    *
    * @param {string} type - Error type
    * @param {string} message - Message template
-   * @param {string} [suggestion] - Suggestion template
+   * @param {string|null} [suggestion] - Suggestion template
    */
   addTemplate(type, message, suggestion = null) {
     this.templates.set(type, message);

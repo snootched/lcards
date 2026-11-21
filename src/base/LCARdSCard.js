@@ -7,8 +7,9 @@
  * tracking, and entity/DataSource subscriptions.
  *
  * Philosophy:
- * - Card controls everything explicitly
- * - No auto-subscriptions or magic behaviour
+ * - The base tracks the entities a config references (primary entity, rules,
+ *   templates, triggers_update) and re-renders when they change
+ * - Anything else (extra entities, DataSources) the card subscribes to itself
  * - Helpers available when needed
  * - Clear, predictable lifecycle
  *
@@ -18,15 +19,20 @@
 
 import { html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
-import { LCARdSNativeCard } from './LCARdSNativeCard.js';
+import { LCARdSNativeCard, hassFormattersChanged } from './LCARdSNativeCard.js';
 import { LCARdSActionHandler } from './LCARdSActionHandler.js';
 import { UnifiedTemplateEvaluator } from '../core/templates/UnifiedTemplateEvaluator.js';
+import { createTemplateOwner } from '../core/templates/live-templates.js';
 import { TemplateParser } from '../core/templates/TemplateParser.js';
 import { deepMerge } from '../core/config-manager/merge-helpers.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { ProvenanceTracker } from '../utils/provenance-tracker.js';
+import { templateRefs } from '../core/templates/template-refs.js';
+import { TemplateDetector } from '../core/templates/TemplateDetector.js';
+import { ANIMATION_PRESET_PARAMS_SCHEMAS } from '../cards/schemas/animation-preset-params-schemas.js';
+import { BACKGROUND_ANIMATION_PARAMS_SCHEMAS } from '../cards/schemas/background-animation-params-schemas.js';
 import { escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
-import { resolveStateColor } from '../utils/state-color-resolver.js';
+import { resolveStateColor, stateKeyFor } from '../utils/state-color-resolver.js';
 import { extractAllConfigStrings } from '../utils/extractConfigStrings.js';
 import {
     haFormatState,
@@ -34,6 +40,9 @@ import {
     haFormatAttrValue,
     haFormatAttrName
 } from '../utils/ha-entity-display.js';
+import { isComputedColor } from '../core/themes/color-syntax.js';
+import { resolveColor } from '../core/themes/resolve-color.js';
+import { isSyntheticHass } from '../utils/synthetic-hass.js';
 
 /**
  * Base class for simple LCARdS cards
@@ -58,8 +67,9 @@ import {
  * ### _renderCard()
  * Called on every render. Return card content HTML.
  *
- * ### _onRulePatchesChanged(patches)
- * Called when rule patches change. Use for:
+ * ### _onRulePatchesChanged()
+ * Called when rule patches change (no argument: read `this._lastRulePatches`;
+ * `this.config` already has the patches merged in). Use for:
  * - Re-resolving styles with new patches
  * - Triggering re-render
  * - Updating derived state
@@ -77,14 +87,11 @@ import {
  *
  *     _handleFirstUpdate() {
  *         super._handleFirstUpdate();
- *         this._registerOverlayForRules({
- *             id: `my-card-${this._cardGuid}`,
- *             type: 'button'
- *         });
+ *         this._registerOverlayForRules(this.config.id || `my-card-${this._cardGuid}`, 'button', this.config.tags || []);
  *         this._resolveStyle();
  *     }
  *
- *     _onRulePatchesChanged(patches) {
+ *     _onRulePatchesChanged() {
  *         this._resolveStyle(); // Re-resolve with new patches
  *     }
  *
@@ -100,7 +107,38 @@ import {
  *     }
  * }
  */
+/**
+ * How long a disconnected card keeps its rules in the shared engine before they
+ * are removed (Home Assistant moves cards by disconnecting and reconnecting them).
+ */
+export const RULES_RELEASE_MS = 3000;
+
+/** Connected LCARdS cards, newest last (for LCARdSCard.findByConfig). */
+const CONNECTED_CARDS = new Set();
+
+/** Config as comparable text (key order kept: HA hands the same object to editor and preview). */
+const configText = (config) => {
+    try { return JSON.stringify(config); } catch { return null; }
+};
+
 export class LCARdSCard extends LCARdSNativeCard {
+
+    /**
+     * The connected card rendered from this config: in the card editor, the
+     * preview (the dashboard card keeps the saved config once you edit). When two
+     * match (before the first edit), the one connected last: the preview.
+     * @param {Object} config
+     * @returns {LCARdSCard|null}
+     */
+    static findByConfig(config) {
+        const wanted = configText(config);
+        if (!wanted) return null;
+        let found = null;
+        for (const card of CONNECTED_CARDS) {
+            if (card.isConnected && configText(card._rawConfig) === wanted) found = card;
+        }
+        return found;
+    }
 
     static get properties() {
         return {
@@ -150,7 +188,7 @@ export class LCARdSCard extends LCARdSNativeCard {
                     justify-content: center;
                     min-height: 100px;
                     padding: 16px;
-                    background: var(--error-background-color, rgba(244, 67, 54, 0.1));
+                    background: color-mix(in srgb, var(--error-color, #db4437) 10%, transparent);
                     border: 1px solid var(--error-color, #f44336);
                     border-radius: 4px;
                     color: var(--error-color, #f44336);
@@ -178,11 +216,18 @@ export class LCARdSCard extends LCARdSNativeCard {
         this._singletons = null;
         this._initialized = false;
 
-        // Action handler (unified utility)
+        // Per-card action handler (each card has its own)
         this._actionHandler = new LCARdSActionHandler();
 
         // Template processing state
         this._templateUpdateScheduled = false;
+        // True while every request coalesced into the scheduled pass came from a
+        // hass change that has already been rendered (see _scheduleTemplateUpdate)
+        this._templateUpdateHassOnly = false;
+        // Bumped at the start of every template pass, and by the button family when
+        // its pass asks for a render itself (_templateRenderRequests)
+        this._templatePassId = 0;
+        this._templateRenderRequests = 0;
         /** @type {{[key: string]: any} | null} */
         this._processedIcon = null; // Processed icon configuration
 
@@ -196,6 +241,14 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Entity tracking for Jinja2 template updates
         this._trackedEntities = [];
 
+        // subscribeToEntity() bookkeeping: the release functions (dropped on
+        // disconnect) and how many subscriptions each entity has (an entity with
+        // one gates HASS forwarding to the core like a tracked one)
+        /** @type {Set<() => void> | undefined} */
+        this._entitySubscriptions = undefined;
+        /** @type {Map<string, number> | undefined} */
+        this._subscribedEntityCounts = undefined;
+
         // Pre-evaluated style template cache (template string → result).
         // Populated by _preEvaluateStyleTemplates() during async _processCustomTemplates().
         // Lets synchronous SVG / style generation consume Jinja2/JS template results
@@ -203,6 +256,11 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Cleared at the start of every _processTemplates() cycle so removed keys
         // don't accumulate indefinitely (particularly in the editor).
         this._evaluatedStyleCache = new Map();
+        // Jinja2 templates this card keeps subscribed (live-templates.js): created
+        // on first use, released on a new config and on disconnect
+        /** @type {import('../core/templates/live-templates.js').TemplateOwner | null} */
+        this._liveTemplates = null;
+        this._liveTemplatesReleased = false;
 
         // Monotonically increasing run-ID for _processConfigAsync.
         // Incremented on every entry; the committing write checks the current ID
@@ -223,7 +281,11 @@ export class LCARdSCard extends LCARdSNativeCard {
         this._lastRulePatches = null;     // Cache of last applied patches
         this._baseConfig = null;          // Snapshot of config before first patch (for revert)
         this._overlayRegistered = false;  // Track if overlay is registered
+        this._rulesRegistration = null;   // Last _registerOverlayForRules() args, for re-registering on reconnect
         this._hasRulesToLoad = false;     // Flag to defer rule loading until singletons are ready
+        this._ownsRules = false;          // This card's rules are in the shared engine (setCardRules)
+        /** @type {any} */
+        this._rulesReleaseTimer = null;   // Pending removal of this card's rules after a disconnect
         this._hassMonitoringSetup = false; // Flag to prevent duplicate monitoring setup
 
         // DataSource tracking for cleanup
@@ -233,6 +295,8 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Light colour CSS variable state (populated by _updateLightColorVariable)
         this._lightColorValue = null;   // Cached resolved colour string, or null when light is off
         this._lightAlphaValue = null;   // Cached brightness scalar (0.0–1.0), or null when light is off
+        /** @type {string|null} what the light variables on the page hold ('off' or 'colour|alpha'); null = not written */
+        this._lightVarsKey = null;
 
         lcardsLog.trace(`[LCARdSCard] Constructor called for ${this._getDisplayId()}`);
     }
@@ -243,6 +307,8 @@ export class LCARdSCard extends LCARdSNativeCard {
      */
     connectedCallback() {
         super.connectedCallback();
+        CONNECTED_CARDS.delete(this);
+        CONNECTED_CARDS.add(this);
 
         // Guard against HA layout instability: if the theme CSS has not yet set
         // --ha-card-border-width, HA's card infrastructure can enter an infinite
@@ -275,9 +341,6 @@ export class LCARdSCard extends LCARdSNativeCard {
         // CRITICAL: setConfig MUST be synchronous for Home Assistant!
         // Store raw config immediately, then process asynchronously
 
-        // Reset patch snapshot so next rule cycle gets a fresh base
-        this._baseConfig = null;
-
         // Store the untouched HA-supplied config so the theme-override handler
         // can re-run processConfig (which builds a fresh mergedConfig) without
         // losing the original theme: token strings that were already resolved.
@@ -293,6 +356,13 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Call parent with raw config immediately (synchronous)
         super.setConfig(config);
+
+        // The templates may have changed: the next pass holds what it still uses
+        // (a template nobody holds stays open a few seconds, live-templates.js)
+        this._liveTemplates?.release();
+
+        // Active rule patches apply to the new config too (fresh base snapshot)
+        this._rebaseRulePatches();
 
         // Start async config processing in background (don't await!)
         // Store the promise so subclasses can wait for it if needed
@@ -347,8 +417,12 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._provenance = result.provenance;
 
             // Track provenance in unified tracker
-            if (this._provenanceTracker && result.provenance) {
+            if (this._provenanceTracker && result.provenance && runId === this._configRunId) {
                 this._provenanceTracker.trackConfig(result.provenance);
+                // Every theme: value the merge resolved, with its field and chain
+                for (const ref of result.provenance.theme_refs ?? []) {
+                    this._trackTokenUse(ref.path, ref.field, ref.ref);
+                }
             }
 
             lcardsLog.trace(`[LCARdSCard] Config processed`, {
@@ -377,13 +451,17 @@ export class LCARdSCard extends LCARdSNativeCard {
                     return;
                 }
 
-                // Update internal config
+                // Update internal config; active rule patches stay applied on
+                // the new merged config (theme override, alert mode re-process)
                 this.config = result.mergedConfig;
+                this._rebaseRulePatches();
 
                 // Re-scan tracked entities now that we have the final merged config.
                 // This is the authoritative call for all card types — it covers primary
                 // entity, rules, animations, Jinja2 auto-scan, and triggers_update.
                 this._updateTrackedEntities();
+                this._trackStateBranches();
+                this._trackPresetDefaults();
 
                 // Allow subclasses to react to config changes before render
                 // (e.g., button card needs to re-resolve styles when config changes)
@@ -408,7 +486,7 @@ export class LCARdSCard extends LCARdSNativeCard {
     /**
      * Process data_sources configuration to create advanced DataSource instances
      * Allows LCARdSCards to define DataSources with full config (window_seconds,
-     * minEmitMs, coalesceMs, history preload, etc.) without requiring MSD.
+     * min_emit_ms, coalesce_ms, history preload, etc.) without requiring MSD.
      *
      * @example
      * ```yaml
@@ -417,10 +495,11 @@ export class LCARdSCard extends LCARdSNativeCard {
      *   cpu_temp:
      *     entity: sensor.cpu_temp
      *     window_seconds: 3600
-     *     minEmitMs: 250
-     *     coalesceMs: 120
+     *     min_emit_ms: 250
+     *     coalesce_ms: 120
      *     history: { preload: true, hours: 6 }
-     * source: cpu_temp
+     * sources:
+     *   - datasource: cpu_temp
      * ```
      *
      * @param {Object} dataSourcesConfig - data_sources configuration object
@@ -484,7 +563,7 @@ export class LCARdSCard extends LCARdSNativeCard {
                     lcardsLog.debug(`[LCARdSCard] Created DataSource '${name}'`, {
                         entity: config.entity,
                         hasHistory: !!config.history,
-                        windowSeconds: config.windowSeconds,
+                        windowSeconds: config.window_seconds ?? config.windowSeconds,
                         cardId: this._getDisplayId()
                     });
                     return source;
@@ -663,16 +742,18 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._entity = this.hass.states[config.entity];
         }
 
-        // Load rules from config into RulesEngine if singletons are ready
-        // This handles the case where config is set after connection
-        if (config.rules && Array.isArray(config.rules) && config.rules.length > 0) {
+        // Load rules from config into RulesEngine if singletons are ready. Every
+        // config change sets this card's rules again: changed rules are replaced and
+        // rules taken out of the config removed (also when it has none left).
+        const hasRules = Array.isArray(config.rules) && config.rules.length > 0;
+        if (hasRules || this._ownsRules) {
             if (this._singletons?.rulesEngine) {
                 // Singletons already initialized - load rules now
-                this._loadRulesFromConfig(config.rules);
+                this._loadRulesFromConfig(hasRules ? config.rules : []);
                 this._hasRulesToLoad = false; // Clear flag
             } else {
                 // Singletons not ready yet - set flag for loading in _onConnected
-                this._hasRulesToLoad = true;
+                this._hasRulesToLoad = hasRules;
             }
         }
 
@@ -753,8 +834,12 @@ export class LCARdSCard extends LCARdSNativeCard {
         }
 
         // Forward HASS to core singleton ONLY if relevant entities changed
-        // This prevents unnecessary subsystem updates when unrelated entities change
-        if (window.lcards?.core) {
+        // This prevents unnecessary subsystem updates when unrelated entities change.
+        // A synthetic copy (a parent card's rewritten view, e.g. select menu options)
+        // is for this card only and never reaches the shared core.
+        if (isSyntheticHass(newHass)) {
+            lcardsLog.trace(`[LCARdSCard] Synthetic HASS not forwarded to core for ${this._cardGuid}`);
+        } else if (window.lcards?.core) {
             // Check if this card's entity or any rule-dependent entities changed
             const cardEntityChanged = this.config?.entity &&
                 oldHass?.states?.[this.config.entity] !== newHass?.states?.[this.config.entity];
@@ -763,9 +848,18 @@ export class LCARdSCard extends LCARdSNativeCard {
                 oldHass?.states?.[entityId] !== newHass?.states?.[entityId]
             );
 
-            if (!oldHass || cardEntityChanged || trackedEntitiesChanged) {
+            // Entities the card subscribed to (subscribeToEntity) count too:
+            // their callbacks fire from the core's ingest.
+            const subscribed = this._subscribedEntityCounts;
+            const subscribedEntitiesChanged = !!subscribed && subscribed.size > 0 &&
+                [...subscribed.keys()].some(entityId =>
+                    oldHass?.states?.[entityId] !== newHass?.states?.[entityId]
+                );
+
+            if (!oldHass || cardEntityChanged || trackedEntitiesChanged || subscribedEntitiesChanged) {
                 lcardsLog.trace(`[LCARdSCard] Forwarding HASS to core.ingestHass() for ${this._cardGuid}`, {
-                    reason: !oldHass ? 'initial' : cardEntityChanged ? 'card entity' : 'tracked entity',
+                    reason: !oldHass ? 'initial' : cardEntityChanged ? 'card entity'
+                        : trackedEntitiesChanged ? 'tracked entity' : 'subscribed entity',
                     cardEntity: this.config?.entity,
                     trackedCount: this._trackedEntities?.length || 0
                 });
@@ -786,14 +880,27 @@ export class LCARdSCard extends LCARdSNativeCard {
             });
 
             if (hasChanges) {
-                // Re-process templates when tracked entities change
-                this._scheduleTemplateUpdate();
+                // Re-process templates when tracked entities change (the first hass has
+                // no rendered state to build on: a full pass, as for any other reason)
+                this._scheduleTemplateUpdate(oldHass ? 'hass' : undefined);
             }
+        }
+
+        // Home Assistant swapped in its locale-aware formatters (or the locale changed):
+        // {entity.state} and friends rendered with the placeholder ones show the raw state
+        if (hassFormattersChanged(newHass, oldHass)) {
+            this._scheduleTemplateUpdate();
         }
 
         // Call card-specific HASS handler
         if (typeof this._handleHassUpdate === 'function') {
             this._handleHassUpdate(newHass, oldHass);
+        }
+
+        // Provenance: which state branch applies now
+        const entityId = this.config?.entity;
+        if (entityId && oldHass?.states?.[entityId] !== newHass?.states?.[entityId]) {
+            this._trackStateBranches();
         }
     }
 
@@ -812,6 +919,9 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._updateLightColorVariable();
         }
 
+        // Theme override / alert-mode subscriptions are dropped in _onDisconnected
+        this._subscribeThemeChanges();
+
         // Re-establish ResizeObserver + window listener if auto-sizing was enabled
         // but the observer was cleaned up during a previous disconnect.
         // (Lit's firstUpdated only fires once, so _setupAutoSizing won't be called
@@ -823,6 +933,15 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Initialize singleton access
         this._initializeSingletons();
+
+        // Reconnected before its rules were released (a move, edit mode): keep them
+        this._cancelRulesRelease();
+
+        // Its Jinja2 templates were released on disconnect: a pass holds them again
+        if (this._liveTemplatesReleased && this._initialized) {
+            this._liveTemplatesReleased = false;
+            this._scheduleTemplateUpdate();
+        }
 
         // Now that singletons are initialized, register datasource dependencies from templates
         if (this._singletons?.dataSourceManager && this.config) {
@@ -868,7 +987,76 @@ export class LCARdSCard extends LCARdSNativeCard {
             }
         }
 
+        // Reconnected (HA moves cards between columns while laying out a view, edit
+        // mode, navigation): the disconnect unregistered the card from the rules
+        // engine, so register again, or it would ignore rule changes until a reload.
+        if (this._initialized && this._rulesRegistration && !this._overlayRegistered) {
+            const { overlayId, type, tags } = this._rulesRegistration;
+            lcardsLog.debug(`[LCARdSCard] Re-registering for rules after reconnect: ${this._getDisplayId()}`);
+            this._registerOverlayForRules(overlayId, type, tags);
+        }
+
         lcardsLog.trace(`[LCARdSCard] Connected: ${this._getDisplayId()}`);
+    }
+
+    /**
+     * Subscribe (idempotently) to theme token override changes and alert-mode
+     * palette changes. Colours resolved to concrete values (SVG attributes,
+     * Canvas2D, charts) cannot follow a CSS variable change on their own.
+     * @protected
+     */
+    _subscribeThemeChanges() {
+        if (!this._themeOverridesChangedHandler) {
+            this._themeOverridesChangedHandler = () => this._reprocessForThemeChange();
+            window.addEventListener('lcards:theme-overrides-changed', this._themeOverridesChangedHandler);
+        }
+        const themeManager = window.lcards?.core?.themeManager;
+        if (!this._alertModeSubscription && themeManager?.subscribeToAlertMode) {
+            this._alertModeSubscription = themeManager.subscribeToAlertMode((mode) => this._onAlertModeChanged(mode));
+        }
+    }
+
+    /**
+     * Re-run processConfig and re-render: processConfig bakes resolved theme:
+     * token values into this.config, so a plain requestUpdate would re-render
+     * with stale values.
+     * @protected
+     */
+    _reprocessForThemeChange() {
+        if (this._rawConfig) {
+            // Supersede any in-flight config run before launching a new one.
+            // _processConfigAsync increments _configRunId on entry, but preemptively
+            // bumping it here means an already-running run will see a mismatch
+            // at its next await checkpoint and abort before we even start.
+            this._configRunId++;
+            this._processConfigAsync(this._rawConfig).catch(err => {
+                lcardsLog.warn('[LCARdSCard] Theme change re-process failed:', err);
+            });
+        } else {
+            this.requestUpdate();
+        }
+    }
+
+    /**
+     * An alert mode has rewritten the palette. Called by ThemeManager the moment
+     * the CSS variables are written (while a transition still hides the swap),
+     * after the token cache is cleared. Default: re-process and re-render.
+     * Subclasses with a cheaper repaint override this.
+     * @param {string} _mode - New alert mode
+     * @protected
+     */
+    _onAlertModeChanged(_mode) {
+        this._reprocessForThemeChange();
+        this._refreshBackgroundAnimationColors();
+    }
+
+    /**
+     * Rebuild a background animation (if the card has one) so its Canvas2D
+     * colours follow a palette change.
+     * @protected
+     */
+    _refreshBackgroundAnimationColors() {
+        /** @type {any} */ (this)._backgroundRenderer?.refreshColors?.(this.hass, this._entity, this.config);
     }
 
     /**
@@ -881,26 +1069,9 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Mark as initialized
         this._initialized = true;
 
-        // Subscribe to theme token override changes so the card re-renders when
-        // an admin or user applies/removes a global/user/device token override.
-        // Must re-run processConfig (not just requestUpdate) because processConfig
-        // bakes resolved theme: token values into this.config — a plain requestUpdate
-        // would re-render with the already-resolved (now-stale) cached values.
-        this._themeOverridesChangedHandler = () => {
-            if (this._rawConfig) {
-                // Supersede any in-flight config run before launching a new one.
-                // _processConfigAsync increments _configRunId on entry, but preemptively
-                // bumping it here means an already-running run will see a mismatch
-                // at its next await checkpoint and abort before we even start.
-                this._configRunId++;
-                this._processConfigAsync(this._rawConfig).catch(err => {
-                    lcardsLog.warn('[LCARdSCard] Theme override re-process failed:', err);
-                });
-            } else {
-                this.requestUpdate();
-            }
-        };
-        window.addEventListener('lcards:theme-overrides-changed', this._themeOverridesChangedHandler);
+        // Theme override and alert-mode subscriptions (also re-made on every
+        // reconnect in _onConnected; core may not have been ready at first connect)
+        this._subscribeThemeChanges();
 
         // NOTE: Do NOT register rules callback here - subclasses should call
         // _registerOverlayForRules() in their own _handleFirstUpdate() hook
@@ -950,9 +1121,12 @@ export class LCARdSCard extends LCARdSNativeCard {
 
     /**
      * Called during template processing. Override in subclasses for custom template handling.
+     * May report whether any template result changed (true / false), which lets
+     * _scheduleTemplateUpdate() skip a redundant render; undefined always renders.
+     * @returns {unknown}
      * @protected
      */
-    _processCustomTemplates() {}
+    _processCustomTemplates() { return undefined; }
 
     /**
      * Setup ResizeObserver for automatic container size tracking
@@ -963,7 +1137,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * 2. Store size in this._containerSize = { width, height }
      * 3. Use the size values in their rendering logic
      *
-     * @param {Function} onResize - Optional callback: (width, height) => void
+     * @param {Function|null} onResize - Optional callback: (width, height) => void
      * @protected
      *
      * @example
@@ -1011,7 +1185,9 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Reset the parent-margin height correction so the rAF first-measurement block
         // re-detects the current layout context (the card may have moved from a
         // layout-card context with card_margin to a sections view, or vice-versa).
-        this.style.removeProperty('height');
+        // A configured height stays (LCARdSNativeCard._onConfigSet set it).
+        const configuredH = this.config?.height !== undefined && this.config?.height !== null && this.config?.height !== '';
+        if (!configuredH) this.style.removeProperty('height');
         this._parentMarginV = undefined;
         // Reset stored size so the first ResizeObserver callback takes the rAF path
         // (margin re-detection) rather than the debounced update path.
@@ -1025,7 +1201,6 @@ export class LCARdSCard extends LCARdSNativeCard {
         // where browser chrome (address bar) sliding in/out causes rapid small height changes.
         let _roDebounceTimer = null;
 
-        // @ts-ignore — ResizeObserver callback signature is correct; TS type inference quirk
         this._resizeObserver = new ResizeObserver(entries => {
             if (entries.length === 0) return;
 
@@ -1050,7 +1225,7 @@ export class LCARdSCard extends LCARdSNativeCard {
 
                 if (prevW === null ||
                     Math.abs(width  - prevW) >= 2 ||
-                    Math.abs(height - prevH) >= 2) {
+                    Math.abs(height - /** @type {number} */ (prevH)) >= 2) { // non-null when prevW is
 
                     // Update stored size
                     this._containerSize = { width, height };
@@ -1135,7 +1310,13 @@ export class LCARdSCard extends LCARdSNativeCard {
                     const myStyle = window.getComputedStyle(this);
                     const marginV = (parseFloat(myStyle.marginTop)    || 0)
                                   + (parseFloat(myStyle.marginBottom) || 0);
-                    if (marginV > 0) {
+                    // A configured height wins (LCARdSNativeCard._onConfigSet set it):
+                    // clearing it here lost `height` on every card that doesn't
+                    // re-apply it in render (a slider with height: 50% filled its cell).
+                    const configuredH = this.config?.height !== undefined && this.config?.height !== null && this.config?.height !== '';
+                    if (configuredH) {
+                        this._parentMarginV = undefined;
+                    } else if (marginV > 0) {
                         this.style.height = `calc(100% - ${marginV}px)`;
                         this._parentMarginV = marginV; // cache for reconnect / window.resize
                     } else {
@@ -1262,7 +1443,6 @@ export class LCARdSCard extends LCARdSNativeCard {
                 animationManager: animationManager,
                 dataSourceManager: core.dataSourceManager,
                 validationService: core.validationService,
-                actionHandler: core.actionHandler,
                 stylePresetManager: core.getStylePresetManager()
             };
 
@@ -1296,10 +1476,11 @@ export class LCARdSCard extends LCARdSNativeCard {
     // ============================================================================
 
     /**
-     * Load rules from card config into the global RulesEngine
-     * Follows MSD pattern: add rules to shared engine
+     * Set this card's rules in the shared RulesEngine (RulesEngine.setCardRules):
+     * the card instance owns them, so a config change replaces them and an empty
+     * list removes them. Pack rules with the same id are left alone.
      *
-     * @param {Array} rules - Array of rule objects from card config
+     * @param {Array} rules - Array of rule objects from card config ([] removes the card's rules)
      * @private
      */
     _loadRulesFromConfig(rules) {
@@ -1308,54 +1489,55 @@ export class LCARdSCard extends LCARdSNativeCard {
             return;
         }
 
-        if (!Array.isArray(rules) || rules.length === 0) {
-            return;
-        }
+        // Back (or still) connected: the rules stay, nothing to remove later
+        this._cancelRulesRelease();
 
         try {
             const rulesEngine = this._singletons.rulesEngine;
-            let addedCount = 0;
-
             // Get source card ID for tracking
             const sourceCardId = this.config?.id || this._cardGuid || 'unknown-card';
             // Infer card type from config.type or constructor name
             const sourceCardType = this.config?.type?.replace('custom:', '') || this.constructor.name || 'simple';
 
-            // Add each rule to the shared engine (skip duplicates by ID)
-            rules.forEach(rule => {
-                // Ensure rule has an ID
-                if (!rule.id) {
-                    lcardsLog.warn('[LCARdSCard] Rule missing ID, skipping:', rule);
-                    return;
-                }
+            const list = Array.isArray(rules) ? rules : [];
+            const counts = rulesEngine.setCardRules(this._cardGuid, list, { sourceCardId, sourceCardType });
+            this._ownsRules = list.length > 0;
 
-                // Skip if rule already exists in engine
-                if (rulesEngine.rulesById.has(rule.id)) {
-                    lcardsLog.debug(`[LCARdSCard] Rule ${rule.id} already exists in engine, skipping`);
-                    return;
-                }
-
-                // Add metadata for tracking which card registered this rule
-                rule._sourceCardId = sourceCardId;
-                rule._sourceCardType = sourceCardType;
-
-                // Add rule to engine
-                rulesEngine.rules.push(rule);
-                addedCount++;
-            });
-
-            if (addedCount > 0) {
-                // Rebuild indexes and compile new rules
-                rulesEngine.buildRulesIndex();
-                rulesEngine.buildDependencyIndex();
-                rulesEngine._compileRules();
-                rulesEngine.markAllDirty(); // Mark all rules dirty for initial evaluation
-
-                lcardsLog.info(`[LCARdSCard] Loaded ${addedCount} rules from ${sourceCardId} (${sourceCardType}). Total rules in engine: ${rulesEngine.rules.length}`);
+            if (counts.added || counts.replaced || counts.removed) {
+                lcardsLog.debug(`[LCARdSCard] Rules from ${sourceCardId} (${sourceCardType}): +${counts.added} ~${counts.replaced} -${counts.removed}. Total rules in engine: ${rulesEngine.rules.length}`);
             }
-
         } catch (error) {
             lcardsLog.error('[LCARdSCard] Failed to load rules from config:', error);
+        }
+    }
+
+    /**
+     * After a disconnect, remove this card's rules unless it connects again
+     * within RULES_RELEASE_MS. Home Assistant disconnects and reconnects cards
+     * when it lays out a view, enters edit mode or moves a card; a card that
+     * stays away (deleted, or on a view no longer shown) takes its rules with it
+     * and sets them again if it comes back (_onConnected).
+     * @private
+     */
+    _scheduleRulesRelease() {
+        if (!this._ownsRules || this._rulesReleaseTimer) return;
+        const rulesEngine = this._singletons?.rulesEngine;
+        if (!rulesEngine) return;
+        this._rulesReleaseTimer = setTimeout(() => {
+            this._rulesReleaseTimer = null;
+            if (this.isConnected) return;
+            rulesEngine.removeCardRules(this._cardGuid);
+            this._ownsRules = false;
+            // Set them again on the next connect
+            this._hasRulesToLoad = Array.isArray(this.config?.rules) && this.config.rules.length > 0;
+        }, RULES_RELEASE_MS);
+    }
+
+    /** @private */
+    _cancelRulesRelease() {
+        if (this._rulesReleaseTimer) {
+            clearTimeout(this._rulesReleaseTimer);
+            this._rulesReleaseTimer = null;
         }
     }
 
@@ -1378,25 +1560,20 @@ export class LCARdSCard extends LCARdSNativeCard {
      * - Sets up callback for future rule re-evaluations
      * - Cleanup handled automatically in _onDisconnected()
      *
-     * @param {Object} overlay - Overlay configuration object
-     * @param {string} overlay.id - Unique overlay identifier (e.g., 'lcards-button-' + cardGuid)
-     * @param {string} overlay.type - Overlay type ('button', 'label', 'status', etc.)
-     * @param {Object} [overlay.metadata] - Additional metadata (entity, cardType, etc.)
-     * @param {Array<string>} [overlay.tags] - Tags for rule targeting (optional)
+     * @param {string} overlayId - Overlay id rules target (the card's `id`, else e.g. 'lcards-button-' + cardGuid)
+     * @param {string} type - Overlay type matched by `type:` selectors ('button', 'slider', 'msd-card', ...)
+     * @param {string|Array<string>} [tags] - Tags matched by `tag:` selectors
      *
      * @example
      * // In your card's _handleFirstUpdate():
      * _handleFirstUpdate() {
      *     super._handleFirstUpdate();
      *
-     *     this._registerOverlayForRules({
-     *         id: `lcards-button-${this._cardGuid}`,
-     *         type: 'button',
-     *         metadata: {
-     *             entity: this.config.entity,
-     *             cardType: 'button'
-     *         }
-     *     });
+     *     this._registerOverlayForRules(
+     *         this.config.id || `lcards-button-${this._cardGuid}`,
+     *         'button',
+     *         this.config.tags || []
+     *     );
      *
      *     this._resolveButtonStyle(); // Initial style resolution
      * }
@@ -1404,6 +1581,10 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @protected
      */
     _registerOverlayForRules(overlayId, type, tags = []) {
+        // Remembered so _onConnected can register again: a disconnect unregisters
+        // the card, and the first update (where cards call this) never runs again.
+        this._rulesRegistration = { overlayId, type, tags };
+
         if (!this._singletons?.rulesEngine || !this._singletons?.systemsManager) {
             lcardsLog.debug('[LCARdSCard] Rules or SystemsManager not available, skipping overlay registration');
             return;
@@ -1426,7 +1607,10 @@ export class LCARdSCard extends LCARdSNativeCard {
             id: this._overlayId,
             type: type,
             tags: this._overlayTags,
-            sourceCardId: this._cardGuid
+            sourceCardId: this._cardGuid,
+            // The card's own animation scope, so rule animations reach it whatever
+            // the card names its scope (slider, chart, MSD don't use {type}-{guid})
+            animationScope: this._getAnimationSetup().overlayId
         });
 
         // Register callback with RulesEngine (SINGLE callback per card)
@@ -1436,7 +1620,9 @@ export class LCARdSCard extends LCARdSNativeCard {
 
             try {
                 // Evaluate dirty rules to get patches
-                const ruleResults = await this._singletons.rulesEngine.evaluateDirty({
+                const rulesEngine = this._singletons?.rulesEngine;
+                if (!rulesEngine) return; // card torn down since the callback was registered
+                const ruleResults = await rulesEngine.evaluateDirty({
                     entity: this.config?.entity,  // Pass bound entity ID for JavaScript context
                     getEntity: (entityId) => {
                         const state = this.hass?.states?.[entityId];
@@ -1449,6 +1635,8 @@ export class LCARdSCard extends LCARdSNativeCard {
                 if (ruleResults && ruleResults.overlayPatches) {
                     this._applyRulePatches(ruleResults.overlayPatches);
                 }
+                // Results that are not overlay patches (an MSD's base_svg filters)
+                if (ruleResults) this._applyRuleResults(ruleResults);
             } catch (error) {
                 lcardsLog.error(`[LCARdSCard] Error in rules callback for ${this._overlayId}:`, error);
             }
@@ -1498,11 +1686,49 @@ export class LCARdSCard extends LCARdSNativeCard {
             lcardsLog.debug(`[LCARdSCard] Unregistered overlay: ${this._overlayId}`);
         }
 
+        // Take the rule patches off the config: a re-registration snapshots the
+        // config as its base, so a patched config would make the patch stick
+        if (this._baseConfig) {
+            this.config = JSON.parse(JSON.stringify(this._baseConfig));
+            this._baseConfig = null;
+            this._provenanceTracker?.clearRulePatches();
+            if (this._lastRulePatches !== null && typeof this._onRulePatchesChanged === 'function') {
+                this._lastRulePatches = null;
+                this._onRulePatchesChanged();
+            }
+        }
+
         this._overlayId = null;
         this._overlayTags = [];
         this._lastRulePatches = null;
         this._overlayRegistered = false;
     }
+
+    /**
+     * After this.config was replaced (setConfig, a config re-process), take the
+     * new config as the unpatched base and apply the active rule patches to it
+     * again. Without this the next rules callback sees the same patch, returns
+     * early, and the rule styling is gone until the patch changes.
+     * Only for the single-overlay patching in _applyRulePatches (the MSD keeps
+     * its own patch map and never sets _baseConfig).
+     * @protected
+     */
+    _rebaseRulePatches() {
+        if (!this._baseConfig || !this._lastRulePatches || !this.config) return;
+        this._baseConfig = JSON.parse(JSON.stringify(this.config));
+        this.config = deepMerge(JSON.parse(JSON.stringify(this._baseConfig)), this._lastRulePatches);
+        if (typeof this._onRulePatchesChanged === 'function') {
+            this._onRulePatchesChanged();
+        }
+    }
+
+    /**
+     * The rule results that are not overlay patches. Nothing on most cards;
+     * the MSD applies its base_svg filters here.
+     * @param {any} _ruleResults - aggregated results of evaluateDirty()
+     * @protected
+     */
+    _applyRuleResults(_ruleResults) {}
 
     /**
      * Apply rule patches to this card's overlay
@@ -1535,6 +1761,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             // No patches for this overlay - clear cached patches if any existed
             if (this._lastRulePatches !== null) {
                 this._lastRulePatches = null;
+                this._provenanceTracker?.clearRulePatches();
 
                 // Restore base config snapshot so rule-applied changes are fully reverted
                 if (this._baseConfig) {
@@ -1554,15 +1781,11 @@ export class LCARdSCard extends LCARdSNativeCard {
             return;
         }
 
-        // Merge all patches for this overlay (later patches override)
-        const mergedPatch = myPatches.reduce((acc, patch) => ({
-            ...acc,
-            ...patch,
-            style: {
-                ...(acc.style || {}),
-                ...(patch.style || {})
-            }
-        }), {});
+        // Merge all patches for this overlay. RulesEngine orders them highest priority
+        // first, so merge from the end: the highest-priority rule is applied last and
+        // wins (it used to lose). Deep merge so rules patching different keys under
+        // the same branch (e.g. style.card.color vs style.card.border) both apply.
+        const mergedPatch = [...myPatches].reverse().reduce((acc, patch) => deepMerge(acc, patch), {});
 
         // Check if patches actually changed (avoid unnecessary updates)
         const patchesChanged = JSON.stringify(this._lastRulePatches) !== JSON.stringify(mergedPatch);
@@ -1654,8 +1877,10 @@ export class LCARdSCard extends LCARdSNativeCard {
                 }
             };
 
-            // Track all patched fields (not just style)
-            trackPatchesRecursive(mergedPatch, this.config);
+            // Track all patched fields (not just style), against the unpatched config;
+            // start over so fields no longer patched drop out
+            this._provenanceTracker.clearRulePatches();
+            trackPatchesRecursive(mergedPatch, this._baseConfig ?? this.config);
         }
 
         // Deep merge patches onto the base config snapshot (not the already-patched config).
@@ -1674,63 +1899,34 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     /**
-     * Merge base config style with active rule patches
+     * Merge a resolved style object with the active rule patches' `style`.
      *
-     * Rule patches have **highest priority** in the style resolution chain and will
-     * override any matching properties from the config style. This method should be
-     * called as the final step in your style resolution logic.
+     * Rule patches are config-shaped (`{ id, style, text, ... }`). The whole patch
+     * is already merged into `this.config` by `_applyRulePatches()`, so a style
+     * built from `this.config.style` carries it. This puts `patch.style` on top
+     * once more, after the card added its own defaults (theme tokens, state
+     * opacity), so a rule always wins over those. Other patched keys (`text`,
+     * `icon`, ...) are read from `this.config`.
      *
-     * **IMPORTANT:** This performs a DEEP MERGE of the entire patch config, not
-     * just the `style` property. This allows rules to patch any config property
-     * including `text.*`, `dpad.*`, `icon.*`, etc.
-     *
-     * **Style Resolution Priority (low to high):**
-     * 1. Preset styles
-     * 2. Config styles
-     * 3. Theme token resolution
-     * 4. State overrides
-     * 5. Rule patches (applied by this method)
-     *
-     * **Performance:**
-     * - Returns immediately if no rule patches active
-     * - Deep merge for nested objects (text, dpad, etc.)
-     * - No DOM interaction (pure computation)
-     *
-     * @param {Object} configStyle - Base style/config from preset/theme resolution
-     * @returns {Object} Merged config with rule patches applied (rules override config)
+     * @param {Object} configStyle - Style resolved from config, preset and theme
+     * @returns {Object} The style with the rule patches' `style` applied (rules win)
      *
      * @example
-     * // In your style resolution method:
-     * _resolveButtonStyle() {
-     *     // 1. Start with config
+     * _resolveStyle() {
      *     let style = { ...(this.config.style || {}) };
-     *
-     *     // 2. Apply preset
-     *     if (this.config.preset) {
-     *         const preset = this.getStylePreset('button', this.config.preset);
-     *         style = { ...preset, ...style };
-     *     }
-     *
-     *     // 3. Apply theme tokens
-     *     style = this.resolveStyle(style, ['colors.primary']);
-     *
-     *     // 4. Apply rule patches (highest priority - can patch ANY config property)
-     *     style = this._getMergedStyleWithRules(style); // Call this last
-     *
-     *     this._buttonStyle = style;
+     *     style = this._getMergedStyleWithRules(style); // call this last
+     *     this._cardStyle = style;
      *     this.requestUpdate();
      * }
      *
      * @protected
      */
     _getMergedStyleWithRules(configStyle = {}) {
-        if (!this._lastRulePatches) {
+        const patchStyle = this._lastRulePatches?.style;
+        if (!patchStyle || typeof patchStyle !== 'object') {
             return configStyle;
         }
-
-        // Deep merge entire patch into config (not just .style)
-        // This allows rules to patch text, dpad, icon, and other top-level properties
-        return deepMerge(configStyle, this._lastRulePatches);
+        return deepMerge(configStyle, patchStyle);
     }
 
     // ============================================================================
@@ -1742,7 +1938,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Supports both direct matching and mapped states
      *
      * @param {string} entityState - Raw entity state (on/off/playing/etc)
-     * @param {string} domain - Entity domain (light/media_player/etc) - optional
+     * @param {string|null} domain - Entity domain (light/media_player/etc) - optional
      * @returns {string} Mapped state (active/inactive/unavailable/unknown/custom)
      *
      * @example
@@ -1943,9 +2139,33 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @returns {string} Processed result
      */
     /**
+     * The card's Jinja2 template owner (live-templates.js), created on first use.
+     * @returns {import('../core/templates/live-templates.js').TemplateOwner}
+     * @private
+     */
+    _liveTemplateOwner() {
+        if (!this._liveTemplates) this._liveTemplates = createTemplateOwner(() => this._onLiveTemplateChanged());
+        return this._liveTemplates;
+    }
+
+    /**
+     * A Jinja2 template the card holds has a new result: run the template pass again.
+     * @protected
+     */
+    _onLiveTemplateChanged() {
+        if (this.isConnected) this._scheduleTemplateUpdate();
+    }
+
+    /**
      * Process template content with support for JavaScript, tokens, and Jinja2
      *
      * @param {string} template - Template string to process
+     * @param {Object} [options]
+     * @param {string} [options.displayFormat] - friendly (default), raw, parts or unit
+     * @param {string} [options.field] - provenance field path
+     * @param {any} [options.entity] - evaluate against this entity instead of the card's (null: none)
+     * @param {Record<string, any>} [options.extra] - more names for the template (tokens, JavaScript, Jinja2)
+     * @param {boolean} [options.live] - false: render Jinja2 once instead of keeping it subscribed (a caller outside the template pass)
      * @returns {Promise<string>} Processed template
      * @protected
      */
@@ -1956,8 +2176,15 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         try {
             // Create evaluation context
+            // options.extra: card-supplied context (e.g. the astrometrics card's
+            // sky and point), visible to tokens, JavaScript and Jinja2 alike
+            const extra = options.extra && typeof options.extra === 'object' ? options.extra : null;
             const context = {
-                entity: this._entity,
+                ...(extra ?? {}),
+                ...(extra ? { extra } : {}),
+                // options.entity: evaluate against another entity than the card's
+                // (a per-item entity, such as an astrometrics point's)
+                entity: options.entity !== undefined ? options.entity : this._entity,
                 config: this.config,
                 hass: this.hass,
                 // Mirrors the `states` variable already available to [[[JS]]] templates
@@ -1969,7 +2196,10 @@ export class LCARdSCard extends LCARdSNativeCard {
                 // displayFormat controls how {entity.state} and {entity.attributes.*} tokens
                 // are rendered. Defaults to 'friendly' (HA-translated display strings).
                 // Callers may pass 'raw', 'parts', or 'unit' via options.displayFormat.
-                displayFormat: options.displayFormat ?? 'friendly'
+                displayFormat: options.displayFormat ?? 'friendly',
+                // Jinja2 stays subscribed for the card's own fields; card-supplied
+                // names (extra) or options.live false render once
+                _liveTemplates: options.live === false || extra ? undefined : this._liveTemplateOwner()
             };
 
             // Get dataSourceManager from global singleton (if available)
@@ -1999,40 +2229,25 @@ export class LCARdSCard extends LCARdSNativeCard {
             // Use async evaluation to support all template types (JavaScript, Tokens, Datasources, Jinja2)
             const result = await evaluator.evaluateAsync(template);
 
-            // Track template provenance
-            if (this._provenanceTracker) {
-                // Extract dependencies from evaluator if available
-                const dependencies = [];
-                if (this._entity?.entity_id) {
-                    dependencies.push(this._entity.entity_id);
-                }
-
-                // Determine processor type
-                let processor = 'unknown';
-                if (template.includes('{%') || template.includes('{{')) {
-                    processor = 'jinja2';
-                } else if (template.includes('[[[')) {
-                    processor = 'javascript';
-                } else if (template.includes('{datasource:') || template.includes('{ds:')) {
-                    processor = 'datasource';
-                }
-
-                // Generate a simple hash for field ID to avoid collisions
-                // Use template + timestamp for uniqueness
-                let hash = 0;
-                for (let i = 0; i < template.length; i++) {
-                    hash = ((hash << 5) - hash) + template.charCodeAt(i);
-                    hash = hash & hash; // Convert to 32-bit integer
-                }
-                const fieldId = `template_${Math.abs(hash)}`;
-
+            // Track template provenance: by field, with what the template refers to
+            if (this._provenanceTracker && TemplateDetector.hasTemplates(template)) {
+                const refs = templateRefs(template, { entityId: (options.entity !== undefined ? options.entity : this._entity)?.entity_id });
+                const types = TemplateDetector.detectTemplateTypes(template);
+                const processor = [
+                    types.hasJavaScript && 'javascript',
+                    types.hasTokens && 'token',
+                    types.hasDatasources && 'datasource',
+                    types.hasJinja2 && 'jinja2',
+                ].filter(Boolean).join('+') || 'token';
+                const field = options.field ?? `template:${template.length > 60 ? `${template.slice(0, 57)}...` : template}`;
                 this._provenanceTracker.trackTemplate(
-                    fieldId,
+                    field,
                     template,
                     result,
-                    dependencies,
+                    [...refs.entities, ...refs.datasources.map(d => `ds:${d}`), ...refs.variables.map(v => `variables.${v}`)],
                     processor
                 );
+                for (const token of refs.themeTokens) this._trackTokenUse(token, [field]);
             }
 
             return result;
@@ -2058,7 +2273,15 @@ export class LCARdSCard extends LCARdSNativeCard {
      *   don't otherwise report "changed" the way tracked text fields do.
      * @protected
      */
-    async _preEvaluateStyleTemplates(obj) {
+    async _preEvaluateStyleTemplates(obj, prefix = '') {
+        // Field path of each string (for provenance), first occurrence wins
+        const paths = new Map();
+        const walk = (node, path) => {
+            if (typeof node === 'string') { if (!paths.has(node)) paths.set(node, path); return; }
+            if (Array.isArray(node)) { node.forEach((v, i) => walk(v, `${path}[${i}]`)); return; }
+            if (node && typeof node === 'object') for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k);
+        };
+        walk(obj, prefix);
         const strings = this._extractAllConfigStrings(obj);
         let evaluatedAny = false;
         for (const str of strings) {
@@ -2066,7 +2289,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             const isJs    = str.includes('[[[');
             if (!isJinja2 && !isJs) continue;
             try {
-                const result = await this.processTemplate(str);
+                const result = await this.processTemplate(str, { field: paths.get(str) || undefined });
                 this._evaluatedStyleCache.set(str, result);
                 evaluatedAny = true;
             } catch (e) {
@@ -2139,18 +2362,43 @@ export class LCARdSCard extends LCARdSNativeCard {
             }
         }, 10000);
     }    /**
-     * Schedule template processing to avoid Lit update cycles
+     * Schedule template processing to avoid Lit update cycles, then re-render.
+     *
+     * `reason` 'hass': a hass change of an entity the card uses, which the hass setter
+     * has already rendered (the new state is on screen; only template results can
+     * still be stale). Then the re-render is skipped when it would draw nothing new
+     * (2026-11-17, perf review item 12: buttons and sliders drew three times per
+     * state change, the third identical): the card's template pass reports that no
+     * template result changed (it returns `false`), or that it asked for a render
+     * itself after writing its results (`_templateRenderRequests`). Cards whose pass
+     * returns nothing, any other reason, and two passes overlapping all render as
+     * before.
+     * @param {'hass'} [reason]
      * @protected
      */
-    _scheduleTemplateUpdate() {
-        if (this._templateUpdateScheduled) return;
+    _scheduleTemplateUpdate(reason) {
+        if (this._templateUpdateScheduled) {
+            if (reason !== 'hass') this._templateUpdateHassOnly = false;
+            return;
+        }
 
         this._templateUpdateScheduled = true;
+        this._templateUpdateHassOnly = reason === 'hass';
         requestAnimationFrame(async () => {
             this._templateUpdateScheduled = false;
+            const hassOnly = this._templateUpdateHassOnly;
+            this._templateUpdateHassOnly = false;
+            const passId = ++this._templatePassId;
+            const requestsBefore = this._templateRenderRequests;
 
             // Process templates (async for Jinja2 support)
-            await this._processTemplates();
+            const changed = await this._processTemplates();
+
+            if (hassOnly && passId === this._templatePassId &&
+                (changed === false || (changed === true && this._templateRenderRequests > requestsBefore))) {
+                lcardsLog.trace(`[LCARdSCard] Template pass needs no extra render for ${this._cardGuid}`, { changed });
+                return;
+            }
 
             // Re-render: if first update hasn't happened yet call requestUpdate() directly,
             // otherwise wait for the current Lit update cycle to finish first.
@@ -2170,9 +2418,26 @@ export class LCARdSCard extends LCARdSNativeCard {
     /**
      * Process templates (async to support Jinja2)
      * Subclasses should override to define their text processing
+     * @returns {Promise<boolean|undefined>} the card's report of changed template results
      * @protected
      */
     async _processTemplates() {
+        // Jinja2 templates this pass no longer uses are let go when it ends
+        const owner = this._liveTemplates;
+        const pass = owner?.beginPass();
+        try {
+            return await this._runTemplatePass();
+        } finally {
+            if (owner && pass !== undefined) owner.endPass(pass);
+        }
+    }
+
+    /**
+     * The template pass itself (_processTemplates() wraps it).
+     * @returns {Promise<boolean|undefined>}
+     * @private
+     */
+    async _runTemplatePass() {
         // Process icon configuration
         await this._processIcon();
 
@@ -2181,10 +2446,14 @@ export class LCARdSCard extends LCARdSNativeCard {
         // _preEvaluateStyleTemplates() re-populates only the keys still present.
         this._evaluatedStyleCache.clear();
 
-        // Call subclass-specific template processing hook
+        // Call subclass-specific template processing hook. Its result goes back to
+        // _scheduleTemplateUpdate(): true / false when the card reports whether any
+        // template result changed (button, elbow, slider), undefined otherwise.
         if (typeof this._processCustomTemplates === 'function') {
-            await this._processCustomTemplates();
+            const changed = await this._processCustomTemplates();
+            return typeof changed === 'boolean' ? changed : undefined;
         }
+        return undefined;
     }
 
     /**
@@ -2310,8 +2579,9 @@ export class LCARdSCard extends LCARdSNativeCard {
             node.forEach(item => this._extractMapRangeEntities(item, out));
             return out;
         }
-        if (node.map_range && typeof node.map_range === 'object' && typeof node.map_range.entity === 'string') {
-            out.add(node.map_range.entity);
+        if (node.map_range && typeof node.map_range === 'object') {
+            // `entity`; background animations also read the older `entity_id`
+            for (const id of [node.map_range.entity, node.map_range.entity_id]) if (typeof id === 'string' && id) out.add(id);
         }
         for (const value of Object.values(node)) {
             this._extractMapRangeEntities(value, out);
@@ -2606,13 +2876,153 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     /**
+     * Record a theme token use in provenance: the field(s) using it and how it
+     * resolved, step by step (resolver.explain), ending at the concrete value this
+     * card sees when the token is a CSS variable.
+     *
+     * @param {string} tokenPath - Token path (no 'theme:' prefix)
+     * @param {string|string[]} [fields] - Field(s) using it
+     * @param {string} [originalRef] - What the config said (default 'theme:<path>')
+     * @protected
+     */
+    _trackTokenUse(tokenPath, fields = [], originalRef = undefined) {
+        if (!this._provenanceTracker || !tokenPath) return;
+        const resolver = this._singletons?.themeManager?.resolver ?? window.lcards?.core?.themeManager?.resolver;
+        const explained = resolver?.explain?.(tokenPath) ?? { value: undefined, steps: [] };
+        const steps = [...explained.steps];
+        const last = steps[steps.length - 1];
+        if (last?.step === 'css-var' && this.isConnected) {
+            const concrete = ColorUtils.resolveCssVariable(last.value, null, this);
+            if (concrete && concrete !== last.value) steps.push({ step: 'value', value: concrete });
+        }
+        this._provenanceTracker.trackThemeToken(
+            tokenPath,
+            originalRef ?? `theme:${tokenPath}`,
+            explained.value,
+            steps,
+            Array.isArray(fields) ? fields : [fields]
+        );
+    }
+
+    /**
+     * Record every leaf of `obj` as a runtime provenance layer under `prefix`
+     * (values the card applied after the config merge, e.g. component presets).
+     *
+     * @param {string} prefix - Field path of `obj` (e.g. 'alert.segments')
+     * @param {string} layer - Layer name ('component', 'component-preset', 'range', 'built-in', ...)
+     * @param {*} obj - Object (or a single value) the layer supplied
+     * @param {Object} [detail] - e.g. { component: 'alert' }, { preset: 'condition_red' }
+     * @protected
+     */
+    _trackRuntimeLayer(prefix, layer, obj, detail = undefined) {
+        const tracker = this._provenanceTracker;
+        if (!tracker || obj === undefined) return;
+        const walk = (node, path) => {
+            if (node && typeof node === 'object' && !Array.isArray(node)) {
+                for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k);
+            } else {
+                tracker.trackRuntime(path, layer, node, detail);
+            }
+        };
+        walk(obj, prefix);
+    }
+
+    /**
+     * A built-in default from a theme token (the card's code fallback when the
+     * config sets nothing), recorded in provenance as the field's 'built-in' layer.
+     *
+     * @param {string} tokenPath - Theme token the default comes from
+     * @param {string} field - The config field it stands in for
+     * @param {*} [fallback] - Used when the token isn't set
+     * @returns {*} The token value, else the fallback
+     * @protected
+     */
+    _themeDefault(tokenPath, field, fallback = null) {
+        const value = this.getThemeToken(tokenPath, null, field);
+        const result = value ?? fallback;
+        this._provenanceTracker?.trackRuntime(field, 'built-in', result,
+            value !== null && value !== undefined ? { token: tokenPath } : { token: tokenPath, fallback: true });
+        return result;
+    }
+
+    /**
+     * Provenance: the parameters an animation or background preset filled in
+     * (its defaults, where the config sets none).
+     * @protected
+     */
+    _trackPresetDefaults() {
+        const tracker = this._provenanceTracker;
+        if (!tracker || !this.config) return;
+        tracker.clearRuntime('preset-default');
+        // [list, the key holding its settings, schemas by preset, field prefix]
+        const record = (list, settingsKey, schemas, prefix) => {
+            (Array.isArray(list) ? list : []).forEach((item, i) => {
+                const preset = item?.preset;
+                const props = schemas[preset]?.properties;
+                if (!props) return;
+                for (const [param, schema] of Object.entries(props)) {
+                    if (schema?.default === undefined || item[settingsKey]?.[param] !== undefined) continue;
+                    tracker.trackRuntime(`${prefix}[${i}].${settingsKey}.${param}`, 'preset-default', schema.default, { preset });
+                }
+            });
+        };
+        record(this.config.animations, 'params', ANIMATION_PRESET_PARAMS_SCHEMAS, 'animations');
+        record(this.config.background_animation, 'config', BACKGROUND_ANIMATION_PARAMS_SCHEMAS, 'background_animation');
+    }
+
+    /**
+     * Provenance: for each state-keyed value in the config (active / inactive /
+     * default / zero / above:N ... keys), record which key applies now and its value.
+     * Same precedence as the card's own resolution (stateKeyFor).
+     * @protected
+     */
+    _trackStateBranches() {
+        const tracker = this._provenanceTracker;
+        if (!tracker || !this.config) return;
+        const STATE_KEYS = new Set(['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']);
+        const isStateObject = (node) => node && typeof node === 'object' && !Array.isArray(node)
+            && Object.keys(node).some(k => STATE_KEYS.has(k) || /^(above|below|at_least|at_most|between|between_exclusive):/.test(k))
+            && Object.values(node).every(v => v === null || typeof v !== 'object');
+        const options = {
+            actualState: this._entity?.state,
+            classifiedState: this._classifyEntityState?.(),
+            numericState: this._getNumericStateForRanges?.(),
+            attributeState: this._getAttributeStateForMatching?.(),
+        };
+        tracker.clearRuntime('state');
+        const skip = new Set(['rules', 'data_sources', 'animations', 'grid_options', 'view_layout', 'visibility']);
+        const walk = (node, path) => {
+            if (!node || typeof node !== 'object') return;
+            if (Array.isArray(node)) { node.forEach((v, i) => walk(v, `${path}[${i}]`)); return; }
+            if (isStateObject(node)) {
+                const key = stateKeyFor({ ...options, colorConfig: node });
+                const chosen = key !== null ? node[key] : undefined;
+                const matchLight = typeof chosen === 'string' && /match-(light|brightness)/.test(chosen)
+                    ? this._resolveMatchLightColor?.(chosen) : undefined;
+                tracker.trackRuntime(path, 'state', chosen, {
+                    state: key,
+                    entityState: options.actualState,
+                    classified: options.classifiedState,
+                    ...(matchLight !== undefined ? { matchLight } : {}),
+                });
+                return;
+            }
+            for (const [k, v] of Object.entries(node)) {
+                if (!path && skip.has(k)) continue;
+                walk(v, path ? `${path}.${k}` : k);
+            }
+        };
+        walk(this.config, '');
+    }
+
+    /**
      * Get theme token value
      *
      * Automatically tracks token resolution in provenance for debugging.
      *
      * @param {string} tokenPath - Dot-notation path (e.g., 'colors.accent.primary')
      * @param {*} fallback - Fallback value if token not found
-     * @param {string|string[]} usedByField - Field(s) using this token (for provenance)
+     * @param {string|string[]|null} usedByField - Field(s) using this token (for provenance)
      * @returns {*} Token value or fallback
      */
     getThemeToken(tokenPath, fallback = null, usedByField = null) {
@@ -2625,31 +3035,8 @@ export class LCARdSCard extends LCARdSNativeCard {
 
             // Automatically track token resolution in provenance
             if (this._provenanceTracker && value !== fallback) {
-                const originalRef = `theme:${tokenPath}`;
-                const resolutionChain = [{
-                    step: 'token_lookup',
-                    value: value,
-                    source: 'theme.tokens',
-                    themeId: this._singletons.themeManager.activeThemeId
-                }];
-
-                // Normalize usedByField to array
-                const usedByFields = usedByField
-                    ? (Array.isArray(usedByField) ? usedByField : [usedByField])
-                    : [];
-
-                this._provenanceTracker.trackThemeToken(
-                    tokenPath,
-                    originalRef,
-                    value,
-                    resolutionChain,
-                    usedByFields
-                );
-
-                lcardsLog.trace(`[LCARdSCard] Tracked theme token: ${tokenPath}`, {
-                    value,
-                    usedByFields
-                });
+                const fields = usedByField ? (Array.isArray(usedByField) ? usedByField : [usedByField]) : [];
+                this._trackTokenUse(tokenPath, fields, `theme:${tokenPath}`);
             }
 
             return value;
@@ -2686,33 +3073,6 @@ export class LCARdSCard extends LCARdSNativeCard {
             lcardsLog.warn(`[LCARdSCard] Preset fetch failed:`, error);
             return null;
         }
-    }
-
-    /**
-     * Resolve styles with theme tokens and state overrides
-     *
-     * @param {Object} baseStyle - Base style object
-     * @param {Array<string>} themeTokens - Array of theme token paths to apply
-     * @param {Object} stateOverrides - State-based style overrides
-     * @returns {Object} Resolved style object
-     */
-    resolveStyle(baseStyle = {}, themeTokens = [], stateOverrides = {}) {
-        let resolved = { ...baseStyle };
-
-        // Apply theme tokens
-        themeTokens.forEach(tokenPath => {
-            const value = this.getThemeToken(tokenPath);
-            if (value !== null && value !== undefined) {
-                // Extract property name from path (last segment)
-                const property = tokenPath.split('.').pop();
-                resolved[property] = value;
-            }
-        });
-
-        // Apply state overrides (highest priority)
-        resolved = { ...resolved, ...stateOverrides };
-
-        return resolved;
     }
 
     /**
@@ -2755,7 +3115,6 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Useful for determining which theme colors/styles to apply
      *
      * Enhanced to support more domains and state patterns.
-     * Alias: _getButtonState() for backward compatibility
      *
      * @param {Object} entity - Entity state object (optional, uses card's entity if not provided)
      * @returns {string} State classification: 'active', 'inactive', 'unavailable', or 'default'
@@ -2816,27 +3175,19 @@ export class LCARdSCard extends LCARdSNativeCard {
         return sc?.else ?? 'inactive';
     }
 
-    /**
-     * Alias for _classifyEntityState() for backward compatibility
-     * Used by button, elbow, and slider cards
-     * @returns {string} State classification
-     * @protected
-     */
-    _getButtonState() {
-        return this._classifyEntityState();
-    }
-
     // ============================================================================
     // STATE-BASED COLOR RESOLUTION
     // ============================================================================
 
     /**
-     * Resolve state-based color with entity context
-     * Wrapper around resolveStateColor utility that automatically provides
-     * entity state and classification
+     * Resolve state-based color with entity context, for Lit/CSS contexts:
+     * state selection, theme tokens and computed functions, then match-light.
+     * CSS variables stay live (var() / color-mix(var())), so alert-mode palette
+     * changes apply without a re-render. For SVG attributes and Canvas2D use
+     * _resolveColorValue(), which returns concrete colours.
      *
      * @param {Object|string} colorConfig - Color config (state object or plain string)
-     * @param {string} fallback - Fallback color if not resolved
+     * @param {string|null} fallback - Fallback color if not resolved
      * @returns {string|number|null} Resolved color value
      * @protected
      *
@@ -2848,31 +3199,27 @@ export class LCARdSCard extends LCARdSNativeCard {
      * );
      */
     _resolveEntityStateColor(colorConfig, fallback = null) {
-        return this._resolveStateValue({
+        return this._resolveMatchLightColor(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: colorConfig,
             fallback: fallback
-        });
+        }));
     }
 
     /**
-     * Full color-resolution pipeline — accepts raw config (state-object or string) and
-     * returns a concrete color value safe for SVG presentation attributes, Canvas2D, and
-     * CSS property contexts alike.
+     * Full colour pipeline for SVG attributes, Canvas2D and anime.js targets:
+     * accepts raw config (state map or string) and returns a concrete colour
+     * (`#rrggbb` / `rgba()`, no var()).
      *
-     * Pipeline (in order):
-     *   1. _resolveEntityStateColor()  — state-object unwrap, theme: strip, computed-token
-     *      resolution (darken/lighten/alpha/…), and _resolveTemplateValue() on the result.
-     *   2. _resolveMatchLightColor()   — match-light / match-brightness substitution.
-     *   3. theme: safety net          — strips any surviving theme: prefix and calls
-     *      resolver.resolve() again (handles edge cases where a template emits theme: strings
-     *      that the utility's one-time pass didn't see).
-     *   4. CSS var resolution         — resolves bare var(…) references for contexts that
-     *      cannot use CSS variables natively (SVG/Canvas2D). No-op in CSS contexts.
+     * Pipeline:
+     *   1. State selection (state map, ranges, state_attribute, templates), unresolved.
+     *   2. _resolveMatchLightColor(): match-light / match-brightness substitution.
+     *   3. resolveColor(..., { concrete: true }): theme: tokens, computed functions
+     *      (nested), CSS variables read from this card's element (section-scoped vars).
      *
-     * Subclasses may override to add context-specific steps (e.g. lcards-slider adds a
-     * Canvas2D-specific concrete-value substitution for the --lcards-light-color-* var).
+     * For Lit/CSS contexts, where var() should stay live, use _resolveEntityStateColor().
+     * Subclasses may override to add context-specific steps.
      *
      * @param {Object|string|null} rawConfig - Raw color config: state-object or string
      * @param {string} [fallback=''] - Returned when rawConfig is falsy or resolution yields nothing
@@ -2882,33 +3229,17 @@ export class LCARdSCard extends LCARdSNativeCard {
     _resolveColorValue(rawConfig, fallback = '') {
         if (!rawConfig) return fallback;
 
-        // Step 1: state-object unwrap + theme: strip + computed-token resolution + template eval
-        let value = this._resolveEntityStateColor(rawConfig, fallback);
-        if (!value) return fallback;
+        const selected = this._resolveStateValue({
+            actualState: this._entity?.state,
+            classifiedState: this._classifyEntityState(),
+            colorConfig: rawConfig,
+            fallback,
+            resolveTokens: false
+        });
+        if (!selected) return fallback;
+        if (typeof selected !== 'string') return /** @type {any} */ (selected);
 
-        // Step 2: match-light / match-brightness substitution
-        value = this._resolveMatchLightColor(value);
-
-        // Step 3: theme: prefix safety net for render-time template outputs.
-        // Pass `this` as element context so that _resolveComputedToken() can read
-        // CSS vars from the card's inherited scope (picks up section-scoped theme vars).
-        const resolver = window.lcards?.core?.themeManager?.resolver;
-        if (resolver) {
-            const tokenPath = typeof value === 'string' && value.startsWith('theme:')
-                ? value.slice(6) : value;
-            value = resolver.resolve(tokenPath, value, { element: this });
-        }
-
-        // Step 4: CSS variable resolution for SVG/Canvas2D contexts.
-        // Only applied to bare var() strings — color-mix() and similar functions are
-        // handled natively by the browser and must not be unwrapped here.
-        // Pass `this` as element so that section-scoped CSS vars are visible via
-        // CSS custom property inheritance from the view/section container.
-        if (typeof value === 'string' && value.trim().startsWith('var(')) {
-            return ColorUtils.resolveCssVariable(value, fallback, this) || fallback;
-        }
-
-        return value || fallback;
+        return resolveColor(this._resolveMatchLightColor(selected), { concrete: true, element: this, fallback });
     }
 
     /**
@@ -3090,7 +3421,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @param {Element[]} [options.borderElements] - Border path elements to apply stroke colour to
      * @param {Object} [options.borderHoverStyle] - Hover style object with borderColor
      * @param {Object} [options.borderPressedStyle] - Pressed style object with borderColor
-     * @param {Function} [options.getRestoreBorderColor] - Function returning border colour to restore on leave
+     * @param {Function|null} [options.getRestoreBorderColor] - Function returning border colour to restore on leave
      * @returns {Function} Cleanup function to remove all listeners
      * @protected
      *
@@ -3132,8 +3463,37 @@ export class LCARdSCard extends LCARdSNativeCard {
         let isPressed = false;
 
         /**
+         * Fully materialize a CSS color expression into a literal rgb()/rgba()
+         * string via a computed-style round trip, so it's safe to place in a
+         * raw SVG presentation attribute. This is stronger than
+         * ColorUtils.resolveCssVariable(): the default hover/pressed tokens
+         * resolve to `color-mix(in srgb, var(...) 85%, white 15%)` (see
+         * ColorUtils.lighten()/darken()), and only the browser's own CSS
+         * engine can evaluate the color-mix() wrapper itself — regex-based
+         * var() substitution alone leaves it as an (attribute-unsafe in some
+         * engines) color-mix() string. Using the actual el (not a scratch
+         * element) keeps shadow-DOM-scoped custom properties visible.
+         */
+        const materializeColor = (el, prop, value) => {
+            if (!el || !value) return value;
+            const previous = el.style.getPropertyValue(prop);
+            el.style.setProperty(prop, value);
+            const computed = getComputedStyle(el).getPropertyValue(prop);
+            if (previous) {
+                el.style.setProperty(prop, previous);
+            } else {
+                el.style.removeProperty(prop);
+            }
+            return computed || value;
+        };
+
+        /**
          * Apply fill color to background element
-         * Uses style.fill for SVG elements (higher specificity than setAttribute)
+         * Uses setAttribute('fill', ...) rather than style.fill so this doesn't
+         * permanently shadow anime.js's own attribute-based writes to `fill` —
+         * an inline style always wins the CSS cascade over the SVG presentation
+         * attribute anime.js animates, which silently defeats fill-property
+         * animations (see #401).
          */
         const applyColor = (color) => {
             if (!targetElement || !color) {
@@ -3144,8 +3504,8 @@ export class LCARdSCard extends LCARdSNativeCard {
                 return;
             }
 
-            // Use style.fill for higher CSS specificity (overrides inline style="fill: ...")
-            targetElement.style.fill = color;
+            const resolved = materializeColor(targetElement, 'fill', color);
+            targetElement.setAttribute('fill', /** @type {string} */ (resolved));
 
             lcardsLog.trace('[LCARdSCard] Applied interaction color', {
                 color,
@@ -3155,12 +3515,15 @@ export class LCARdSCard extends LCARdSNativeCard {
         };
 
         /**
-         * Apply stroke color to all border path elements
+         * Apply stroke color to all border path elements.
+         * See applyColor() above for why this uses setAttribute() instead of style.stroke.
          */
         const applyBorderColor = (color) => {
             if (!color || !borderElements.length) return;
             for (const el of borderElements) {
-                /** @type {HTMLElement} */ (el).style.stroke = color;
+                const target = /** @type {HTMLElement} */ (el);
+                const resolved = materializeColor(target, 'stroke', color);
+                target.setAttribute('stroke', /** @type {string} */ (resolved));
             }
             lcardsLog.trace('[LCARdSCard] Applied border interaction color', { color });
         };
@@ -3294,7 +3657,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Uses CoreSystemsManager for cached entity access when available,
      * falls back to direct HASS access for backwards compatibility.
      *
-     * @param {string} entityId - Entity ID (optional, defaults to card's entity)
+     * @param {string|null} entityId - Entity ID (optional, defaults to card's entity)
      * @returns {Object|null} Entity state or null
      */
     getEntityState(entityId = null) {
@@ -3320,16 +3683,20 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Subscribe to entity state changes
      *
      * Uses CoreSystemsManager's subscription system for efficient change notifications.
-     * Automatically tracks subscriptions for cleanup on card destroy.
+     * Automatically tracks subscriptions for cleanup on card destroy. The entity also
+     * counts as one of the card's own while subscribed: a HASS update that changes it
+     * is forwarded to the core (which fires the callback), even when the card does not
+     * track it otherwise. Unsubscribing (or a disconnect) stops that, unless the card
+     * tracks the entity for another reason (its own entity, templates, rules).
      *
      * @param {string} entityId - Entity to monitor
      * @param {Function} callback - Called on change: callback(entityId, newState, oldState)
-     * @returns {Function} Unsubscribe function
+     * @returns {Function} Unsubscribe function (calling it again is a no-op)
      *
      * @example
      * // Subscribe to temperature sensor
      * const unsubscribe = this.subscribeToEntity('sensor.temperature', (id, newState, oldState) => {
-     *   console.log('Temperature changed from', oldState.state, 'to', newState.state);
+     *   lcardsLog.debug('[MyCard] temperature', { from: oldState?.state, to: newState?.state });
      *   this.requestUpdate();
      * });
      *
@@ -3351,6 +3718,9 @@ export class LCARdSCard extends LCARdSNativeCard {
         if (!this._entitySubscriptions) {
             this._entitySubscriptions = new Set();
         }
+        if (!this._subscribedEntityCounts) {
+            this._subscribedEntityCounts = new Map();
+        }
 
         // Subscribe via CoreSystemsManager
         const unsubscribe = this._singletons.systemsManager.subscribeToEntity(
@@ -3359,16 +3729,54 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._cardGuid
         );
 
+        // The entity now gates HASS forwarding to the core (see _onHassChanged)
+        const counts = this._subscribedEntityCounts;
+        counts.set(entityId, (counts.get(entityId) ?? 0) + 1);
+
+        let active = true;
+        const release = () => {
+            if (!active) return;
+            active = false;
+            this._entitySubscriptions?.delete(release);
+            const left = (counts.get(entityId) ?? 1) - 1;
+            if (left > 0) counts.set(entityId, left);
+            else counts.delete(entityId);
+            unsubscribe();
+        };
+
         // Track subscription for automatic cleanup
-        this._entitySubscriptions.add(unsubscribe);
+        this._entitySubscriptions.add(release);
 
         lcardsLog.debug(`[LCARdSCard] Subscribed to entity: ${entityId} (card: ${this._cardGuid})`);
 
-        // Return unsubscribe function
-        return () => {
-            this._entitySubscriptions.delete(unsubscribe);
-            unsubscribe();
-        };
+        return release;
+    }
+
+    /**
+     * Whether the card holds a subscribeToEntity() subscription to the entity.
+     * @param {string} entityId
+     * @returns {boolean}
+     * @protected
+     */
+    _isSubscribedEntity(entityId) {
+        return (this._subscribedEntityCounts?.get(entityId) ?? 0) > 0;
+    }
+
+    /**
+     * Drop every subscribeToEntity() subscription (on disconnect).
+     * @protected
+     */
+    _releaseEntitySubscriptions() {
+        if (!this._entitySubscriptions) return;
+        for (const release of [...this._entitySubscriptions]) {
+            try {
+                release();
+            } catch (error) {
+                lcardsLog.error('[LCARdSCard] Error unsubscribing from entity:', error);
+            }
+        }
+        this._entitySubscriptions.clear();
+        this._subscribedEntityCounts?.clear();
     }
 
     /**
@@ -3398,6 +3806,27 @@ export class LCARdSCard extends LCARdSNativeCard {
     // ============================================================================
 
     /**
+     * Card-level sound overrides for the action handler, from config.sounds
+     * (`enabled: false` silences every card event).
+     * @returns {Record<string, any>}
+     * @protected
+     */
+    _cardSoundOverride() {
+        const sounds = this.config?.sounds ?? {};
+        const CARD_SOUND_EVENTS = ['card_tap', 'card_hold', 'card_double_tap', 'card_hover', 'toggle_on', 'toggle_off'];
+        /** @type {Record<string, any>} */
+        const soundOverride = {};
+        if (sounds.enabled === false) {
+            for (const evt of CARD_SOUND_EVENTS) soundOverride[evt] = null;
+        } else {
+            for (const evt of CARD_SOUND_EVENTS) {
+                if (evt in sounds) soundOverride[evt] = sounds[evt];
+            }
+        }
+        return soundOverride;
+    }
+
+    /**
      * Setup action handlers on element with full animation support
      *
      * Delegates to unified LCARdSActionHandler for consistent behavior
@@ -3420,17 +3849,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             return () => {};
         }
 
-        // Build card-level sound overrides from config.sounds
-        const sounds = this.config?.sounds ?? {};
-        const CARD_SOUND_EVENTS = ['card_tap', 'card_hold', 'card_double_tap', 'card_hover', 'toggle_on', 'toggle_off'];
-        const soundOverride = {};
-        if (sounds.enabled === false) {
-            for (const evt of CARD_SOUND_EVENTS) soundOverride[evt] = null;
-        } else {
-            for (const evt of CARD_SOUND_EVENTS) {
-                if (evt in sounds) soundOverride[evt] = sounds[evt];
-            }
-        }
+        const soundOverride = this._cardSoundOverride();
 
         // Prepare options for unified action handler
         const actionOptions = {
@@ -3438,7 +3857,8 @@ export class LCARdSCard extends LCARdSNativeCard {
             animations: this.config.animations,
             getAnimationSetup: () => this._getAnimationSetup(),
             shadowRoot: this.shadowRoot,
-            entity: this.config.entity, // Pass card's entity as default for actions
+            // the caller's entity (a data grid cell's) wins; the card's entity is the default
+            entity: /** @type {any} */ (options).entity ?? this.config.entity,
             getHass: () => this.hass,
             ...(Object.keys(soundOverride).length > 0 && { soundOverride })
         };
@@ -3532,6 +3952,13 @@ export class LCARdSCard extends LCARdSNativeCard {
      */
     _onDisconnected() {
         super._onDisconnected();
+        CONNECTED_CARDS.delete(this);
+
+        // --- Jinja2 template subscriptions (closed a few seconds later unless it comes back) ---
+        if (this._liveTemplates?.entries.size) {
+            this._liveTemplates.release();
+            this._liveTemplatesReleased = true;
+        }
 
         // --- Datasource subscriptions ---
         if (this._datasourceSubscriptions && this._datasourceSubscriptions.size > 0) {
@@ -3551,7 +3978,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         // --- Datasource tracking ---
         if (this._singletons?.dataSourceManager && this._registeredDataSources) {
             this._registeredDataSources.forEach(sourceName => {
-                this._singletons.dataSourceManager.removeCardFromSource(
+                this._singletons?.dataSourceManager?.removeCardFromSource(
                     sourceName,
                     this._getDisplayId()
                 );
@@ -3561,19 +3988,14 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // --- Entity subscriptions ---
         if (this._entitySubscriptions) {
-            this._entitySubscriptions.forEach(unsubscribe => {
-                try {
-                    unsubscribe();
-                } catch (error) {
-                    lcardsLog.error('[LCARdSCard] Error unsubscribing from entity:', error);
-                }
-            });
-            this._entitySubscriptions.clear();
+            this._releaseEntitySubscriptions();
             lcardsLog.debug(`[LCARdSCard] Cleaned up entity subscriptions for ${this._cardGuid}`);
         }
 
         // --- Rules / overlay ---
         this._unregisterOverlayFromRules();
+        // The card's own rules go a little later, unless it comes back (a move)
+        this._scheduleRulesRelease();
 
         // --- Light color CSS variable ---
         this._cleanupLightColorVariable();
@@ -3590,11 +4012,13 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._windowResizeHandler = null;
         }
 
-        // --- Theme overrides changed handler ---
+        // --- Theme overrides / alert mode subscriptions ---
         if (this._themeOverridesChangedHandler) {
             window.removeEventListener('lcards:theme-overrides-changed', this._themeOverridesChangedHandler);
             this._themeOverridesChangedHandler = null;
         }
+        this._alertModeSubscription?.();
+        this._alertModeSubscription = null;
 
         // --- Core unregister (handles _cardInstances, _cardLoadOrder, SystemsManager) ---
         const core = window.lcards?.core;
@@ -3638,6 +4062,9 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Check if light is on
         if (this._entity.state !== 'on') {
+            // Already cleared: nothing changed (see the note at the end)
+            if (this._lightVarsKey === 'off') return;
+            this._lightVarsKey = 'off';
             // Light is off, remove variables
             document.documentElement.style.removeProperty(varName);
             document.documentElement.style.removeProperty(`--lcards-light-alpha-${this._cardGuid}`);
@@ -3676,6 +4103,17 @@ export class LCARdSCard extends LCARdSNativeCard {
             const level = Math.round((b / 255) * 255);
             color = `rgb(${level}, ${Math.round(level * 0.97)}, ${Math.round(level * 0.85)})`;
         }
+
+        // This runs on every Home Assistant update (any entity in the house). When the
+        // colour and brightness are what the page already holds, stop: no writes to the
+        // document's style (each one restyles the page) and no _onLightColorChanged(),
+        // which made every light button resolve its whole style on every update. A
+        // disconnect clears the variables and the key, so a reconnect writes them again.
+        // 2026-11-17
+        const brightnessForKey = this._entity.attributes.brightness ?? 255;
+        const key = `${color}|${(brightnessForKey / 255).toFixed(3)}`;
+        if (key === this._lightVarsKey) return;
+        this._lightVarsKey = key;
 
         // Set the CSS variable and cache the value on the instance so subclasses
         // can embed the resolved colour directly in generated markup (e.g. slider
@@ -3721,6 +4159,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             const varName = `--lcards-light-color-${this._cardGuid}`;
             document.documentElement.style.removeProperty(varName);
             document.documentElement.style.removeProperty(`--lcards-light-alpha-${this._cardGuid}`);
+            this._lightVarsKey = null;
             lcardsLog.trace(`[LCARdSCard] Cleaned up light color variable ${varName}`);
         }
     }
@@ -3771,7 +4210,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         // resolve it now to a valid CSS value via ThemeTokenResolver.
         // Since match-light/brightness are replaced with concrete values, the resulting
         // expression is stable and ThemeTokenResolver caching is safe.
-        if (/^(alpha|darken|lighten|saturate|desaturate|mix)\(/.test(result)) {
+        if (isComputedColor(result)) {
             const resolver = window.lcards?.core?.themeManager?.resolver;
             if (resolver) {
                 const resolved = resolver.resolve(result, result);
@@ -3808,7 +4247,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * resolved settings originated from (defaults, presets, user overrides,
      * rules, theme tokens, etc.)
      *
-     * @param {string} [path] - Optional path to specific provenance data
+     * @param {string|null} [path] - Optional path to specific provenance data
      * @returns {any} Provenance data (full or at path)
      *
      * @example
@@ -3821,15 +4260,39 @@ export class LCARdSCard extends LCARdSNativeCard {
      * // Get config provenance
      * card.getProvenance('config');
      *
-     * // Get specific field source
-     * card.getProvenance('config.field_sources.style.color');
+     * // Get one field's source (field_sources is a flat map keyed by dotted path)
+     * card.getProvenance('config.field_sources')['style.color'];
      */
     getProvenance(path = null) {
         if (!this._provenanceTracker) {
             lcardsLog.warn(`[LCARdSCard] Provenance tracker not initialized`);
             return null;
         }
-        return this._provenanceTracker.getProvenance(path);
+        if (path) return this._provenanceTracker.getProvenance(path);
+        // Card-wide context: what affects every value at once
+        const themeManager = this._singletons?.themeManager ?? window.lcards?.core?.themeManager;
+        return {
+            ...this._provenanceTracker.getProvenance(),
+            context: {
+                card_type: /** @type {any} */ (this.constructor).CARD_TYPE ?? null,
+                card_id: this.config?.id ?? null,
+                overlay_id: this._overlayId ?? null,
+                theme: themeManager?.activeThemeId ?? null,
+                alert_mode: themeManager?.getAlertMode?.() ?? null,
+                token_overrides: themeManager?.resolver?._overrides?.size ?? 0,
+                entity: this.config?.entity ?? null,
+                entity_state: this._entity?.state ?? null,
+            },
+        };
+    }
+
+    /**
+     * Follow this card's provenance as it changes.
+     * @param {Function} callback - Called once per burst of changes
+     * @returns {Function} Unsubscribe
+     */
+    subscribeProvenance(callback) {
+        return this._provenanceTracker?.subscribe(callback) ?? (() => {});
     }
 
     /**
@@ -3888,7 +4351,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             lcardsLog.warn(`[LCARdSCard] Provenance tracker not initialized`);
             if (toConsole) {
                 console.warn('Provenance tracker not initialized');
-                return;
+                return undefined;
             }
             return 'Provenance tracker not initialized';
         }
@@ -4091,7 +4554,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      *
      * This should be called after the SVG is rendered into the DOM.
      *
-     * @param {Element} [svgElement] - Optional SVG element to parse (defaults to this._componentSvg)
+     * @param {Element|null} [svgElement] - Optional SVG element to parse (defaults to this._componentSvg)
      * @protected
      *
      * @example
@@ -4313,6 +4776,11 @@ export class LCARdSCard extends LCARdSNativeCard {
     _generateZoneDebugMarkup() {
         if (!this.config?.debug_zones || this._zones.size === 0) return '';
         const COLORS = ['#e8a838', '#4ecdc4', '#c45fce', '#52be80', '#5b9bd5', '#e06c75', '#f7c948'];
+        // Only rectangles: a component can carry layout data as a zone (the ring
+        // slider's `_ring` holds centre and radii), which has no x/y/width/height.
+        const isRect = (b) => ['x', 'y', 'width', 'height'].every(k => Number.isFinite(b?.[k]));
+        const zones = [...this._zones].filter(([, z]) => isRect(z.bounds));
+        if (zones.length === 0) return '';
 
         // First pass: derive the overall coordinate extent so font sizing scales
         // correctly regardless of whether zones are in pixel-space (e.g. 0–400)
@@ -4320,7 +4788,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Using a fixed 9–13 px clamp is correct for pixel space but proportionally
         // enormous when rendered inside a small viewBox (9 units out of 80 ≈ 11%).
         let maxExtent = 0;
-        for (const [, zoneData] of this._zones) {
+        for (const [, zoneData] of zones) {
             const { x, y, width, height } = zoneData.bounds;
             maxExtent = Math.max(maxExtent, x + width, y + height);
         }
@@ -4335,7 +4803,7 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         let inner = '';
         let ci = 0;
-        for (const [name, zoneData] of this._zones) {
+        for (const [name, zoneData] of zones) {
             const { x, y, width, height } = zoneData.bounds;
             const color = COLORS[ci++ % COLORS.length];
             // Zone-size heuristic: 16% of the shorter axis, clamped to extent-derived bounds.
@@ -4344,7 +4812,9 @@ export class LCARdSCard extends LCARdSNativeCard {
             // dash/gap lengths also scale with extent so they look consistent
             const dash = maxExtent * 0.025;
             const gap  = maxExtent * 0.03;
-            inner += `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-width="${strokeWidth}" stroke-dasharray="${dash} ${gap}"/>`;
+            // A zone can be momentarily negative while the card is smaller than its bars
+            // (first layout pass); an SVG rect may not have a negative size.
+            inner += `<rect x="${x}" y="${y}" width="${Math.max(0, width)}" height="${Math.max(0, height)}" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-width="${strokeWidth}" stroke-dasharray="${dash} ${gap}"/>`;
             inner += `<text x="${x + width / 2}" y="${y + height / 2}" text-anchor="middle" dominant-baseline="central" fill="${color}" font-size="${fontSize}" font-weight="bold" font-family="monospace" paint-order="stroke" stroke="#000" stroke-width="${textStrokeWidth}" stroke-linejoin="round">${name}</text>`;
         }
         return `<g id="lcards-zone-debug" pointer-events="none">${inner}</g>`;
@@ -4574,7 +5044,7 @@ export class LCARdSCard extends LCARdSNativeCard {
                 if (this._actionHandler && (segment.tap_action || segment.hold_action || segment.double_tap_action)) {
                     const cleanup = this._attachSegmentActions(element, segment);
                     if (cleanup) {
-                        this._segmentCleanups.push(cleanup);
+                        this._segmentCleanups?.push(cleanup);
                     }
                 }
             });
@@ -4600,9 +5070,8 @@ export class LCARdSCard extends LCARdSNativeCard {
             if (prop === 'stroke-width') {
                 element.setAttribute('stroke-width', value);
             } else {
-                // @ts-ignore — both HTMLElement and SVGElement have .style;
                 // Element base type doesn't declare it but runtime always has it here.
-                element.style[prop] = value;
+                /** @type {HTMLElement | SVGElement} */ (element).style[prop] = value;
             }
         });
     }
@@ -4616,21 +5085,9 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @protected
      */
     _attachSegmentActions(element, segment) {
-        // This is a placeholder - subclasses should implement if needed
-        // or use LCARdSActionHandler directly
-        const listeners = [];
-
-        if (segment.tap_action) {
-            const handler = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this._actionHandler.handleAction(element, this.hass, segment.tap_action, 'tap');
-            };
-            element.addEventListener('click', handler);
-            listeners.push(() => element.removeEventListener('click', handler));
-        }
-
-        // Return cleanup function
-        return () => listeners.forEach(cleanup => cleanup());
+        const { tap_action, hold_action, double_tap_action } = segment;
+        if (!tap_action && !hold_action && !double_tap_action) return () => {};
+        // SVG segment elements: setupActions only attaches listeners, so the cast is safe.
+        return this.setupActions(/** @type {HTMLElement} */ (element), { tap_action, hold_action, double_tap_action }, { elementId: segment.id });
     }
 }

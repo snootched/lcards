@@ -36,7 +36,7 @@ export class IntegrationService extends BaseService {
 
         /**
          * Snapshot of configured options from the integration's config entry, or null.
-         * Keys: show_panel, sidebar_title, sidebar_icon, log_level
+         * Keys: show_panel, sidebar_title, sidebar_icon, log_level, enable_previews
          * @type {Object|null}
          */
         this.options = null;
@@ -48,6 +48,7 @@ export class IntegrationService extends BaseService {
          *
          * Known capabilities:
          *   - ``scoped_storage`` — per-user / per-device namespaced WS commands
+         *   - ``storage_get_many``: lcards/storage/get_many reads several global keys at once
          *
          * @type {Set<string>}
          */
@@ -56,8 +57,15 @@ export class IntegrationService extends BaseService {
         /** @private — cached HASS reference updated on every updateHass() call */
         this._hass = null;
 
-        /** @private — ensures we only probe once */
+        /** @private — the probe chain has been started (only ever once per page) */
         this._probed = false;
+
+        /** @private — the probe chain finished (success, or all retries failed) */
+        this._probeComplete = false;
+
+        /** @private — retry bookkeeping for transient probe failures */
+        this._probeAttempt = 0;
+        this._retryTimer = null;
 
         /**
          * @private
@@ -80,7 +88,7 @@ export class IntegrationService extends BaseService {
      * @type {boolean}
      */
     get isReady() {
-        return this._probed;
+        return this._probeComplete;
     }
 
     /**
@@ -96,9 +104,14 @@ export class IntegrationService extends BaseService {
         return this._readyPromise;
     }
 
+    /** Backoff before each retry of a failed lcards/info probe (ms). */
+    static PROBE_RETRY_DELAYS_MS = [1000, 3000, 8000];
+
     /**
      * Called by _updateHass on every HASS update.
-     * Probes lcards/info once — on the first update where hass.connection exists.
+     * Starts the lcards/info probe once — on the first update where
+     * hass.connection exists. Later updates only refresh the cached hass (used
+     * by retries).
      *
      * @param {Object} hass - Home Assistant instance
      */
@@ -106,30 +119,43 @@ export class IntegrationService extends BaseService {
         this._hass = hass;
         if (this._probed || !hass?.connection) return;
         this._probed = true;
-        // Fire-and-forget — errors are caught inside initialize()
+        // Fire-and-forget — errors are handled inside the probe chain
         this.initialize(hass);
     }
 
     /**
-     * Probe the backend integration.
+     * Probe the backend integration (lcards/info), retrying transient failures.
      *
-     * Sends lcards/info via the HA WebSocket connection. On success sets
-     * this.available = true and this.version. On any error (integration not
-     * installed, WS not ready, timeout) sets this.available = false silently.
+     * On success sets `available`, `version`, `options`, `capabilities` and
+     * starts the lcards_event listener. A failed attempt is logged with its
+     * reason and retried after PROBE_RETRY_DELAYS_MS; only when every retry has
+     * failed does the service settle into degraded mode. `onReady()` resolves
+     * once — on the first success or after the final failure — so consumers
+     * never observe a transient "unavailable" state.
      *
-     * Safe to call multiple times — subsequent calls re-probe and update state.
+     * Safe to call again later to force a fresh probe chain.
      *
      * @param {Object} hass - Home Assistant instance
-     * @returns {Promise<void>}
+     * @returns {Promise<void>} resolves when this attempt (not the whole chain) settles
      */
     async initialize(hass) {
-        if (!hass?.connection) {
+        if (hass) this._hass = hass;
+        if (!this._hass?.connection) {
             lcardsLog.warn('[IntegrationService] No HASS connection available — skipping probe');
             return;
         }
+        clearTimeout(this._retryTimer);
+        this._retryTimer = null;
+        this._probeAttempt = 0;
+        await this._runProbeAttempt();
+    }
 
+    /** @private */
+    async _runProbeAttempt() {
+        const attempt = ++this._probeAttempt;
+        const delays = IntegrationService.PROBE_RETRY_DELAYS_MS;
         try {
-            const result = await hass.connection.sendMessagePromise({
+            const result = await this._hass.connection.sendMessagePromise({
                 type: 'lcards/info',
             });
 
@@ -140,26 +166,47 @@ export class IntegrationService extends BaseService {
             this.capabilities = new Set(Array.isArray(result?.capabilities) ? result.capabilities : []);
 
             lcardsLog.info(
-                `[IntegrationService] Backend available v${this.version} (${this.storageKeyCount ?? '?'} storage keys, capabilities: [${[...this.capabilities].join(', ')}])`
+                `[IntegrationService] Backend available v${this.version} (${this.storageKeyCount ?? '?'} storage keys, capabilities: [${[...this.capabilities].join(', ')}])${attempt > 1 ? ` after ${attempt} attempts` : ''}`
             );
 
             // Subscribe to the lcards_event push channel now that we know
             // the backend is live and the WS connection is ready.
             this._startEventListener();
-        } catch {
+            this._finishProbe();
+        } catch (err) {
+            const reason = /** @type {any} */ (err)?.code
+                ? `${/** @type {any} */ (err).code}: ${/** @type {any} */ (err).message ?? ''}`
+                : /** @type {any} */ (err)?.message ?? String(err);
+            const delay = delays[attempt - 1];
+            if (delay !== undefined) {
+                lcardsLog.warn(
+                    `[IntegrationService] lcards/info probe failed (attempt ${attempt}/${delays.length + 1}: ${reason}) — retrying in ${delay / 1000}s`
+                );
+                this._retryTimer = setTimeout(() => {
+                    this._retryTimer = null;
+                    this._runProbeAttempt();
+                }, delay);
+                return;
+            }
             this.available = false;
             this.version = null;
             this.storageKeyCount = null;
             this.options = null;
             this.capabilities = new Set();
-            lcardsLog.info(
-                '[IntegrationService] Backend not found — degraded mode (integration not installed)'
+            lcardsLog.warn(
+                `[IntegrationService] Backend not reachable after ${attempt} attempts (${reason}) — degraded mode. Is the LCARdS integration set up?`
             );
-        } finally {
-            // Resolve the readiness promise regardless of probe outcome so that
-            // consumers awaiting onReady() are not left hanging.
-            this._readyResolve?.();
+            this._finishProbe();
         }
+    }
+
+    /**
+     * Mark the probe chain finished and release onReady() waiters (idempotent).
+     * @private
+     */
+    _finishProbe() {
+        this._probeComplete = true;
+        this._readyResolve?.(undefined);
     }
 
     // -----------------------------------------------------------------------
@@ -190,6 +237,36 @@ export class IntegrationService extends BaseService {
     }
 
     /**
+     * Read several global keys in one call (`lcards/storage/get_many`), or one call
+     * per key on an older integration without the `storage_get_many` capability.
+     * A key that is missing, or a read that failed, is undefined. A failure logs
+     * once at debug: it happens while Home Assistant is still starting.
+     *
+     * @param {string[]} keys
+     * @returns {Promise<Record<string, any>>}
+     */
+    async readStorageMany(keys) {
+        /** @type {Record<string, any>} */
+        const out = {};
+        if (!keys.length || !this.available || !this._hass?.connection) return out;
+        if (this.capabilities.has('storage_get_many')) {
+            try {
+                const result = await this._hass.connection.sendMessagePromise({ type: 'lcards/storage/get_many', keys });
+                for (const key of keys) out[key] = result?.values?.[key] ?? undefined;
+                return out;
+            } catch (err) {
+                lcardsLog.debug('[IntegrationService] readStorageMany failed:', err);
+                return out;
+            }
+        }
+        const values = await Promise.all(keys.map((key) => this._hass.connection
+            .sendMessagePromise({ type: 'lcards/storage/get', key })
+            .then((r) => r?.value, () => undefined)));
+        keys.forEach((key, i) => { out[key] = values[i]; });
+        return out;
+    }
+
+    /**
      * Write one or more key/value pairs to the LCARdS backend persistent storage.
      *
      * Performs a shallow merge — existing keys not present in `updates` are
@@ -197,8 +274,10 @@ export class IntegrationService extends BaseService {
      * will remain in storage with a null value; use deleteStorage() to fully
      * remove it).
      *
+     * Admin only (the backend refuses non-admins; see storage-permissions.js).
+     *
      * @param {Object} updates - Plain object of key → value pairs to merge
-     * @returns {Promise<boolean>} `true` on success, `false` on error / unavailable
+     * @returns {Promise<boolean>} `true` on success, `false` on error / refused / unavailable
      */
     async writeStorage(updates) {
         if (!this.available || !this._hass?.connection) return false;
@@ -209,7 +288,11 @@ export class IntegrationService extends BaseService {
             });
             return true;
         } catch (err) {
-            lcardsLog.warn('[IntegrationService] writeStorage() failed:', err);
+            if (err?.code === 'unauthorized') {
+                lcardsLog.warn(`[IntegrationService] writeStorage() refused: global storage needs a Home Assistant admin`);
+            } else {
+                lcardsLog.warn(`[IntegrationService] writeStorage() failed:`, err);
+            }
             return false;
         }
     }
@@ -229,7 +312,11 @@ export class IntegrationService extends BaseService {
             });
             return true;
         } catch (err) {
-            lcardsLog.warn(`[IntegrationService] deleteStorage("${key}") failed:`, err);
+            if (err?.code === 'unauthorized') {
+                lcardsLog.warn(`[IntegrationService] deleteStorage("${key}") refused: global storage needs a Home Assistant admin`);
+            } else {
+                lcardsLog.warn(`[IntegrationService] deleteStorage("${key}") failed:`, err);
+            }
             return false;
         }
     }
@@ -251,7 +338,11 @@ export class IntegrationService extends BaseService {
             });
             return true;
         } catch (err) {
-            lcardsLog.warn('[IntegrationService] resetStorage() failed:', err);
+            if (err?.code === 'unauthorized') {
+                lcardsLog.warn(`[IntegrationService] resetStorage() refused: global storage needs a Home Assistant admin`);
+            } else {
+                lcardsLog.warn(`[IntegrationService] resetStorage() failed:`, err);
+            }
             return false;
         }
     }
@@ -323,7 +414,7 @@ export class IntegrationService extends BaseService {
             )
             .then((unsub) => {
                 this._eventUnsubscribe = unsub;
-                lcardsLog.info('[IntegrationService] Subscribed to lcards_event push channel');
+                lcardsLog.debug('[IntegrationService] Subscribed to lcards_event push channel');
             })
             .catch((err) => {
                 lcardsLog.warn('[IntegrationService] Failed to subscribe to lcards_event:', err);
@@ -423,30 +514,25 @@ export class IntegrationService extends BaseService {
 
             case 'trigger_effect': {
                 // Fire screen effects on this device.
-                //
-                // New API (Option A): payload.layers — explicit per-slot config:
-                //   { backdrop: { preset, ...params }, color: { preset, ...params }, canvas: { preset, ...params } }
-                //   Absent slot = not touched. null value = clear that slot.
-                //
-                // Legacy API removed — only layers is accepted.
-                //   payload.params.duration — auto-clear after N ms.
-                //
-                // Backward compat: both APIs can coexist; layers takes precedence when present.
+                //   payload.layers: { backdrop|color|canvas: { preset, ...params } | null }
+                //   A slot left out is not touched; null clears that slot.
+                //   payload.duration: ms before the slots this call set clear
+                //   (each slot keeps its own timer, so a later call is never
+                //   cut short by an earlier one).
                 const sem = window.lcards?.core?.screenEffectManager;
 
-                if (sem && payload.layers) {
+                if (sem && payload.layers && typeof payload.layers === 'object') {
                     lcardsLog.info('[IntegrationService] Screen effect (layers) triggered by backend');
-                    sem.clearSlot('backdrop');
-                    sem.clearSlot('color');
-                    sem.clearSlot('canvas');
                     for (const [slot, layerCfg] of Object.entries(payload.layers)) {
-                        if (layerCfg?.preset) {
+                        if (!['backdrop', 'color', 'canvas'].includes(slot)) {
+                            lcardsLog.warn(`[IntegrationService] trigger_effect: unknown slot '${slot}'`);
+                        } else if (layerCfg === null) {
+                            sem.clearSlot(slot);
+                        } else if (layerCfg?.preset) {
                             const { preset, ...params } = layerCfg;
-                            sem.applySlot(slot, preset, params);
+                            if (payload.duration) sem.applySlotFor(slot, preset, params, payload.duration);
+                            else sem.applySlot(slot, preset, params);
                         }
-                    }
-                    if (payload.duration) {
-                        setTimeout(() => { sem.clear(); }, payload.duration);
                     }
                 } else {
                     lcardsLog.warn('[IntegrationService] trigger_effect: missing layers or screenEffectManager unavailable');
@@ -473,6 +559,17 @@ export class IntegrationService extends BaseService {
                 break;
             }
 
+            case 'fly_to': {
+                const flown = window.lcards?.cards?.astrometrics?.flyTo(payload.card_id, payload.point ? { point: payload.point } : { view: payload.view }, { duration: payload.duration, warp: payload.warp }) ?? 0;
+                lcardsLog.info(`[IntegrationService] fly_to '${payload.card_id}': ${flown} card(s) here`);
+                break;
+            }
+            case 'set_clock': {
+                const set = window.lcards?.cards?.astrometrics?.setClock(payload.card_id, { date: payload.date, rate: payload.rate }) ?? 0;
+                lcardsLog.info(`[IntegrationService] set_clock '${payload.card_id}': ${set} card(s) here`);
+                break;
+            }
+
             case 'clear_portal_card': {
                 const pom = window.lcards?.core?.portalOverlayManager;
                 pom?.hide('ha-service');
@@ -489,6 +586,9 @@ export class IntegrationService extends BaseService {
                     if (payload.transition_style  != null) opts.transitionStyle  = payload.transition_style;
                     if (payload.intro_layers      != null) opts.intro            = payload.intro_layers;
                     if (payload.persistent_layers != null) opts.persistentLayers = payload.persistent_layers;
+                    if (payload.fontSwap          != null) opts.fontSwap         = payload.fontSwap;
+                    if (payload.paletteHue        != null) opts.paletteHue       = payload.paletteHue;
+                    if (payload.sound             != null) opts.sound            = payload.sound;
                     bam.assimilate(opts);
                 } else {
                     lcardsLog.warn('[IntegrationService] borg_assimilate: BorgAssimilationManager unavailable');
@@ -504,6 +604,7 @@ export class IntegrationService extends BaseService {
                     if (payload.with_outro              != null) opts.withOutro             = payload.with_outro;
                     if (payload.outro_layers            != null) opts.outroLayers           = payload.outro_layers;
                     if (payload.revert_transition_style != null) opts.revertTransitionStyle = payload.revert_transition_style;
+                    if (payload.sound                   != null) opts.sound                 = payload.sound;
                     bam.deassimilate(opts);
                 } else {
                     lcardsLog.warn('[IntegrationService] borg_deassimilate: BorgAssimilationManager unavailable');

@@ -8,10 +8,10 @@ Pack and card developer reference for font loading, SVG caching, and SVG utility
 
 ### `window.lcards.loadFont(fontInput)`
 
-Dynamically injects a font stylesheet into the document. Safe to call multiple times — already-loaded fonts are skipped.
+Dynamically injects a font stylesheet into the document. Safe to call multiple times; already-loaded fonts are skipped.
 
 **Parameters:**
-- `fontInput` — comma-separated font-family string, URL, or `lcards_*` font name
+- `fontInput`: comma-separated font-family string, URL, or `lcards_*` font name
 
 **Accepted formats:**
 
@@ -22,14 +22,14 @@ window.lcards.loadFont('lcards_antonio');
 // 2. Comma-separated list (e.g. from a font-family CSS value)
 window.lcards.loadFont('lcards_microgramma, lcards_handel_gothic');
 
-// 3. Remote URL — injects a <link> directly
+// 3. Remote URL - injects a <link> directly
 window.lcards.loadFont('https://fonts.googleapis.com/css2?family=Roboto');
 ```
 
 Built-in font names use the `lcards_` prefix. Fonts without the `lcards_` prefix (and that are not URLs) are silently ignored.
 
 ::: tip Legacy `cb-lcars_*` names
-`window.lcards.loadFont()` does **not** migrate legacy `cb-lcars_*` font names — it only accepts the `lcards_` prefix. Auto-migration lives on a different, non-global method: `window.lcards.core.assetManager.loadFont(fontKey)` (in `AssetManager`), which resolves a legacy name to its current registry key before injecting the stylesheet. Use that method (not the `window.lcards.loadFont()` utility) when a font key may still carry a `cb-lcars_` name.
+`window.lcards.loadFont()` does **not** migrate legacy `cb-lcars_*` font names; it only accepts the `lcards_` prefix. Auto-migration lives on a different, non-global method: `window.lcards.core.assetManager.loadFont(fontKey)` (in `AssetManager`), which resolves a legacy name to its current registry key before injecting the stylesheet. Use that method (not the `window.lcards.loadFont()` utility) when a font key may still carry a `cb-lcars_` name.
 :::
 
 ---
@@ -128,7 +128,7 @@ Available on `window.lcards.anchorHelpers.*`:
 
 ### `window.lcards.clearTextMeasureCache()`
 
-Clears the internal canvas-based text measurement cache used by the MSD renderer. Call this after a font is loaded or changed to ensure subsequent text layout measurements use the new font metrics.
+Clears the internal canvas-based text measurement cache used by the MSD renderer. The cache is keyed by the text itself, so it keeps only the 2000 most recently used entries (`TEXT_MEASURE_CACHE_MAX`, `src/msd/renderer/RendererUtils.js:9`). Call this after a font is loaded or changed to ensure subsequent text layout measurements use the new font metrics.
 
 ```javascript
 window.lcards.loadFont('lcards_microgramma');
@@ -143,8 +143,8 @@ Two root properties exist for MSD renderer internal compatibility and should not
 
 | Property | What it points to |
 |---|---|
-| `window.lcards.theme` | `lcardsCore.getThemeManager()` — use `window.lcards.core.themeManager` instead |
-| `window.lcards.styleResolver` | `lcardsCore.getStylePresetManager()` — use `window.lcards.core.stylePresetManager` instead |
+| `window.lcards.theme` | `lcardsCore.getThemeManager()`: use `window.lcards.core.themeManager` instead |
+| `window.lcards.styleResolver` | `lcardsCore.getStylePresetManager()`: use `window.lcards.core.stylePresetManager` instead |
 
 ---
 

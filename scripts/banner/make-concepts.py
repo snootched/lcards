@@ -1,0 +1,431 @@
+#!/usr/bin/env python3
+"""Writes the banner candidates (B1 round 3) into scripts/banner/concepts/:
+D (the Badlands) and E (the wormhole), each as A (black space behind the title)
+and B (the phenomenon stretched behind the title). One frame for all four:
+a wider left sweep, thin bars, the site URL in the bottom bar."""
+import yaml, pathlib
+
+OUT = pathlib.Path(__file__).parent / 'concepts'
+URL = 'lcards.unimatrix01.ca'
+
+def bar(area, color, label=None, label_color=None):
+    card = {'type': 'custom:lcards-button', 'view_layout': {'grid-area': area}, 'preset': 'panel-light',
+            'min_height': 0, 'interactive': False,
+            'text': {'label': {'show': False}} if not label else {'label': {'content': label, 'show': True, 'position': 'center-right', 'text_transform': 'none', 'font_size': 16, 'color': label_color}},
+            'style': {'card': {'color': {'background': {'default': color}}}}}
+    return card
+
+def elbow(area, kind):
+    return {'type': 'custom:lcards-elbow', 'view_layout': {'grid-area': area},
+            'elbow': {'type': kind, 'segment': {'bar_width': 110, 'bar_height': 20, 'outer_curve': 90, 'inner_curve': 40, 'color': 'var(--lcars-ui-primary)'}}}
+
+def text(area, content, size, color, pos, transform=None):
+    label = {'content': content, 'show': True, 'position': pos, 'font_size': size, 'color': color}
+    if transform: label['text_transform'] = transform
+    return {'type': 'custom:lcards-button', 'view_layout': {'grid-area': area}, 'preset': 'text-only',
+            'min_height': 0, 'interactive': False, 'text': {'label': label}}
+
+def scrim():
+    """A soft fade behind the title: dark at the left, clear by the scene. A level
+    fill at 100% left to right draws its color_a to color_b gradient; under the frame."""
+    return {'type': 'custom:lcards-button', 'view_layout': {'grid-area': '1 / 1 / 4 / 3'}, 'preset': 'text-only',
+            'min_height': 0, 'interactive': False, 'text': {'label': {'show': False}},
+            'background_animation': [{'preset': 'level', 'config': {
+                'fill_pct': 100, 'direction': 'right', 'color_a': 'alpha(var(--lcars-text-dark), 0.85)', 'color_b': 'alpha(var(--lcars-text-dark), 0)',
+                'gradient_crossover': 50, 'wave_height': 0, 'wave2_height': 0, 'slosh_amount': 0, 'edge_glow': False}}]}
+
+def frame():
+    """The chrome, in the theme's own roles: gray bars, the accent bar and the
+    title, URL in the theme's highlight colour (--lcars-ui-tertiary)."""
+    hi = 'var(--lcars-ui-tertiary)'
+    cards = [elbow('corner', 'header-left'), elbow('fcorner', 'footer-left'),
+             bar('t1', 'var(--lcars-ui-primary)'), bar('t2', 'var(--lcars-card-bottom-color)'), bar('t3', 'var(--lcars-ui-accent-color)'),
+             bar('b1', 'var(--lcars-ui-primary)'), bar('b2', 'var(--lcars-card-bottom-color)', URL, hi), bar('b3', 'var(--lcars-ui-primary)'),
+             text('title', 'LCARdS', 88, hi, 'bottom-left', 'none'),
+             text('byline', 'LCARS CARDS FOR HOME ASSISTANT', 26, 'var(--lcars-space-white)', 'top-left')]
+    return {'type': 'custom:lcards-layout-card', 'view_layout': {'grid-area': '1 / 1 / 4 / 3'},
+            'layout': {'grid-gap': '5px',
+                       'grid-template-columns': '190px 340px 6px minmax(0, 1fr) 6px 90px',
+                       'grid-template-rows': '20px minmax(0, 1fr) minmax(0, 1fr) 20px',
+                       'grid-template-areas': '"corner t1 . t2 . t3"\n"corner title . . . ."\n"fcorner byline . . . ."\n"fcorner b1 . b2 . b3"\n'},
+            'cards': cards}
+
+def faint_extras(moving=True):
+    """Faint things behind the scene: depth dust, and a nebula wash (a background
+    effect) so faint gas reaches behind the title too. moving=False holds the gas
+    still, for a loop that must end exactly where it starts (a spin)."""
+    gas = {'cloud_count': 7, 'colors': ['var(--lcars-deep-navy)', 'var(--lcars-eggplant)', 'var(--lcars-slate)'],
+           'min_opacity': 0.25, 'max_opacity': 0.55, 'max_radius': 0.6, 'seed': 11}
+    gas.update({'scroll_speed_x': 2, 'scroll_speed_y': 0, 'volumetric': True} if moving else {'scroll_speed_x': 0, 'scroll_speed_y': 0, 'volumetric': False})
+    return ({'dust': {'count': 3000, 'opacity': 0.5, 'colors': ['var(--lcards-moonlight)', 'var(--lcars-ice)']}},
+            [{'preset': 'nebula', 'config': gas}])
+
+def scene(cid, view, objects, points=(), moving=True, units=None):
+    dust, wash = faint_extras(moving)
+    return {'type': 'custom:lcards-astrometrics-card', 'view_layout': {'grid-area': 'scene'}, 'id': cid, 'height': 260,
+            'camera': {'view': 'banner', 'buttons': False, 'controls': False, 'auto_rotate': 0, 'views': {'banner': view}},
+            'backdrop': {'stars': {'count': 3000}, **dust},
+            'background_animation': wash,
+            'points': list(points), 'objects': objects, **({'units': units} if units else {})}
+
+def banner(scene_card, profile, with_scrim=False, states=None):
+    card = {'type': 'custom:lcards-layout-card',
+            'layout': {'height': '300px', 'grid-gap': '0px', 'grid-template-columns': '110px minmax(0, 1fr)', 'grid-template-rows': '20px 260px 20px',
+                       'grid-template-areas': '". ."\n". scene"\n". ."\n'},
+            'cards': [scene_card] + ([scrim()] if with_scrim else []) + [frame()]}
+    card = {'banner_profile': profile, **card}
+    if states: card = {'banner_states': states, **card}
+    return card
+
+# D: the Badlands. A: the nebula on the right; B: a wider nebula reaching behind the title.
+badlands = [{'type': 'nebula', 'id': 'badlands', 'at': [0, 0, 0], 'preset': 'badlands'}]
+D = {
+    'a': scene('banner_badlands', {'target': [-260, 0, 0], 'yaw': 25, 'tilt': 7, 'distance': 520}, badlands),
+    'b': scene('banner_badlands', {'target': [-120, 0, 0], 'yaw': 18, 'tilt': 6, 'distance': 430},
+               [{**badlands[0], 'size': [900, 160, 500]}]),
+}
+
+# E: the wormhole, tilted to show the funnel. A: on the right; B: larger, its disc reaching behind the title.
+def wormhole(radius):
+    return [
+        {'type': 'grid', 'id': 'funnel', 'shape': 'well', 'well': {'shape': 'trumpet', 'throat': 0.07}, 'at': 'mouth', 'face': 'down',
+         'radius': radius, 'depth': 7, 'line_width': 0, 'edges': False,
+         'fill': {'effect': {'type': 'swirl', 'colors': ['var(--lcards-moonlight)', 'var(--lcards-orange-lightest)', 'var(--lcars-violet)', 'var(--lcards-blue-medium)', 'var(--lcars-violet)', 'var(--lcards-blue-medium-dark)', 'var(--lcards-blue-medium)', 'var(--lcards-blue-dark)'], 'speed': 2.7, 'turbulence': 0.8, 'num_octaves': 5}},
+         'deform': [{'type': 'twist', 'angle': 80, 'anchor': 'top', 'period': 6}]},
+        {'type': 'galaxy', 'id': 'vortex', 'at': 'mouth', 'face': 'down', 'radius': radius, 'arms': {'count': 4, 'pitch': 20, 'color': 'var(--lcards-blue-light)'},
+         'bar': {'length': 0}, 'thickness': 0.02, 'stars': {'count': 8000}, 'seed': 4, 'glow': 0, 'dust': {'amount': 0}, 'core': {'color': 'var(--lcards-moonlight)'}, 'spin': 15},
+        {'type': 'glow', 'id': 'heart', 'at': 'mouth', 'color': 'var(--lcards-orange-lightest)', 'size': radius * 0.55},
+    ]
+mouth = [{'id': 'mouth', 'xyz': [0, 0, 0]}, {'id': 'down', 'at': 'mouth', 'offset': [0, -1000, 0]}]
+E = {
+    'a': scene('banner_wormhole', {'target': [-14, -2, 0], 'yaw': 15, 'tilt': 20, 'distance': 30}, wormhole(11), mouth),
+    'b': scene('banner_wormhole', {'target': [-6, -2, 0], 'yaw': 15, 'tilt': 20, 'distance': 27}, wormhole(17), mouth),
+}
+
+PROFILES = {'red': 'LCARS Picard [LCARdS Red Accent]', 'blue': 'LCARS Picard [LCARdS Blue Accent]'}
+for name, variants in (('d-badlands', D), ('e-wormhole', E)):
+    for v, sc in variants.items():
+        for tone, profile in PROFILES.items():
+            path = OUT / f'{name}-{v}-{tone}.yaml'
+            card = banner(sc, profile, with_scrim=(name == 'd-badlands' and v == 'b'))
+            path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n' + yaml.safe_dump(card, sort_keys=False, width=200))
+            print(path)
+
+# Dev-board views (the user reviews the banners in Home Assistant): one view per
+# profile, the view's theme set to that profile, the four banners at banner size.
+DEMO = pathlib.Path(__file__).parents[2] / 'demo' / 'views'
+for tone, profile in PROFILES.items():
+    cards = []
+    for name, variants in (('d-badlands', D), ('e-wormhole', E)):
+        for v, sc in variants.items():
+            card = banner(sc, profile, with_scrim=(name == 'd-badlands' and v == 'b'))
+            card.pop('banner_profile', None)
+            card.pop('banner_states', None)
+            # each scene card needs its own id on one view
+            card['cards'][0] = {**card['cards'][0], 'id': f"{card['cards'][0]['id']}_{v}"}
+            cards.append(card)
+    view = {'title': f'B1 banners {tone}', 'path': f'b1-banners-{tone}', 'theme': profile,
+            'type': 'custom:lcards-layout-view',
+            'layout': {'padding': '16px', 'grid-gap': '16px', 'grid-template-columns': '1200px', 'grid-template-rows': 'repeat(4, 300px)'},
+            'cards': cards}
+    path = DEMO / f'b1-banners-{tone}.yaml'
+    path.write_text(f'# B1 banner candidates in the {profile} theme (D Badlands a/b, E wormhole a/b).\n'
+                    '# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n'
+                    + yaml.safe_dump(view, sort_keys=False, width=200))
+    print(path)
+
+# Animated wormhole (E b, Blue Accent first): closed, bursts open and spins, snaps shut.
+# The sizes follow input_number.banner_aperture (0..100) with a short glide; a flash
+# glow (banner_flash) fires as it opens. render.mjs --capture runs banner_timeline.
+def aperture(max_value, smooth=650, low=None):
+    return {'entity': 'input_number.banner_aperture', 'input': [0, 100], 'output': [max_value * 0.12 if low is None else low, max_value], 'smooth': smooth}
+
+def wormhole_anim(radius):
+    """Opens like the canon wormhole: the centre stays put. The funnel keeps its
+    full size and only fades in and out (scaling it moved the throat in space);
+    the flat spiral disc grows from the centre, the core glow with it, and a
+    flash fires as it opens and as it shuts."""
+    objs = wormhole(radius)
+    objs[0]['opacity'] = aperture(1, smooth=900, low=0)            # funnel: fixed size, fades
+    objs[1]['radius'] = aperture(radius, smooth=700)               # spiral disc: grows from the centre
+    objs[1]['opacity'] = aperture(1, smooth=500, low=0)
+    objs[2]['size'] = aperture(radius * 0.55, smooth=600)          # core glow
+    objs[2]['opacity'] = aperture(1, smooth=400, low=0)
+    # a fast spin as it bursts open, settling to its normal speed
+    objs[1]['spin'] = {'entity': 'input_number.banner_spin', 'input': [0, 100], 'output': [15, 90], 'smooth': 1100}
+    objs.append({'type': 'glow', 'id': 'flash', 'at': 'mouth', 'color': 'var(--lcards-blue-lightest)',
+                 'size': {'entity': 'input_number.banner_flash', 'input': [0, 100], 'output': [0, radius * 0.8], 'smooth': 220}})
+    return objs
+
+anim_scene = scene('banner_wormhole', {'target': [-6, -2, 0], 'yaw': 15, 'tilt': 20, 'distance': 27}, wormhole_anim(17), mouth)
+# built fully open (its true shape), closed after mounting, opened on cue
+anim = banner(anim_scene, PROFILES['blue'], states={'input_number.banner_aperture': 100, 'input_number.banner_flash': 100, 'input_number.banner_spin': 0})
+anim['banner_after_mount'] = {'input_number.banner_aperture': 0, 'input_number.banner_flash': 0}
+anim['banner_timeline'] = [
+    # a flash at the centre, then the swirl blooms out of it with a fast spin
+    {'at': 1300, 'states': {'input_number.banner_flash': 100}},
+    {'at': 1550, 'states': {'input_number.banner_aperture': 100, 'input_number.banner_spin': 100}},
+    {'at': 1750, 'states': {'input_number.banner_flash': 0}},
+    {'at': 2100, 'states': {'input_number.banner_spin': 0}},
+    # it pulls back into the centre and ends in a flash
+    {'at': 7400, 'states': {'input_number.banner_aperture': 0}},
+    {'at': 7900, 'states': {'input_number.banner_flash': 70}},
+    {'at': 8150, 'states': {'input_number.banner_flash': 0}},
+]
+path = OUT / 'e-wormhole-b-blue-anim.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n' + yaml.safe_dump(anim, sort_keys=False, width=200))
+print(path)
+
+# Animated Badlands (D a, Blue Accent first): the camera drifts slowly round the
+# nebula while the gas and fire columns move; encode-gif.mjs --crossfade loops it.
+bad_anim = scene('banner_badlands', {'target': [-260, 0, 0], 'yaw': 25, 'tilt': 7, 'distance': 520}, badlands)
+bad_anim['camera']['auto_rotate'] = 1.2
+path = OUT / 'd-badlands-a-blue-anim.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n'
+                + yaml.safe_dump(banner(bad_anim, PROFILES['blue']), sort_keys=False, width=200))
+print(path)
+
+# The other two (blue first): Badlands B (drifting, the fade behind the title) and
+# wormhole A (the same open, spin and shut at its smaller size, on the right).
+bad_b_anim = scene('banner_badlands', {'target': [-120, 0, 0], 'yaw': 18, 'tilt': 6, 'distance': 430}, [{**badlands[0], 'size': [900, 160, 500]}])
+bad_b_anim['camera']['auto_rotate'] = 1.2
+path = OUT / 'd-badlands-b-blue-anim.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n'
+                + yaml.safe_dump(banner(bad_b_anim, PROFILES['blue'], with_scrim=True), sort_keys=False, width=200))
+print(path)
+
+worm_a_scene = scene('banner_wormhole', {'target': [-14, -2, 0], 'yaw': 15, 'tilt': 20, 'distance': 30}, wormhole_anim(11), mouth)
+worm_a = banner(worm_a_scene, PROFILES['blue'], states={'input_number.banner_aperture': 100, 'input_number.banner_flash': 100, 'input_number.banner_spin': 0})
+worm_a['banner_after_mount'] = {'input_number.banner_aperture': 0, 'input_number.banner_flash': 0}
+worm_a['banner_timeline'] = anim['banner_timeline']
+path = OUT / 'e-wormhole-a-blue-anim.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n' + yaml.safe_dump(worm_a, sort_keys=False, width=200))
+print(path)
+
+# Crystalline entity (blue): close in on the entity, spinning one full turn per loop
+# (30 deg/s over 12 s), the gas held still, so the last frame meets the first.
+cryst_scene = scene('banner_crystalline', {'target': [-1.25, -0.12, 0], 'yaw': 20, 'tilt': 12, 'distance': 3.6},
+                    [{'type': 'crystalline', 'id': 'entity', 'at': 'core', 'spin': 30, 'core': {'period': 0}}],
+                    [{'id': 'core', 'xyz': [0, 0, 0]}], moving=False, units='km')
+path = OUT / 'f-crystalline-blue-anim.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n'
+                + yaml.safe_dump(banner(cryst_scene, PROFILES['blue']), sort_keys=False, width=200))
+print(path)
+
+# Banner v2 (F2, 2026-11-13): the wormhole really opens. The funnel morphs from a
+# needle at the centre (well.to, well.morph) into its trumpet while its depth grows
+# from almost nothing, both eased in place; the spiral disc, core glow, flash and spin
+# as in v1. v1 (e-wormhole-b-blue-anim) stays as it is.
+def wormhole_anim_v2(radius):
+    objs = wormhole(radius)
+    funnel = objs[0]
+    funnel['well'] = {**funnel['well'], 'to': {'profile': [0.02, 0.02]},
+                      'morph': {'entity': 'input_number.banner_aperture', 'input': [0, 100], 'output': [1, 0], 'smooth': 900}}
+    funnel['depth'] = {'entity': 'input_number.banner_aperture', 'input': [0, 100], 'output': [0.2, 11], 'smooth': 900}
+    # a quick fade at the very start and end only: the shape does the opening
+    funnel['opacity'] = {'entity': 'input_number.banner_aperture', 'input': [0, 25], 'output': [0, 1], 'clamp': True, 'smooth': 500}
+    objs[1]['radius'] = aperture(radius, smooth=800)
+    objs[1]['opacity'] = aperture(1, smooth=600, low=0)
+    objs[2]['size'] = aperture(radius * 0.55, smooth=600)
+    objs[2]['opacity'] = aperture(1, smooth=400, low=0)
+    objs[1]['spin'] = {'entity': 'input_number.banner_spin', 'input': [0, 100], 'output': [15, 90], 'smooth': 1100}
+    objs.append({'type': 'glow', 'id': 'flash', 'at': 'mouth', 'color': 'var(--lcards-blue-lightest)',
+                 'size': {'entity': 'input_number.banner_flash', 'input': [0, 100], 'output': [0, radius * 0.8], 'smooth': 220}})
+    return objs
+
+v2_scene = scene('banner_wormhole', {'target': [-6, -2, 0], 'yaw': 15, 'tilt': 20, 'distance': 27}, wormhole_anim_v2(17), mouth)
+v2 = banner(v2_scene, PROFILES['blue'], states={'input_number.banner_aperture': 100, 'input_number.banner_flash': 100, 'input_number.banner_spin': 0})
+v2['banner_after_mount'] = {'input_number.banner_aperture': 0, 'input_number.banner_flash': 0}
+v2['banner_timeline'] = [
+    # a flash at the centre, then the funnel opens out of it with the swirl and a fast spin
+    {'at': 1300, 'states': {'input_number.banner_flash': 100}},
+    {'at': 1550, 'states': {'input_number.banner_aperture': 100, 'input_number.banner_spin': 100}},
+    {'at': 1750, 'states': {'input_number.banner_flash': 0}},
+    {'at': 2100, 'states': {'input_number.banner_spin': 0}},
+    # it draws back into its centre and ends in a flash
+    {'at': 7400, 'states': {'input_number.banner_aperture': 0}},
+    {'at': 8100, 'states': {'input_number.banner_flash': 70}},
+    {'at': 8350, 'states': {'input_number.banner_flash': 0}},
+]
+path = OUT / 'e-wormhole-b-blue-anim-v2.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n' + yaml.safe_dump(v2, sort_keys=False, width=200))
+print(path)
+
+# Banner v3: staged like the DS9 wormhole. Opening: a flash, the disc blooms out of it
+# fast, then the funnel's mouth widens and its throat deepens behind it. Closing in
+# reverse: the throat pulls back, the mouth narrows into the disc, then the disc
+# collapses into the core and the last flash fires. Three values on their own timing:
+# banner_aperture (the disc, fast), banner_mouth (funnel width), banner_throat (depth).
+def wormhole_anim_v3(radius, throat_smooth=1100):
+    objs = wormhole(radius)
+    funnel = objs[0]
+    funnel['well'] = {**funnel['well'], 'to': {'profile': [0.02, 0.02]},
+                      'morph': {'entity': 'input_number.banner_mouth', 'input': [0, 100], 'output': [1, 0], 'smooth': 700}}
+    funnel['depth'] = {'entity': 'input_number.banner_throat', 'input': [0, 100], 'output': [0.2, 11], 'smooth': throat_smooth}
+    funnel['opacity'] = {'entity': 'input_number.banner_mouth', 'input': [0, 30], 'output': [0, 1], 'clamp': True, 'smooth': 400}
+    objs[1]['radius'] = aperture(radius, smooth=450)
+    objs[1]['opacity'] = aperture(1, smooth=350, low=0)
+    objs[2]['size'] = aperture(radius * 0.55, smooth=400)
+    objs[2]['opacity'] = aperture(1, smooth=300, low=0)
+    objs[1]['spin'] = {'entity': 'input_number.banner_spin', 'input': [0, 100], 'output': [15, 90], 'smooth': 1100}
+    objs.append({'type': 'glow', 'id': 'flash', 'at': 'mouth', 'color': 'var(--lcards-blue-lightest)',
+                 'size': {'entity': 'input_number.banner_flash', 'input': [0, 100], 'output': [0, radius * 0.8], 'smooth': 220}})
+    return objs
+
+v3_scene = scene('banner_wormhole', {'target': [-6, -2, 0], 'yaw': 15, 'tilt': 20, 'distance': 27}, wormhole_anim_v3(17), mouth)
+v3_open = {'input_number.banner_aperture': 100, 'input_number.banner_mouth': 100, 'input_number.banner_throat': 100}
+v3 = banner(v3_scene, PROFILES['blue'], states={**v3_open, 'input_number.banner_flash': 100, 'input_number.banner_spin': 0})
+v3['banner_after_mount'] = {'input_number.banner_aperture': 0, 'input_number.banner_mouth': 0, 'input_number.banner_throat': 0, 'input_number.banner_flash': 0}
+v3['banner_timeline'] = [
+    # a flash, the disc blooms out of it with a fast spin
+    {'at': 1300, 'states': {'input_number.banner_flash': 100}},
+    {'at': 1450, 'states': {'input_number.banner_aperture': 100, 'input_number.banner_spin': 100}},
+    {'at': 1650, 'states': {'input_number.banner_flash': 0}},
+    # the funnel opens behind it: the mouth, then the throat
+    {'at': 1800, 'states': {'input_number.banner_mouth': 100}},
+    {'at': 2150, 'states': {'input_number.banner_throat': 100, 'input_number.banner_spin': 0}},
+    # closing in reverse: the throat pulls back, the mouth narrows, the disc collapses
+    {'at': 6700, 'states': {'input_number.banner_throat': 0}},
+    {'at': 7400, 'states': {'input_number.banner_mouth': 0}},
+    {'at': 7900, 'states': {'input_number.banner_aperture': 0}},
+    {'at': 8250, 'states': {'input_number.banner_flash': 70}},
+    {'at': 8500, 'states': {'input_number.banner_flash': 0}},
+]
+path = OUT / 'e-wormhole-b-blue-anim-v3.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n' + yaml.safe_dump(v3, sort_keys=False, width=200))
+print(path)
+
+# Banner v4: v3's staging with the disc's bands as real 3D gas (a volume nebula,
+# shape: whirlpool) in place of the flat spiral; the galaxy's stars stay, faint, for sparkle.
+def wormhole_anim_v4(radius, throat_smooth=1100):
+    objs = wormhole_anim_v3(radius, throat_smooth)
+    stars = objs[1]
+    stars['opacity'] = aperture(0.45, smooth=350, low=0)
+    stars['glow'] = 0
+    gas = {'type': 'nebula', 'id': 'gas', 'render': 'volume', 'shape': 'whirlpool', 'at': 'mouth', 'radius': aperture(radius * 1.05, smooth=450),
+           'arms': {'count': 3, 'pitch': 18}, 'thickness': 0.1, 'turbulence': 0.6, 'seed': 4,
+           'colors': ['var(--lcards-moonlight)', 'var(--lcars-violet)', 'var(--lcards-blue-medium)', 'var(--lcards-blue-dark)'],
+           'core': {'color': 'var(--lcards-orange-lightest)'},
+           'opacity': aperture(1, smooth=350, low=0),
+           'spin': {'entity': 'input_number.banner_spin', 'input': [0, 100], 'output': [12, 70], 'smooth': 1100}}
+    return objs[:1] + [gas] + objs[1:]
+
+v4_scene = scene('banner_wormhole', {'target': [-6, -2, 0], 'yaw': 15, 'tilt': 20, 'distance': 27}, wormhole_anim_v4(17), mouth)
+v4 = banner(v4_scene, PROFILES['blue'], states={**v3_open, 'input_number.banner_flash': 100, 'input_number.banner_spin': 0})
+v4['banner_after_mount'] = v3['banner_after_mount']
+v4['banner_timeline'] = v3['banner_timeline']
+path = OUT / 'e-wormhole-b-blue-anim-v4.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n' + yaml.safe_dump(v4, sort_keys=False, width=200))
+print(path)
+
+# Banner v4a: v4 with the tunnel faster than the mouth: its depth eases in 350 ms
+# (v4: 1100) against the mouth's 700, following the mouth sooner and pulling back
+# first on closing. Captured 10.5 s (render with --capture 10500) so the loop's
+# crossfade (the last second over the first) is quiet space, not the closing flash.
+v4a_scene = scene('banner_wormhole', {'target': [-6, -2, 0], 'yaw': 15, 'tilt': 20, 'distance': 27}, wormhole_anim_v4(17, throat_smooth=350), mouth)
+v4a = banner(v4a_scene, PROFILES['blue'], states={**v3_open, 'input_number.banner_flash': 100, 'input_number.banner_spin': 0})
+v4a['banner_after_mount'] = v3['banner_after_mount']
+v4a['banner_timeline'] = [
+    {'at': 1300, 'states': {'input_number.banner_flash': 100}},
+    {'at': 1450, 'states': {'input_number.banner_aperture': 100, 'input_number.banner_spin': 100}},
+    {'at': 1650, 'states': {'input_number.banner_flash': 0}},
+    {'at': 1800, 'states': {'input_number.banner_mouth': 100}},
+    # the tunnel shoots down just behind the widening mouth
+    {'at': 1950, 'states': {'input_number.banner_throat': 100}},
+    {'at': 2150, 'states': {'input_number.banner_spin': 0}},
+    # closing: the tunnel snaps back first, then the mouth narrows, then the disc collapses
+    {'at': 7000, 'states': {'input_number.banner_throat': 0}},
+    {'at': 7300, 'states': {'input_number.banner_mouth': 0}},
+    {'at': 7900, 'states': {'input_number.banner_aperture': 0}},
+    {'at': 8250, 'states': {'input_number.banner_flash': 70}},
+    {'at': 8500, 'states': {'input_number.banner_flash': 0}},
+]
+path = OUT / 'e-wormhole-b-blue-anim-v4a.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n' + yaml.safe_dump(v4a, sort_keys=False, width=200))
+print(path)
+
+# Banner v4b: v4a's opening, a closing that overlaps and snaps. The tunnel collapses,
+# the mouth starts narrowing 150 ms later and the disc 100 ms after that (no flat disc
+# on its own), and the disc and gas contract in about 250 ms straight into the flash.
+# The disc's easing is 250 ms both ways, so the opening steps its target up over about
+# the time v4a's 450 ms took: the bloom looks the same.
+def wormhole_anim_v4b(radius):
+    objs = wormhole_anim_v4(radius, throat_smooth=350)
+    by_id = {o.get('id'): o for o in objs}
+    by_id['gas']['radius'] = aperture(radius * 1.05, smooth=250)
+    by_id['gas']['opacity'] = aperture(1, smooth=220, low=0)
+    by_id['vortex']['radius'] = aperture(radius, smooth=250)
+    by_id['vortex']['opacity'] = aperture(0.45, smooth=220, low=0)
+    by_id['heart']['size'] = aperture(radius * 0.55, smooth=250)
+    by_id['heart']['opacity'] = aperture(1, smooth=200, low=0)
+    # the mouth narrows quickly too (it opens in steps, as fast as before)
+    by_id['funnel']['well']['morph']['smooth'] = 400
+    return objs
+
+v4b_scene = scene('banner_wormhole', {'target': [-6, -2, 0], 'yaw': 15, 'tilt': 20, 'distance': 27}, wormhole_anim_v4b(17), mouth)
+v4b = banner(v4b_scene, PROFILES['blue'], states={**v3_open, 'input_number.banner_flash': 100, 'input_number.banner_spin': 0})
+v4b['banner_after_mount'] = v3['banner_after_mount']
+A, M, T = 'input_number.banner_aperture', 'input_number.banner_mouth', 'input_number.banner_throat'
+v4b['banner_timeline'] = [
+    {'at': 1300, 'states': {'input_number.banner_flash': 100}},
+    # the bloom in steps (as v4a's slower easing): 1450 to about 1900
+    {'at': 1450, 'states': {A: 45, 'input_number.banner_spin': 100}},
+    {'at': 1600, 'states': {A: 80}},
+    {'at': 1650, 'states': {'input_number.banner_flash': 0}},
+    {'at': 1750, 'states': {A: 100}},
+    # the mouth in two steps (as v4a's 700 ms), the tunnel just behind it
+    {'at': 1800, 'states': {M: 55}},
+    {'at': 1950, 'states': {M: 100, T: 100}},
+    {'at': 2150, 'states': {'input_number.banner_spin': 0}},
+    # closing, overlapped: tunnel, then mouth, then the disc snaps into the flash
+    {'at': 7000, 'states': {T: 0}},
+    {'at': 7150, 'states': {M: 0}},
+    {'at': 7250, 'states': {A: 0}},
+    {'at': 7450, 'states': {'input_number.banner_flash': 75}},
+    {'at': 7700, 'states': {'input_number.banner_flash': 0}},
+]
+path = OUT / 'e-wormhole-b-blue-anim-v4b.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n' + yaml.safe_dump(v4b, sort_keys=False, width=200))
+print(path)
+
+# Banner v4c: v4b tilted: the wormhole's axis leans back and to the left, so the
+# mouth looks more toward the camera while the tunnel still shows, running off
+# behind it. Every part faces the same 'down' point (the whirlpool down its axis too).
+V4C_DOWN = [-150, -1000, -150]
+def v4c_objects(radius):
+    objs = wormhole_anim_v4b(radius)
+    for o in objs:
+        if o.get('id') in ('funnel', 'vortex', 'gas'):
+            o['face'] = 'down'
+    return objs
+v4c_mouth = [{'id': 'mouth', 'xyz': [0, 0, 0]}, {'id': 'down', 'at': 'mouth', 'offset': V4C_DOWN}]
+v4c_scene = scene('banner_wormhole', {'target': [-6, -2, 0], 'yaw': 15, 'tilt': 20, 'distance': 27}, v4c_objects(17), v4c_mouth)
+v4c = banner(v4c_scene, PROFILES['blue'], states={**v3_open, 'input_number.banner_flash': 100, 'input_number.banner_spin': 0})
+v4c['banner_after_mount'] = v4b['banner_after_mount']
+v4c['banner_timeline'] = v4b['banner_timeline']
+path = OUT / 'e-wormhole-b-blue-anim-v4c.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n' + yaml.safe_dump(v4c, sort_keys=False, width=200))
+print(path)
+
+# Banner v4d: v4c tilted further (about 20 degrees): the mouth nearly faces the camera
+# and you look down into the tunnel.
+V4D_DOWN = [-300, -1000, -250]
+v4d_scene = scene('banner_wormhole', {'target': [-6, -2, 0], 'yaw': 15, 'tilt': 20, 'distance': 27}, v4c_objects(17),
+                  [{'id': 'mouth', 'xyz': [0, 0, 0]}, {'id': 'down', 'at': 'mouth', 'offset': V4D_DOWN}])
+v4d = banner(v4d_scene, PROFILES['blue'], states={**v3_open, 'input_number.banner_flash': 100, 'input_number.banner_spin': 0})
+v4d['banner_after_mount'] = v4b['banner_after_mount']
+v4d['banner_timeline'] = v4b['banner_timeline']
+path = OUT / 'e-wormhole-b-blue-anim-v4d.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n' + yaml.safe_dump(v4d, sort_keys=False, width=200))
+print(path)
+
+# Banner v4e: tilted about 28 degrees (the mouth almost faces the camera).
+V4E_DOWN = [-350, -1000, -400]
+v4e_scene = scene('banner_wormhole', {'target': [-6, -2, 0], 'yaw': 15, 'tilt': 20, 'distance': 27}, v4c_objects(17),
+                  [{'id': 'mouth', 'xyz': [0, 0, 0]}, {'id': 'down', 'at': 'mouth', 'offset': V4E_DOWN}])
+v4e = banner(v4e_scene, PROFILES['blue'], states={**v3_open, 'input_number.banner_flash': 100, 'input_number.banner_spin': 0})
+v4e['banner_after_mount'] = v4b['banner_after_mount']
+v4e['banner_timeline'] = v4b['banner_timeline']
+path = OUT / 'e-wormhole-b-blue-anim-v4e.yaml'
+path.write_text('# Generated by scripts/banner/make-concepts.py: edit the script, not this file.\n' + yaml.safe_dump(v4e, sort_keys=False, width=200))
+print(path)

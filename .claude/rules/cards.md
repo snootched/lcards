@@ -1,0 +1,327 @@
+---
+paths:
+  - "src/cards/**"
+  - "src/base/**"
+---
+
+# LCARdS Card Development Rules
+
+These rules apply to card files (`src/cards/`) and their base classes (`src/base/`). They complement CLAUDE.md with precise API-level detail. When a card misbehaves, the console checklist is in `doc/development/debug-api.md` ("Diagnosing a Card").
+
+---
+
+## Required Static Members
+
+Every card class **must** declare both:
+
+```javascript
+export class MyCard extends LCARdSCard {
+
+  /** Used by CoreConfigManager for schema lookup and preset merging */
+  static CARD_TYPE = 'my-card';
+
+  /** Minimal config shown in the HA card picker gallery */
+  static getStubConfig() {
+    return {
+      type: 'custom:lcards-my-card',
+      entity: 'light.example'
+    };
+  }
+}
+```
+
+`CARD_TYPE` must match the key registered in `CoreConfigManager`'s schema map. If absent, `processConfig()` silently skips validation and preset merging.
+
+`getStubConfig()` must include `type` and `entity` (if the card needs one). It is the minimum viable config for the card to render in the picker.
+
+---
+
+## Lifecycle Hooks — Correct Order
+
+Override only what you need. Call `super` first in every hook:
+
+```javascript
+// 1. Called once after first render — do setup here
+_handleFirstUpdate(changedProps) {
+  super._handleFirstUpdate(changedProps);
+
+  // Guard: skip expensive init only in the card picker (see Preview Mode Guard)
+  if (this._checkForAncestor(['hui-card-picker'])) return;
+
+  // Register the rules overlay, subscribe to extra entities
+  // (actions: see Action Handling below; each card has its own setup method)
+  this._registerOverlayForRules(`my-card-${this._cardGuid}`, 'my-card');
+  this._subscribeExtraEntities();
+}
+
+// 1b. Called on every connect, including a reconnect (Home Assistant moves cards
+// by disconnecting and reconnecting them). _handleFirstUpdate runs once per
+// element, and disconnect drops every subscribeToEntity() subscription, so
+// subscriptions made only in _handleFirstUpdate are lost after a reconnect.
+// Subscribe again here (lcards-elbow.js _onConnected() does this):
+_onConnected() {
+  super._onConnected();
+  if (this._initialized) this._subscribeExtraEntities();
+}
+
+_subscribeExtraEntities() {
+  this._extraUnsubs?.forEach(unsub => unsub());
+  this._extraUnsubs = [this.subscribeToEntity('sensor.other', (id, newState) => {
+    this._other = newState;
+    this.requestUpdate();
+  })];
+}
+
+// 2. Called on every HASS update
+_handleHassUpdate(newHass, oldHass) {
+  super._handleHassUpdate(newHass, oldHass);
+  // React to specific entity changes here if needed
+}
+
+// 3. Called every render — return Lit template
+_renderCard() {
+  return html`<div>...</div>`;
+}
+
+// 4. Called when rule patches change
+_onRulePatchesChanged() {
+  this._resolveStyle(); // Must reach requestUpdate()
+}
+
+// 5. Card-specific teardown only (base handles everything else)
+_onDisconnected() {
+  if (this._myInterval) {
+    clearInterval(this._myInterval);
+    this._myInterval = null;
+  }
+  super._onDisconnected(); // Always last
+}
+```
+
+---
+
+## Entity Access
+
+### Preferred: event-driven via `subscribeToEntity()`
+
+Fires on every state change after you subscribe, **not** on subscribe: read the current state yourself first (`getEntityState()`) if you need it. The card's own `entity` and the entities its templates, rules and `triggers_update` name already re-render the card (the base tracks them), so subscribe only for other entities. Subscribing also makes a change to that entity reach the core (the base counts it like a tracked entity), so no `_updateTrackedEntities()` override is needed for it. **Auto-unsubscribed** on disconnect: do NOT manually call unsubscribe in `_onDisconnected`, and subscribe again on reconnect (`_onConnected()`, see the lifecycle above).
+
+```javascript
+this.subscribeToEntity(this.config.entity, (entityId, newState, oldState) => {
+  this._entity = newState;
+  this.requestUpdate();
+});
+```
+
+### Snapshot: `getEntityState()`
+
+Returns the current cached state without subscribing. Use for one-time reads.
+
+```javascript
+const state = this.getEntityState('sensor.temperature');
+const ownState = this.getEntityState(); // uses config.entity
+```
+
+### ❌ Anti-patterns
+
+```javascript
+// WRONG — bypasses cache, no change notifications
+render() { const s = this.hass.states[this.config.entity]; }
+
+// WRONG — manual subscription not auto-tracked for cleanup
+const unsub = this._singletons.systemsManager.subscribeToEntity(id, cb);
+```
+
+### Exception: history over time (lcards-chart)
+
+`subscribeToEntity()` delivers current state only. The chart needs history for a time window, so `src/charts/chart-series-fetcher.js` subscribes to HA's `history/stream` (and fetches `recorder/statistics_during_period`) directly on `hass.connection`. It owns its own cleanup (`stop()`, called from `_onDisconnected()`) and resubscribes on connection `ready`. Reuse that fetcher rather than adding new raw WebSocket subscriptions to cards.
+
+---
+
+## Action Handling
+
+Use `setupActions()` for **all** tap/hold/double-tap interactions. Never bind raw click/pointer listeners for HA actions.
+
+```javascript
+async _handleFirstUpdate() {
+  super._handleFirstUpdate();
+  // The first render was the loading placeholder (_mountResolved turns true in
+  // firstUpdated): wait for the card's own DOM, as lcards-button.js does
+  await this.updateComplete;
+  const el = this.shadowRoot.querySelector('.interactive');
+  if (el) {
+    this._actionCleanup?.();
+    this._actionCleanup = this.setupActions(el, {
+      tap_action:        this.config.tap_action,
+      hold_action:       this.config.hold_action,
+      double_tap_action: this.config.double_tap_action
+    });
+  }
+}
+```
+
+Use the inherited `callService()` wrapper — never call `this.hass.callService()` directly:
+
+```javascript
+// ✅ CORRECT
+await this.callService('light', 'turn_on', { entity_id: this.config.entity, brightness: 255 });
+
+// ❌ WRONG — bypasses error handling and logging
+await this.hass.callService('light', 'turn_on', { entity_id: this.config.entity });
+```
+
+---
+
+## Rules Engine Integration
+
+```javascript
+_handleFirstUpdate() {
+  super._handleFirstUpdate();
+  // signature: (overlayId, type, tags = [])
+  this._registerOverlayForRules(`my-card-${this._cardGuid}`, 'my-card');
+  this._resolveStyle();
+}
+
+_onRulePatchesChanged() {
+  this._resolveStyle();
+}
+
+_resolveStyle() {
+  let style = { ...this.config.style };
+  style = this._getMergedStyleWithRules(style); // apply rule patches last
+  this._cardStyle = style;
+  this.requestUpdate(); // CRITICAL
+}
+```
+
+---
+
+## Card Size
+
+Override `_getCardSize()` when the card is taller than 1 grid row. Compute it inline from the resolved pixel height (grid row ≈ 50px):
+
+```javascript
+_getCardSize() {
+  const h = this._configPx(this.config?.height) || 200;
+  return Math.ceil(h / 50); // see lcards-chart.js / lcards-msd.js for real examples
+}
+```
+
+---
+
+## Sizing in Nested Grids (hui-card)
+
+HA wraps every card in `<hui-card>` (light DOM, no styles, no height of its own). Card hosts are `height: 100%` from the base CSS. Empirically verified rules for cards living inside `lcards-layout-card` / `lcards-layout-view` tracks:
+
+- **Content-sized tracks (`auto`, `max-content`) cannot reliably measure a card through hui-card.** Percentage-height hosts contribute 0 or garbage to intrinsic track sizing. If a card must drive a content-sized parent track, compute its natural height from config and set it as a **definite inline pixel height on the host** (reference implementation: `lcards-select-menu` `grid.height: 'fit'`). The parent track should be `minmax(0, max-content)` — sizes to the published height, capped by the container.
+- **Filling a bounded track**: host stays `height: 100%`, track is `minmax(0, 1fr)` — never bare `1fr`. Bare `1fr` = `minmax(auto, 1fr)`, whose auto minimum lets the card's intrinsic min-content inflate the track and overflow the layout. To compute exact child sizes from the container, use a `ResizeObserver` (reference: select-menu `grid.height: '100%'`) — but never combine container measurement with a content-sized parent track (circular → shrink spiral).
+- **Buttons keep the theme minimum unless their cell is definite.** With no `height`/`min_height` config, the preset's `min_height` (theme token `components.button.layout.minHeight`, 56px) applies, falling back to `--lcards-button-min-height`, so a button can paint past a short row (overflow is visible throughout). In a cell of a definite height (`cellHeightDefinite()`: lengths and functions of lengths; `fr` / `%` / `minmax(Npx, 1fr)` in a grid of definite height; by area or auto-placed in a grid without areas) the grid item is marked `data-lcards-cell-fits` and the button and slider drop the floor (`inFittedCell()`, `layout-render.js`). Home Assistant's sections grid counts too: a cell with a number of `grid_options.rows` is `div.card.fit-rows` (through `hui-card`, and `hui-card-edit-mode` in edit mode). Rows are indexed per grid track, so `repeat(N, ...)` is expanded first (`expandTracks()`; an uncountable `repeat(auto-fill, ...)` is not definite). A layout card whose height is a % (default `100%`) counts as definite when its own cell is marked, so nested grids pass it down. The `bar-label-*` presets set `height: 56` themselves (#318), so they don't follow a cell: give them a `height`. Only content-sized rows (`auto`, `max-content`) still need `min_height: 1` on a filler.
+- A ResizeObserver-computed size must **never lock in an inflated measurement**: if the observed container can grow from your own content (auto-min track), the feedback loop ratifies overflow forever. Fix the track (`minmax(0, …)`) before trusting the measurement.
+
+---
+
+## Preview Mode Guard
+
+The base class (`LCARdSNativeCard`) only tracks a boolean: `isPreviewMode()` / `this._isPreviewMode` returns `true` or `false` (`_detectPreviewMode()` in `src/base/LCARdSNativeCard.js`, run in `setConfig()` and again on every connect, since Home Assistant sets `.preview` after `setConfig()`). It is also `true` on every card while the dashboard is in edit mode (`hui-view` sets `.preview` on all of them), and `_handleFirstUpdate()` runs once per element, so **never skip one-time init on `_isPreviewMode`**: the card would stay half set up after edit mode ends. Skip it only in the card picker, which the card never leaves:
+
+```javascript
+_handleFirstUpdate() {
+  super._handleFirstUpdate();
+  if (this._checkForAncestor(['hui-card-picker'])) return; // the picker's gallery card
+  this._initFullSetup();
+}
+```
+
+Use `_isPreviewMode` for work that is checked again later (the background renderer skips its off-screen IntersectionObserver in previews).
+
+`isPreviewMode()` returning the tri-state `false`/`'editor'`/`'picker'` string is **`LCARdSMSDCard`-specific** — `lcards-msd.js` overrides `_detectPreviewMode()` without calling `super()` and does its own picker-vs-editor distinction (`this._isPreviewMode === 'picker'`). Don't rely on the tri-state form outside `lcards-msd.js` (`_detectPreviewMode()` there).
+
+---
+
+## Zone System
+
+Zones are named rectangular regions on the SVG surface that text fields can be routed to via `zone: <name>`.
+
+**Always call `_rebuildZones()` at the top of each render before using zone data:**
+
+```javascript
+_renderCard() {
+  const { width, height } = this._containerSize || { width: 400, height: 200 };
+  this._rebuildZones(width, height); // clears, recalculates, merges user zones
+  return html`...`;
+}
+```
+
+**To define auto-zones for your card geometry**, override `_calculateZones()`:
+
+```javascript
+_calculateZones(width, height) {
+  this._zones.set('left', { bounds: { x: 0, y: 0, width: width * 0.3, height } });
+  this._zones.set('body', { bounds: { x: width * 0.3, y: 0, width: width * 0.7, height } });
+}
+```
+
+`_generateZoneTextMarkup` and `_injectTextFieldsToElement` are defined on `LCARdSButton` (so also `LCARdSSlider`, `LCARdSElbow`); cards extending `LCARdSCard` directly (chart, data-grid, alert-overlay, layout-card, select-menu, msd) don't have them. `_generateZoneDebugMarkup`, `_rebuildZones` and `_calculateZones` are on base `LCARdSCard`.
+
+**SVG string pipeline** — use `_generateZoneTextMarkup(textFields)`:
+
+```javascript
+const textSvg = this._generateZoneTextMarkup(this.config.text_fields);
+const debugSvg = this._generateZoneDebugMarkup(); // empty unless config.debug_zones: true
+```
+
+**DOM SVG pipeline** — use `_injectTextFieldsToElement(svgEl, w, h)`:
+
+```javascript
+this._injectTextFieldsToElement(this._svgEl, width, height);
+```
+
+❌ Never call `_calculateZones()` directly — always go through `_rebuildZones()` so user overrides are applied.
+❌ Never access `this._zones` before calling `_rebuildZones()` — it will be empty or stale.
+❌ Do not use `_processTextFields()` in zone-aware cards — use `_generateZoneTextMarkup` or `_injectTextFieldsToElement`.
+
+**User zones** (`zones:` in config, merged by `_mergeUserZones()`): each axis takes px or percent (`x` / `x_percent`, `y` / `y_percent`, `width` / `width_percent`, `height` / `height_percent`); px wins when both are set, and a zone missing an axis is skipped with a warning. The auto-zone names per card are in the user docs (`doc/core/text-fields-zones.md`); keep that page in step when a card's `_calculateZones()` changes.
+
+**`debug_zones: true`** outlines every zone; the editor's Zones tab sets it from its Developer Tools section. It stays in the config, so it is for development only.
+
+---
+
+## Shadow DOM Styles
+
+- Card styles go in `static get styles()` with the `css` tag; never put a `<style>` element in `_renderCard()`. Values that change per render go inline (the button's generated SVG uses inline styles because a `<style>` block in regenerated SVG is cached by the browser and misses variable changes; see the "CRITICAL DESIGN DECISION" note in `lcards-button.js`).
+- `var(--x)` reaches into the shadow root; outside stylesheets don't. Theme a card through CSS variables and its config, not through page CSS.
+- The `:host` rules come from the base CSS (`height: 100%`, see Sizing in Nested Grids); add card-specific `:host` rules in the card's own styles.
+
+---
+
+## Cleanup Rules
+
+`_onDisconnected()` in the base class automatically handles:
+- `core.unregisterCard()` (core registry)
+- `systemsManager.unregisterOverlay()` (overlay registry)
+- All `subscribeToEntity()` calls (auto-tracked set)
+- Registered DataSources
+- ResizeObserver
+- Theme overrides listener
+
+Not handled: the cleanup function `setupActions()` returns. The card keeps it and calls it before setting actions up again on new elements (button: `_actionCleanup`, slider: `_borderActionCleanups`, data grid: `_cellActionCleanups`). The base cannot run them on disconnect: a reconnected card keeps its DOM and would lose its taps.
+
+**Cards must NOT duplicate any of these cleanup calls.** Only add an `_onDisconnected()` override for card-specific teardown (timers, AbortControllers, 3rd-party instances). Always call `super._onDisconnected()` last.
+
+---
+
+## Custom Element Registration
+
+Register the card element in `src/lcards-main.js` — never in the card file itself. Card editors are the exception: each self-registers with the same guard, in its own editor file. Guard against double-registration:
+
+```javascript
+if (!customElements.get('lcards-my-card')) {
+  customElements.define('lcards-my-card', MyCard);
+}
+```
+
+`window.customCards` metadata is a single guarded bulk push of an array (`LCARdSCardClasses`), not a per-card call: add your card's `{ type, name, description }` entry to that array in `src/lcards-main.js` rather than calling `window.customCards.push({...})` yourself:
+
+```javascript
+window.customCards.push(...LCARdSCardClasses); // guarded by !window.customCards.some(c => c.type === 'lcards-button')
+```

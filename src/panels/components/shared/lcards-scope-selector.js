@@ -16,6 +16,8 @@
 
 import { LitElement, html, css, nothing } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { renderFilterChips } from '../../../editor/components/shared/filter-chips.js';
+import { canWriteGlobalStorage } from '../../../core/services/storage-permissions.js';
 
 export class LCARdSScopeSelector extends LitElement {
   // --------------------------------------------------------------------------
@@ -23,7 +25,8 @@ export class LCARdSScopeSelector extends LitElement {
   // --------------------------------------------------------------------------
   static properties = {
     hass:             { type: Object },
-    /** When true a "Global" tab is shown first (theme overrides need it). */
+    /** When true a "Global" tab is shown first (theme overrides need it). Admins only:
+     *  non-admins cannot write global storage, so they never see it. */
     showGlobal:       { type: Boolean },
     disabled:         { type: Boolean },
 
@@ -52,21 +55,41 @@ export class LCARdSScopeSelector extends LitElement {
     this._adminUserList      = [];
     this._adminDeviceList    = [];
     this._adminListsLoaded   = false;
+    /** @private */ this._globalWasShown  = false;
+    /** @private */ this._announcePending = false;
+  }
+
+  /** True when the Global tab is offered: asked for, and the user may write global storage. */
+  _globalShown() {
+    return this.showGlobal === true && canWriteGlobalStorage(this.hass);
   }
 
   /**
-   * Determine the default tab when showGlobal changes so the component
-   * doesn't end up on 'global' when showGlobal is turned off.
+   * Pick the default tab when the Global tab appears or disappears (showGlobal
+   * or the user's admin status changes), so a non-admin never ends up on Global.
    */
   willUpdate(changedProps) {
-    if (changedProps.has('showGlobal')) {
-      if (this.showGlobal) {
-        // When the Global tab is shown, default to it.
-        this._scopeTab = 'global';
-      } else if (this._scopeTab === 'global') {
-        // Global tab hidden — fall back to user.
-        this._scopeTab = 'user';
-      }
+    if (!changedProps.has('showGlobal') && !changedProps.has('hass')) return;
+    const shown = this._globalShown();
+    if (shown === this._globalWasShown) return;
+    this._globalWasShown = shown;
+    if (shown) {
+      // When the Global tab is shown, default to it.
+      this._scopeTab = 'global';
+      this._announcePending = true;
+    } else if (this._scopeTab === 'global') {
+      // Global tab hidden: fall back to user.
+      this._scopeTab = 'user';
+      this._announcePending = true;
+    }
+    // Either way the parent hears the new tab (it used to start on 'user' while
+    // the selector showed Global, so theme overrides went to the wrong scope).
+  }
+
+  updated() {
+    if (this._announcePending) {
+      this._announcePending = false;
+      this._fireChange();
     }
   }
 
@@ -82,6 +105,7 @@ export class LCARdSScopeSelector extends LitElement {
 
   /** Set the active scope tab from outside (e.g. parent restoring state). */
   setScope(scope) {
+    if (scope === 'global' && !this._globalShown()) return;
     if (typeof scope === 'string') this._scopeTab = scope;
   }
 
@@ -195,10 +219,7 @@ export class LCARdSScopeSelector extends LitElement {
       :host { display: block; }
 
       .scope-tabs {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 8px;
-        flex-wrap: wrap;
+        margin-bottom: var(--ha-space-2);
       }
 
       .admin-selector-row {
@@ -208,7 +229,7 @@ export class LCARdSScopeSelector extends LitElement {
         margin-bottom: 8px;
       }
       .admin-selector-label {
-        font-size: 13px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
         white-space: nowrap;
       }
@@ -223,7 +244,7 @@ export class LCARdSScopeSelector extends LitElement {
         gap: 8px;
         padding: 8px 12px;
         border-radius: 6px;
-        font-size: 13px;
+        font-size: var(--ha-font-size-s);
         background: color-mix(in srgb, var(--info-color, #03a9f4) 12%, transparent);
         border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--info-color, #03a9f4) 30%, transparent);
         margin-bottom: 8px;
@@ -247,34 +268,17 @@ export class LCARdSScopeSelector extends LitElement {
 
     return html`
       <!-- ── SCOPE PILL SWITCHER ── -->
-      <div class="scope-tabs">
-        ${this.showGlobal ? html`
-          <ha-button
-            appearance=${scope === 'global' ? 'filled' : 'plain'}
-            ?disabled=${this.disabled}
-            @click=${() => this._onTabClick('global')}
-          >
-            <ha-icon icon="mdi:earth" style="--mdc-icon-size:18px;margin-right:4px;vertical-align:middle;"></ha-icon>
-            Global
-          </ha-button>
-        ` : nothing}
-        <ha-button
-          appearance=${scope === 'user' ? 'filled' : 'plain'}
-          ?disabled=${this.disabled}
-          @click=${() => this._onTabClick('user')}
-        >
-          <ha-icon icon="mdi:account" style="--mdc-icon-size:18px;margin-right:4px;vertical-align:middle;"></ha-icon>
-          User
-        </ha-button>
-        <ha-button
-          appearance=${scope === 'device' ? 'filled' : 'plain'}
-          ?disabled=${this.disabled}
-          @click=${() => this._onTabClick('device')}
-        >
-          <ha-icon icon="mdi:laptop" style="--mdc-icon-size:18px;margin-right:4px;vertical-align:middle;"></ha-icon>
-          Device
-        </ha-button>
-      </div>
+      ${renderFilterChips({
+        className: 'scope-tabs',
+        options: [
+          ...(this._globalShown() ? [{ value: 'global', label: 'Global', icon: 'mdi:earth' }] : []),
+          { value: 'user', label: 'User', icon: 'mdi:account' },
+          { value: 'device', label: 'Device', icon: 'mdi:laptop' },
+        ],
+        selected: scope,
+        disabled: this.disabled,
+        onSelect: (value) => this._onTabClick(value),
+      })}
 
       <!-- ── ADMIN SUBJECT SELECTOR (non-Global scopes only) ── -->
       ${isAdminUser && this._adminListsLoaded && scope !== 'global' ? html`
@@ -288,7 +292,7 @@ export class LCARdSScopeSelector extends LitElement {
               options: [
                 {
                   value: '__own__',
-                  label: scope === 'user' ? '👤 My User (own)' : '💻 This Device (own)',
+                  label: scope === 'user' ? 'My user (own)' : 'This device (own)',
                 },
                 ...(scope === 'user'
                   ? this._adminUserList.map(u => ({ value: u.id, label: u.name || u.id }))
@@ -309,7 +313,7 @@ export class LCARdSScopeSelector extends LitElement {
           ${isAdminTarget
             ? html`Editing <strong>${scope}</strong> overrides for <strong>${adminTargetName}</strong>`
             : scope === 'global'
-              ? html`Editing <strong>global</strong> overrides — applied to all users on this install`
+              ? html`Editing <strong>global</strong> overrides: applied to all users on this install`
               : html`Editing your own <strong>${scope}</strong> overrides`}
         </span>
       </div>

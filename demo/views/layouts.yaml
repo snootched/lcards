@@ -1,0 +1,94 @@
+# Layouts (D1c): the layout card, a CSS grid of cards in one card: named areas,
+# a nested layout card, per-area backgrounds, and a grid that changes with the
+# screen width (mediaquery). The Dashboards topic shows whole layout views.
+title: Layouts
+path: layouts
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      # Named areas: three buttons down the side, a number wall beside them
+      - type: custom:lcards-layout-card
+        layout:
+          height: 280px
+          grid-gap: 6px
+          grid-template-columns: 180px minmax(0, 1fr)
+          grid-template-rows: 1fr 1fr 1fr
+          grid-template-areas: |
+            "b1 main"
+            "b2 main"
+            "b3 main"
+        cards:
+          - { type: custom:lcards-button, preset: lozenge, entity: input_boolean.lcards_test_lights, tap_action: { action: toggle }, text: { name: { content: LIGHTS, show: true } }, view_layout: { grid-area: b1 } }
+          - { type: custom:lcards-button, preset: lozenge, entity: input_boolean.lcards_test_doors, tap_action: { action: toggle }, text: { name: { content: DOORS, show: true } }, view_layout: { grid-area: b2 } }
+          - { type: custom:lcards-button, preset: lozenge, entity: input_boolean.lcards_test_toggle, tap_action: { action: toggle }, text: { name: { content: TOGGLE, show: true } }, view_layout: { grid-area: b3 } }
+          - { type: custom:lcards-data-grid, data_mode: decorative, grid: { grid-template-columns: "repeat(6, 1fr)", grid-template-rows: "repeat(6, auto)" }, style: { font_size: 18px }, view_layout: { grid-area: main } }
+        grid_options: { columns: 24, rows: 5 }
+      # A frame with a nested layout card inside it: a 2 by 2 grid of controls
+      - type: custom:lcards-layout-card
+        layout:
+          height: 280px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: minmax(0, 1fr)
+          grid-template-areas: |
+            "panel"
+        cards:
+          - type: custom:lcards-elbow
+            view_layout: { grid-area: panel }
+            elbow:
+              type: frame
+              segment: { color: theme:colors.ui.primary }
+              frame: { bar_width: 24, bar_height: 24 }
+          - type: custom:lcards-layout-card
+            view_layout: { grid-area: panel }
+            layout:
+              padding: 40px
+              grid-gap: 8px
+              grid-template-columns: 1fr 1fr
+              grid-template-rows: 1fr 1fr
+            cards:
+              - { type: custom:lcards-slider, entity: input_number.lcards_test_power, preset: gauge-basic, text: { name: { content: POWER } } }
+              - { type: custom:lcards-slider, entity: input_number.lcards_test_shields, preset: pills-basic, text: { name: { content: SHIELDS } } }
+              - { type: custom:lcards-button, preset: filled, entity: input_boolean.lcards_test_lights, tap_action: { action: toggle }, text: { name: { content: LIGHTS, show: true } } }
+              - { type: custom:lcards-button, preset: outline, entity: input_boolean.lcards_test_doors, tap_action: { action: toggle }, text: { name: { content: DOORS, show: true } } }
+        grid_options: { columns: 24, rows: 5 }
+  - type: grid
+    column_span: 4
+    cards:
+      # Per-area backgrounds: the areas are coloured even where no card sits
+      - type: custom:lcards-layout-card
+        layout:
+          height: 220px
+          grid-gap: 8px
+          grid-template-columns: 120px minmax(0, 1fr) 120px
+          grid-template-rows: 40px minmax(0, 1fr)
+          grid-template-areas: |
+            "cap   title  end"
+            "side  main   end"
+          areas:
+            cap: { background: theme:colors.ui.primary, border-radius: 20px 0 0 0 }
+            side: { background: theme:colors.ui.secondary }
+            end: { background: theme:colors.ui.tertiary, border-radius: 0 20px 20px 0 }
+            main: { border-width: 2px, border-style: solid, border-color: theme:colors.ui.primary, border-radius: var(--ha-border-radius-lg) }
+        cards:
+          - { type: custom:lcards-button, preset: text-only, interactive: false, text: { label: { content: AREAS, show: true, position: center-left, color: theme:colors.ui.tertiary } }, view_layout: { grid-area: title } }
+          - { type: custom:lcards-data-grid, data_mode: decorative, grid: { grid-template-columns: "repeat(6, 1fr)", grid-template-rows: "repeat(4, auto)" }, style: { font_size: 16px }, view_layout: { grid-area: main, margin: 8px } }
+        grid_options: { columns: 24, rows: 4 }
+      # Responsive: three columns on a wide screen, one on a narrow one (mediaquery)
+      - type: custom:lcards-layout-card
+        layout:
+          height: 220px
+          grid-gap: 6px
+          grid-template-columns: repeat(3, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+          mediaquery:
+            "(max-width: 1200px)":
+              grid-template-columns: minmax(0, 1fr)
+              grid-template-rows: repeat(3, minmax(0, 1fr))
+        cards:
+          - { type: custom:lcards-button, preset: panel-light, text: { label: { content: WIDE 3 COLUMNS } } }
+          - { type: custom:lcards-button, preset: panel-dark, text: { label: { content: NARROW 1 COLUMN } } }
+          - { type: custom:lcards-button, preset: panel-flagged, text: { label: { content: RESIZE THE WINDOW } } }
+        grid_options: { columns: 24, rows: 4 }

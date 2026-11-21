@@ -1,0 +1,121 @@
+# Astrometrics distance (E9 part 1): min_distance / max_distance / fade on
+# objects. Zoom in: a galaxy sector gives way to a star system, then the
+# planet's moons; a starbase is a marker far away and its model close up.
+title: Astrometrics distance
+path: astro-distance
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SECTOR, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_1, view: sector }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SYSTEM, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_1, view: system }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: EARTH, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_1, view: earth }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_distance_1
+        height: 650
+        camera:
+          view: sector
+          buttons: true
+          views:
+            sector: { target: [ 0, 0, 0 ], yaw: 20, tilt: 35, distance: 700 }
+            system: { target: [ 0, 0, 0 ], yaw: 20, tilt: 35, distance: 110 }
+            earth: { target: earth, yaw: 30, tilt: 20, distance: 14 }
+        backdrop:
+          stars: { count: 1500 }
+        points:
+          - { id: sol, xyz: [ 0, 0, 0 ], marker: dot, label: SOL, style: major, min_distance: 160, tap_action: { action: fly-to, view: system } }
+          - { id: vulcan, xyz: [ 160, 0, -90 ], marker: dot, label: VULCAN, style: minor, min_distance: 160 }
+          - { id: andoria, xyz: [ -180, 0, 60 ], marker: dot, label: ANDORIA, style: minor, min_distance: 160 }
+          - { id: mars, polar: [ 45, 300 ], object: mars_orbit, label: MARS, style: minor, max_distance: 220 }
+          - { id: earth, polar: [ 30, 60 ], object: earth_orbit, label: EARTH, style: minor, max_distance: 220, tap_action: { action: fly-to, view: earth } }
+          - { id: moon, polar: [ 4, 0 ], object: moon_orbit, label: LUNA, style: tiny, max_distance: 40 }
+        objects:
+          # the sector: shown from far away, gone once you are inside the system
+          - { type: grid, shape: disc, radius: 260, pattern: polar, line_spacing: 40, spoke_count: 24, opacity: 0.6, min_distance: 160 }
+          - { type: ring, radius: 260, width: 2, color: theme:colors.ui.secondary, min_distance: 160 }
+          # the system: appears as you close in
+          - { type: glow, at: sol, size: 26, color: var(--lcars-yellow) }
+          - { type: ring, id: earth_orbit, radius: 30, spin: 8, width: 1, opacity: 0.6, max_distance: 200 }
+          - { type: ring, id: mars_orbit, radius: 45, spin: 5, width: 1, opacity: 0.6, max_distance: 200 }
+          - { type: sphere, at: earth, radius: 2, image: builtin:earth_blue_marble, line_width: 0, spin: 20, max_distance: 200 }
+          - { type: sphere, at: mars, radius: 1.4, image: builtin:mars_viking, line_width: 0, spin: 15, max_distance: 200 }
+          # the Moon: only close to the Earth
+          - { type: ring, id: moon_orbit, at: earth, radius: 4, spin: 30, width: 1, dash: [ 3, 3 ], opacity: 0.6, max_distance: 40 }
+          - { type: sphere, at: moon, radius: 0.5, image: builtin:moon_lroc, line_width: 0, max_distance: 40 }
+        grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: FAR, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_2, view: far }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: NEAR, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_2, view: near }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_distance_2
+        height: 650
+        camera:
+          view: far
+          buttons: true
+          views:
+            far: { target: [ 0, 0, 0 ], yaw: 30, tilt: 25, distance: 900 }
+            near: { target: [ 0, 0, 0 ], yaw: 30, tilt: 25, distance: 160 }
+        backdrop:
+          stars: { count: 1500 }
+        points:
+          # a marker far away, the model close up: touching ranges cross-fade
+          - { id: ds9, xyz: [ 0, 0, 0 ], marker: starbase, min_distance: 300, label: DEEP SPACE 9, style: minor, tap_action: { action: fly-to, view: near } }
+          - { id: ds9_name, xyz: [ 0, 40, 0 ], label: DEEP SPACE 9, style: minor, max_distance: 300 }
+        objects:
+          - { type: model, src: builtin:deep_space_nine, size: 60, spin: 4, max_distance: 300 }
+        grid_options: { columns: full }
+      # E9 part 2: far away the belt's rocks become dots (no key), and the
+      # ship marker stands in for the ship's model
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: FAR, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_3, view: far }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: NEAR, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_3, view: near }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_distance_3
+        height: 650
+        camera:
+          view: far
+          buttons: true
+          views:
+            far: { target: [ 0, 0, 0 ], yaw: 20, tilt: 35, distance: 1400 }
+            near: { target: [ 0, 0, 0 ], yaw: 20, tilt: 25, distance: 200 }
+        backdrop:
+          stars: { count: 1500 }
+        points:
+          - { id: star, xyz: [ 0, 0, 0 ], label: STAR, style: minor }
+          - { id: ship, polar: [ 60, 0 ], object: patrol }
+          - { id: ship_far, at: ship, marker: ship, label: USS ENTERPRISE, style: tiny, min_distance: 400 }
+          - { id: ship_name, at: ship, offset: [ 0, 12, 0 ], label: USS ENTERPRISE, style: tiny, max_distance: 400 }
+        objects:
+          - { type: glow, at: star, size: 30, color: var(--lcars-yellow) }
+          - { type: belt, radius: [ 90, 120 ], count: 3000, size: [ 0.3, 1.2 ], period: 120 }
+          - { type: ring, id: patrol, radius: 60, spin: 10, width: 0.5, opacity: 0.2 }
+          - { type: model, src: builtin:constitution_class_refit, at: ship, size: 16, max_distance: 400 }
+        grid_options: { columns: full }

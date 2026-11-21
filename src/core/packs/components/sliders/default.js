@@ -140,7 +140,7 @@ export function getMetadata() {
                         default: 2
                     },
                     radius: {
-                        description: 'Corner radius — uniform number (e.g. 12) or per-corner object { top_left, top_right, bottom_right, bottom_left }. LCARS tip: set left corners to 0 and right corners to 12 for end-cap rounding on a left-bordered slider.',
+                        description: 'Corner radius: uniform number (e.g. 12) or per-corner object { top_left, top_right, bottom_right, bottom_left }. LCARS tip: set left corners to 0 and right corners to 12 for end-cap rounding on a left-bordered slider.',
                         type: ['number', 'object'],
                         default: 0
                     }

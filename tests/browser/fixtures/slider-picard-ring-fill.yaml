@@ -1,0 +1,11 @@
+# Picard ring with its own fill colour: the name follows the fill
+type: custom:lcards-slider
+entity: input_number.demo_level
+preset: picard-ring
+text:
+  name:
+    content: Zone F
+style:
+  ring:
+    fill:
+      color: var(--lcards-blue-medium)

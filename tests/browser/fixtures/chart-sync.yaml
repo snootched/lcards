@@ -1,0 +1,9 @@
+# sync_group (E1.3): the first of four charts in one group; chart-sizing.spec.js
+# mounts a twin (same window), a timeline and a 6 h chart beside it with __mountExtra
+type: custom:lcards-chart
+chart_type: line
+graph_span: 12h
+sync_group: hall
+sources:
+  - entity: sensor.demo_temperature
+    name: Temperature

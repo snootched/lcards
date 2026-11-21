@@ -1,36 +1,40 @@
-::: warning ⚠️ Work in Progress
-LCARdS is a **hobby** project, not a fully commissioned Starfleet product — expect the occasional tribble.
-
-Documentation is under continuous revision - it may not be fully complete and/or accurate to the current build of the project.  Please open an issue if you find any issues.
-
-:::
+---
+description: "What LCARdS is: LCARS-style cards, a layout view and a shell dashboard for Home Assistant, with themes, rules, data sources, animations, sounds and alert modes, and how the pieces fit together."
+moved_anchors:
+  the-cards: /getting-started/what-is-lcards#how-it-works
+  what-makes-it-different: /getting-started/what-is-lcards#what-that-gives-you
+---
 
 # What is LCARdS?
 
-![LCARdS Banner](/img/lcards-banner.gif)
+<video class="doc-video" src="/img/lcards-banner.mp4" poster="/img/lcards-banner.webp" title="LCARdS: LCARS cards for Home Assistant. A wormhole opens in a live astrometrics scene beside the title, spins, and closes again." autoplay loop muted playsinline></video>
 
-**Build Star Trek LCARS-style dashboards in Home Assistant**
-LCARdS brings many LCARS-style controls that can you can use to create interesting and interactive dashboards.
+**LCARdS builds Star Trek LCARS-style dashboards in Home Assistant: a set of cards and services that work together as one system.** It includes buttons, elbows, sliders, charts, data grids, ship displays and more, designed to pair with the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars).
 
-LCARdS originates from, and supersedes, the [CB-LCARS](https://github.com/snootched/cb-lcars) project. It is designed to accompany the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars).
+## How it works
 
+**Three layers, plus a small integration running inside Home Assistant.**
 
-## What Makes It Different
+<HowItWorks />
 
-[LCARdS Cards](../cards/) share a common set of core features, allowing for consistent features and interactivity across the system.
+## What that gives you
 
-**State-aware styling** — cards change colour and style in response to HA entity state, individually or in coordinated groups via the [Rules Engine](../core/rules/).
+**One system instead of separate cards, so the whole screen reacts together.**
 
-**Templates everywhere** — many configuration fields accept entity state, attributes, theme tokens, data source values, JavaScript expressions, or Jinja2. [Learn more →](../core/templates/)
+- **Colours that follow state:** a button lights up when its light is on, a reading turns red past a threshold. No automations needed.
+- **One look everywhere:** every card takes its colours, fonts and sizes from the same theme, so the whole screen matches.
+- **Screen-wide reactions:** [rules](../core/rules/) restyle many cards at once, and [alert mode](../core/alert-mode) repaints the whole dashboard.
+- **Live values anywhere:** put a sensor value, a smoothed reading or a [template](../core/templates/) in any label.
+- **Motion and sound:** [animations](../core/animations) and LCARS [sounds](../core/sounds) on taps and state changes.
+- **Control from automations:** [actions](../configuration/ha-actions) like `lcards.red_alert` work from scripts, automations and voice.
 
-**Alert Mode** — respond to alert conditions by shifting the entire dashboard colour palette, play sounds, and activate an overlay card. [Learn more →](../core/alert-mode.md)
+## Next steps
 
-**Animations** — Anime.js v4 is built in; animate any element in response to interactions or entity state changes. [Learn more →](../core/animations.md)
+1. **[Install LCARdS](installation)**: from the Home Assistant Marketplace, then a quick setup.
+2. **[Build a dashboard](building-dashboards)**: generate one, add LCARS sections, design one with Claude, borrow a sample layout or lay out a screen by hand.
+3. **[Browse the gallery](dashboard-gallery)**: copy a complete dashboard and make it yours.
+4. **[Get AI help](ai-assistance)**: let an assistant write the YAML for you.
 
-**Data Sources** — subscribe to entities, buffer history, run processing pipelines (moving averages, min/max), and use the results in any card field or chart. [Learn more →](../core/datasources/)
-
-## Next Steps
-
-→ **[Installation](installation.md)** — install via HACS in under a minute
-
-→ **[Coming from CB-LCARS?](cb-lcars-migration.md)** — feature mapping table
+::: info A hobby project
+LCARdS is a fan-made hobby project, not a fully commissioned Starfleet product: expect the occasional tribble. If something in these docs doesn't match what you see, please [open an issue](https://github.com/snootched/lcards/issues).
+:::

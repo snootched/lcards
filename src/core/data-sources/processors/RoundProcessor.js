@@ -15,7 +15,7 @@ import { Processor } from './BaseProcessor.js';
  * ```yaml
  * processor_name:
  *   type: round
- *   from: source_processor  # Optional
+ *   input_source: source_processor  # Optional
  *   precision: 1            # Decimal places
  *   method: round           # round, floor, ceil
  * ```
@@ -51,7 +51,7 @@ export class RoundProcessor extends Processor {
       case 'floor':
         result = Math.floor(scaled);
         break;
-      case 'ceil':
+      default: // 'ceil' (the constructor rejects any other method)
         result = Math.ceil(scaled);
         break;
     }

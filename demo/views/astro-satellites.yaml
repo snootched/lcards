@@ -1,0 +1,81 @@
+# Astrometrics Earth satellites (F1): real satellites round an Earth turned as it really is, from
+# orbits shipped with LCARdS. Diagram heights (the Earth orbit starter) and real heights side by side.
+title: Astrometrics satellites
+path: astro-satellites
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: ORBITS, show: true } }
+        tap_action: { action: fly-to, card: astro_sat_diagram, view: orbits }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: EARTH, show: true } }
+        tap_action: { action: fly-to, card: astro_sat_diagram, view: earth }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: ISS, show: true } }
+        tap_action: { action: fly-to, card: astro_sat_diagram, point: iss }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: LIVE, show: true } }
+        tap_action: { action: set-clock, card: astro_sat_diagram, date: now, rate: live }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: 2 MIN / S, show: true } }
+        tap_action: { action: set-clock, card: astro_sat_diagram, rate: 2 min/s }
+        grid_options: { columns: 8, rows: 1 }
+      # diagram heights: the Earth orbit starter
+      - type: custom:lcards-astrometrics-card
+        id: astro_sat_diagram
+        height: 650
+        clock: { date: now, rate: live }
+        camera:
+          view: orbits
+          buttons: true
+          views:
+            orbits: { target: [ 0, 0, 0 ], yaw: 30, tilt: 30, distance: 192 }
+            earth: { target: [ 0, 0, 0 ], yaw: 30, tilt: 15, distance: 84 }
+        backdrop: { stars: { count: 1500 } }
+        points:
+          - { id: iss, satellite: iss, object: earth, heights: diagram, marker: dot, label: ISS, style: tiny, color: var(--lcars-orange) }
+          - { id: tiangong, satellite: tiangong, object: earth, heights: diagram, marker: dot, label: TIANGONG, style: tiny, color: var(--lcars-orange) }
+          - { id: hubble, satellite: hubble, object: earth, heights: diagram, marker: dot, label: HUBBLE, style: tiny, color: var(--lcars-orange) }
+        objects:
+          - { type: sphere, id: earth, radius: 20, body: earth, image: builtin:earth_blue_marble }
+          - { type: ring, satellite: iss, width: 1.5, color: var(--lcars-orange) }
+          - { type: ring, satellite: tiangong, width: 1, opacity: 0.6, color: var(--lcars-orange) }
+          - { type: ring, satellite: hubble, width: 1, opacity: 0.6, color: var(--lcars-orange) }
+          - { type: satellites, id: gps, group: gps, object: earth, heights: diagram, color: var(--lcars-yellow), orbits: { width: 0.75, opacity: 0.35 } }
+          - { type: satellites, id: galileo, group: galileo, object: earth, heights: diagram, color: var(--lcars-violet), orbits: { width: 0.75, opacity: 0.35 } }
+          - { type: satellites, id: weather, group: geostationary, object: earth, heights: diagram, color: var(--lcars-blue), label: true, orbits: { width: 1, opacity: 0.5 } }
+        grid_options: { columns: full }
+  - type: grid
+    column_span: 4
+    cards:
+      # real heights: the ISS skims the surface, geostationary is almost six Earth radii out
+      - type: custom:lcards-astrometrics-card
+        id: astro_sat_real
+        height: 550
+        clock: { date: now, rate: 2 min/s }
+        camera:
+          buttons: true
+          views:
+            wide: { target: [ 0, 0, 0 ], yaw: 20, tilt: 25, distance: 340 }
+        backdrop: { stars: true }
+        points:
+          - { id: iss_real, satellite: iss, object: earth_real, marker: dot, label: ISS, style: tiny, color: var(--lcars-orange) }
+        objects:
+          - { type: sphere, id: earth_real, radius: 20, body: earth, image: builtin:earth_blue_marble }
+          - { type: ring, satellite: iss_real, width: 1.5, color: var(--lcars-orange) }
+          - { type: satellites, id: gps_real, group: gps, object: earth_real, color: var(--lcars-yellow), orbits: { width: 0.75, opacity: 0.35 } }
+          - { type: satellites, id: weather_real, group: geostationary, object: earth_real, color: var(--lcars-blue), label: true, orbits: { width: 1, opacity: 0.5 } }
+        grid_options: { columns: full }

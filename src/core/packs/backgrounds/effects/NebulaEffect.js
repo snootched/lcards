@@ -8,8 +8,9 @@
  */
 
 import { BaseEffect } from './BaseEffect.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
+import { numProp } from './animatable-props.js';
 
 /**
  * NebulaEffect - Layered nebula clouds with Perlin noise turbulence
@@ -24,6 +25,13 @@ import { lcardsLog } from '../../../../utils/lcards-logging.js';
  * @extends BaseEffect
  */
 export class NebulaEffect extends BaseEffect {
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    scroll_speed_x: numProp('scrollSpeedX'),
+    scroll_speed_y: numProp('scrollSpeedY'),
+    turbulence: numProp('turbulence', { min: 0, max: 1 })
+  };
+
   /**
    * Create a new nebula effect
    *
@@ -47,6 +55,10 @@ export class NebulaEffect extends BaseEffect {
    */
   constructor(config = {}) {
     super(/** @type {any} */ (config));
+    /** @type {any[]} */
+    this.clouds = [];
+    /** @type {() => number} seeded RNG, set by _initRNG() before any use */
+    this._rng = /** @type {any} */ (null);
 
     // Cloud generation config
     this.seed = config.seed ?? 1;
@@ -61,8 +73,7 @@ export class NebulaEffect extends BaseEffect {
     this.colors = Array.isArray(colorInput) ? colorInput : [colorInput];
 
     // Resolve colour expressions (CSS vars + computed functions like darken/lighten/alpha)
-    const _resolver = window.lcards?.core?.themeManager?.resolver;
-    const _resolve = (c) => ColorUtils.resolveCssVariable((_resolver ? _resolver.resolve(c, c) : c), c);
+    const _resolve = (c) => resolveColor(c, { concrete: true });
     this.resolvedColors = this.colors.map(_resolve);
 
     // Turbulence config
@@ -231,8 +242,8 @@ export class NebulaEffect extends BaseEffect {
 
     // Update scroll offsets (deltaTime is in milliseconds)
     const dt = deltaTime / 1000;
-    this._scrollOffsetX += this.scrollSpeedX * dt;
-    this._scrollOffsetY += this.scrollSpeedY * dt;
+    this._scrollOffsetX += this.scrollSpeedX * this.speed * dt;
+    this._scrollOffsetY += this.scrollSpeedY * this.speed * dt;
   }
 
   /**
@@ -248,22 +259,7 @@ export class NebulaEffect extends BaseEffect {
     const parentAlpha = ctx.globalAlpha;
 
     // Draw each cloud
-    for (const cloud of this.clouds) {
-      // Calculate actual position and radius in pixels
-      const baseX = cloud.x * canvasWidth;
-      const baseY = cloud.y * canvasHeight;
-      const radius = cloud.radius * Math.min(canvasWidth, canvasHeight);
-
-      // Apply Perlin noise displacement for turbulence
-      const noiseX = (baseX + this._scrollOffsetX) * this.noiseScale;
-      const noiseY = (baseY + this._scrollOffsetY) * this.noiseScale;
-      const noise = this._perlin2D(noiseX, noiseY);
-
-      // Displace position based on turbulence
-      const displacement = noise * this.turbulence * radius * 0.5;
-      const x = baseX + displacement * Math.cos(noise * Math.PI);
-      const y = baseY + displacement * Math.sin(noise * Math.PI);
-
+    for (const { cloud, x, y, radius } of this.cloudPlacements(canvasWidth, canvasHeight)) {
       // Create radial gradient
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
 
@@ -284,6 +280,35 @@ export class NebulaEffect extends BaseEffect {
 
     // Restore parent alpha
     ctx.globalAlpha = parentAlpha;
+  }
+
+  /**
+   * Where each cloud is this frame: its centre drifted by Perlin turbulence,
+   * and its radius, in px. Shared with the volumetric WebGL version.
+   * @param {number} canvasWidth
+   * @param {number} canvasHeight
+   * @returns {Array<{ cloud: any, x: number, y: number, radius: number }>}
+   */
+  cloudPlacements(canvasWidth, canvasHeight) {
+    return this.clouds.map((cloud) => {
+      const baseX = cloud.x * canvasWidth;
+      const baseY = cloud.y * canvasHeight;
+      const radius = cloud.radius * Math.min(canvasWidth, canvasHeight);
+
+      // Apply Perlin noise displacement for turbulence
+      const noiseX = (baseX + this._scrollOffsetX) * this.noiseScale;
+      const noiseY = (baseY + this._scrollOffsetY) * this.noiseScale;
+      const noise = this._perlin2D(noiseX, noiseY);
+
+      // Displace position based on turbulence
+      const displacement = noise * this.turbulence * radius * 0.5;
+      return {
+        cloud,
+        x: baseX + displacement * Math.cos(noise * Math.PI),
+        y: baseY + displacement * Math.sin(noise * Math.PI),
+        radius
+      };
+    });
   }
 
   /**
@@ -315,6 +340,19 @@ export class NebulaEffect extends BaseEffect {
 
     // Fallback: wrap in rgba (may not work for named colors)
     return `rgba(${color}, ${alpha})`;
+  }
+
+  /**
+   * Take the new palette from `fresh` (same seed, so cloud i has the same
+   * colour slot): positions and drift stay.
+   * @param {any} fresh
+   * @returns {boolean}
+   */
+  recolorFrom(fresh) {
+    if (!(fresh instanceof NebulaEffect) || fresh.clouds.length !== this.clouds.length) return false;
+    this.resolvedColors = fresh.resolvedColors;
+    this.clouds.forEach((cloud, i) => { cloud.color = fresh.clouds[i].color; });
+    return true;
   }
 
   /**

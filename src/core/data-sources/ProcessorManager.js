@@ -3,7 +3,7 @@
  *
  * Replaces the old transformation/aggregation split with a unified approach:
  * - All processors store historical data in RollingBuffer
- * - Clear dependency chain with from: field
+ * - Clear dependency chain with the input_source: field
  * - Simple access pattern: {datasource.processor_name}
  * - Everything is chartable
  *
@@ -106,7 +106,7 @@ export class ProcessorManager {
 
     lcardsLog.debug(
       `[ProcessorManager] ✓ Initialized ${this.processors.size} processors, ` +
-      `execution order: ${this._executionOrder.join(' → ')}`
+      `execution order: ${(this._executionOrder ?? []).join(' → ')}`
     );
   }
 
@@ -178,9 +178,8 @@ export class ProcessorManager {
     });
 
     this.processors.forEach((processor, key) => {
-      const dep = processor.getDependency(); // Returns 'from' field value or null
-
-      if (dep) {
+      // input_source, plus an expression's sources
+      for (const dep of processor.getDependencies()) {
         if (!this.processors.has(dep)) {
           throw new Error(
             `Processor ${key} depends on unknown processor: ${dep}. ` +
@@ -188,8 +187,10 @@ export class ProcessorManager {
           );
         }
 
-        graph.get(dep).add(key);
-        inDegree.set(key, inDegree.get(key) + 1);
+        if (!graph.get(dep).has(key)) {
+          graph.get(dep).add(key);
+          inDegree.set(key, inDegree.get(key) + 1);
+        }
       }
     });
 
@@ -238,7 +239,8 @@ export class ProcessorManager {
   process(value, timestamp, mainBuffer) {
     lcardsLog.trace(`[ProcessorManager] process() called with value=${value}, timestamp=${timestamp}`);
 
-    if (!this._executionOrderValid) {
+    const order = this._executionOrder;
+    if (!this._executionOrderValid || !order) {
       lcardsLog.warn('[ProcessorManager] Execution order not valid, skipping processing');
       return {};
     }
@@ -246,11 +248,11 @@ export class ProcessorManager {
     const startTime = performance.now();
     const results = {};
 
-    lcardsLog.trace(`[ProcessorManager] Processing through ${this._executionOrder.length} processors: ${this._executionOrder.join(', ')}`);
+    lcardsLog.trace(`[ProcessorManager] Processing through ${order.length} processors: ${order.join(', ')}`);
 
     try {
       // Execute processors in dependency order
-      this._executionOrder.forEach(key => {
+      order.forEach(key => {
         const processor = this.processors.get(key);
         const buffer = this.processorBuffers.get(key);
 
@@ -366,6 +368,3 @@ export class ProcessorManager {
     this._executionOrderValid = false;
   }
 }
-
-// Re-export Processor for backward compatibility
-export { Processor } from './processors/BaseProcessor.js';

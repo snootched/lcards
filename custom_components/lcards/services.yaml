@@ -60,7 +60,7 @@ set_alert_mode:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty to target all users.
+        Limit to specific Home Assistant user IDs. Leave empty to target all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -80,7 +80,7 @@ set_alert_mode:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -106,7 +106,7 @@ red_alert:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty for all users.
+        Limit to specific Home Assistant user IDs. Leave empty for all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -125,7 +125,7 @@ red_alert:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -151,7 +151,7 @@ yellow_alert:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty for all users.
+        Limit to specific Home Assistant user IDs. Leave empty for all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -170,7 +170,7 @@ yellow_alert:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -196,7 +196,7 @@ blue_alert:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty for all users.
+        Limit to specific Home Assistant user IDs. Leave empty for all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -215,7 +215,7 @@ blue_alert:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -241,7 +241,7 @@ gray_alert:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty for all users.
+        Limit to specific Home Assistant user IDs. Leave empty for all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -260,7 +260,7 @@ gray_alert:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -286,7 +286,7 @@ black_alert:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty for all users.
+        Limit to specific Home Assistant user IDs. Leave empty for all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -305,7 +305,7 @@ black_alert:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -331,7 +331,7 @@ clear_alert:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty for all users.
+        Limit to specific Home Assistant user IDs. Leave empty for all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -350,7 +350,7 @@ clear_alert:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -377,7 +377,7 @@ reload:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to sessions belonging to specific HA users. Leave empty for all.
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -394,7 +394,7 @@ reload:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -440,7 +440,7 @@ set_log_level:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to sessions belonging to specific HA users. Leave empty for all.
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -457,7 +457,7 @@ set_log_level:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -518,7 +518,7 @@ trigger_effect:
     duration:
       name: Duration (ms)
       description: >
-        Auto-clear all effects after this many milliseconds. Omit for a
+        Clear the slots this action sets after this many milliseconds. Omit for a
         persistent effect that must be cleared manually via lcards.clear_effect.
       required: false
       example: 5000
@@ -541,7 +541,7 @@ trigger_effect:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to sessions belonging to specific HA users. Leave empty for all.
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -558,7 +558,7 @@ trigger_effect:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -600,7 +600,7 @@ clear_effect:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to sessions belonging to specific HA users. Leave empty for all.
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -616,7 +616,7 @@ clear_effect:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -626,12 +626,12 @@ clear_effect:
 play_sound:
   name: Play Sound
   description: >
-    Play a sound effect on target LCARdS frontends — without changing alert
-    mode, theme, or any screen effect. Provide either `event_type` (plays
-    whatever sound is currently configured for that UI event on the target
-    device, respecting its overrides/scheme) or `asset_key` (plays one exact
-    sound file, bypassing scheme/overrides). If both are given, `asset_key`
-    wins.
+    Play a sound effect on target LCARdS frontends, without changing alert
+    mode, theme, or any screen effect. Provide `event_type` (plays whatever
+    sound is currently configured for that UI event on the target device,
+    respecting its overrides/scheme) or `asset_key` (plays one exact sound
+    file, bypassing scheme/overrides); a call with neither is refused. If both
+    are given, `asset_key` wins.
   fields:
     event_type:
       name: Event Type
@@ -647,7 +647,6 @@ play_sound:
             - { label: "Card Hold", value: card_hold }
             - { label: "Card Double-Tap", value: card_double_tap }
             - { label: "Card Hover (Desktop)", value: card_hover }
-            - { label: "Button Tap", value: button_tap }
             - { label: "Toggle → On", value: toggle_on }
             - { label: "Toggle → Off", value: toggle_off }
             - { label: "Slider Grab", value: slider_drag_start }
@@ -669,6 +668,8 @@ play_sound:
             - { label: "System Ready", value: system_ready }
             - { label: "System Error", value: error }
             - { label: "Notification", value: notification }
+            - { label: "Borg Assimilation", value: borg_assimilate }
+            - { label: "Borg Deassimilation", value: borg_deassimilate }
     asset_key:
       name: Asset Key (advanced)
       description: >
@@ -692,7 +693,7 @@ play_sound:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to sessions belonging to specific HA users. Leave empty for all.
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -708,7 +709,154 @@ play_sound:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true
+
+fly_to:
+  name: Fly to
+  description: >
+    Fly the camera of an LCARdS astrometrics card to one of its named views or
+    to one of its points, on every open dashboard showing that card (or only
+    the targeted devices and users).
+  fields:
+    card_id:
+      name: Card ID
+      description: The `id` of the astrometrics card.
+      required: true
+      example: galaxy
+      selector:
+        text:
+    view:
+      name: View
+      description: A named view of the card (`camera.views`). Give a view or a point.
+      required: false
+      example: top
+      selector:
+        text:
+    point:
+      name: Point
+      description: A point id of the card to fly to (it wins over View).
+      required: false
+      example: earth
+      selector:
+        text:
+    duration:
+      name: Duration
+      description: How long the flight takes, in milliseconds. Default the card's `camera.fly_duration`.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 60000
+          step: 100
+          unit_of_measurement: ms
+    warp:
+      name: Warp
+      description: Stars and dust streak on the way (warp), or off for none. Default the view's own `warp`, else the card's `camera.warp`.
+      required: false
+      selector:
+        boolean:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty to broadcast to
+        all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to Home Assistant users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true
+
+set_clock:
+  name: Set clock
+  description: >
+    Set the scene date and how fast it runs on an LCARdS astrometrics card
+    (where its real planets and moons are, and how they are turned), on every
+    open dashboard showing that card (or only the targeted devices and users).
+  fields:
+    card_id:
+      name: Card ID
+      description: The `id` of the astrometrics card.
+      required: true
+      example: sol
+      selector:
+        text:
+    date:
+      name: Date
+      description: >
+        The scene date: `now`, or an ISO date and time (2026-10-30, 2026-10-30T12:00:00Z,
+        or the state of a date and time helper). Give a date, a rate or both.
+      required: false
+      example: "2026-10-30T12:00:00Z"
+      selector:
+        text:
+    rate:
+      name: Rate
+      description: >
+        How fast the date runs: `live` (real time), days per second (1 is a day a
+        second, 0 holds it, negative runs back), or with a unit as the time slider shows
+        it: `1 h/s` (an hour a second), `30 d/s`, `1 y/s`.
+      required: false
+      example: 1
+      selector:
+        text:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty to broadcast to
+        all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -718,13 +866,13 @@ play_sound:
 show_portal_card:
   name: Show Portal Card
   description: >
-    Display an HA card in the LCARdS screen-effect portal overlay on target
+    Display a Home Assistant card in the LCARdS screen-effect portal overlay on target
     browsers. The card is rendered above all other content. Optionally apply
     screen effect layers and auto-dismiss after a duration.
   fields:
     content:
       name: Card Config
-      description: HA card YAML configuration object (required).
+      description: Home Assistant card YAML configuration object (required).
       required: true
       example:
         type: "custom:lcards-button"
@@ -799,7 +947,7 @@ show_portal_card:
           multiple: true
     target_user_ids:
       name: Target User IDs
-      description: Limit to sessions belonging to specific HA users. Leave empty for all.
+      description: Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -816,7 +964,7 @@ show_portal_card:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -840,7 +988,7 @@ clear_portal_card:
           multiple: true
     target_user_ids:
       name: Target User IDs
-      description: Limit to sessions belonging to specific HA users. Leave empty for all.
+      description: Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -857,7 +1005,7 @@ clear_portal_card:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -895,9 +1043,9 @@ borg_assimilate:
       description: >
         Number of Borg injection points that appear on screen during the intro.
         Each site pulses with a breathing glow and sprouts Bézier tendrils
-        spreading across the viewport. Default: 7.
+        spreading across the viewport. Default: 8.
       required: false
-      default: 7
+      default: 8
       selector:
         number:
           min: 1
@@ -907,9 +1055,9 @@ borg_assimilate:
       name: Tendrils Per Site
       description: >
         Number of Bézier tendrils grown from each injection site.
-        Higher values create a denser lattice. Default: 8.
+        Higher values create a denser lattice. Default: 5.
       required: false
-      default: 8
+      default: 5
       selector:
         number:
           min: 1
@@ -941,6 +1089,61 @@ borg_assimilate:
           min: 0
           max: 6
           step: 1
+    renderer:
+      name: Renderer
+      description: >
+        `auto` (default) plays the WebGL intro where the browser supports it:
+        an assimilation front spreading Borg circuitry across the screen,
+        glowing tendrils, a rotating Borg cube and signal corruption.
+        `canvas` plays the classic tendril animation. Without WebGL every
+        value plays the classic one.
+      required: false
+      default: auto
+      selector:
+        select:
+          options:
+            - auto
+            - webgl
+            - canvas
+    cube:
+      name: Borg cube
+      description: >
+        WebGL intro only: a rotating Borg cube emerges at the centre of the
+        screen. `detailed` (default) draws a solid cube covered in machinery,
+        with a rail lattice, glowing spots and a soft halo. `classic` draws the
+        lighter wireframe cube. `none` leaves the cube out.
+      required: false
+      default: detailed
+      selector:
+        select:
+          options:
+            - detailed
+            - classic
+            - none
+    corruption:
+      name: Signal Corruption
+      description: >
+        WebGL intro only: strength of the block displacement, tearing and
+        colour fringing bursts, 0 to 1. 0 turns them off. Default: 0.5.
+      required: false
+      default: 0.5
+      selector:
+        number:
+          min: 0
+          max: 1
+          step: 0.05
+    overrun:
+      name: Overrun
+      description: >
+        WebGL intro only: how dark the screen gets behind the assimilation
+        front, 0 to 1. 0 draws the circuitry only. Default: 0.65.
+      required: false
+      default: 0.65
+      selector:
+        number:
+          min: 0
+          max: 1
+          step: 0.05
     transition_style:
       name: Palette Transition Style
       description: >
@@ -968,6 +1171,18 @@ borg_assimilate:
       default: false
       selector:
         boolean:
+    sound:
+      name: Sound
+      description: >
+        A sound to play as the assimilation starts: a file URL such as
+        `/local/sounds/borg.mp3` (a file in the `www/sounds` folder of your
+        Home Assistant configuration), a media library id
+        (`media-source://...`) or a sound asset key. `none` plays nothing.
+        Left empty, the `borg_assimilate` sound event plays: silent unless
+        your sound scheme or a sound override assigns it.
+      required: false
+      selector:
+        text:
     font_swap:
       name: Font Swap
       description: >
@@ -979,6 +1194,19 @@ borg_assimilate:
       default: true
       selector:
         boolean:
+    palette_hue:
+      name: Palette Hue
+      description: >
+        The hue (0 to 359 degrees) the dashboard palette shifts toward during
+        assimilation: 110 is Borg yellow-green, 240 blue, 0 red. Default: 110.
+      required: false
+      default: 110
+      selector:
+        number:
+          min: 0
+          max: 359
+          step: 1
+          unit_of_measurement: "°"
     intro_layers:
       name: Intro Layers (Advanced)
       description: |-
@@ -988,18 +1216,18 @@ borg_assimilate:
         missing keys fall back to the flat values.
 
         canvas  — always the borg-assimilation effect, params:
-          siteCount:       7       # injection sites (1–20)
-          tendrilsPerSite: 8       # Bézier tendrils per site (1–24)
+          siteCount:       8       # injection sites (1–20)
+          tendrilsPerSite: 5       # Bézier tendrils per site (1–24)
           tendrilLength:   600     # max tendril reach in px (100–1200)
           particleCount:   2       # nano-probe particles per tendril (0–6)
-          color:    "#00cc44"      # tendril / site colour
-          glowColor: "#00ff66"     # inner glow colour at each site
+          color:    var(--lcars-martian)   # tendril / site colour (default)
+          glowColor: var(--lcards-yellow)  # inner glow colour at each site (default)
 
-        backdrop  — optional layer behind the canvas (e.g. blur):
+        backdrop  — optional layer behind the canvas (default: saturate 200%):
           preset: blur
           amount: "8px"            # CSS blur value
 
-        color  — optional colour overlay over the canvas:
+        color  — optional colour overlay over the canvas (default: a 25% green tint):
           preset: color-tint
           color: "rgba(0,40,0,0.2)"
 
@@ -1028,6 +1256,11 @@ borg_assimilate:
         until deassimilation. When provided, overrides the Suppress Persistent
         Effects toggle above.
         Omit entirely to use the defaults; pass an empty object to suppress all.
+        The defaults: a light glitch on the canvas (intensity 0.08), a 10% green
+        colour tint and a 200% saturate backdrop. Any slot set here replaces the
+        defaults as a whole.
+
+        Example, scanlines instead:
 
         canvas  — scanlines (CRT effect):
           preset: scanlines
@@ -1061,7 +1294,7 @@ borg_assimilate:
           multiple: true
     target_user_ids:
       name: Target User IDs
-      description: Limit to sessions belonging to specific HA users. Leave empty for all.
+      description: Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -1078,7 +1311,7 @@ borg_assimilate:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -1089,8 +1322,9 @@ borg_deassimilate:
   name: Borg Deassimilate
   description: >
     Reverse the Borg assimilation on LCARdS-enabled browsers. Plays a brief
-    glitch outro (optional), reverts the UI palette to normal, restores the
-    standard font, and clears all persistent screen effects.
+    glitch outro (optional), returns the UI palette to the alert mode that was
+    active before the assimilation, restores the standard font, and clears all
+    persistent screen effects.
     Supports targeting — omit all target fields to restore all connected browsers.
   fields:
     with_outro:
@@ -1138,6 +1372,17 @@ borg_deassimilate:
           duration: 1200
       selector:
         object:
+    sound:
+      name: Sound
+      description: >
+        A sound to play as the deassimilation starts: a file URL such as
+        `/local/sounds/borg-restore.mp3`, a media library id
+        (`media-source://...`) or a sound asset key. `none` plays nothing.
+        Left empty, the `borg_deassimilate` sound event plays: silent unless
+        your sound scheme or a sound override assigns it.
+      required: false
+      selector:
+        text:
     revert_transition_style:
       name: Palette Revert Transition
       description: >
@@ -1165,7 +1410,7 @@ borg_deassimilate:
           multiple: true
     target_user_ids:
       name: Target User IDs
-      description: Limit to sessions belonging to specific HA users. Leave empty for all.
+      description: Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -1182,7 +1427,7 @@ borg_deassimilate:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:

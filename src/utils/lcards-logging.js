@@ -28,7 +28,8 @@ function readStoredLogLevel() {
 let lcardsGlobalLogLevel = readStoredLogLevel() || 'info';
 
 export function lcardsSetGlobalLogLevel(level) {
-  const validLevels = ['error', 'warn', 'info', 'debug', 'trace'];
+  // 'off' is the integration's quietest option: nothing at all (it fell back to info)
+  const validLevels = ['off', 'error', 'warn', 'info', 'debug', 'trace'];
   if (!validLevels.includes(level)) {
     console.warn('🟡 LCARdS|WARN: Invalid log level:', level, 'Using "info" instead');
     level = 'info';
@@ -154,7 +155,8 @@ function shouldLog(level) {
   // Correct logging hierarchy: error (most critical) -> warn -> info -> debug -> trace (least critical)
   const levels = ['error', 'warn', 'info', 'debug', 'trace'];
   const levelPriority = {
-    'error': 0,  // Always shown (highest priority)
+    'off': -1,   // Nothing is shown
+    'error': 0,  // Shown at every level but off
     'warn': 1,   // Shown at warn level and above
     'info': 2,   // Shown at info level and above
     'debug': 3,  // Shown at debug level and above
@@ -176,13 +178,47 @@ function createStyleArgs(level, message, ...args) {
   ];
 }
 
+// ─── Recent warnings/errors (support bundle) ─────────────────────────────────
+// Captured regardless of the console log level so "Copy support info" can show
+// what LCARdS complained about even when the user runs at level 'error'.
+const RECENT_LOG_LIMIT = 25;
+const RECENT_MSG_MAX = 300;
+/** @type {{t: string, level: 'warn'|'error', message: string}[]} */
+const _recentLogEntries = [];
+
+function _stringifyLogPart(part) {
+  if (part instanceof Error) return `${part.name}: ${part.message}`;
+  if (typeof part === 'string') return part;
+  try { return JSON.stringify(part); } catch { return String(part); }
+}
+
+function _recordRecent(level, message, args) {
+  const text = [message, ...args].map(_stringifyLogPart).join(' ');
+  _recentLogEntries.push({
+    t: new Date().toISOString(),
+    level,
+    message: text.length > RECENT_MSG_MAX ? `${text.slice(0, RECENT_MSG_MAX)}…` : text,
+  });
+  if (_recentLogEntries.length > RECENT_LOG_LIMIT) _recentLogEntries.shift();
+}
+
+/**
+ * The most recent LCARdS warnings and errors (oldest first), for support info.
+ * @returns {{t: string, level: 'warn'|'error', message: string}[]}
+ */
+export function getRecentLogEntries() {
+  return [..._recentLogEntries];
+}
+
 export function logError(message, ...args) {
+  _recordRecent('error', message, args);
   if (shouldLog('error')) {
     console.error(...createStyleArgs('error', message, ...args));
   }
 }
 
 export function logWarn(message, ...args) {
+  _recordRecent('warn', message, args);
   if (shouldLog('warn')) {
     console.warn(...createStyleArgs('warn', message, ...args));
   }
@@ -206,8 +242,6 @@ export function logTrace(message, ...args) {
   }
 }
 
-// Alias
-export const logLog = logInfo;
 
 
 

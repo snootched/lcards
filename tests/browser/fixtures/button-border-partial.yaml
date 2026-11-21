@@ -1,0 +1,13 @@
+# a per-side border width or per-corner radius keeps the preset's value on the other sides (doc/cards/button/styles.md)
+type: custom:lcards-button
+entity: light.living_room
+preset: outline
+text:
+  name:
+    show: true
+style:
+  border:
+    width:
+      left: 6
+    radius:
+      top_left: 24

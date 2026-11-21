@@ -16,9 +16,40 @@
  */
 
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { bundleUrl } from '../../../utils/bundle-url.js';
 
 /** @type {Map<string, Promise<HTMLImageElement>>} */
 const _cache = new Map();
+
+// Image URLs from templates change for good (a camera's entity_picture token rotates
+// every few minutes, album art changes per track), so keep the most recently used
+// only; a failed load is dropped so the next request tries again (2026-11-17).
+const CACHE_MAX = 32;
+
+/**
+ * Remember a load: most recently used last, the oldest dropped past CACHE_MAX,
+ * and a rejected load removed (when still the one cached).
+ * @param {string} key
+ * @param {Promise<HTMLImageElement>} p
+ * @returns {Promise<HTMLImageElement>}
+ */
+function _remember(key, p) {
+    _cache.set(key, p);
+    if (_cache.size > CACHE_MAX) _cache.delete(/** @type {string} */ (_cache.keys().next().value));
+    p.catch(() => { if (_cache.get(key) === p) _cache.delete(key); });
+    return p;
+}
+
+/**
+ * A cached load, marked most recently used.
+ * @param {string} key
+ * @returns {Promise<HTMLImageElement>|undefined}
+ */
+function _recall(key) {
+    const p = _cache.get(key);
+    if (p) { _cache.delete(key); _cache.set(key, p); }
+    return p;
+}
 
 /**
  * Resolve a `builtin:<key>` URL via AssetManager, if available.
@@ -64,7 +95,7 @@ function _loadImageElement(url) {
         img.crossOrigin = 'anonymous'; // required for canvas drawImage — avoids tainted-canvas errors
         img.onload  = () => resolve(img);
         img.onerror = () => reject(new Error(`[ImageLoader] Failed to load: "${url}"`));
-        img.src = url;
+        img.src = bundleUrl(url); // built-in /lcards/... URLs resolve against the bundle folder
     });
 }
 
@@ -103,7 +134,8 @@ export function loadImage(url) {
     // URLs may carry an expiring signed token, so AssetManager owns its own short-lived
     // cache for those and re-resolves on expiry; this cache just dedupes concurrent loads.
     if (url.startsWith('media-source://')) {
-        if (_cache.has(url)) return _cache.get(url);
+        const cached = _recall(url);
+        if (cached) return cached;
 
         const mediaSourceId = url;
         const p = _resolveMediaSource(mediaSourceId).then((resolvedUrl) => {
@@ -113,8 +145,7 @@ export function loadImage(url) {
             return _loadImageElement(resolvedUrl);
         });
 
-        _cache.set(mediaSourceId, p);
-        return p;
+        return _remember(mediaSourceId, p);
     }
 
     // Warn about mixed-content risk early (before the browser silently blocks it)
@@ -125,11 +156,10 @@ export function loadImage(url) {
         );
     }
 
-    if (_cache.has(url)) return _cache.get(url);
+    const cached = _recall(url);
+    if (cached) return cached;
 
-    const p = _loadImageElement(url);
-    _cache.set(url, p);
-    return p;
+    return _remember(url, _loadImageElement(url));
 }
 
 /**

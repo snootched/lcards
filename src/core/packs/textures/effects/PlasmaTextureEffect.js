@@ -24,8 +24,9 @@
  */
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
+import { configProp } from '../../backgrounds/effects/animatable-props.js';
 import { _fbm, parseColorToRgba } from './noise-helpers.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
 
 /**
  * PlasmaTextureEffect - Vivid alternating two-colour plasma bands
@@ -33,6 +34,12 @@ import { ColorUtils } from '../../../themes/ColorUtils.js';
  * @extends BaseTextureEffect
  */
 export class PlasmaTextureEffect extends BaseTextureEffect {
+    static animatableProps = {
+        ...BaseTextureEffect.animatableProps,
+        scroll_speed_x: configProp('scroll_speed_x', '_speedX'),
+        scroll_speed_y: configProp('scroll_speed_y', '_speedY'),
+    };
+
     /**
      * Padding (raw px) around the visible canvas in the cached bake buffer.
      * This effect has no downsampling knob (unlike ContourFieldEffect's
@@ -56,8 +63,13 @@ export class PlasmaTextureEffect extends BaseTextureEffect {
      */
     constructor(config = {}) {
         super(/** @type {any} */ (config));
-        const _r = window.lcards?.core?.themeManager?.resolver;
-        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        /** @type {HTMLCanvasElement} offscreen buffer, created by _ensureBuffer() before any use */
+        this._offCanvas = /** @type {any} */ (null);
+        /** @type {CanvasRenderingContext2D} its 2D context */
+        this._offCtx = /** @type {any} */ (null);
+        /** @type {ImageData} its pixel buffer */
+        this._imgData = /** @type {any} */ (null);
+        const _resolve = (c) => resolveColor(c, { concrete: true });
         this._colorA  = parseColorToRgba(_resolve(config.color_a ?? 'rgba(80,0,255,0.9)'),  'rgba(80,0,255,0.9)');
         this._colorB  = parseColorToRgba(_resolve(config.color_b ?? 'rgba(255,40,120,0.9)'), 'rgba(255,40,120,0.9)');
         this._freq    = config.base_frequency ?? 0.012;
@@ -97,7 +109,7 @@ export class PlasmaTextureEffect extends BaseTextureEffect {
         this._offCanvas        = document.createElement('canvas');
         this._offCanvas.width  = w;
         this._offCanvas.height = h;
-        this._offCtx   = this._offCanvas.getContext('2d');
+        this._offCtx   = /** @type {CanvasRenderingContext2D} */ (this._offCanvas.getContext('2d'));
         this._imgData  = this._offCtx.createImageData(w, h);
     }
 
@@ -262,8 +274,7 @@ export class PlasmaTextureEffect extends BaseTextureEffect {
 
     updateConfig(cfg) {
         super.updateConfig(cfg);
-        const _r = window.lcards?.core?.themeManager?.resolver;
-        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        const _resolve = (c) => resolveColor(c, { concrete: true });
 
         // Fields that change the BAKED appearance require a re-bake to take
         // effect immediately rather than waiting for the next scroll-drift
