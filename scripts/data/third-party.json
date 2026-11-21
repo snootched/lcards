@@ -80,7 +80,8 @@
       "url": "https://github.com/fsegurai/codemirror-themes",
       "purpose": "VS Code Dark colour theme for the YAML and template editors",
       "load": "lazy",
-      "packages": ["@fsegurai/codemirror-theme-vscode-dark"]
+      "packages": ["@fsegurai/codemirror-theme-vscode-dark"],
+      "family": ["@fsegurai/codemirror-theme-core"]
     },
     {
       "id": "codemirror-indentation-markers",
