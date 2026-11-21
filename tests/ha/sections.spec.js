@@ -76,7 +76,9 @@ test('LCARS sections: each renders its entities, in both looks; all three are in
     // the chooser: Create section → Automatic section lists the four under Community sections
     await page.goto(`/${DASH}/s?edit=1`);
     await page.locator('button.create-section').last().click({ timeout: 15_000 });
-    await page.locator('hui-dialog-create-section').getByText('Automatic section').click();
+    // HA 2026.12: the options are ha-list-item-button, whose inner button covers the
+    // headline text, so click the button by its role, not the text.
+    await page.locator('hui-dialog-create-section').getByRole('button', { name: /^Automatic section/ }).click();
     for (const name of ['LCARS readings', 'LCARS gauges', 'LCARS controls']) {
         await expect(page.getByRole('button', { name, exact: true })).toBeVisible({ timeout: 15_000 });
     }
