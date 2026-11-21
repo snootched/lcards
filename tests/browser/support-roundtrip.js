@@ -148,6 +148,11 @@ export async function sweepStudio({ tag, config }) {
     document.body.appendChild(studio);
     await studio.updateComplete;
     await sleep(300);
+    // The astrometrics preview stops drawing off screen. Without a GPU (CI) each WebGL
+    // frame is drawn in software and every control waited behind them: about 0.5 s a
+    // control, 2 minutes a fixture. Hidden, it still takes each config, so errors show.
+    const preview = studio.shadowRoot.querySelector('.preview-panel');
+    if (preview && tag === 'lcards-astrometrics-studio-dialog') preview.style.display = 'none';
     const original = clone(config);
     // A studio normalises on open (a data grid's short rows become objects): each control
     // is checked against that working copy, and the saved config against the original.

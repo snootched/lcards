@@ -10,7 +10,8 @@
  * with a zone in UTC digits as local time.
  *
  * Every chart, data grid, MSD and layout card fixture runs; the astrometrics ones are a
- * varied set (all 49 take ten minutes). test:browser:changed runs a card's own fixtures here
+ * varied set. Their 3D preview is hidden during the sweep (support-roundtrip.js): drawn in
+ * software on a CI runner it made a fixture take two minutes and time out. test:browser:changed runs a card's own fixtures here
  * when its files change; the full suite runs them all.
  */
 import { test, expect } from '@playwright/test';
