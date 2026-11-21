@@ -70,7 +70,7 @@ const CATEGORIES = [
     scripts: {
       'set-version': { when: 'every build', desc: 'Propagates package.json\'s version into manifest.json/const.py. Runs inside `build`; rarely needed standalone.' },
       'bump-version': { when: 'as needed', desc: 'Promote a -dev.N build to stable, or advance SEQ (resets on month rollover). Changes package.json only: then npm run build (writes const.py/manifest.json) and commit all three. Run when cutting a release.' },
-      'bump-version:dev': { when: 'as needed', desc: 'Increment -dev.N, or start -dev.1 on the next base. Changes package.json only: then npm run build (writes const.py; manifest.json only on a new base) and commit them together. Run while iterating on the dev branch.' },
+      'bump-version:dev': { when: 'as needed', desc: 'Increment -dev.N, or start -dev.1 on the next base (or a named one: npm run bump-version:dev -- 2026.12.0, right after a release). Changes package.json only: then npm run build (writes const.py; manifest.json only on a new base) and commit them together. Run while iterating on the dev branch.' },
     },
   },
   {

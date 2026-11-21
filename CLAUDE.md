@@ -56,6 +56,7 @@ Version bumps are always manual/deliberate — nothing bumps automatically. To b
 ```bash
 npm run bump-version              # stable: promote a -dev.N build, or advance SEQ (reset on month rollover)
 npm run bump-version:dev          # dev: increment -dev.N, or start -dev.1 on the next base
+npm run bump-version:dev -- 2026.12.0   # dev: start 2026.12.0-dev.1 (after a release, for next month's)
 ```
 
 Typical flow: iterate on `dev` with `bump-version:dev`; when ready to ship, `bump-version` to strip the suffix; merge `dev` → `main` via PR with that stable version already in `package.json`; run the `Release` GitHub Action on `main`.

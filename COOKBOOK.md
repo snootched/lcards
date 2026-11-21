@@ -92,7 +92,7 @@ A dev build with no page at all still publishes, with GitHub's generated notes o
 5. **Wait for the Docs workflow on `main`.**
 6. **Publish:** Actions, then Release, then Run workflow, branch **main**. It stops before tagging if the page is missing (exit 2) or still `status: testing` (exit 3).
 7. **Check the release on GitHub,** including the commit list's "Full Changelog" range. GitHub picks the previous tag itself and may compare against the last dev tag.
-8. **Next cycle:** the next `npm run bump-version:dev` starts a new version; the first "update the release notes" then creates its page.
+8. **Next cycle:** the next `npm run bump-version:dev` starts a new version; the first "update the release notes" then creates its page. Right after a stable release, still in its month, name the next release so `dev` (and the `/dev/` docs) move ahead of stable: `npm run bump-version:dev -- 2026.12.0` gives `2026.12.0-dev.1` (without a target it would be `2026.11.1-dev.1`).
 
 ### When something goes wrong
 
@@ -157,7 +157,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | `build:notices` | inside build | Writes `custom_components/lcards/THIRD_PARTY_NOTICES.txt` (gitignored like `lcards.js`, so it ships in `lcards.zip`): the `LICENSE` of every npm package in the build's sourcemaps, transitive ones included, plus the hand entries of `THIRD_PARTY_LICENSES` (ha-lcars, lcars, engage). Runs inside `build`, `build:integration` and `docs:bundle`; needs a build. The About page's library tables (`<LibraryTable />`, `doc/credits.md`) come from `scripts/data/third-party.json` with versions and licences from `node_modules`; `tests/docs/third-party.test.js` fails when `src/` imports a package without a row, a dependency is unused, or a licence outside MIT/ISC/BSD/Apache-2.0/0BSD has no override note (ApexCharts). |
 | `set-version` | inside build | `package.json` version into `manifest.json` (HA CalVer, no suffix) and `const.py`. |
 | `bump-version` | releasing | Strip `-dev.N` (promote), or advance SEQ (reset on a new month). |
-| `bump-version:dev` | each dev build | Next `-dev.N`, or `-dev.1` on the next base. |
+| `bump-version:dev` | each dev build | Next `-dev.N`, or `-dev.1` on the next base. `-- 2026.12.0` starts that base's `-dev.1` (after a release, for the next month's). |
 | `typecheck` | build, CI | Checks the generated element map is current, then `tsc`: zero errors or it fails. Runs inside `npm run build`. Rules and common fixes: `doc/development/typescript.md`. |
 | `types:elements` | as needed | Regenerate `src/types/elements.generated.d.ts` (one `HTMLElementTagNameMap` entry per registered custom element) after adding or renaming one. |
 
