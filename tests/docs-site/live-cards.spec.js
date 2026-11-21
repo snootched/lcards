@@ -174,6 +174,9 @@ test('a toggle tap switches the sample entity and the card follows', async ({ pa
     const first = page.locator('.card-demo').first();
     const bg = first.locator('lcards-button path.button-bg');
     const fill = () => bg.evaluate(el => getComputedStyle(el).fill);
+    // the demo counts as mounted before the button has drawn its colour (on a slow CI
+    // runner the first read was '', which the toggle back can never match)
+    await expect.poll(fill).not.toBe('');
     const before = await fill();
     await bg.click();
     await expect.poll(fill).not.toBe(before);
