@@ -128,11 +128,14 @@ jobs:
           fi
 
       # Live card demos, galleries, playgrounds and processor labs, on this
-      # channel's base: a failure stops the deploy below.
+      # channel's base: a failure stops the deploy below. Pull requests build only:
+      # the push run of the same commits runs these tests.
       - name: Install Playwright Chromium
+        if: github.event_name != 'pull_request'
         run: npx playwright install --with-deps chromium
 
       - name: Docs site tests
+        if: github.event_name != 'pull_request'
         env:
           DOCS_BASE: ${{ steps.channel.outputs.base }}
         run: npm run test:docs
