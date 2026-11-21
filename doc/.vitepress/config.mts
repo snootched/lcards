@@ -416,19 +416,41 @@ export default withMermaid(defineConfig({
         text: 'Getting Started',
         // The Help & Tools pages share the /getting-started/ folder (their URLs predate the split).
         activeMatch: '/getting-started/(?!(ai-assistance|config-checker|preview|getting-help)(\\.html)?$)',
+        // the same groups as the sidebar
         items: [
-          { text: 'What is LCARdS?',      link: '/getting-started/what-is-lcards' },
-          { text: 'Installation',          link: '/getting-started/installation' },
-          { text: 'Building a Dashboard', link: '/getting-started/building-dashboards' },
-          { text: 'Dashboard Strategies', link: '/getting-started/dashboard-strategies' },
-          { text: 'Section Strategies', link: '/getting-started/section-strategies' },
-          { text: 'Design It with AI',    link: '/getting-started/ai-assistance' },
-          { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
-          { text: 'Build by Hand',        link: '/getting-started/build-by-hand' },
-          { text: 'Bring It to Life',     link: '/getting-started/bring-it-to-life' },
-          { text: 'Designing LCARS Screens', link: '/getting-started/lcars-design' },
-          { text: 'LCARS Patterns',       link: '/getting-started/lcars-patterns' },
-          { text: 'Live Demo',            link: '/getting-started/live-demo' },
+          {
+            text: 'Getting Started',
+            items: [
+              { text: 'What is LCARdS?', link: '/getting-started/what-is-lcards' },
+              { text: 'Installation',    link: '/getting-started/installation' },
+              { text: 'Live Demo',       link: '/getting-started/live-demo' },
+            ],
+          },
+          {
+            text: 'Building a Dashboard',
+            items: [
+              { text: 'Overview',             link: '/getting-started/building-dashboards' },
+              { text: 'Dashboard Strategies', link: '/getting-started/dashboard-strategies' },
+              { text: 'Section Strategies',   link: '/getting-started/section-strategies' },
+              { text: 'Design It with AI',    link: '/getting-started/ai-assistance' },
+              { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
+              { text: 'Build by Hand',        link: '/getting-started/build-by-hand' },
+              { text: 'Bring It to Life',     link: '/getting-started/bring-it-to-life' },
+            ],
+          },
+          {
+            text: 'Designing LCARS Screens',
+            items: [
+              { text: 'Overview',       link: '/getting-started/lcars-design' },
+              { text: 'LCARS Patterns', link: '/getting-started/lcars-patterns' },
+            ],
+          },
+          {
+            text: 'More',
+            items: [
+              { text: 'Coming from CB-LCARS', link: '/getting-started/cb-lcars-migration' },
+            ],
+          },
         ],
       },
       {
