@@ -65,6 +65,10 @@ const result = await build({
     emptyOutDir: true,
     minify: false,
     target: 'node20',
+    // Wrap every CommonJS module (ajv has require cycles): with the default ('auto') Rollup
+    // decides per run, so the same sources could bundle differently and the committed
+    // plugin (plugins/lcards/) would look stale.
+    commonjsOptions: { strictRequires: true },
     rollupOptions: { output: { format: 'es', entryFileNames: ENTRY_NAME, inlineDynamicImports: true } },
   },
 });
