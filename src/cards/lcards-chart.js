@@ -47,6 +47,7 @@ import { ChartSeriesFetcher } from '../charts/chart-series-fetcher.js';
 import { normalizeChartSources, normalizeStateBands, arrayChartProblem } from '../charts/chart-sources.js';
 import { isTargetSource } from '../charts/chart-config-migration.js';
 import { resolveTarget, orderTargetIds } from '../utils/ha-targets.js';
+import { renderPickerPicture, fitPickerHost } from '../utils/picker-picture.js';
 import { createTimelineColorer } from '../utils/ha-state-color.js';
 import { joinSyncGroup, publishSyncTime, apexShowsCursor, timeAtX, xAtTime } from '../charts/chart-sync-group.js';
 import { SYNC_WINDOW_STEP_MS } from '../charts/chart-options-builder.js';
@@ -260,6 +261,7 @@ export class LCARdSChart extends LCARdSCard {
    */
   async _handleFirstUpdate() {
     // Note: LCARdSCard doesn't implement _handleFirstUpdate, don't call super
+    if (this._checkForAncestor(['hui-card-picker'])) fitPickerHost(this);
     const overlayId = this.config.id || `chart-${this._cardGuid}`;
     this._registerOverlayForRules(overlayId, 'chart', this.config.tags || []);
 
@@ -975,6 +977,10 @@ export class LCARdSChart extends LCARdSCard {
    * @protected
    */
   _renderCard() {
+    // card picker: a picture of a real chart (the picker has no history to draw)
+    if (this._checkForAncestor(['hui-card-picker'])) {
+      return renderPickerPicture('chart', 'A chart: a temperature area, a smoothed line and a comfort threshold');
+    }
     if (this._showPlaceholder()) {
       return this._renderPreview();
     }

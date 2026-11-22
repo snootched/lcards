@@ -30,6 +30,7 @@
  * row/column headers.
  */
 
+import { renderPickerPicture, inCardPicker, fitPickerHost } from '../utils/picker-picture.js';
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { visibilityPasses } from '../utils/visibility-conditions.js';
@@ -84,6 +85,9 @@ export class LCARdSLayoutCard extends LitElement {
 
     connectedCallback() {
         super.connectedCallback();
+        // Home Assistant's card picker shows a picture instead of the grid
+        this._inPicker = inCardPicker(this);
+        if (this._inPicker) fitPickerHost(this);
         this._setupMediaQueries();
 
         this.addEventListener('card-visibility-changed', this._onCardVisibilityChanged);
@@ -341,6 +345,7 @@ export class LCARdSLayoutCard extends LitElement {
     }
 
     render() {
+        if (this._inPicker) return renderPickerPicture('layout-card', 'A layout: the Bridge screen, a chart, readouts and rows of controls in an LCARS frame');
         const layout = this._config?.layout ?? {};
         const { columns, rows, areas, gap } = this._activeGrid();
         const gridStyle = buildGridStyle(layout, columns, rows, areas, gap, {

@@ -17,6 +17,7 @@
  * suppress themselves and log a warning.
  */
 
+import { renderPickerPicture, fitPickerHost } from '../utils/picker-picture.js';
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { getAlertOverlaySchema } from './schemas/lcards-alert-overlay-schema.js';
@@ -91,6 +92,8 @@ export class LCARdSAlertOverlay extends LitElement {
         this.editMode          = false;
         /** In the card editor's preview or the card picker: never owns the overlay. */
         this._inEditor         = false;
+        /** In Home Assistant's card picker: the tile is a picture (src/utils/picker-picture.js) */
+        this._inPicker         = false;
         /** @type {(() => void)|null} */
         this._releaseListener  = null;
         this._autoDismissTimer = null;
@@ -141,6 +144,8 @@ export class LCARdSAlertOverlay extends LitElement {
     connectedCallback() {
         super.connectedCallback();
         this._inEditor = this._checkForAncestor(['hui-dialog-edit-card', 'hui-card-picker']);
+        this._inPicker = this._checkForAncestor(['hui-card-picker']);
+        if (this._inPicker) fitPickerHost(this);
         this._editMode = this._isInEditMode();
 
         // ── Singleton guard (deferred) ────────────────────────────────────────
@@ -534,6 +539,8 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     render() {
+        // Card picker: a picture of red alert on a mock screen
+        if (this._inPicker) return renderPickerPicture('alert-overlay', 'The alert overlay: red alert over a dashboard');
         // Outside edit mode this element is invisible: the visible overlay
         // lives in a portal on document.body.
         if (!this._editMode) return html``;

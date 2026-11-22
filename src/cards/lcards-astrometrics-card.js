@@ -32,6 +32,7 @@
  * @see doc/cards/astrometrics/
  */
 
+import { renderPickerPicture, fitPickerHost } from '../utils/picker-picture.js';
 import { html, svg, css } from 'lit';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
@@ -558,31 +559,6 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                     font-size: 14px;
                     opacity: 0.8;
                 }
-                .astro-preview {
-                    width: 100%;
-                    height: 100%;
-                    display: block;
-                }
-                .astro-preview .grid {
-                    fill: none;
-                    stroke: var(--lcars-blue, var(--lcards-blue-medium));
-                    stroke-width: 1;
-                    opacity: 0.6;
-                }
-                .astro-preview .rim {
-                    fill: none;
-                    stroke: var(--lcars-orange, var(--lcards-orange-medium));
-                    stroke-width: 2;
-                }
-                .astro-preview .core {
-                    fill: var(--lcards-moonlight);
-                }
-                .astro-preview text {
-                    fill: var(--lcards-moonlight);
-                    font-family: var(--lcars-font, 'Antonio'), sans-serif;
-                    font-size: 14px;
-                    letter-spacing: 1px;
-                }
             `
         ];
     }
@@ -726,6 +702,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._inPicker = this._checkForAncestor(['hui-card-picker']);
         this._firstUpdateDone = true;
         if (this._inPicker) {
+            fitPickerHost(this);
             this.requestUpdate();
             return;
         }
@@ -1598,7 +1575,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
 
     /** @protected */
     _renderCard() {
-        if (this._inPicker) return this._renderPreview();
+        // card picker: a picture of a real scene (no WebGL for a thumbnail)
+        if (this._inPicker) return renderPickerPicture('astrometrics', 'An astrometrics scene: Earth with its satellites in orbit');
         const failure = this._failure ? FAILURES[/** @type {keyof typeof FAILURES} */ (this._failure)] : null;
         return html`
             <div class="astro-card"
@@ -2081,25 +2059,6 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             else this._buttonsIdle = true;
         }, BUTTONS_IDLE_MS);
     };
-
-    /**
-     * Card picker: a static drawing (no WebGL for a thumbnail).
-     * @private
-     */
-    _renderPreview() {
-        return html`
-            <svg class="astro-preview" viewBox="0 0 400 220" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                <ellipse class="grid" cx="200" cy="120" rx="150" ry="55"/>
-                <ellipse class="grid" cx="200" cy="120" rx="100" ry="37"/>
-                <ellipse class="grid" cx="200" cy="120" rx="50" ry="18"/>
-                <line class="grid" x1="50" y1="120" x2="350" y2="120"/>
-                <line class="grid" x1="200" y1="65" x2="200" y2="175"/>
-                <ellipse class="rim" cx="200" cy="120" rx="160" ry="59"/>
-                <circle class="core" cx="200" cy="120" r="5"/>
-                <text x="200" y="40" text-anchor="middle">ASTROMETRICS</text>
-            </svg>
-        `;
-    }
 
     /**
      * @protected

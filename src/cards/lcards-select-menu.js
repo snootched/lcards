@@ -27,7 +27,8 @@
  * ```
  */
 
-import { html, css, svg, noChange } from 'lit';
+import { renderPickerPicture, fitPickerHost } from '../utils/picker-picture.js';
+import { html, css, noChange } from 'lit';
 import { Directive, directive, PartType } from 'lit/directive.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { LCARdSCard } from '../base/LCARdSCard.js';
@@ -147,6 +148,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
         // also true in dashboard edit mode): hui-card-picker is the reliable signal.
         this._isInCardPicker = this._checkForAncestor(['hui-card-picker']);
         if (this._isInCardPicker) {
+            fitPickerHost(this);
             this.requestUpdate();
             return; // Skip full initialisation in preview context
         }
@@ -273,11 +275,10 @@ export class LCARdSSelectMenu extends LCARdSCard {
     _renderCard() {
         if (!this._initialized) return super._renderCard();
 
-        // Card picker — show LCARS-style button grid placeholder.
-        // Use the dedicated _isInCardPicker flag so the placeholder only appears
-        // when browsing cards to add, not in the card editor dialog or dashboard edit mode.
+        // Card picker: a picture of a real select menu (src/utils/picker-picture.js), only
+        // when browsing cards to add, not in the card editor dialog or dashboard edit mode
         if (this._isInCardPicker) {
-            return this._renderPickerPlaceholder();
+            return renderPickerPicture('select-menu', 'A select menu: four modes in the theme colours, the current one lit');
         }
 
         if (!this._entity && this.config.entity) {
@@ -458,67 +459,6 @@ export class LCARdSSelectMenu extends LCARdSCard {
             current = current.parentElement || /** @type {ShadowRoot} */ (current.parentNode)?.host || /** @type {ShadowRoot} */ (current.getRootNode())?.host;
         }
         return false;
-    }
-
-    /** SVG placeholder shown in the HA card picker (no live entity needed). */
-    _renderPickerPlaceholder() {
-        // 3-col lozenge grid — proper pill shape (rx = btnH/2)
-        const items = [
-            { label: 'BRIDGE',       color: '#FF9900', text: '#000000', active: false },
-            { label: 'MAIN DECK',    color: '#FF9900', text: '#000000', active: true  },
-            { label: 'ENGINEERING',  color: '#CC6600', text: '#000000', active: false },
-            { label: 'TACTICAL',     color: '#223355', text: '#7799cc', active: false },
-            { label: 'HOLODECKS',    color: '#223355', text: '#7799cc', active: false },
-            { label: 'SICKBAY',      color: '#223355', text: '#7799cc', active: false },
-            { label: 'SCIENCE',      color: '#1a3322', text: '#55aa77', active: false },
-            { label: 'TRANSPORTER',  color: '#1a3322', text: '#55aa77', active: false },
-            { label: 'OBSERVATION',  color: '#1a3322', text: '#55aa77', active: false },
-        ];
-
-        const cols   = 3;
-        const btnW   = 78;
-        const btnH   = 28;
-        const rx     = 14;   // full pill end caps
-        const gapX   = 6;
-        const gapY   = 6;
-        const padX   = 12;
-        const padY   = 12;
-        const rows   = Math.ceil(items.length / cols);
-        const totalW = padX * 2 + cols * btnW + (cols - 1) * gapX;
-        const totalH = padY + rows * btnH + (rows - 1) * gapY + padY;
-
-        return html`
-            <div style="width:100%;background:linear-gradient(180deg,#000611 0%,#001022 100%);
-                        border:2px solid #9999ff;border-radius:12px;overflow:hidden">
-                <svg viewBox="0 0 ${totalW} ${totalH}"
-                     style="width:100%;display:block"
-                     xmlns="http://www.w3.org/2000/svg">
-                    ${items.map((item, i) => {
-                        const col    = i % cols;
-                        const row    = Math.floor(i / cols);
-                        const x      = padX + col * (btnW + gapX);
-                        const y      = padY + row * (btnH + gapY);
-                        const op     = item.active ? '1' : '0.72';
-                        const fw     = item.active ? '700' : '500';
-                        return svg`
-                            <rect x="${x}" y="${y}" width="${btnW}" height="${btnH}"
-                                  rx="${rx}" fill="${item.color}" stroke="${item.active ? item.color : 'none'}"
-                                  stroke-width="${item.active ? 1.5 : 0}"
-                                  opacity="${op}"></rect>
-                            ${item.active ? svg`
-                                <rect x="${x + 2}" y="${y + 2}" width="${btnW - 4}" height="${btnH - 4}"
-                                      rx="${rx - 2}" fill="none"
-                                      stroke="rgba(255,255,255,0.35)" stroke-width="1"></rect>
-                            ` : svg``}
-                            <text x="${x + btnW / 2}" y="${y + btnH / 2 + 4}"
-                                  text-anchor="middle" fill="${item.text}"
-                                  font-size="7.5" font-family="Antonio, monospace"
-                                  letter-spacing="0.06em" font-weight="${fw}">${item.label}</text>
-                        `;
-                    })}
-                </svg>
-            </div>
-        `;
     }
 
     // =========================================================================

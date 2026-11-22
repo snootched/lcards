@@ -30,6 +30,8 @@
     "generate:llm-schema": "node scripts/generate-llm-schema.js",
     "validate:config": "node --no-maglev scripts/lcards-validate.mjs",
     "astro:pictures": "node scripts/astro-pictures.mjs",
+    "picker:pictures": "node scripts/picker-pictures.mjs",
+    "pictures:theme": "node scripts/capture-picture-theme.mjs",
     "gallery:shots": "node --no-maglev scripts/dashboard-shots.mjs doc/gallery/dashboards/*.yaml --video",
     "demo:push": "node --no-maglev scripts/demo-push.mjs",
     "video:showcase": "node scripts/marketing-video.mjs --record",

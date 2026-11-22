@@ -207,7 +207,7 @@ test('a lost context shows the card message; disconnect gives the context back',
     await expect.poll(() => webglStats(page)).toMatchObject({ users: 0, context: false });
 });
 
-test('card picker: a static drawing, no canvas and no WebGL', async ({ page }) => {
+test('card picker: a picture, no canvas and no WebGL', async ({ page }) => {
     await mountCase(page, 'astro-actions', { width: '800' });
     await sceneReady(page);
     await page.evaluate(async () => {
@@ -222,7 +222,8 @@ test('card picker: a static drawing, no canvas and no WebGL', async ({ page }) =
         await new Promise((r) => setTimeout(r, 300));
     });
     const picked = page.locator('hui-card-picker lcards-astrometrics-card');
-    await expect(picked.locator('svg.astro-preview')).toBeVisible();
+    await expect(picked.locator('img.lcards-picker-picture')).toBeVisible();
+    await expect.poll(() => picked.locator('img.lcards-picker-picture').evaluate((img) => img.naturalWidth)).toBeGreaterThan(0);
     expect(await picked.locator('canvas').count()).toBe(0);
     // only the first card holds the context
     expect(await webglStats(page)).toMatchObject({ users: 1 });

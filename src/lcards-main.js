@@ -468,14 +468,14 @@ const LCARdSCardClasses = [
     {
         type: 'lcards-alert-overlay',
         name: 'LCARdS Alert Overlay',
-        preview: false,
+        preview: true,
         description: 'Full-screen alert overlay that reacts to lcards_alert_mode with backdrop and content card',
         documentationURL: docsUrl(DOCS.alertOverlay),
     },
     {
         type: 'lcards-layout-card',
         name: 'LCARdS Layout Card',
-        preview: false,
+        preview: true,
         description: 'CSS Grid container card with a visual editor. Build sub-grids and place cards into named areas',
         documentationURL: docsUrl(DOCS.layoutCard),
     },

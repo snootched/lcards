@@ -10,6 +10,7 @@
  * rules-engine integration, and provenance tracking.
  */
 
+import { renderPickerPicture, fitPickerHost } from '../utils/picker-picture.js';
 import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSCard } from '../base/LCARdSCard.js';
@@ -930,8 +931,13 @@ export class LCARdSMSDCard extends LCARdSCard {
 
         // Tiered render strategy based on context
 
-        // Tier 3: Card picker placeholder (stub config or picker context)
-        if (this._isPreviewMode === 'picker' || isStubConfig) {
+        // Tier 3: Card picker: a picture of a real MSD (src/utils/picker-picture.js)
+        if (this._isPreviewMode === 'picker') {
+            return renderPickerPicture('msd', 'An MSD: a starship profile with callouts on an LCARS display');
+        }
+
+        // A stub config outside the picker (just added): the placeholder
+        if (isStubConfig) {
             lcardsLog.debug('[LCARdSMSDCard] ✅ Rendering TIER 3: Card picker placeholder');
             return this._renderCardPickerPlaceholder();
         }
@@ -1467,6 +1473,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         const isInCardPicker = this._checkForAncestor(['hui-card-picker']);
         if (isInCardPicker) {
             lcardsLog.debug('[LCARdSMSDCard] Card picker detected - Tier 3: placeholder mode');
+            fitPickerHost(this);
             return 'picker';
         }
 
