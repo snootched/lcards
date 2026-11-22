@@ -342,6 +342,13 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
     const isEntityState = parts[0] === 'entity' && parts[1] === 'state' && parts.length === 2;
     const isEntityAttr  = parts[0] === 'entity' && parts[1] === 'attributes' && parts.length === 3;
 
+    // entity.name: the entity's friendly name, else its id
+    if (parts[0] === 'entity' && parts[1] === 'name' && parts.length === 2) {
+      const entity = this.context.entity;
+      if (!entity) return '';
+      return entity.attributes?.friendly_name ?? entity.entity_id ?? '';
+    }
+
     // Start with the full context
     let current = this.context;
 

@@ -3,6 +3,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { isTargetRow, targetCell, orderTargetIds } from '../../src/data-grid/data-grid-model.js';
 import {
     splitTrackList, expandTracks, countTracks, joinTracks,
     normalizeRows, classifyCell, dataColumnCount,
@@ -131,4 +132,53 @@ test('a cell with only a hold or double-tap action still taps with cell_tap_acti
     assert.deepEqual(cellActions('sensor.x', more)?.actions, { tap_action: more });
     assert.equal(cellActions('STATIC', more), null);
     assert.equal(cellActions('sensor.x', undefined), null);
+});
+
+// ── rows from a Home Assistant target (reports/ha-labels-plan.md phase 2) ─────
+
+test('normalizeRows: a target row repeats once per entity, in place; without expand it stays one row', () => {
+    const rows = [
+        { values: ['Device', 'Battery'], header: true },
+        { target: { label_id: 'low_battery' }, values: ['{entity.name}', '{entity}'], style: { color: 'red' } },
+        ['Total', 'sensor.total'],
+    ];
+    const out = normalizeRows(rows, () => ['sensor.a', 'sensor.b']);
+    assert.equal(out.length, 4);
+    assert.equal(out[0].header, true);
+    assert.deepEqual(out[1], { values: [{ value: '{entity.name}', entity: 'sensor.a' }, { entity: 'sensor.a' }], style: { color: 'red' }, header: false, entity: 'sensor.a' });
+    assert.equal(out[2].entity, 'sensor.b');
+    assert.deepEqual(out[3].values, ['Total', 'sensor.total']);
+    assert.equal(normalizeRows(rows).length, 3, 'no expand: one row');
+    assert.equal(normalizeRows(rows, () => []).length, 2, 'no entities: no rows');
+});
+
+test('targetCell: {entity} alone, tokens, cell objects, static text', () => {
+    assert.deepEqual(targetCell('{entity}', 'sensor.a'), { entity: 'sensor.a' });
+    assert.deepEqual(targetCell('Level {entity} ({entity.name})', 'sensor.a'), { value: 'Level {entity.state} ({entity.name})', entity: 'sensor.a' });
+    assert.equal(targetCell('static', 'sensor.a'), 'static');
+    assert.equal(targetCell(42, 'sensor.a'), 42);
+    assert.deepEqual(targetCell({ attribute: 'battery_level' }, 'sensor.a'), { attribute: 'battery_level', entity: 'sensor.a' });
+    assert.deepEqual(targetCell({ value: '{entity}', style: { color: 'red' } }, 'sensor.a'), { style: { color: 'red' }, entity: 'sensor.a' });
+    assert.deepEqual(targetCell({ entity: 'sensor.own', value: '{entity.state}' }, 'sensor.a'), { entity: 'sensor.own', value: '{entity.state}' }, 'its own entity wins');
+});
+
+test('isTargetRow', () => {
+    assert.equal(isTargetRow({ target: { label_id: 'x' }, values: [] }), true);
+    assert.equal(isTargetRow({ values: [] }), false);
+    assert.equal(isTargetRow(['a']), false);
+});
+
+test('orderTargetIds: name (default), state (numbers first), none; max_items', () => {
+    const states = {
+        'sensor.b': { state: '5', attributes: { friendly_name: 'Bravo' } },
+        'sensor.a': { state: '30', attributes: { friendly_name: 'Alpha' } },
+        'sensor.c': { state: 'unavailable', attributes: { friendly_name: 'Charlie' } },
+        'sensor.d': { state: '5', attributes: {} },
+    };
+    const ids = ['sensor.c', 'sensor.b', 'sensor.d', 'sensor.a'];
+    assert.deepEqual(orderTargetIds(ids, states), ['sensor.a', 'sensor.b', 'sensor.c', 'sensor.d'], 'by name; an id stands in for a missing name');
+    assert.deepEqual(orderTargetIds(ids, states, { sort: 'state' }), ['sensor.b', 'sensor.d', 'sensor.a', 'sensor.c'], 'numbers low to high, ties by name, text last');
+    assert.deepEqual(orderTargetIds(ids, states, { sort: 'none' }), ids);
+    assert.deepEqual(orderTargetIds(ids, states, { max_items: 2 }), ['sensor.a', 'sensor.b']);
+    assert.deepEqual(orderTargetIds(ids, states, { max_items: 0 }).length, 4, 'not a positive number: all');
 });

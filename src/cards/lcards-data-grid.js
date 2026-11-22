@@ -35,8 +35,9 @@ import {
   normalizeRows, dataGridMode, classifyCell, dataColumnCount, countTracks,
   generateDecorativeGrid, refreshDecorativeCells,
   mergeStyleLayers, styleToCSS, gridContainerStyle, toPx, defaultCellStyle, defaultHeaderStyle,
-  buildCascadeRowTimings, cascadeColorList, cellActions
+  buildCascadeRowTimings, cascadeColorList, cellActions, isTargetRow, orderTargetIds
 } from '../data-grid/data-grid-model.js';
+import { resolveTarget } from '../utils/ha-targets.js';
 
 
 
@@ -195,14 +196,15 @@ export class LCARdSDataGrid extends LCARdSCard {
     this._previousGridData = null;
     this._stopRefresh();
 
-    this._rows = this._dataMode === 'data' ? normalizeRows(this.config.rows) : [];
+    this._rows = this._dataMode === 'data' ? this._dataRows() : [];
     if (this._dataMode === 'decorative') {
       const { rows, cols } = this._decorativeSize();
       this._cellConfigs = [];
       this._gridData = generateDecorativeGrid(rows, cols, this._decorativeOptions());
     } else {
       const rows = this._rows;
-      if (!rows.length) {
+      // a grid of rows from a Home Assistant target has none until hass resolves them
+      if (!rows.length && !(this.config.rows ?? []).some(isTargetRow)) {
         this._error = 'Data mode needs at least one row. Add rows, or switch to decorative mode.';
         this._cellConfigs = [];
         this._gridData = [];
@@ -247,7 +249,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     super._updateTrackedEntities();
     if (this._dataMode !== 'data') return;
     const tracked = new Set(this._trackedEntities);
-    for (const row of normalizeRows(this.config.rows)) {
+    for (const row of this._dataRows()) {
       for (const cell of row.values) {
         const { entity } = classifyCell(cell);
         if (entity) tracked.add(entity);
@@ -263,7 +265,7 @@ export class LCARdSDataGrid extends LCARdSCard {
    */
   async _processCustomTemplates() {
     if (this._dataMode !== 'data' || !Array.isArray(this.config?.rows)) return;
-    const rows = normalizeRows(this.config.rows);
+    const rows = this._dataRows();
     const cols = dataColumnCount(this.config.rows);
 
     // Every cell's text, started at once; each template cell shows as soon as it is
@@ -302,6 +304,34 @@ export class LCARdSDataGrid extends LCARdSCard {
   }
 
   /**
+   * The data rows, a row with a Home Assistant `target` repeated once per entity
+   * (ordered by its `sort`, at most `max_items`).
+   * @returns {ReturnType<typeof normalizeRows>}
+   * @private
+   */
+  _dataRows() {
+    return normalizeRows(this.config?.rows, (row) => orderTargetIds(resolveTarget(this.hass, row.target), this.hass?.states, row));
+  }
+
+  /**
+   * Target rows follow the registries: resolve them again with the first hass and
+   * whenever Home Assistant replaces the entity, device or area registry (a label,
+   * area or device changed), and follow the entities they now show.
+   * @param {any} newHass
+   * @param {any} oldHass
+   * @protected
+   */
+  _handleHassUpdate(newHass, oldHass) {
+    super._handleHassUpdate?.(newHass, oldHass);
+    if (this._dataMode !== 'data' || !(this.config?.rows ?? []).some(isTargetRow)) return;
+    const registriesChanged = !oldHass || oldHass.entities !== newHass?.entities
+      || oldHass.devices !== newHass?.devices || oldHass.areas !== newHass?.areas;
+    if (!registriesChanged) return;
+    this._updateTrackedEntities();
+    this._scheduleTemplateUpdate();
+  }
+
+  /**
    * Display text for one data cell.
    * @param {*} cell
    * @param {string} [field] - Its place in the config, for template provenance
@@ -311,7 +341,11 @@ export class LCARdSDataGrid extends LCARdSCard {
   async _cellText(cell, field = undefined) {
     const info = classifyCell(cell);
     if (info.kind === 'template') {
-      const out = await this.processTemplate(info.text, { field });
+      // a cell's own entity (a target row's entity, or `entity:` on the cell) is the
+      // template's entity: {entity.state}, {entity.name} ...
+      const out = await this.processTemplate(info.text, info.entity
+        ? { field, entity: this.getEntityState(info.entity) ?? null }
+        : { field });
       return out === null || out === undefined ? '' : String(out);
     }
     if (info.kind === 'entity') {

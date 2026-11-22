@@ -92,6 +92,7 @@ Available in `{...}` token templates:
 |-------|------------|
 | `{entity.state}` | `entity.state` (HA-translated display string) |
 | `{entity.attributes.X}` | Entity attribute `X` |
+| `{entity.name}` | The entity's `friendly_name`, else its entity id |
 | `{states.domain.object_id.state}` | State of an **explicitly named** entity (not `config.entity`) — HA-translated display string |
 | `{states.domain.object_id.attributes.X}` | Attribute `X` of an explicitly named entity |
 | `{config.X}` | `config.X` from card config |

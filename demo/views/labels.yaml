@@ -93,3 +93,17 @@ sections:
         text: { name: { content: SHIELDS } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
         grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-data-grid
+        data_mode: data
+        rows:
+          - values: [ENGINE SYSTEMS, LEVEL]
+            header: true
+          # one row per entity with the engine label, lowest first
+          - target: { label_id: lcards_test_engine }
+            values: ["{entity.name}", "{entity}"]
+            sort: state
+        grid:
+          grid-template-columns: 2fr 1fr
+        style:
+          font_size: 18px
+        grid_options: { columns: 12, rows: 3 }

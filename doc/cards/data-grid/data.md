@@ -124,7 +124,7 @@ style:
 - **Missing entities:** an entity Home Assistant doesn't know shows `-`.
 - **Braces mean a template:** any text with `{` or `[[[` in it is treated as a template, so a literal brace in plain text is read as one too.
 - **Numbers:** a number cell shows as written.
-- **JavaScript templates:** `entity` in a JavaScript template is not the cell's entity; read states through `states['sensor.x']` (or `hass.states`).
+- **JavaScript templates:** in a cell object with an `entity`, `entity` in a JavaScript template is that entity; otherwise it is the card's own. Read other entities through `states['sensor.x']` (or `hass.states`).
 :::
 
 ## Cell objects
@@ -132,7 +132,7 @@ style:
 **Write a cell as an object to show an attribute, style one cell, or give it an entity for colours and actions.** Plain cells and cell objects mix freely in a row.
 
 - Without `value`, the cell shows its `entity`'s state, or the `attribute` of it.
-- With a template or text in `value`, `entity` is only the context: the entity that [conditional colours](#conditional-colours) and [tap actions](#tap-actions) follow.
+- With a template or text in `value`, `entity` is the context: the entity that [conditional colours](#conditional-colours) and [tap actions](#tap-actions) follow, and the one `{entity.state}`, `{entity.name}` and `{entity.attributes.NAME}` in the value read.
 
 ```yaml live
 type: custom:lcards-data-grid
@@ -162,6 +162,50 @@ style:
 | `tap_action` | action | - | What tapping the cell does: see [Tap actions](#tap-actions) |
 | `hold_action` | action | - | What holding the cell does |
 | `double_tap_action` | action | - | What double-tapping the cell does |
+
+## Rows from Home Assistant
+
+**A row with a `target` repeats once for every entity a Home Assistant label, area, device or floor includes, so the grid lists what you label in Home Assistant.** Write the row once with `{entity...}` tokens; each copy reads its own entity.
+
+- `target` is Home Assistant's target object: `label_id`, `area_id`, `device_id`, `floor_id`, `entity_id`, each one id or a list. A label counts on the entity, its device or its area.
+- In the row's `values`, `{entity}` alone is the entity's state, formatted like an entity cell. In a template, `{entity.state}`, `{entity.name}` (its name) and `{entity.attributes.NAME}` read that row's entity.
+- The copies take the row's place, so header rows above and rows below stay where they are. `style` applies to every copy.
+- `sort` orders the copies: `name` (default), `state` (numbers low to high, then text) or `none`. `max_items` keeps the first ones.
+- The rows follow Home Assistant: a label added or removed adds or removes a row, and a state change moves a row when `sort: state`.
+
+```yaml live
+type: custom:lcards-data-grid
+data_mode: data
+rows:
+  - values: [System, Level]
+    header: true
+  # one row for each entity with the label
+  - target:
+      label_id: lcards_test_engine
+    values:
+      - "{entity.name}"
+      - "{entity}"
+    sort: state
+grid:
+  grid-template-columns: 2fr 1fr
+style:
+  font_size: 18px
+```
+
+::: details More about rows from Home Assistant
+- **Which entities:** hidden entities and configuration or diagnostic entities are left out unless named in `entity_id`, as in Home Assistant's own sections.
+- **No entities:** a target that includes nothing adds no rows; the rest of the grid still shows.
+- **Cell objects:** a cell object in the row gets the row's entity unless it names its own, so `{ attribute: battery_level }` shows each entity's battery level.
+- **Colours and taps:** each copy's cells carry its entity, so [conditional colours](#conditional-colours) and `cell_tap_action` (such as `more-info`) follow it.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `rows[].target` | object | - | Home Assistant's target: `label_id`, `area_id`, `device_id`, `floor_id`, `entity_id` (each an id or a list). The row repeats per entity |
+| `rows[].values` | list | required | The cells of each copy; `{entity}` and `{entity.*}` read the copy's entity |
+| `rows[].sort` | string | `name` | `name`, `state` or `none` |
+| `rows[].max_items` | number | - | At most this many copies |
+| `rows[].style` | object | - | Style for every cell of every copy |
 
 ## Data sources
 

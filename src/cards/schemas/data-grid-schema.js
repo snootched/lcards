@@ -14,7 +14,7 @@ import {
     gridOptionsSchema, triggersUpdateSchema, cardIdSchema, tagsSchema,
     cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema,
     cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema,
-    cardOverflowYSchema, cardZIndexSchema, cardLevelProperties, stateClassificationSchema
+    cardOverflowYSchema, cardZIndexSchema, cardLevelProperties, stateClassificationSchema, haTargetSchema
 } from './common-schemas.js';
 
 const lengthSchema = (description, examples) => ({
@@ -138,7 +138,7 @@ export const dataGridSchema = {
         // ── Data mode ───────────────────────────────────────────────────────
         rows: {
             type: 'array',
-            description: 'Data mode: the rows, each a list of cells or { values, style, header }. Decorative mode: row styles only ({ style }, such as a colour per row); the list repeats from the top when the grid has more rows.',
+            description: 'Data mode: the rows, each a list of cells, { values, style, header }, or { target, values } repeated once per entity of a Home Assistant label, area, device or floor. Decorative mode: row styles only ({ style }, such as a colour per row); the list repeats from the top when the grid has more rows.',
             items: {
                 oneOf: [
                     { type: 'array', title: 'Row', items: cellSchema },
@@ -156,7 +156,26 @@ export const dataGridSchema = {
                             },
                             sources: { type: 'array', deprecated: true, 'x-replacement': 'values' }
                         },
-                        required: ['values']
+                        required: ['values'],
+                        not: { required: ['target'] }
+                    },
+                    {
+                        type: 'object',
+                        title: 'Rows from Home Assistant',
+                        properties: {
+                            target: { ...haTargetSchema, description: "Home Assistant's target: the row repeats once per entity it includes (a label on the entity, its device or its area; areas, devices, floors, entities)" },
+                            values: { type: 'array', items: cellSchema, description: "Each copy's cells: {entity} alone is the entity's state; {entity.state}, {entity.name} and {entity.attributes.NAME} in a template read the copy's entity" },
+                            sort: {
+                                type: 'string',
+                                enum: ['name', 'state', 'none'],
+                                default: 'name',
+                                description: 'Order of the copies: name (friendly name), state (numbers low to high, then text) or none (as Home Assistant lists them)'
+                            },
+                            max_items: { type: 'integer', minimum: 1, description: 'At most this many copies (the first ones after sorting)' },
+                            style: dataGridCellStyleSchema
+                        },
+                        required: ['target', 'values'],
+                        additionalProperties: false
                     },
                     {
                         type: 'object',

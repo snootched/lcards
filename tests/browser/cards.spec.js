@@ -275,6 +275,35 @@ test('data grid: data mode renders the header row and live entity values', async
     expect(before).not.toBe('42.5');
 });
 
+test('data grid: a target row repeats per labelled entity, sorts by state and follows a label change', async ({ page }) => {
+    await mountCase(page, 'data-grid-target');
+    await expectNoErrors(page);
+    const cells = page.locator('lcards-data-grid .grid-cell');
+    const rows = async () => {
+        const t = (await cells.allTextContents()).map(s => s.trim());
+        return Array.from({ length: t.length / 2 }, (_, i) => t.slice(i * 2, i * 2 + 2));
+    };
+    await page.evaluate(() => {
+        window.__setState('input_number.lcards_test_power', { state: '80', attributes: { friendly_name: 'Power', unit_of_measurement: '%' } });
+        window.__setState('input_number.lcards_test_shields', { state: '20', attributes: { friendly_name: 'Shields', unit_of_measurement: '%' } });
+    });
+    await expect.poll(rows).toEqual([['System', 'Level'], ['Shields', '20 %'], ['Power', '80 %'], ['Total', '-']]);
+    // sort: state moves a row when its state changes
+    await page.evaluate(() => window.__setState('input_number.lcards_test_shields', '95'));
+    await expect.poll(rows).toEqual([['System', 'Level'], ['Power', '80 %'], ['Shields', '95 %'], ['Total', '-']]);
+    // the label put on the lights helper in Home Assistant: a third row, no state change
+    await page.evaluate(() => {
+        window.__setState('input_boolean.lcards_test_lights', { state: 'on', attributes: { friendly_name: 'Lights' } });
+        const entities = { ...window.__hass.entities };
+        entities['input_boolean.lcards_test_lights'] = { ...entities['input_boolean.lcards_test_lights'], labels: ['lcards_test_engine'] };
+        window.__setRegistries({ entities });
+    });
+    // (the harness formats on/off raw; Home Assistant shows On)
+    const lower = async () => (await rows()).map(r => r.map(c => c.toLowerCase()));
+    await expect.poll(lower).toEqual([['system', 'level'], ['power', '80 %'], ['shields', '95 %'], ['lights', 'on'], ['total', '-']]);
+    await expectNoErrors(page);
+});
+
 test('data grid: decorative mode fills a 6 x 6 grid of cells', async ({ page }) => {
     await mountCase(page, 'data-grid-decorative');
     const cells = page.locator('lcards-data-grid .grid-cell');

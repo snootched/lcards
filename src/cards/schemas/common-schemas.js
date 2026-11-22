@@ -928,6 +928,31 @@ export const cardIdSchema = {
 /**
  * Tags schema - array of tags for bulk targeting
  */
+/** One id or a list of ids (a Home Assistant target key). */
+const targetIds = (/** @type {string} */ what) => ({
+    oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+    description: `${what}: one id or a list`
+});
+
+/**
+ * Home Assistant's target object, as actions and section strategies take it: entities
+ * picked directly or through a label, area, device or floor (resolved by
+ * src/utils/ha-targets.js). A label counts on the entity, its device or its area.
+ */
+export const haTargetSchema = {
+    type: 'object',
+    description: "Home Assistant's target: entities named directly, or every entity of a label (on the entity, its device or its area), area, device or floor",
+    properties: {
+        label_id: targetIds('Home Assistant label ids'),
+        area_id: targetIds('Area ids'),
+        device_id: targetIds('Device ids'),
+        floor_id: targetIds('Floor ids'),
+        entity_id: targetIds('Entity ids (hidden and configuration entities count only when named here)')
+    },
+    additionalProperties: false,
+    'x-ui-hints': { selector: { target: {} } }
+};
+
 export const tagsSchema = {
     type: 'array',
     items: {

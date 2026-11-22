@@ -56,3 +56,20 @@ test('switching modes carries the row styles across', () => {
     Studio.prototype._setMode.call(fake, 'decorative');
     assert.deepEqual(compact(fake._workingConfig).rows, [{ style: blue }, { style: orange }]);
 });
+
+test('a row from a Home Assistant target survives opening and saving, as written', () => {
+    const cfg = {
+        type: 'custom:lcards-data-grid',
+        data_mode: 'data',
+        rows: [
+            { values: ['Device', 'Battery'], header: true },
+            { target: { label_id: 'low_battery' }, values: ['{entity.name}', '{entity}'], sort: 'state', max_items: 5, style: { color: 'red' } },
+            { target: { area_id: ['bridge', 'galley'] }, values: [{ attribute: 'battery_level' }] },
+        ],
+    };
+    const working = normalize(cfg);
+    assert.equal(working.rows.length, 3, 'one working row per configured row');
+    assert.deepEqual(working.rows[1].target, { label_id: 'low_battery' });
+    const saved = compact(working);
+    assert.deepEqual(saved.rows, cfg.rows);
+});

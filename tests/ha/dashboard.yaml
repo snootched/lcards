@@ -704,6 +704,20 @@ views:
                     card:
                       color:
                         background: "#00aa00"
+      # rows from a target: one per entity with the engine label (power, shields)
+      - type: custom:lcards-data-grid
+        id: test_label_grid
+        data_mode: data
+        rows:
+          - values: [LABEL GRID, Level]
+            header: true
+          - target:
+              label_id: lcards_test_engine
+            values:
+              - "{entity.name}"
+              - "{entity}"
+        grid:
+          grid-template-columns: 2fr 1fr
 
   - title: Rules
     path: rules

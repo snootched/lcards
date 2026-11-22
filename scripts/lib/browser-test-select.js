@@ -48,7 +48,7 @@ export const AREAS = {
  */
 export const FULL_ONLY = [
     'bundle-base', 'button-fixes', 'colours', 'editor-roundtrip', 'studio-roundtrip', 'core-audit', 'fire-dom-event',
-    'jinja-live', 'listener-leaks', 'new-presets', 'presets-theme', 'provenance', 'render-count',
+    'ha-labels-editor', 'jinja-live', 'listener-leaks', 'new-presets', 'presets-theme', 'provenance', 'render-count',
 ].map((n) => `${n}.spec.js`);
 
 /**

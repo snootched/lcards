@@ -1,0 +1,19 @@
+# Rows from a Home Assistant target: one row per entity with the lcards_test_engine label
+# (the sample registries, tests/helpers/card-env.js: power and shields), by state
+type: custom:lcards-data-grid
+data_mode: data
+rows:
+  - values: [System, Level]
+    header: true
+  - target:
+      label_id: lcards_test_engine
+    values:
+      - "{entity.name}"
+      - "{entity}"
+    sort: state
+  - [Total, "-"]
+grid:
+  grid-template-columns: 2fr 1fr
+  gap: 4px
+style:
+  font_size: 18px

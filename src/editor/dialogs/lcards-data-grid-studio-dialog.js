@@ -25,7 +25,7 @@ import { messageStyles } from '../base/surface-styles.js';
 import { studioDialogStyles } from './studio-dialog-styles.js';
 import { migrateDataGridConfig } from '../../data-grid/data-grid-config-migration.js';
 import {
-    ENTITY_ID, normalizeRows, dataGridMode, decorativeRowStyles, dataColumnCount, countTracks, expandTracks, joinTracks, toPx
+    ENTITY_ID, normalizeRows, isTargetRow, dataGridMode, decorativeRowStyles, dataColumnCount, countTracks, expandTracks, joinTracks, toPx
 } from '../../data-grid/data-grid-model.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
@@ -157,6 +157,15 @@ export function compactDataGridConfig(working) {
                 return keys.length === 1 && keys[0] === 'value' ? c.value : (keys.length ? c : '');
             });
             const style = pruneStyle(row.style);
+            // a row from a Home Assistant target stays an object with its own keys
+            if (isTargetRow(row)) {
+                return {
+                    target: row.target, values,
+                    ...(row.sort && row.sort !== 'name' ? { sort: row.sort } : {}),
+                    ...(row.max_items ? { max_items: row.max_items } : {}),
+                    ...(style ? { style } : {})
+                };
+            }
             if (!style && !row.header) return values;
             return { values, ...(style ? { style } : {}), ...(row.header ? { header: true } : {}) };
         });
@@ -270,10 +279,18 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         if (cfg.data_mode === 'decorative') {
             cfg.rows = decorativeRowStyles(cfg.rows);
         } else if (Array.isArray(cfg.rows)) {
-            cfg.rows = normalizeRows(cfg.rows).map(r => ({
+            // without expanding, one normalised row per configured row: a row from a
+            // Home Assistant target keeps its target, sort and max_items
+            const raw = cfg.rows;
+            cfg.rows = normalizeRows(raw).map((r, i) => ({
                 values: r.values.map(c => clone(toCellObject(c))),
                 ...(r.style ? { style: r.style } : {}),
-                ...(r.header ? { header: true } : {})
+                ...(r.header ? { header: true } : {}),
+                ...(isTargetRow(raw[i]) ? {
+                    target: clone(raw[i].target),
+                    ...(raw[i].sort ? { sort: raw[i].sort } : {}),
+                    ...(raw[i].max_items ? { max_items: raw[i].max_items } : {})
+                } : {})
             }));
         }
         if (cfg.data_mode === 'data' && !cfg.rows?.length) cfg.rows = sample ? this._sampleRows() : [];
@@ -1109,7 +1126,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     `)}
                     ${rows.map((row, r) => html`
                         <div class="sheet-header ${this._activeRowEdit === r ? 'selected' : ''}"
-                            @click=${() => this._openEditor('row', r)}>Row ${r + 1}${row.header ? ' (H)' : ''}</div>
+                            @click=${() => this._openEditor('row', r)}>Row ${r + 1}${row.header ? ' (H)' : ''}${row.target ? ' (each entity)' : ''}</div>
                         ${Array.from({ length: cols }, (_, c) => {
                             const cell = row.values[c];
                             const label = cellLabel(cell);
@@ -1336,14 +1353,65 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     <ha-button variant="danger" .disabled=${count <= 1} @click=${() => this._removeTrack(axis, i)}><ha-icon icon="mdi:delete" slot="start"></ha-icon>Delete ${name.toLowerCase()}</ha-button>
                     <ha-button appearance="plain" @click=${() => this._closeEditors()}><ha-icon icon="mdi:close" slot="start"></ha-icon>Close</ha-button>
                 </div>
-                ${isRow ? html`
+                ${isRow && !this._workingConfig.rows[i]?.target ? html`
                     <ha-switch
                         .checked=${!!this._workingConfig.rows[i]?.header}
                         @change=${(e) => this._setConfigValue(`rows.${i}.header`, e.target.checked || undefined)}>
                         Header row (uses the header style)
                     </ha-switch>
                 ` : ''}
+                ${isRow ? this._renderTargetRowEditor(i) : ''}
                 ${this._renderStyleOverrides(isRow ? `rows.${i}.style` : `columns.${i}.style`, name)}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * A row from Home Assistant: pick a label, area, device or entities and the row
+     * repeats once per entity ({entity} and {entity.*} in its cells read it).
+     * @param {number} i - row index
+     * @private
+     */
+    _renderTargetRowEditor(i) {
+        const row = this._workingConfig.rows[i] ?? {};
+        const target = isObject(row.target) ? row.target : null;
+        return html`
+            <lcards-form-section header="Rows from Home Assistant" icon="mdi:label-multiple" outlined
+                description="Repeat this row once per entity of a label, area or device" ?expanded=${!!target}>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Entities'}
+                    .helper=${'In the cells, {entity} is the state; {entity.name} and {entity.attributes.NAME} read each entity'}
+                    .selector=${{ target: {} }}
+                    .value=${target ?? {}}
+                    @value-changed=${(e) => {
+                        const v = e.detail.value;
+                        const set = isObject(v) && Object.values(v).some(x => (Array.isArray(x) ? x.length : x));
+                        this._setConfigValue(`rows.${i}.target`, set ? v : undefined);
+                        if (set) this._setConfigValue(`rows.${i}.header`, undefined);
+                    }}>
+                </ha-selector>
+                ${target ? html`
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Sort'}
+                        .selector=${{ select: { mode: 'dropdown', options: [
+                            { value: 'name', label: 'By name' },
+                            { value: 'state', label: 'By state' },
+                            { value: 'none', label: 'As Home Assistant lists them' }
+                        ] } }}
+                        .value=${row.sort || 'name'}
+                        @value-changed=${(e) => this._setConfigValue(`rows.${i}.sort`, e.detail.value === 'name' ? undefined : e.detail.value)}>
+                    </ha-selector>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Most rows'}
+                        .helper=${'Empty: every entity'}
+                        .selector=${{ number: { min: 1, mode: 'box' } }}
+                        .value=${row.max_items}
+                        @value-changed=${(e) => this._setConfigValue(`rows.${i}.max_items`, Number(e.detail.value) > 0 ? Number(e.detail.value) : undefined)}>
+                    </ha-selector>
+                ` : ''}
             </lcards-form-section>
         `;
     }

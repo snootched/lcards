@@ -80,6 +80,24 @@ test('labels: ha_label: targets the labelled card; a target condition follows a 
     expect(errors).toEqual([]);
 });
 
+test('labels: a data grid row repeats per labelled entity and follows a label change', async ({ page }) => {
+    const errors = await open(page);
+    const grid = page.locator('lcards-data-grid', { hasText: 'LABEL GRID' });
+    const names = async () => {
+        const t = (await grid.locator('.grid-cell').allTextContents()).map(s => s.trim());
+        return t.filter((_, i) => i % 2 === 0).slice(1);
+    };
+    await expect.poll(names, { timeout: 10_000 }).toEqual(['LCARdS Test Power', 'LCARdS Test Shields']);
+    await setEntityLabel(client, 'input_number.lcards_test_shields', 'lcards_test_engine', false);
+    try {
+        await expect.poll(names, { timeout: 10_000 }).toEqual(['LCARdS Test Power']);
+    } finally {
+        await setEntityLabel(client, 'input_number.lcards_test_shields', 'lcards_test_engine', true);
+    }
+    await expect.poll(names, { timeout: 10_000 }).toEqual(['LCARdS Test Power', 'LCARdS Test Shields']);
+    expect(errors).toEqual([]);
+});
+
 test('labels: the editor lists the entity\'s labels, and Home Assistant\'s target selector loads', async ({ page }) => {
     const errors = await open(page);
     const result = await page.evaluate(async (entity) => {

@@ -183,3 +183,12 @@ test('evaluate: {theme:path} tokens resolve through the theme manager (inline, b
         window.lcards = before;
     }
 });
+
+test('evaluator: {entity.name} is the friendly name, else the entity id; empty without an entity', () => {
+    const named = new LCARdSCardTemplateEvaluator({ entity: { entity_id: 'sensor.door_battery', state: '12', attributes: { friendly_name: 'Door battery' } } });
+    assert.equal(named.evaluate('{entity.name}: low'), 'Door battery: low');
+    const bare = new LCARdSCardTemplateEvaluator({ entity: { entity_id: 'sensor.door_battery', state: '12', attributes: {} } });
+    assert.equal(bare.evaluate('{entity.name}'), 'sensor.door_battery');
+    const none = new LCARdSCardTemplateEvaluator({});
+    assert.equal(none.evaluate('[{entity.name}]'), '[]');
+});

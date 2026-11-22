@@ -53,6 +53,7 @@ grid_options:
 |-------|-------|
 | `{entity.state}` | The card entity's state, as Home Assistant shows it |
 | `{entity.attributes.NAME}` | One of its attributes, as Home Assistant shows it |
+| `{entity.name}` | Its name (the friendly name, else the entity ID) |
 | `{states.domain.object_id.state}` | The state of another entity, named by its full entity ID |
 | `{states.domain.object_id.attributes.NAME}` | An attribute of another entity |
 | `{config.NAME}` | A value from this card's own config |

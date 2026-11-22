@@ -102,6 +102,7 @@ releases:
           - "ALERT CREW turns every card whose entity has the crew label red (ha_label:lcards_test_crew); POWER and SHIELDS stay."
           - "ALL CREW ON turns green when LIGHTS and DOORS are both on (target with match: all)."
           - "ENGINE BELOW 30 turns yellow when POWER or SHIELDS drops below 30 (target, match: any)."
+          - "ENGINE SYSTEMS lists every entity with the engine label, lowest level first (a data grid row with a target, sort: state); drag a slider to reorder it."
           - "In Home Assistant, take the crew label off LIGHTS: it stops following ALERT CREW straight away."
         session: "HA labels 2026-11-21"
         docs: /core/rules/changes#home-assistant-labels

@@ -107,12 +107,6 @@ export function joinTracks(tracks) {
 // ============================================================================
 
 /**
- * Normalise rows to `{ values, style, header }` (compact array rows included).
- * Rows that are neither form become empty rows.
- * @param {Array} rows
- * @returns {Array<{values: Array, style: Object|undefined, header: boolean}>}
- */
-/**
  * The grid's mode: `data_mode` when set, else `data` when any row holds cells
  * (an array, or an object with `values` / `sources`). Rows that are only a style
  * (a colour per row) belong to a decorative grid. One test for the card and the
@@ -138,15 +132,90 @@ export function decorativeRowStyles(rows) {
   return rows.map(r => (isObject(r) && isObject(r.style) ? { style: r.style } : {}));
 }
 
-export function normalizeRows(rows) {
+/**
+ * Normalise rows to `{ values, style, header }` (compact array rows included).
+ * Rows that are neither form become empty rows. A row with a Home Assistant
+ * `target` becomes one row per entity (`entity` set) when `expand` is given.
+ * @param {Array} rows
+ * @param {(row: any) => string[]} [expand] - A target row's entity ids, in order (the
+ *   card resolves them against hass); without it a target row stays one row
+ * @returns {Array<{values: Array, style: Object|undefined, header: boolean, entity?: string}>}
+ */
+export function normalizeRows(rows, expand = undefined) {
   if (!Array.isArray(rows)) return [];
-  return rows.map(row => {
-    if (Array.isArray(row)) return { values: row, style: undefined, header: false };
+  return rows.flatMap(row => {
+    if (Array.isArray(row)) return [{ values: row, style: undefined, header: false }];
     if (isObject(row) && Array.isArray(row.values)) {
-      return { values: row.values, style: isObject(row.style) ? row.style : undefined, header: row.header === true };
+      const style = isObject(row.style) ? row.style : undefined;
+      // A row with a Home Assistant target repeats once per entity, in place
+      if (expand && isTargetRow(row)) {
+        return expand(row).map(entityId => ({ values: row.values.map(v => targetCell(v, entityId)), style, header: false, entity: entityId }));
+      }
+      return [{ values: row.values, style, header: row.header === true }];
     }
-    return { values: [], style: undefined, header: false };
+    return [{ values: [], style: undefined, header: false }];
   });
+}
+
+/**
+ * Whether a row repeats per entity of a Home Assistant target (`{ target, values }`).
+ * @param {*} row
+ * @returns {boolean}
+ */
+export function isTargetRow(row) {
+  return isObject(row) && isObject(row.target) && Array.isArray(row.values);
+}
+
+/**
+ * One cell of a target row for one of its entities: `{entity}` alone is the entity's
+ * state (an entity cell); in a template `{entity...}` tokens mean this entity; a cell
+ * object without its own `entity` gets this one.
+ * @param {*} cell
+ * @param {string} entityId
+ * @returns {*}
+ */
+export function targetCell(cell, entityId) {
+  const swap = (/** @type {string} */ text) => text.replace(/\{entity\}/g, '{entity.state}');
+  if (typeof cell === 'string') {
+    if (cell.trim() === '{entity}') return { entity: entityId };
+    return hasTemplateSyntax(cell) ? { value: swap(cell), entity: entityId } : cell;
+  }
+  if (isObject(cell)) {
+    const value = typeof cell.value === 'string'
+      ? (cell.value.trim() === '{entity}' ? undefined : swap(cell.value))
+      : cell.value;
+    const out = { ...cell, entity: cell.entity ?? entityId };
+    if (value === undefined) delete out.value; else out.value = value;
+    return out;
+  }
+  return cell;
+}
+
+/**
+ * Order a target row's entities: `name` (default) by friendly name, `state` by state
+ * (numbers numerically, before text), `none` as resolved; then keep `max_items`.
+ * @param {string[]} ids
+ * @param {Record<string, any>} states - hass.states
+ * @param {{ sort?: string, max_items?: number }} [row]
+ * @returns {string[]}
+ */
+export function orderTargetIds(ids, states, row = {}) {
+  const name = (/** @type {string} */ id) => String(states?.[id]?.attributes?.friendly_name ?? id);
+  let out = [...ids];
+  if (row.sort === 'state') {
+    const num = (/** @type {string} */ id) => Number(states?.[id]?.state);
+    out.sort((a, b) => {
+      const x = num(a), y = num(b);
+      const fx = Number.isFinite(x), fy = Number.isFinite(y);
+      if (fx && fy) return x - y || name(a).localeCompare(name(b));
+      if (fx !== fy) return fx ? -1 : 1;
+      return String(states?.[a]?.state ?? '').localeCompare(String(states?.[b]?.state ?? '')) || name(a).localeCompare(name(b));
+    });
+  } else if (row.sort !== 'none') {
+    out.sort((a, b) => name(a).localeCompare(name(b)) || a.localeCompare(b));
+  }
+  const max = Math.floor(Number(row.max_items));
+  return Number.isFinite(max) && max > 0 ? out.slice(0, max) : out;
 }
 
 /**
