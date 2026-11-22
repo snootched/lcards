@@ -28,7 +28,7 @@
  *
  * Usage:
  *   node scripts/docs-deploy.mjs --site=<gh-pages checkout> --build=<vitepress dist> \
- *        --channel=latest|dev|archive --version=<package.json version> [--keep=8] [--force]
+ *        --channel=latest|dev|archive --version=<package.json version> [--keep=3] [--force]
  */
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -52,7 +52,10 @@ export function sharedDirs(root) {
   }
   return dirs;
 }
-export const DEFAULT_KEEP = 8;
+// A version is about 157 MB and GitHub Pages serves at most 1 GB: the root (~172 MB),
+// /dev/ (~157 MB) and 3 versions leave room for growth. Archives keep their own copies
+// of images and the card bundle (they change between versions), so each is a full build.
+export const DEFAULT_KEEP = 3;
 
 const isStable = (v) => /^\d{4}\.\d{2}\.\d+$/.test(v) || /^\d{4}\.\d{2}\.\d{2}\.\d+$/.test(v);
 
@@ -156,7 +159,7 @@ function main() {
   }));
   for (const k of ['site', 'build', 'channel', 'version']) {
     if (!args[k]) {
-      console.error(`Missing --${k}. Usage: node scripts/docs-deploy.mjs --site=<dir> --build=<dist> --channel=latest|dev|archive --version=<v> [--keep=8] [--force]`);
+      console.error(`Missing --${k}. Usage: node scripts/docs-deploy.mjs --site=<dir> --build=<dist> --channel=latest|dev|archive --version=<v> [--keep=3] [--force]`);
       process.exit(2);
     }
   }

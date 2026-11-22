@@ -105,7 +105,8 @@ test('archives are frozen, stable-only, and pruned to the newest versions', () =
     let last;
     for (const v of many) last = deploy({ site, build: build(v), channel: 'archive', version: v });
     assert.equal(archivedVersions(site).length, DEFAULT_KEEP);
-    assert.deepEqual(last.pruned, ['2026.10.0']);
+    // the last deploy drops the one that was the oldest of the kept versions
+    assert.deepEqual(last.pruned, [many[many.length - 1 - DEFAULT_KEEP]]);
     assert.equal(archivedVersions(site)[0], '2027.03.0');
     assert.ok(!existsSync(join(site, 'v/2026.10.0')));
     assert.deepEqual(JSON.parse(read(site, 'versions.json')).versions, archivedVersions(site));
