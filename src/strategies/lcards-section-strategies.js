@@ -15,6 +15,9 @@
 import { LitElement, html } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { LCARS_SECTION_CATALOG } from './strategy-catalog.js';
+import { resolveTarget, entityArea } from '../utils/ha-targets.js';
+
+export { resolveTarget };
 import '../editor/components/shared/lcards-form-section.js';
 
 const ACCENT = 'theme:colors.ui.tertiary';
@@ -25,54 +28,13 @@ const READING_CLASSES = ['temperature', 'humidity', 'illuminance', 'carbon_dioxi
 const TOGGLE_DOMAINS = ['light', 'switch', 'fan', 'input_boolean'];
 
 /**
- * @typedef {{ entity_id?: string|string[], device_id?: string|string[], area_id?: string|string[],
- *   floor_id?: string|string[], label_id?: string|string[] }} Target
+ * @typedef {import('../utils/ha-targets.js').Target} Target
  * @typedef {{ type: string, title?: string, target?: Target, look?: 'classic'|'picard', frame?: boolean,
  *   columns?: number, max_items?: number, mode?: 'numbers'|'table', gap?: number, padding?: number,
  *   header_gap?: number, codes?: boolean, item_height?: number }} SectionConfig
  */
 
 const list = (/** @type {any} */ v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
-
-/** An entity's area: its own, else its device's. */
-function entityArea(hass, entityId) {
-    const entry = hass?.entities?.[entityId];
-    return entry?.area_id ?? (entry?.device_id ? hass?.devices?.[entry.device_id]?.area_id : null) ?? null;
-}
-
-/**
- * The entity ids a target names: entities directly; devices, areas (an entity's own
- * area or its device's), floors (their areas) and labels (on entities, devices or
- * areas) through the registries. Hidden and entity-category entities are left out
- * unless named directly, as Home Assistant's Entities section does.
- * @param {any} hass
- * @param {Target|undefined} target
- * @returns {string[]}
- */
-export function resolveTarget(hass, target) {
-    if (!target) return [];
-    const entities = hass?.entities ?? {};
-    const devices = hass?.devices ?? {};
-    const areas = hass?.areas ?? {};
-    const direct = new Set(list(target.entity_id));
-    const deviceIds = new Set(list(target.device_id));
-    const areaIds = new Set(list(target.area_id));
-    const labelIds = new Set(list(target.label_id));
-    for (const floor of list(target.floor_id)) {
-        for (const a of Object.values(areas)) if (a?.floor_id === floor) areaIds.add(a.area_id);
-    }
-    for (const a of Object.values(areas)) if (list(a?.labels).some(l => labelIds.has(l))) areaIds.add(a.area_id);
-    for (const d of Object.values(devices)) if (list(d?.labels).some(l => labelIds.has(l))) deviceIds.add(d.id);
-    const out = new Set([...direct].filter(id => id in (hass?.states ?? {})));
-    for (const [id, entry] of Object.entries(entities)) {
-        if (entry?.hidden || entry?.entity_category) continue;
-        if (!(id in (hass?.states ?? {}))) continue;
-        if ((entry?.device_id && deviceIds.has(entry.device_id))
-            || areaIds.has(entityArea(hass, id))
-            || list(entry?.labels).some(l => labelIds.has(l))) out.add(id);
-    }
-    return [...out];
-}
 
 /** A name without the words it shares with the area's name, in capitals. */
 function shortName(hass, entityId) {
