@@ -191,32 +191,6 @@ export function targetCell(cell, entityId) {
   return cell;
 }
 
-/**
- * Order a target row's entities: `name` (default) by friendly name, `state` by state
- * (numbers numerically, before text), `none` as resolved; then keep `max_items`.
- * @param {string[]} ids
- * @param {Record<string, any>} states - hass.states
- * @param {{ sort?: string, max_items?: number }} [row]
- * @returns {string[]}
- */
-export function orderTargetIds(ids, states, row = {}) {
-  const name = (/** @type {string} */ id) => String(states?.[id]?.attributes?.friendly_name ?? id);
-  let out = [...ids];
-  if (row.sort === 'state') {
-    const num = (/** @type {string} */ id) => Number(states?.[id]?.state);
-    out.sort((a, b) => {
-      const x = num(a), y = num(b);
-      const fx = Number.isFinite(x), fy = Number.isFinite(y);
-      if (fx && fy) return x - y || name(a).localeCompare(name(b));
-      if (fx !== fy) return fx ? -1 : 1;
-      return String(states?.[a]?.state ?? '').localeCompare(String(states?.[b]?.state ?? '')) || name(a).localeCompare(name(b));
-    });
-  } else if (row.sort !== 'none') {
-    out.sort((a, b) => name(a).localeCompare(name(b)) || a.localeCompare(b));
-  }
-  const max = Math.floor(Number(row.max_items));
-  return Number.isFinite(max) && max > 0 ? out.slice(0, max) : out;
-}
 
 /**
  * Work out what a cell shows and which entity gives it context.

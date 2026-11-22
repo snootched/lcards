@@ -718,6 +718,16 @@ views:
               - "{entity}"
         grid:
           grid-template-columns: 2fr 1fr
+      # series from a target: one line per entity with the engine label
+      - type: custom:lcards-chart
+        id: test_label_chart
+        height: 220
+        sources:
+          - target:
+              label_id: lcards_test_engine
+        style:
+          legend:
+            show: true
 
   - title: Rules
     path: rules

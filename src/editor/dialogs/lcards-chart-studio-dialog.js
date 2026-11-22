@@ -42,8 +42,9 @@ import '../components/shared/lcards-color-picker.js';
 import '../components/shared/lcards-color-list.js';
 import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 import { renderInfoGuide } from '../components/shared/info-guide.js';
-import { migrateChartConfig } from '../../charts/chart-config-migration.js';
+import { migrateChartConfig, isTargetSource } from '../../charts/chart-config-migration.js';
 import { normalizeChartSources } from '../../charts/chart-sources.js';
+import { resolveTarget, orderTargetIds } from '../../utils/ha-targets.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import '../components/yaml/lcards-studio-yaml-tab.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
@@ -621,7 +622,9 @@ export class LCARdSChartStudioDialog extends LitElement {
      * @private
      */
     _hasValidDataConfig(config) {
-        return normalizeChartSources(config).length > 0;
+        // a source from a Home Assistant target counts even while it has no entities
+        return normalizeChartSources(config).length > 0
+            || (Array.isArray(config?.sources) && config.sources.some(isTargetSource));
     }
 
     /**
@@ -1087,7 +1090,8 @@ export class LCARdSChartStudioDialog extends LitElement {
      * @private
      */
     _getSeriesCount() {
-        return normalizeChartSources(this._workingConfig).length;
+        return normalizeChartSources(this._workingConfig,
+            (item) => orderTargetIds(resolveTarget(this.hass, item.target), this.hass?.states, item)).length;
     }
 
     /**

@@ -35,9 +35,9 @@ import {
   normalizeRows, dataGridMode, classifyCell, dataColumnCount, countTracks,
   generateDecorativeGrid, refreshDecorativeCells,
   mergeStyleLayers, styleToCSS, gridContainerStyle, toPx, defaultCellStyle, defaultHeaderStyle,
-  buildCascadeRowTimings, cascadeColorList, cellActions, isTargetRow, orderTargetIds
+  buildCascadeRowTimings, cascadeColorList, cellActions, isTargetRow
 } from '../data-grid/data-grid-model.js';
-import { resolveTarget } from '../utils/ha-targets.js';
+import { resolveTarget, orderTargetIds } from '../utils/ha-targets.js';
 
 
 

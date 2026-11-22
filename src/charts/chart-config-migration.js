@@ -56,6 +56,16 @@ function legacyBuffer(item) {
 }
 
 /**
+ * Whether a source picks its entities with a Home Assistant target (no `entity`).
+ * @param {*} item
+ * @returns {boolean}
+ */
+export function isTargetSource(item) {
+  return !!item && typeof item === 'object' && !Array.isArray(item) && item.entity === undefined
+    && item.datasource === undefined && !!item.target && typeof item.target === 'object' && !Array.isArray(item.target);
+}
+
+/**
  * Whether a sources[] item is already in canonical form.
  * @param {*} item
  * @returns {boolean}
@@ -64,6 +74,8 @@ function isCanonicalItem(item) {
   if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
   if ('key' in item || 'id' in item || 'yaxis' in item) return false;
   if (typeof item.entity === 'string') return cleanAttribute(item.attribute) === item.attribute;
+  // a Home Assistant target: one series per entity (resolved by the card)
+  if (isTargetSource(item)) return cleanAttribute(item.attribute) === item.attribute;
   if (typeof item.datasource === 'string') {
     return !EDITOR_SERIES.test(item.datasource) && !EDITOR_PLACEHOLDER.test(item.datasource)
       && (item.buffer === undefined || (!String(item.buffer).includes('.') && item.buffer !== 'main'));

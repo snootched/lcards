@@ -144,7 +144,7 @@ test('every split file compiles in ajv with its shared refs, and real fixture co
     assert.equal(msd({ type: 'custom:lcards-msd-card', msd: { view_box: [0, 0, 1, 1], overlays: 'nope' } }), false);
 });
 
-test('size budgets: each card/view/strategy file under 100 KB, the full bundle under 850 KB', () => {
+test('size budgets: each card/view/strategy file under 100 KB, the full bundle under 900 KB', () => {
     for (const [rel, doc] of files) {
         if (rel.startsWith('shared/')) continue;
         const kb = Buffer.byteLength(JSON.stringify(doc)) / 1024;
@@ -159,7 +159,9 @@ test('size budgets: each card/view/strategy file under 100 KB, the full bundle u
     // 750 until 2026-11-03: NB1's nebula shapes (749 KB), then NB2a's nested astrometrics parts
     // (each part an object with its own description: 754 KB).
     // 800 until 2026-11-13: F1's Earth satellites (the satellites object, in systems too) took it to 802 KB.
-    assert.ok(bundleKb < 850, `lcards-schema.json is ${bundleKb.toFixed(1)} KB`);
+    // 850 until 2026-11-21: Home Assistant targets (data grid rows and chart sources, each with the
+    // target object; the chart branch repeats statistics, states and the state colour map) took it to 852 KB.
+    assert.ok(bundleKb < 900, `lcards-schema.json is ${bundleKb.toFixed(1)} KB`);
 });
 
 test('published text has no em dashes (CLAUDE.md: schema descriptions are user-facing)', () => {

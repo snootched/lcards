@@ -45,6 +45,8 @@ import {
 } from '../charts/chart-options-builder.js';
 import { ChartSeriesFetcher } from '../charts/chart-series-fetcher.js';
 import { normalizeChartSources, normalizeStateBands, arrayChartProblem } from '../charts/chart-sources.js';
+import { isTargetSource } from '../charts/chart-config-migration.js';
+import { resolveTarget, orderTargetIds } from '../utils/ha-targets.js';
 import { createTimelineColorer } from '../utils/ha-state-color.js';
 import { joinSyncGroup, publishSyncTime, apexShowsCursor, timeAtX, xAtTime } from '../charts/chart-sync-group.js';
 import { SYNC_WINDOW_STEP_MS } from '../charts/chart-options-builder.js';
@@ -298,7 +300,8 @@ export class LCARdSChart extends LCARdSCard {
     // config) both waited below and each made one, the first never stopped,
     // so every series was subscribed twice and every update drawn twice.
     const run = (this._loadRun = (this._loadRun ?? 0) + 1);
-    this._series = normalizeChartSources(this.config);
+    this._series = normalizeChartSources(this.config, (item) => this._targetEntities(item));
+    this._targetKey = this._chartTargetKey();
     this._bands = normalizeStateBands(this.config);
     this._seriesPoints = [];
     this._bandPoints = [];
@@ -518,6 +521,48 @@ export class LCARdSChart extends LCARdSCard {
       // Timeline bars carry their state colours in the series data
       if (this.config.chart_type === 'rangeBar') settleUpdate(this._chart.updateSeries(this._buildApexSeries(), false), 'alert series');
     }
+  }
+
+  /**
+   * A target source's entities (labels, areas, devices), in order, at most max_items.
+   * @param {any} item
+   * @returns {string[]}
+   * @private
+   */
+  _targetEntities(item) {
+    return orderTargetIds(resolveTarget(this.hass, item.target), this.hass?.states, item);
+  }
+
+  /**
+   * The entities every target source stands for now, as one string ('' without any).
+   * @returns {string}
+   * @private
+   */
+  _chartTargetKey() {
+    const targets = (Array.isArray(this.config?.sources) ? this.config.sources : []).filter(isTargetSource);
+    return targets.length ? JSON.stringify(targets.map(t => this._targetEntities(t))) : '';
+  }
+
+  /**
+   * Target sources follow Home Assistant: with the first hass and when the entity,
+   * device or area registry is replaced (a label, area or device changed), load
+   * again if the entities they stand for changed. A state change alone never does.
+   * @param {any} newHass
+   * @param {any} oldHass
+   * @protected
+   */
+  _handleHassUpdate(newHass, oldHass) {
+    super._handleHassUpdate?.(newHass, oldHass);
+    if (!this._firstUpdateDone || !this.isConnected) return;
+    if (!(Array.isArray(this.config?.sources) && this.config.sources.some(isTargetSource))) return;
+    const registriesChanged = !oldHass || oldHass.entities !== newHass?.entities
+      || oldHass.devices !== newHass?.devices || oldHass.areas !== newHass?.areas;
+    if (!registriesChanged) return;
+    if (this._chartTargetKey() === this._targetKey) return;
+    // other series: build the chart again around them
+    this._destroyChart();
+    this.requestUpdate();
+    this._startLoading();
   }
 
   /**
@@ -864,6 +909,20 @@ export class LCARdSChart extends LCARdSCard {
    * @override
    */
   setConfig(config) {
+    this._destroyChart();
+    super.setConfig(config);
+
+    if (this._firstUpdateDone && this.isConnected) {
+      this._startLoading();
+    }
+  }
+
+  /**
+   * Take the ApexCharts instance down so the next load builds it again with the
+   * current series (a config change, or a target source whose entities changed).
+   * @private
+   */
+  _destroyChart() {
     this._leaveSyncGroup();
     this._resizeObserverChart?.disconnect();
     this._resizeObserverChart = null;
@@ -871,7 +930,7 @@ export class LCARdSChart extends LCARdSCard {
       try {
         this._chart.destroy();
       } catch (e) {
-        lcardsLog.warn('[LCARdSChart] Error destroying chart on config change:', e);
+        lcardsLog.warn('[LCARdSChart] Error destroying chart:', e);
       }
       this._chart = null;
     }
@@ -879,12 +938,6 @@ export class LCARdSChart extends LCARdSCard {
     this._chartInitialized = false;
     this._chartGeneration++;
     this._stateColorer = null;
-
-    super.setConfig(config);
-
-    if (this._firstUpdateDone && this.isConnected) {
-      this._startLoading();
-    }
   }
 
   /**

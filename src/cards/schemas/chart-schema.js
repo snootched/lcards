@@ -13,7 +13,7 @@
  * @see doc/user/configuration/cards/chart.md
  */
 
-import { simpleColorSchema, stateColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, cardLevelProperties, triggersUpdateSchema } from './common-schemas.js';
+import { simpleColorSchema, stateColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, cardLevelProperties, triggersUpdateSchema, haTargetSchema } from './common-schemas.js';
 
 /**
  * Get complete chart card schema with nested structure
@@ -207,6 +207,38 @@ export function getChartSchema(options = {}) {
         ]
     };
 
+    // A source that picks its entities in Home Assistant (a label, area, device, floor):
+    // one series per entity, each named by it and coloured from the palette, so no name or color
+    {
+        const entityBranch = /** @type {Record<string, any>} */ (seriesSchema.anyOf[0].properties);
+        const { name: _name, ...display } = seriesDisplayProperties;
+        /** @type {any[]} */ (seriesSchema.anyOf).splice(1, 0, {
+            type: 'object',
+            title: 'Series from Home Assistant',
+            properties: {
+                target: { ...haTargetSchema, description: "Home Assistant's target: one series per entity it includes (a label on the entity, its device or its area; areas, devices, floors, entities). Each series is named by its entity and takes the next palette colour." },
+                attribute: entityBranch.attribute,
+                statistics: entityBranch.statistics,
+                sort: {
+                    type: 'string',
+                    enum: ['name', 'state', 'none'],
+                    default: 'name',
+                    description: 'Order of the series: name (friendly name), state (current value, low to high) or none (as Home Assistant lists them)'
+                },
+                max_items: { type: 'integer', minimum: 1, description: 'At most this many series (the first ones after sorting)' },
+                ...display,
+                color: {
+                    ...stateColorSchema,
+                    description: 'rangeBar timeline: a colour per state (an exact state such as heat, then active, inactive, unavailable, then default) for every series. A single colour is not used: each series takes the next palette colour.'
+                },
+                states: entityBranch.states,
+                min_duration: entityBranch.min_duration
+            },
+            required: ['target'],
+            additionalProperties: false
+        });
+    }
+
     // ============================================================================
     // MAIN SCHEMA
     // ============================================================================
@@ -274,7 +306,7 @@ export function getChartSchema(options = {}) {
 
             sources: {
                 type: 'array',
-                description: 'Chart series. Each item plots an entity (history or long-term statistics) or a named DataSource buffer.',
+                description: 'Chart series. Each item plots an entity (history or long-term statistics), every entity of a Home Assistant label, area or device ({ target }), or a named DataSource buffer.',
                 items: seriesSchema,
                 'x-ui-hints': {
                     label: 'Series',

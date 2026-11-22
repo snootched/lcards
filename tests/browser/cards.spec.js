@@ -253,6 +253,22 @@ test('button: tap more-info fires hass-more-info for the entity', async ({ page 
     expect(await page.evaluate(() => window.__hass.serviceCalls)).toEqual([]);
 });
 
+test('chart: a target source draws a series per labelled entity and follows a label change', async ({ page }) => {
+    await mountCase(page, 'chart-target', { height: '300' });
+    await expectNoErrors(page);
+    const legend = page.locator('lcards-chart .apexcharts-legend-text');
+    // named by their sample friendly names, in name order
+    await expect.poll(() => legend.allTextContents()).toEqual(['Lcards Test Power', 'Lcards Test Shields']);
+    // the label put on another helper in Home Assistant: a third series
+    await page.evaluate(() => {
+        window.__setState('input_number.lcards_test_temperature', { state: '21', attributes: { friendly_name: 'Temperature' } });
+        const entities = { ...window.__hass.entities, 'input_number.lcards_test_temperature': { entity_id: 'input_number.lcards_test_temperature', labels: ['lcards_test_engine'] } };
+        window.__setRegistries({ entities });
+    });
+    await expect.poll(() => legend.allTextContents()).toEqual(['Lcards Test Power', 'Lcards Test Shields', 'Temperature']);
+    await expectNoErrors(page);
+});
+
 test('chart: lazy ApexCharts chunk loads and draws the mocked history', async ({ page }) => {
     const chunk = page.waitForResponse(r => /\/lcards\/chunks\/apexcharts[^/]*\.js$/.test(r.url()));
     await mountCase(page, 'chart-area', { height: '300' });

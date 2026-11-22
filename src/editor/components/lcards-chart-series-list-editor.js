@@ -75,6 +75,9 @@ const CURVES = [
 /** Fields that belong to one source kind; dropped when switching kinds. */
 const KIND_FIELDS = ['entity', 'attribute', 'statistics', 'datasource', 'buffer'];
 
+/** Keys of a source that picks its entities with a Home Assistant target. */
+const TARGET_FIELDS = ['target', 'sort', 'max_items'];
+
 /**
  * @param {Object} series
  * @returns {'history'|'statistics'|'datasource'}
@@ -191,13 +194,15 @@ export class LCARdSChartSeriesListEditor extends LitElement {
   _setKind(index, kind) {
     const current = this._sources[index];
     if (kindOf(current) === kind) return;
-    const display = Object.fromEntries(Object.entries(current).filter(([k]) => !KIND_FIELDS.includes(k)));
-    const entity = current.entity ?? '';
+    // a data source has no Home Assistant target; history and statistics keep theirs
+    const dropped = kind === 'datasource' ? [...KIND_FIELDS, ...TARGET_FIELDS] : KIND_FIELDS;
+    const display = Object.fromEntries(Object.entries(current).filter(([k]) => !dropped.includes(k)));
+    const pick = current.target && kind !== 'datasource' ? {} : { entity: current.entity ?? '' };
     const next = kind === 'datasource'
       ? { datasource: '', ...display }
       : kind === 'statistics'
-        ? { entity, statistics: { type: 'mean', period: 'hour' }, ...display }
-        : { entity, ...display };
+        ? { ...pick, statistics: { type: 'mean', period: 'hour' }, ...display }
+        : { ...pick, ...display };
     const sources = this._sources.map((s, i) => (i === index ? next : s));
     this._commit(sources);
   }
@@ -286,7 +291,33 @@ export class LCARdSChartSeriesListEditor extends LitElement {
       `;
     }
 
+    const fromTarget = !!series.target;
     return html`
+      <div class="full">
+        ${this._select('Entities', fromTarget ? 'target' : 'one', [
+          { value: 'one', label: 'One entity' },
+          { value: 'target', label: 'Every entity of a label, area or device' }
+        ], (v) => this._patch(index, v === 'target'
+          ? { target: series.target ?? { label_id: [] }, entity: undefined, attribute: undefined, name: undefined, color: typeof series.color === 'object' ? series.color : undefined }
+          : { target: undefined, sort: undefined, max_items: undefined, entity: '' }))}
+      </div>
+      ${fromTarget ? html`
+        <ha-selector
+          class="full"
+          .hass=${this.hass}
+          .label=${'Label, area or device'}
+          .helper=${'One series per entity, named by it and coloured from the palette'}
+          .value=${series.target}
+          .selector=${{ target: {} }}
+          @value-changed=${(e) => this._patch(index, { target: e.detail.value && Object.keys(e.detail.value).length ? e.detail.value : { label_id: [] } })}>
+        </ha-selector>
+        ${this._select('Order', series.sort ?? 'name', [
+          { value: 'name', label: 'By name' },
+          { value: 'state', label: 'By current value' },
+          { value: 'none', label: 'As Home Assistant lists them' }
+        ], (v) => this._patch(index, { sort: v === 'name' ? undefined : v }))}
+        ${this._number('Most series', series.max_items, (v) => this._patch(index, { max_items: v && v > 0 ? v : undefined }), { min: 1, max: 50 })}
+      ` : html`
       <ha-selector
         class=${kind === 'statistics' ? '' : 'full'}
         .hass=${this.hass}
@@ -295,7 +326,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
         .required=${true}
         .selector=${{ entity: {} }}
         @value-changed=${(e) => this._patch(index, { entity: e.detail.value, attribute: undefined })}>
-      </ha-selector>
+      </ha-selector>`}
       ${kind === 'statistics' ? html`
         ${this._select('Statistic', series.statistics?.type ?? 'mean', STAT_TYPES.map(t => ({ value: t, label: t })),
           (v) => this._patch(index, { statistics: { ...series.statistics, type: v } }))}
@@ -307,7 +338,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
           .hass=${this.hass}
           .label=${'Attribute (optional)'}
           .value=${series.attribute ?? ''}
-          .selector=${{ attribute: { entity_id: series.entity } }}
+          .selector=${fromTarget ? { text: {} } : { attribute: { entity_id: series.entity } }}
           @value-changed=${(e) => this._patch(index, { attribute: e.detail.value || undefined })}>
         </ha-selector>
       `}
@@ -347,7 +378,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
     return html`
       <lcards-form-section header="Timeline" icon="mdi:chart-timeline" nested outlined>
         <div class="grid">
-          ${this._text('Name', series.name, (v) => this._patch(index, { name: v }))}
+          ${series.target ? nothing : this._text('Name', series.name, (v) => this._patch(index, { name: v }))}
           ${this._text('Shortest state', series.min_duration, (v) => this._patch(index, { min_duration: v }), 'e.g. 30s')}
           <ha-selector
             class="full"
@@ -377,7 +408,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
   _renderSeries(series, index, total) {
     const kind = kindOf(series);
     const timeline = (this.config?.chart_type ?? 'line') === 'rangeBar';
-    const title = series.name || series.entity || series.datasource || `Series ${index + 1}`;
+    const title = series.name || series.entity || series.datasource || (series.target ? 'Entities from Home Assistant' : `Series ${index + 1}`);
     const yaxisIds = (this.config?.yaxis ?? []).map(a => a.id).filter(Boolean);
     const groupBy = series.group_by ?? {};
 
@@ -426,7 +457,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
 
         <lcards-form-section header="Display" icon="mdi:palette" nested outlined>
           <div class="grid">
-            ${this._text('Name', series.name, (v) => this._patch(index, { name: v }))}
+            ${series.target ? nothing : this._text('Name', series.name, (v) => this._patch(index, { name: v }))}
             ${this._text('Unit', series.unit, (v) => this._patch(index, { unit: v }), 'From entity')}
             ${this._select('Series type', series.type ?? '', SERIES_TYPES, (v) => this._patch(index, { type: v || undefined }))}
             ${this._select('Line', series.curve ?? '', CURVES, (v) => this._patch(index, { curve: v || undefined }))}
@@ -437,14 +468,14 @@ export class LCARdSChartSeriesListEditor extends LitElement {
             ${yaxisIds.length ? this._select('Y axis', series.yaxis_id ?? '',
               [{ value: '', label: '(First axis)' }, ...yaxisIds.map(id => ({ value: id, label: id }))],
               (v) => this._patch(index, { yaxis_id: v || undefined })) : nothing}
-            <div class="full">
+            ${series.target ? nothing : html`<div class="full">
               <lcards-color-picker
                 .hass=${this.hass}
                 .value=${series.color ?? ''}
                 .showPreview=${true}
                 @value-changed=${(e) => this._patch(index, { color: e.detail.value || undefined })}>
               </lcards-color-picker>
-            </div>
+            </div>`}
           </div>
         </lcards-form-section>`}
       </lcards-form-section>

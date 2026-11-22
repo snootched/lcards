@@ -1,0 +1,11 @@
+# Chart series from a Home Assistant target: one line per entity with the
+# lcards_test_engine label (the sample registries: power and shields)
+type: custom:lcards-chart
+chart_type: line
+sources:
+  - target:
+      label_id: lcards_test_engine
+    stroke_width: 2
+style:
+  legend:
+    show: true

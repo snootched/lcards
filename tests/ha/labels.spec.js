@@ -98,6 +98,20 @@ test('labels: a data grid row repeats per labelled entity and follows a label ch
     expect(errors).toEqual([]);
 });
 
+test('labels: a chart draws a series per labelled entity and follows a label change', async ({ page }) => {
+    const errors = await open(page);
+    const legend = page.locator('lcards-chart').locator('.apexcharts-legend-text');
+    await expect.poll(() => legend.allTextContents(), { timeout: 15_000 }).toEqual(['LCARdS Test Power', 'LCARdS Test Shields']);
+    await setEntityLabel(client, 'input_number.lcards_test_shields', 'lcards_test_engine', false);
+    try {
+        await expect.poll(() => legend.allTextContents(), { timeout: 15_000 }).toEqual(['LCARdS Test Power']);
+    } finally {
+        await setEntityLabel(client, 'input_number.lcards_test_shields', 'lcards_test_engine', true);
+    }
+    await expect.poll(() => legend.allTextContents(), { timeout: 15_000 }).toEqual(['LCARdS Test Power', 'LCARdS Test Shields']);
+    expect(errors).toEqual([]);
+});
+
 test('labels: the editor lists the entity\'s labels, and Home Assistant\'s target selector loads', async ({ page }) => {
     const errors = await open(page);
     const result = await page.evaluate(async (entity) => {

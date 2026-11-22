@@ -3,7 +3,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isTargetRow, targetCell, orderTargetIds } from '../../src/data-grid/data-grid-model.js';
+import { isTargetRow, targetCell } from '../../src/data-grid/data-grid-model.js';
+import { orderTargetIds } from '../../src/utils/ha-targets.js';
 import {
     splitTrackList, expandTracks, countTracks, joinTracks,
     normalizeRows, classifyCell, dataColumnCount,

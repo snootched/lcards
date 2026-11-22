@@ -107,3 +107,12 @@ sections:
         style:
           font_size: 18px
         grid_options: { columns: 12, rows: 3 }
+      - type: custom:lcards-chart
+        sources:
+          # one line per entity with the engine label, each named by it
+          - target: { label_id: lcards_test_engine }
+            stroke_width: 2
+        style:
+          legend:
+            show: true
+        grid_options: { columns: 12, rows: 4 }

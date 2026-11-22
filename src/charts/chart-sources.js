@@ -6,7 +6,7 @@
  * @module charts/chart-sources
  */
 
-import { migrateChartConfig } from './chart-config-migration.js';
+import { migrateChartConfig, isTargetSource } from './chart-config-migration.js';
 import { ARRAY_FUNCS } from './chart-group-by.js';
 
 /** Chart types state bands draw on: a time x-axis (not horizontal bars, heatmaps or one-value charts). */
@@ -38,17 +38,31 @@ export const ARRAY_CHART_TYPES = new Set(['rangeArea', 'rangeBar', 'boxPlot', 'c
  * @property {boolean} [keepState] - history as text states, not numbers (rangeBar timeline)
  * @property {string[]} [states] - rangeBar: the states to draw (exact states or active, inactive, unavailable)
  * @property {string} [min_duration] - rangeBar: runs shorter than this merge into the run before
+ * @property {boolean} [fromTarget] - one of the series a Home Assistant target source expanded to
  */
 
 /**
  * @param {Object} config - Chart card config (legacy or canonical)
+ * @param {(item: any) => string[]} [expand] - A target source's entity ids, in order (the
+ *   card resolves them against hass). A target source gives one series per entity, with
+ *   the source's other keys (not `name`, and `color` only as a state colour map: each series
+ *   shows its entity's name and the next palette colour); without `expand` it gives none.
  * @returns {ChartSeries[]}
  */
-export function normalizeChartSources(config) {
+export function normalizeChartSources(config, expand = undefined) {
   const { config: canonical } = migrateChartConfig(config ?? {});
   const sources = Array.isArray(canonical?.sources) ? canonical.sources : [];
 
   return sources
+    .flatMap(item => {
+      if (!isTargetSource(item)) return [item];
+      if (!expand) return [];
+      // each series is named by its entity and takes the next palette colour; a state
+      // colour map (a rangeBar timeline) applies to every one
+      const { target, sort, max_items, name, color, ...rest } = item;
+      const shared = color && typeof color === 'object' ? { color } : {};
+      return expand(item).map(entity => ({ ...rest, ...shared, entity, fromTarget: true }));
+    })
     .filter(item => item && typeof item === 'object' && (item.entity || item.datasource))
     .map(item => {
       if (item.datasource) {

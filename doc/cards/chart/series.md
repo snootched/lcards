@@ -15,6 +15,7 @@ What each series plots and where its data comes from, how much time the chart sh
 
 - **Entity history** is the simplest and shows exactly what Home Assistant recorded.
 - **Long-term statistics** suit charts that span more than a few days, or sensors that change so often that history gets slow. They also last beyond the recorder's history limit.
+- **Every entity of a label, area or device** is one source written once with a Home Assistant `target`: it becomes a series per entity, as [Entities from Home Assistant](#entities-from-home-assistant) shows. It works with entity history and long-term statistics.
 - **An LCARdS data source** plots a processed value (a smoothed line, a rate of change, a converted unit), or shares one live value between several cards. Data sources keep a limited number of recent points (up to 1,000), so they suit short windows.
 
 | | Entity history | Long-term statistics | LCARdS data source |
@@ -151,6 +152,37 @@ data_sources:
 |-----|------|---------|-------------|
 | `datasource` | string | required | The name of a data source, in this card's `data_sources` or defined by another card |
 | `buffer` | string | the raw values | The processor whose values to plot |
+
+## Entities from Home Assistant
+
+**A source with a `target` plots every entity of a Home Assistant label, area or device, one series each, so the chart follows what you label in Home Assistant.** Write the source once; each entity it includes becomes a series.
+
+- `target` is Home Assistant's target object: `label_id`, `area_id`, `device_id`, `floor_id`, `entity_id`, each one id or a list. A label counts on the entity, its device or its area.
+- Each series is named by its entity's name and takes the next colour of `style.colors.series`. The source's other keys (`statistics`, `attribute`, `type`, `curve`, `stroke_width`, `unit` ...) apply to every series; `name` is not used.
+- `sort` orders the series (and so their colours and legend entries): `name` (default), `state` (current value, low to high) or `none`. `max_items` keeps the first ones.
+- The chart loads again when a label, area or device change in Home Assistant adds or removes an entity, not on every state change.
+
+```yaml live
+type: custom:lcards-chart
+sources:
+  # one line for each entity with the label
+  - target:
+      label_id: lcards_test_engine
+    stroke_width: 2
+```
+
+::: details More about entities from Home Assistant
+- **Which entities:** hidden entities and configuration or diagnostic entities are left out unless named in `entity_id`, as in Home Assistant's own sections.
+- **Timelines:** on a `rangeBar` timeline, a `color` map (a colour per state) applies to every series. A single `color` is not used.
+- **Many entities:** every series is one more history fetch; use `max_items` on a label with many entities.
+- **In Chart Studio:** a series' Entities choice switches between one entity and every entity of a label, area or device.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `sources[].target` | object | - | Home Assistant's target: `label_id`, `area_id`, `device_id`, `floor_id`, `entity_id` (each an id or a list). One series per entity |
+| `sources[].sort` | string | `name` | `name`, `state` or `none` |
+| `sources[].max_items` | number | - | At most this many series |
 
 ## Series options
 
