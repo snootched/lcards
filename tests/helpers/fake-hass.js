@@ -112,8 +112,11 @@ export function createFakeConnection({ replies, onSubscribe, pruneEnded = false 
  * @param {boolean} [opts.darkMode=true]
  * @param {object} [opts.user]
  * @param {boolean} [opts.pruneEnded] - see createFakeConnection
+ * @param {{ entities?: object, devices?: object, areas?: object }} [opts.registries] - Home
+ *   Assistant's entity, device and area registries (entries with `labels`)
+ * @param {object[]} [opts.labels] - the label registry, answered to `config/label_registry/list`
  */
-export function createFakeHass({ states = {}, replies, onSubscribe, darkMode = true, user, pruneEnded = false } = {}) {
+export function createFakeHass({ states = {}, replies, onSubscribe, darkMode = true, user, pruneEnded = false, registries = {}, labels } = {}) {
     // subscribe_entities (the state-change hub) is answered as Home Assistant does:
     // the current states of the requested entities first (`a`), then changes
     // (pushStateChange below). `hass` is defined further down; read it lazily.
@@ -127,7 +130,10 @@ export function createFakeHass({ states = {}, replies, onSubscribe, darkMode = t
         }
         if (onSubscribe) onSubscribe(msg, push);
     };
-    const connection = createFakeConnection({ replies, onSubscribe: answer, pruneEnded });
+    const reply = labels
+        ? (/** @type {any} */ msg) => (msg?.type === 'config/label_registry/list' ? labels : replies?.(msg))
+        : replies;
+    const connection = createFakeConnection({ replies: reply, onSubscribe: answer, pruneEnded });
     const serviceCalls = [];
 
     const hass = {
@@ -139,9 +145,9 @@ export function createFakeHass({ states = {}, replies, onSubscribe, darkMode = t
         themes: { darkMode, theme: 'default', themes: {} },
         user: user ?? { id: 'test-user', name: 'Test', is_admin: true },
         config: { unit_system: { temperature: '°C', length: 'km' }, time_zone: 'UTC' },
-        entities: {},
-        devices: {},
-        areas: {},
+        entities: registries.entities ?? {},
+        devices: registries.devices ?? {},
+        areas: registries.areas ?? {},
         async callService(domain, service, data = {}, target) {
             serviceCalls.push({ domain, service, data, target });
             return { context: { id: 'test' } };

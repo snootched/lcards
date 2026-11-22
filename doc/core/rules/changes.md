@@ -80,11 +80,90 @@ cards:
 | `id` (on a card) | string | generated | The card's name, for `apply.overlays.<id>` and `overlay:` |
 | `tags` (on a card) | list | - | Group names, for `tag:<name>` selectors, such as `[nav, lights]` |
 
+## Home Assistant labels
+
+**`ha_label:<label_id>` targets every card whose entity carries that Home Assistant label, so a rule follows what you label in Home Assistant instead of a list of ids.** Label entities, devices or areas in Home Assistant's settings; the rule finds the cards showing them.
+
+- A card matches when its `entity` has the label itself, through its device, or through its area (the entity's own area, else its device's).
+- A card without an `entity` never matches: give it an `id` or `tags` instead. LCARdS `tags` and Home Assistant labels sit side by side; neither replaces the other.
+- The selector uses the label id, not its name. Home Assistant makes the id from the name when the label is created (`Low battery` becomes `low_battery`) and keeps it when the label is renamed.
+- Adding or removing a label in Home Assistant takes effect straight away: the rules resolve their targets again.
+
+```yaml live controls
+type: custom:lcards-layout-card
+layout:
+  height: 150px
+  grid-gap: 6px
+  grid-template-columns: 1fr 1fr 1fr
+  grid-template-rows: 1fr 1fr
+cards:
+  - type: custom:lcards-button
+    preset: lozenge
+    entity: input_boolean.lcards_test_toggle
+    tap_action:
+      action: toggle
+    text:
+      name:
+        content: TOGGLE
+        show: true
+    view_layout:
+      grid-column: 1 / 4
+    rules:
+      - id: docs-rules-ha-label
+        when:
+          entity: input_boolean.lcards_test_toggle
+          state: "on"
+        apply:
+          overlays:
+            # every card whose entity carries the label
+            ha_label:lcards_test_crew:
+              style:
+                card:
+                  color:
+                    background: var(--lcars-alert-red)
+  # the label is on this entity
+  - type: custom:lcards-button
+    preset: filled
+    entity: input_boolean.lcards_test_lights
+    text:
+      name:
+        content: LIGHTS
+        show: true
+  # the label is on this entity's device
+  - type: custom:lcards-button
+    preset: filled
+    entity: input_boolean.lcards_test_doors
+    text:
+      name:
+        content: DOORS
+        show: true
+  # no label: stays as it is
+  - type: custom:lcards-button
+    preset: filled
+    entity: input_number.lcards_test_power
+    text:
+      name:
+        content: POWER
+        show: true
+```
+
+::: details More about Home Assistant labels
+- **Where to find an id:** a card's editor lists its entity's labels with their ids under Tags (Card Identification). In Home Assistant, Settings, Areas, labels and zones, Labels lists every label.
+- **MSD and astrometrics:** an MSD line or shape matches by its own `entity`, a control by its card's entity, and an astrometrics point or object by its `entity`.
+- **Animations:** `apply.animations` takes `ha_label: <label_id>` as a target, like `tag`.
+- **Actions:** a `perform-action` can target a label too, with Home Assistant's own `target: { label_id: ... }`.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `apply.overlays.ha_label:<label_id>` | object | - | The patch for every card and overlay whose entity carries this Home Assistant label (on the entity, its device or its area) |
+| `ha_label` (in `apply.animations`) | string | - | Play the animation on every card and overlay whose entity carries this label |
+
 ## apply.overlays
 
 **`apply.overlays` maps selectors to patches: each key picks cards, and its value is config merged over theirs while the rule matches.** A patch can change any of the card's options, not only `style`: here the third card's name changes too.
 
-- A selector is a card's `id`, or `tag:<name>`, `type:<type>`, `pattern:<regex>` or `all`. `exclude` leaves cards out of every selector in the rule.
+- A selector is a card's `id`, or `tag:<name>`, `type:<type>`, `ha_label:<label_id>`, `pattern:<regex>` or `all`. `exclude` leaves cards out of every selector in the rule.
 - The card's own config comes back when the rule stops matching.
 - On an MSD, a line or shape takes its own `style` keys (`color`, `width`, `opacity` ...): see [Rules on an MSD](/cards/msd/animations#rules).
 
@@ -160,6 +239,7 @@ cards:
 | `apply.overlays.<id>` | object | - | The patch for the card or overlay with this `id` |
 | `apply.overlays.tag:<name>` | object | - | The patch for every card or overlay with this tag |
 | `apply.overlays.type:<type>` | object | - | The patch for every card or overlay of this type, such as `type:slider` or `type:line` |
+| `apply.overlays.ha_label:<label_id>` | object | - | The patch for every card or overlay whose entity carries this [Home Assistant label](#home-assistant-labels) |
 | `apply.overlays.pattern:<regex>` | object | - | The patch for every card or overlay whose `id` matches this JavaScript regular expression. An invalid regex is skipped |
 | `apply.overlays.all` | object | - | The patch for every card and overlay on the page |
 | `apply.overlays.exclude` | list / string | - | Ids left out of every selector in this rule |
@@ -203,7 +283,7 @@ rules:
 
 ## apply.animations
 
-**`apply.animations` plays animations on cards while the rule matches, such as a blink on alert.** Each item names its target (`overlay`, `tag`, `type` or `pattern`) and a `preset`.
+**`apply.animations` plays animations on cards while the rule matches, such as a blink on alert.** Each item names its target (`overlay`, `tag`, `ha_label`, `type` or `pattern`) and a `preset`.
 
 - An animation starts when the rule begins to match, not again while it keeps matching. A looping one stops when the rule stops matching; a one-shot plays to its end.
 - Targets are list items here (`- tag: alert`), not map keys as in `apply.overlays` (`tag:alert:`).
@@ -234,7 +314,7 @@ rules:
 ```
 
 ::: details More about apply.animations
-- **One target per item:** with more than one target key, the first of `overlay`, `tag`, `type`, `pattern` wins. `exclude` does not apply to animations.
+- **One target per item:** with more than one target key, the first of `overlay`, `tag`, `ha_label`, `type`, `pattern` wins. `exclude` does not apply to animations.
 - **Cards still loading:** a target that is not on the page yet is looked for again for about a second and a half, so a rule that matches as an MSD loads still finds its lines.
 :::
 
@@ -243,6 +323,7 @@ rules:
 | `overlay` | string | - | Target one card or overlay by its `id` |
 | `tag` | string | - | Target every card or overlay with this tag |
 | `type` | string | - | Target every card or overlay of this type, such as `button` or `line` |
+| `ha_label` | string | - | Target every card or overlay whose entity carries this [Home Assistant label](#home-assistant-labels) |
 | `pattern` | string | - | Target every card or overlay whose `id` matches this regular expression |
 | `preset` | string | required | The animation preset, such as `pulse`, `blink` or `glow` |
 | `loop` | boolean / number | `false` | `true` loops until the rule stops matching; a number repeats that many more times |

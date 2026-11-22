@@ -1017,11 +1017,12 @@ export const rulesSchema = {
                 properties: {
                     overlays: {
                         type: 'object',
-                        description: 'Overlay style changes using direct IDs or selectors (all, type:, tag:, pattern:, exclude:)',
+                        description: 'Overlay style changes using direct IDs or selectors (all, type:, tag:, ha_label:, pattern:, exclude:). ha_label:<label_id> picks the cards and overlays whose entity carries that Home Assistant label, on the entity itself, its device or its area.',
                         additionalProperties: true,
                         examples: [
                             { temp_display: { style: { color: 'var(--lcars-red)' } } },
                             { 'tag:critical': { style: { color: 'var(--lcars-alert-red)', border_width: '3px' } } },
+                            { 'ha_label:low_battery': { style: { color: 'var(--lcars-alert-red)' } } },
                             { all: { style: { opacity: 0.5 } }, exclude: ['main_display'] }
                         ]
                     },
@@ -1052,7 +1053,7 @@ export const rulesSchema = {
                     },
                     animations: {
                         type: 'array',
-                        description: 'Animations to trigger when rule matches. Supports overlay targeting (ID, tag, type, pattern) and automatic lifecycle management (start on match, stop on unmatch).',
+                        description: 'Animations to trigger when rule matches. Supports overlay targeting (ID, tag, type, ha_label, pattern) and automatic lifecycle management (start on match, stop on unmatch).',
                         items: {
                             type: 'object',
                             properties: {
@@ -1070,6 +1071,11 @@ export const rulesSchema = {
                                     type: 'string',
                                     description: 'Target all overlays of this type',
                                     examples: ['gauge', 'text', 'icon']
+                                },
+                                ha_label: {
+                                    type: 'string',
+                                    description: 'Target every card and overlay whose entity carries this Home Assistant label (its label id, set on the entity, its device or its area in Home Assistant)',
+                                    examples: ['low_battery', 'security']
                                 },
                                 pattern: {
                                     type: 'string',

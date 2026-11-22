@@ -90,3 +90,31 @@ test('astrometrics: part colours are color / colors under the part, never <part>
   });
   assert.deepEqual(bad, []);
 });
+
+/**
+ * Home Assistant labels (reports/ha-labels-plan.md, the user 2026-11-21): our own
+ * keys say `ha_label` (a bare `label` is a text field across LCARdS), and a set of
+ * entities picked in Home Assistant's terms is Home Assistant's own target object,
+ * so `label_id` only appears beside `entity_id`, `device_id` and `area_id`.
+ */
+test('Home Assistant labels: ha_label for our keys, label_id only inside a Home Assistant target', () => {
+  const SYNONYMS_HA_LABEL = ['ha_labels', 'hass_label', 'ha_label_id', 'homeassistant_label', 'label_ids'];
+  /** @type {string[]} */
+  const bad = [];
+  let animationTarget = false;
+  for (const e of getSchemaEntries()) {
+    walk(e.schema, e.name ?? e.type ?? '?', (props, path) => {
+      const keys = Object.keys(props);
+      for (const k of keys) if (SYNONYMS_HA_LABEL.includes(k)) bad.push(`${path}: ${k} (say ha_label, or target.label_id)`);
+      if (keys.includes('label_id') && !['entity_id', 'device_id', 'area_id'].every((k) => keys.includes(k))) {
+        bad.push(`${path}: label_id outside a Home Assistant target object`);
+      }
+      if (keys.includes('preset') && keys.includes('tag') && keys.includes('pattern')) {
+        animationTarget = true;
+        if (!keys.includes('ha_label')) bad.push(`${path}: a rule animation target without ha_label`);
+      }
+    });
+  }
+  assert.ok(animationTarget, 'the rule animation target schema was found');
+  assert.deepEqual(bad, []);
+});

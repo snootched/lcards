@@ -32,6 +32,7 @@ The engine:
 | `src/utils/linearMap.js` | `linearMap()` (used by `map_range_cond`) and `mapRangeOutput()` (map_range in animation params) |
 | `src/core/animation/resolveAnimParams.js` | `resolveAnimParam()` / `resolveAnimCommandParams()`: map_range descriptors in rule animations and `shape_texture` patches |
 | `src/base/LCARdSCard.js` | Card side: `_loadRulesFromConfig()`, `_registerOverlayForRules()`, `_applyRulePatches()`, `_applyRuleResults()`, `_getMergedStyleWithRules()` |
+| `src/utils/ha-targets.js` | Home Assistant targets and labels: `resolveTarget()`, `labelsOf()` / `hasLabel()` for `ha_label:`, `registryKey()` |
 | `src/cards/lcards-msd.js` | MSD side: overlay registration, `_applyRulePatches()` override, `_applyRuleResults()` (base SVG) |
 | `src/cards/schemas/common-schemas.js` | `rulesSchema`: the published rule schema (shared by every card) |
 
@@ -245,7 +246,7 @@ sequenceDiagram
 - Once the subscription exists, `ingestHass()` no longer marks rules dirty; it only runs the callbacks when something else left rules dirty.
 - Rules that read the clock (`deps.time`) get a timer of their own: `_syncTimeRefresh()` (end of `_compileRules()`) collects them in `_timeRuleIds` and arms a `setTimeout` for the next minute boundary (`TIME_REFRESH_MS`, 60000, plus 50 ms), re-armed after each tick while such rules exist and cleared by `destroy()`. `refreshTimeRules()` marks only those rules dirty and runs the callbacks, so entity rules are not evaluated again. `random_chance` therefore draws again each minute.
 - Data source updates mark the rules naming the source dirty (see [Entity lookup](#entity-lookup)).
-- `markAllDirty()` is also called when rules are loaded, when a card registers (`_registerOverlayForRules()` with hass present), and when an MSD card has registered its overlays.
+- `markAllDirty()` is also called when rules are loaded, when a card registers (`_registerOverlayForRules()` with hass present), when an MSD card has registered its overlays, and when `ingestHass()` sees a replaced entity, device or area registry (`registryKey()` / `sameRegistries()` from `src/utils/ha-targets.js`, kept in `_registryKey`), so `ha_label:` targets follow a label change. A card forwards such a hass to the core even when none of its entities changed (`LCARdSCard._onHassChanged`, `registriesChanged`). `tests/core/rules-ha-labels.test.js`.
 
 ### What a callback does
 
@@ -308,6 +309,7 @@ flowchart TD
 | `all` | every overlay |
 | `type:<name>` | `overlay.type === name` |
 | `tag:<name>` | `overlay.tags` includes `name` |
+| `ha_label:<label_id>` | `hasLabel(hass, overlay.entity ?? overlay.card?.entity, label_id)`: the Home Assistant label on the target's entity, its device or its area (`src/utils/ha-targets.js`); a target without an entity never matches |
 | `pattern:<regex>` | `new RegExp(regex).test(overlay.id)`; an invalid regex skips the selector |
 | `exclude` | id or list of ids removed from every other selector |
 | anything else | the overlay with that exact id |
@@ -352,7 +354,7 @@ So a rule's `base_svg` applies to the MSD whose `rules:` block holds it; a pack 
 
 `_executeRuleAnimations(animations, ruleId)` runs when a rule goes from unmatched to matched:
 
-1. Targets come from `_resolveAnimationTargetsWithRetry(animCmd)`, which polls `_resolveAnimationTargets()` up to 15 times, 100 ms apart, because a rule can match before an MSD's overlays have registered. Targeting reads the systems manager's overlay registry and uses the **first** key present: `overlay` (exact id), `tag`, `type`, `pattern` (regex on the id).
+1. Targets come from `_resolveAnimationTargetsWithRetry(animCmd)`, which polls `_resolveAnimationTargets()` up to 15 times, 100 ms apart, because a rule can match before an MSD's overlays have registered. Targeting reads the systems manager's overlay registry and uses the **first** key present: `overlay` (exact id), `tag`, `ha_label` (the label on the registered entity, as the selector), `type`, `pattern` (regex on the id).
 2. For each target: `animationManager.playAnimation(overlayId, { ...animCmd, trigger: 'on_rule' })` (`window.lcards.core.animationManager`). The raw command is passed, map_range descriptors included: `playAnimation()` resolves them itself and needs the raw `duration` descriptor to set up a live speed binding for looping animations. The engine's own `_resolveAnimCommandParams()` call there is a debug log only.
 3. For `loop` entries the exact definition is remembered in `activeRuleAnimations` (rule id to `Map<overlayId, animDef[]>`).
 

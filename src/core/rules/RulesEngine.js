@@ -11,6 +11,7 @@ import { BaseService } from '../../core/BaseService.js';
 import { compileRule, evalCompiled } from './compileConditions.js';  // ✨ NEW
 import { UnifiedTemplateEvaluator } from '../templates/UnifiedTemplateEvaluator.js';  // ✨ NEW
 import { resolveAnimParam, resolveAnimCommandParams } from '../animation/resolveAnimParams.js';
+import { hasLabel, registryKey, sameRegistries } from '../../utils/ha-targets.js';
 
 /** Rules that read the clock (time_between, weekday_in, random_chance) are checked again every minute, on the minute. */
 export const TIME_REFRESH_MS = 60000;
@@ -63,6 +64,8 @@ export class RulesEngine extends BaseService {
     /** @type {any} The hass setupHassMonitoring had (rule entities' known states) */
     this._monitorHass = null;
     this._reEvaluationCallbacks = []; // CHANGED: Array of callbacks for multiple MSD cards
+    /** @type {[any, any, any] | null} The registries ha_label: selectors last resolved against */
+    this._registryKey = null;
     // dependencyIndex.entityToRules is the live entity→rules map; no separate cache needed
     this._freshStateCache = new Map(); // Cache for fresh states from events (entityId -> state object)
 
@@ -827,6 +830,17 @@ export class RulesEngine extends BaseService {
       return;
     }
 
+    // A changed entity, device or area registry (labels, areas, devices moved): every
+    // rule resolves its ha_label: targets again. Home Assistant replaces a registry
+    // object when it changes, so identity is enough.
+    const registries = registryKey(hass);
+    const registriesChanged = !!this._registryKey && !sameRegistries(this._registryKey, registries);
+    this._registryKey = registries;
+    if (registriesChanged) {
+      lcardsLog.debug('[RulesEngine] Home Assistant registries changed, marking all rules dirty');
+      this.markAllDirty();
+    }
+
     // If WebSocket monitoring is active, entity changes already mark rules dirty
     // Only mark all dirty if no monitoring is set up (fallback for legacy cards)
     if (!this.hassUnsubscribe) {
@@ -1052,6 +1066,8 @@ export class RulesEngine extends BaseService {
    * - type:typename: - Target overlays of specific type
    * - tag:tagname: - Target overlays with specific tag
    * - pattern:regex: - Target overlays matching ID pattern
+   * - ha_label:label_id: - Target overlays whose entity carries this Home Assistant label
+   *   (on the entity, its device or its area)
    * - exclude: - Exclude specific overlay IDs
    * - overlay_id (direct) - Target specific overlay (backwards compatible)
    *
@@ -1125,6 +1141,15 @@ export class RulesEngine extends BaseService {
           const tags = o.tags || [];
           return tags.includes(tagName) && !excludeIds.has(o.id);
         });
+      }
+      // Selector: ha_label:label_id - Match overlays whose entity carries the
+      // Home Assistant label (directly, through its device or its area)
+      else if (selector.startsWith('ha_label:')) {
+        const labelId = selector.substring(9);
+        const hass = this.systemsManager?.getHass?.();
+        matchedOverlays = allOverlays.filter(o =>
+          !excludeIds.has(o.id) && hasLabel(hass, o.entity ?? o.card?.entity, labelId)
+        );
       }
       // Selector: pattern:regex - Match overlays by ID pattern
       else if (selector.startsWith('pattern:')) {
@@ -1668,7 +1693,8 @@ export class RulesEngine extends BaseService {
 
   /**
    * Resolve animation targets to overlay IDs
-   * Supports: overlay (direct ID), tag, type, pattern
+   * Supports: overlay (direct ID), tag, type, ha_label (a Home Assistant label on the
+   * target's entity), pattern
    *
    * @param {Object} animCmd - Animation command with targeting info
    * @returns {Array<string>} Array of overlay IDs
@@ -1699,6 +1725,17 @@ export class RulesEngine extends BaseService {
     if (animCmd.tag) {
       overlayRegistry.forEach((metadata, overlayId) => {
         if (metadata.tags && metadata.tags.includes(animCmd.tag)) {
+          targets.push(overlayId);
+        }
+      });
+      return targets;
+    }
+
+    // Home Assistant label on the target's entity (directly, its device or its area)
+    if (animCmd.ha_label) {
+      const hass = this.systemsManager?.getHass?.();
+      overlayRegistry.forEach((metadata, overlayId) => {
+        if (hasLabel(hass, metadata.entity, animCmd.ha_label)) {
           targets.push(overlayId);
         }
       });

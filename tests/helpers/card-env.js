@@ -169,6 +169,32 @@ const ENTITY_ID = /^(light|switch|sensor|binary_sensor|input_boolean|input_numbe
 const HELPER_DOMAINS = new Set(['input_number', 'input_boolean', 'input_select', 'number']);
 /** Domains whose sample history is state words (sampleStates), when the sample module has them */
 const TEXT_STATE_DOMAINS = new Set(['climate', 'media_player', 'cover', 'person']);
+/**
+ * Home Assistant labels in the sample registries (reports/ha-labels-plan.md): `lcards_test_crew`
+ * on the lights helper itself and on the doors helper's device; `lcards_test_engine` on the
+ * engineering area, where the power and shields helpers are.
+ */
+export const SAMPLE_REGISTRIES = {
+    entities: {
+        'input_boolean.lcards_test_lights': { entity_id: 'input_boolean.lcards_test_lights', labels: ['lcards_test_crew'] },
+        'input_boolean.lcards_test_doors': { entity_id: 'input_boolean.lcards_test_doors', device_id: 'lcards_test_door_panel', labels: [] },
+        'input_number.lcards_test_power': { entity_id: 'input_number.lcards_test_power', area_id: 'lcards_test_engineering', labels: [] },
+        'input_number.lcards_test_shields': { entity_id: 'input_number.lcards_test_shields', area_id: 'lcards_test_engineering', labels: [] },
+    },
+    devices: {
+        lcards_test_door_panel: { id: 'lcards_test_door_panel', name: 'Door panel', area_id: null, labels: ['lcards_test_crew'] },
+    },
+    areas: {
+        lcards_test_engineering: { area_id: 'lcards_test_engineering', name: 'Engineering', floor_id: null, labels: ['lcards_test_engine'] },
+    },
+};
+
+/** The label registry for the sample labels (names, icons, colours: what the editor shows). */
+export const SAMPLE_LABELS = [
+    { label_id: 'lcards_test_crew', name: 'LCARdS Test Crew', icon: 'mdi:account-group', color: 'orange', description: null },
+    { label_id: 'lcards_test_engine', name: 'LCARdS Test Engine', icon: 'mdi:engine', color: 'blue', description: null },
+];
+
 /** Domains Home Assistant gives no toggle, turn_on or turn_off service: a tap's default toggle does nothing there */
 const NO_ONOFF_DOMAINS = new Set(['input_number', 'number', 'input_select', 'select', 'input_text', 'text', 'sensor', 'binary_sensor', 'input_datetime']);
 
@@ -218,6 +244,10 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
 
     const base = createFakeHass({
         states,
+        // Home Assistant labels on a few gallery helpers (rules and grids by ha_label);
+        // Layer C creates the same ones in the dev Home Assistant (tests/ha/ha-client.mjs)
+        registries: SAMPLE_REGISTRIES,
+        labels: SAMPLE_LABELS,
         // a long-lived page (the docs Live Demo cycles through views): ended subscriptions go
         pruneEnded: true,
         replies: (msg) => {
@@ -329,6 +359,17 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
             }
             for (const card of cards) card.hass = current;
             for (const fn of stateListeners) fn(current, entityId);
+            return current;
+        },
+
+        /**
+         * Replace Home Assistant's entity, device or area registry, as Home Assistant does
+         * when a label, area or device changes: a new hass snapshot with new registry objects.
+         * @param {{ entities?: object, devices?: object, areas?: object }} next
+         */
+        setRegistries(next) {
+            current = { ...current, ...next };
+            for (const card of cards) card.hass = current;
             return current;
         },
 

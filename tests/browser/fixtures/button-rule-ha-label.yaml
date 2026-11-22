@@ -1,0 +1,22 @@
+# A rule targeting cards by Home Assistant label (ha_label:): the button's entity
+# carries lcards_test_crew in the sample registries (tests/helpers/card-env.js)
+type: custom:lcards-button
+id: label_button
+entity: input_boolean.lcards_test_lights
+preset: lozenge
+style:
+  card:
+    color:
+      background: "#333366"
+rules:
+  - id: rule-ha-label
+    when:
+      entity: switch.demo_switch
+      state: "on"
+    apply:
+      overlays:
+        ha_label:lcards_test_crew:
+          style:
+            card:
+              color:
+                background: "#cc0000"

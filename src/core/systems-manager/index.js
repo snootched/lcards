@@ -247,6 +247,9 @@ export class CoreSystemsManager {
    * @param {string} metadata.sourceCardId - Card that owns this overlay
    * @param {string} [metadata.animationScope] - The card's own AnimationManager scope id
    * @param {HTMLElement} [metadata.element] - Optional reference to overlay element
+   * @param {string|null} [metadata.entity] - The target's entity, for `ha_label:` selectors
+   * @param {() => (string|null|undefined)} [metadata.getEntity] - Reads the entity at match time
+   *   instead (a card whose config can change while it stays registered)
    */
   registerOverlay(overlayId, metadata) {
     if (!overlayId || !metadata) {
@@ -263,6 +266,14 @@ export class CoreSystemsManager {
       element: metadata.element || null,
       registeredAt: Date.now()
     };
+    // The target's entity, read when a rule matches (`ha_label:` selectors look up its
+    // Home Assistant labels); a getter so a card's later config change is seen.
+    const getEntity = typeof metadata.getEntity === 'function' ? metadata.getEntity : null;
+    const fixedEntity = typeof metadata.entity === 'string' && metadata.entity ? metadata.entity : null;
+    Object.defineProperty(overlayData, 'entity', {
+      enumerable: true,
+      get: () => (getEntity ? (getEntity() || null) : fixedEntity)
+    });
 
     this._overlayRegistry.set(overlayId, overlayData);
     lcardsLog.debug(`[CoreSystemsManager] ✅ Registered overlay: ${overlayId} with tags: [${overlayData.tags.join(', ')}]`);

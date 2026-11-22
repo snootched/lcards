@@ -593,7 +593,9 @@ export class LCARdSMSDCard extends LCARdSCard {
                             id: overlay.id,
                             type: overlay.type,
                             tags: ['msd-overlay', overlay.type, ...(Array.isArray(overlay.tags) ? overlay.tags : [])],
-                            sourceCardId: this._cardGuid
+                            sourceCardId: this._cardGuid,
+                            // a line's or shape's entity, or a non-LCARdS control card's, for ha_label: selectors
+                            entity: overlay.entity ?? overlay.card?.entity ?? null
                         });
                         lcardsLog.trace(`[LCARdSMSDCard] ✅ Registered overlay: ${overlay.id} (${overlay.type})`);
                     } else {

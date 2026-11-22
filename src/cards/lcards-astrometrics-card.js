@@ -1380,7 +1380,10 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             if (!item || typeof item !== 'object' || item.id === undefined || item.id === null || item.id === '') return;
             const id = String(item.id);
             if (id === this._overlayId) return;
-            systems.registerOverlay(id, { id, type, tags: Array.isArray(item.tags) ? item.tags : [], sourceCardId: this._cardGuid });
+            systems.registerOverlay(id, {
+                id, type, tags: Array.isArray(item.tags) ? item.tags : [], sourceCardId: this._cardGuid,
+                entity: typeof item.entity === 'string' ? item.entity : null
+            });
             set.add(id);
         };
         const flat = this._flatConfig();

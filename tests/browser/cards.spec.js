@@ -300,6 +300,29 @@ test('rules: a card-level rule restyles its own card (config frozen like HA)', a
     await expect.poll(() => bgFill(page)).toBe('rgb(51, 51, 102)');
 });
 
+test('rules: ha_label: targets the card whose entity carries the Home Assistant label, and follows a label change', async ({ page }) => {
+    await mountCase(page, 'button-rule-ha-label');
+    await expectNoErrors(page);
+    await expect.poll(() => bgFill(page)).toBe('rgb(51, 51, 102)');
+    await page.evaluate(() => window.__setState('switch.demo_switch', 'on'));
+    await expect.poll(() => bgFill(page)).toBe('rgb(204, 0, 0)');
+    // the label taken off the entity in Home Assistant: a new entity registry, no state change
+    await page.evaluate(() => {
+        const entities = { ...window.__hass.entities };
+        entities['input_boolean.lcards_test_lights'] = { ...entities['input_boolean.lcards_test_lights'], labels: [] };
+        window.__setRegistries({ entities });
+    });
+    await expect.poll(() => bgFill(page)).toBe('rgb(51, 51, 102)');
+    // and on again, through an area this time
+    await page.evaluate(() => {
+        const entities = { ...window.__hass.entities };
+        entities['input_boolean.lcards_test_lights'] = { ...entities['input_boolean.lcards_test_lights'], area_id: 'bridge' };
+        window.__setRegistries({ entities, areas: { ...window.__hass.areas, bridge: { area_id: 'bridge', name: 'Bridge', labels: ['lcards_test_crew'] } } });
+    });
+    await expect.poll(() => bgFill(page)).toBe('rgb(204, 0, 0)');
+    await expectNoErrors(page);
+});
+
 test('rules: a rule added to a live card\'s frozen config loads (editor change)', async ({ page }) => {
     await mountCase(page, 'button-rule');
     // Regression: setConfig passed HA's frozen config to the rule loader, which wrote

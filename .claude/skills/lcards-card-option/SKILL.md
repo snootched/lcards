@@ -34,6 +34,8 @@ A new key (or a new shape for an existing idea) must use the names the other car
   | Style properties | `style: { ... }` (an object); never a string name |
   | What is drawn (a structural variant) | `shape`, `type`, `render`, `mode` (astrometrics cube `shape: borg \| box`) |
   | A sub-part's settings | nested under the part: `coma: { size, color }`, `edges: true \| false \| { width, color }` (the true-or-object pattern when the part can be switched); not `<part>_<setting>`. Settings of the object's own body stay flat (`radius`, `count`, `opacity`) |
+  | A Home Assistant label (ours) | `ha_label` (rule selector `ha_label:<id>`, animation target `ha_label: <id>`); never a bare `label`, which means a text field across LCARdS |
+  | A set of entities picked in Home Assistant's terms | `target: { entity_id, device_id, area_id, floor_id, label_id }`, Home Assistant's own target object (conditions, data grid rows, chart sources, section strategies; resolved by `src/utils/ha-targets.js`) |
   | A part's colour | `color` / `colors` under the part, never `<part>_color` or `color_<x>` (params schemas mirroring released background presets keep their names: `fill_color`, `color_a`, `color_major`) |
 
 - If the right name differs from what exists, or two cards already disagree, stop and ask the user which to standardise on (and, for an unreleased key, rename outright; for a released one, keep the old key as an alias).

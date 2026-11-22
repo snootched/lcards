@@ -856,10 +856,15 @@ export class LCARdSCard extends LCARdSNativeCard {
                     oldHass?.states?.[entityId] !== newHass?.states?.[entityId]
                 );
 
-            if (!oldHass || cardEntityChanged || trackedEntitiesChanged || subscribedEntitiesChanged) {
+            // A replaced entity, device or area registry (a label, area or device
+            // changed): rules with ha_label: targets resolve again. These change rarely.
+            const registriesChanged = !!oldHass && (oldHass.entities !== newHass?.entities
+                || oldHass.devices !== newHass?.devices || oldHass.areas !== newHass?.areas);
+
+            if (!oldHass || cardEntityChanged || trackedEntitiesChanged || subscribedEntitiesChanged || registriesChanged) {
                 lcardsLog.trace(`[LCARdSCard] Forwarding HASS to core.ingestHass() for ${this._cardGuid}`, {
                     reason: !oldHass ? 'initial' : cardEntityChanged ? 'card entity'
-                        : trackedEntitiesChanged ? 'tracked entity' : 'subscribed entity',
+                        : trackedEntitiesChanged ? 'tracked entity' : subscribedEntitiesChanged ? 'subscribed entity' : 'registries',
                     cardEntity: this.config?.entity,
                     trackedCount: this._trackedEntities?.length || 0
                 });
@@ -1608,6 +1613,8 @@ export class LCARdSCard extends LCARdSNativeCard {
             type: type,
             tags: this._overlayTags,
             sourceCardId: this._cardGuid,
+            // `ha_label:` selectors match the card's entity's Home Assistant labels
+            getEntity: () => this.config?.entity,
             // The card's own animation scope, so rule animations reach it whatever
             // the card names its scope (slider, chart, MSD don't use {type}-{guid})
             animationScope: this._getAnimationSetup().overlayId

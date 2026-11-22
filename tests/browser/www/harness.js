@@ -17,6 +17,7 @@
  *   window.__events     hass-more-info / show-dialog / location-changed events seen
  *   window.__setState(id, state | {state, attributes})  push a new state to the card
  *   window.__reconfigure(config)  setConfig on the live card with a frozen config
+ *   window.__setRegistries({ entities, devices, areas })  replace Home Assistant registries (labels)
  *   window.__mountExtra(config)   mount a second card next to the first (same hass); resolves to it
  */
 import yaml from '/vendor/js-yaml/dist/js-yaml.mjs';
@@ -69,6 +70,7 @@ for (const type of ['hass-more-info', 'show-dialog', 'location-changed', 'hass-a
 }
 
 window.__setState = (entityId, value) => { env.setState(entityId, value); };
+window.__setRegistries = (next) => { env.setRegistries(next); };
 
 /** Give the live card a new config, deep-frozen like HA does (editor changes, refreshes). */
 window.__mountExtra = async (config) => {
