@@ -92,7 +92,8 @@ A dev build with no page at all still publishes, with GitHub's generated notes o
 5. **Wait for the Docs workflow on `main`.**
 6. **Publish:** Actions, then Release, then Run workflow, branch **main**. It stops before tagging if the page is missing (exit 2) or still `status: testing` (exit 3).
 7. **Check the release on GitHub,** including the commit list's "Full Changelog" range. GitHub picks the previous tag itself and may compare against the last dev tag.
-8. **Next cycle:** the next `npm run bump-version:dev` starts a new version; the first "update the release notes" then creates its page. Right after a stable release, still in its month, name the next release so `dev` (and the `/dev/` docs) move ahead of stable: `npm run bump-version:dev -- 2026.12.0` gives `2026.12.0-dev.1` (without a target it would be `2026.11.1-dev.1`).
+8. **Branch flow:** `dev` goes to `main` one way, by the release pull request; nothing needs merging back after a release (everything on `main` came from `dev`). Only when a change lands on `main` directly (a pull request from a branch cut off `main`, a hotfix, an edit on GitHub), merge `main` into `dev` right after it (`git merge origin/main`), not a cherry-pick: the branches then share `main`'s tip, so the next release pull request shows only `dev`'s new work.
+9. **Next cycle:** the next `npm run bump-version:dev` starts a new version; the first "update the release notes" then creates its page. Right after a stable release, still in its month, name the next release so `dev` (and the `/dev/` docs) move ahead of stable: `npm run bump-version:dev -- 2026.12.0` gives `2026.12.0-dev.1` (without a target it would be `2026.11.1-dev.1`).
 
 ### When something goes wrong
 
