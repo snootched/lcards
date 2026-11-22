@@ -81,7 +81,7 @@ topics:
         views: [sections-strategies, section-bracket-ratios]
   - id: data
     title: Data and rules
-    views: [rules, templates, data-sources]
+    views: [rules, labels, templates, data-sources]
   - id: alerts
     title: Alerts and animation
     groups:
@@ -93,6 +93,19 @@ topics:
     title: Benchmarks
     views: [bench-12, bench-20, bench-stars-500-instances, bench-stars-500-shader, bench-stars-2000-instances, bench-stars-2000-shader, bench-stars-5000-instances, bench-stars-5000-shader]
 releases:
+  - version: "2026.12.0"
+    views:
+      - file: labels
+        summary: "Home Assistant labels: rules target cards by a label, conditions check every labelled entity"
+        description:
+          - "Labels set in Home Assistant: LCARdS Test Crew on LIGHTS and DOORS, LCARdS Test Engine on POWER and SHIELDS."
+          - "ALERT CREW turns every card whose entity has the crew label red (ha_label:lcards_test_crew); POWER and SHIELDS stay."
+          - "ALL CREW ON turns green when LIGHTS and DOORS are both on (target with match: all)."
+          - "ENGINE BELOW 30 turns yellow when POWER or SHIELDS drops below 30 (target, match: any)."
+          - "In Home Assistant, take the crew label off LIGHTS: it stops following ALERT CREW straight away."
+        session: "HA labels 2026-11-21"
+        docs: /core/rules/changes#home-assistant-labels
+        public: true
   - version: "2026.11.0"
     views:
       - file: perf-regression

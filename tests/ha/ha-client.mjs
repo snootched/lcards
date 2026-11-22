@@ -264,6 +264,44 @@ export async function ensureHelpers(client, helpers = TEST_HELPERS) {
     return created;
 }
 
+/**
+ * Home Assistant labels for the label tests (reports/ha-labels-plan.md), the same ids
+ * as the sample registries in tests/helpers/card-env.js. Helpers have no device or
+ * area, so the labels go on the entities themselves.
+ */
+export const TEST_LABELS = {
+    lcards_test_crew: { name: 'LCARdS Test Crew', icon: 'mdi:account-group', color: 'orange', entities: ['input_boolean.lcards_test_lights', 'input_boolean.lcards_test_doors'] },
+    lcards_test_engine: { name: 'LCARdS Test Engine', icon: 'mdi:engine', color: 'blue', entities: ['input_number.lcards_test_power', 'input_number.lcards_test_shields'] },
+};
+
+/**
+ * Create the test labels if missing and put each on its entities (keeping their other labels).
+ * @param {HAClient} client
+ */
+export async function ensureLabels(client) {
+    const existing = new Set((await client.call({ type: 'config/label_registry/list' })).map((/** @type {any} */ l) => l.label_id));
+    for (const [id, { name, icon, color }] of Object.entries(TEST_LABELS)) {
+        if (existing.has(id)) continue;
+        const created = await client.call({ type: 'config/label_registry/create', name, icon, color });
+        if (created.label_id !== id) throw new Error(`label ${name} got the id ${created.label_id}, expected ${id}`);
+    }
+    for (const [id, { entities }] of Object.entries(TEST_LABELS)) {
+        for (const entityId of entities) await setEntityLabel(client, entityId, id, true);
+    }
+}
+
+/**
+ * Add or remove one label on an entity, keeping its others.
+ * @param {HAClient} client @param {string} entityId @param {string} labelId @param {boolean} on
+ */
+export async function setEntityLabel(client, entityId, labelId, on) {
+    const entry = await client.call({ type: 'config/entity_registry/get', entity_id: entityId });
+    const labels = new Set(entry.labels ?? []);
+    if (on === labels.has(labelId)) return;
+    if (on) labels.add(labelId); else labels.delete(labelId);
+    await client.call({ type: 'config/entity_registry/update', entity_id: entityId, labels: [...labels] });
+}
+
 /** Create the lcards-test dashboard if missing and (re)write its config from dashboard.yaml. */
 export async function ensureDashboard(client) {
     const dashboards = await client.call({ type: 'lovelace/dashboards/list' });

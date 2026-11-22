@@ -1,0 +1,95 @@
+# Home Assistant labels (2026.12, reports/ha-labels-plan.md phase 1): rules target cards by
+# a label on their entity (ha_label:), and conditions check every labelled entity (target).
+# Labels: lcards_test_crew on LIGHTS and DOORS, lcards_test_engine on POWER and SHIELDS
+# (tests/ha/ha-client.mjs ensureLabels; the docs' sample registries have the same).
+title: Home Assistant labels
+path: labels
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_toggle
+        tap_action: { action: toggle }
+        text: { name: { content: ALERT CREW, show: true } }
+        grid_options: { columns: 8, rows: 1 }
+        rules:
+          - id: demo-labels-crew
+            when: { entity: input_boolean.lcards_test_toggle, state: "on" }
+            apply:
+              overlays:
+                ha_label:lcards_test_crew:
+                  style: { card: { color: { background: var(--lcars-alert-red) } } }
+      - type: custom:lcards-button
+        preset: filled
+        entity: input_boolean.lcards_test_lights
+        tap_action: { action: toggle }
+        text: { name: { content: LIGHTS, show: true } }
+        grid_options: { columns: 3, rows: 2 }
+      - type: custom:lcards-button
+        preset: filled
+        entity: input_boolean.lcards_test_doors
+        tap_action: { action: toggle }
+        text: { name: { content: DOORS, show: true } }
+        grid_options: { columns: 3, rows: 2 }
+      - type: custom:lcards-button
+        preset: filled
+        entity: input_number.lcards_test_power
+        text: { name: { content: POWER, show: true } }
+        grid_options: { columns: 3, rows: 2 }
+      - type: custom:lcards-button
+        preset: filled
+        entity: input_number.lcards_test_shields
+        text: { name: { content: SHIELDS, show: true } }
+        grid_options: { columns: 3, rows: 2 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        id: demo_labels_all_crew
+        preset: lozenge
+        text: { name: { content: ALL CREW ON, show: true } }
+        grid_options: { columns: 8, rows: 1 }
+        style: { card: { color: { background: var(--lcars-gray) } } }
+        rules:
+          - id: demo-labels-all-crew
+            when:
+              target: { label_id: lcards_test_crew }
+              match: all
+              state: "on"
+            apply:
+              overlays:
+                demo_labels_all_crew:
+                  style: { card: { color: { background: var(--lcars-green) } } }
+      - type: custom:lcards-button
+        id: demo_labels_engine_low
+        preset: lozenge
+        text: { name: { content: ENGINE BELOW 30, show: true } }
+        grid_options: { columns: 8, rows: 1 }
+        style: { card: { color: { background: var(--lcars-gray) } } }
+        rules:
+          - id: demo-labels-engine-low
+            when:
+              target: { label_id: lcards_test_engine }
+              below: 30
+            apply:
+              overlays:
+                demo_labels_engine_low:
+                  style: { card: { color: { background: var(--lcars-alert-yellow) } } }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: POWER } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SHIELDS } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }

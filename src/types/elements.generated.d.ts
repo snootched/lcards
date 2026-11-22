@@ -55,6 +55,7 @@ declare global {
         'lcards-global-datasources-panel': import('../editor/components/datasources/lcards-global-datasources-panel.js').LCARdSGlobalDataSourcesPanel;
         'lcards-grid-edit-overlay': import('../views/lcards-grid-edit-overlay.js').LCARdSGridEditOverlay;
         'lcards-grid-layout': import('../editor/components/editors/lcards-grid-layout.js').LCARdSGridLayout;
+        'lcards-ha-labels': import('../editor/components/shared/lcards-ha-labels.js').LCARdSHaLabels;
         'lcards-icon-area-picker': import('../editor/components/editors/lcards-icon-area-picker.js').LCARdSIconAreaPicker;
         'lcards-icon-editor': import('../editor/components/editors/lcards-icon-editor.js').LCARdSIconEditor;
         'lcards-icon-section': import('../editor/components/editors/lcards-icon-section.js').LCARdSIconSection;

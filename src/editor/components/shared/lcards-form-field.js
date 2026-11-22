@@ -35,6 +35,7 @@
  */
 
 import { html } from 'lit';
+import './lcards-ha-labels.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import {
     getEffectiveLabel,
@@ -573,6 +574,7 @@ export class LCARdSFormFieldHelper {
                 .helper=${helper}
                 @value-changed=${(ev) => this._handleChange(ev, editor, path)}>
             </ha-selector>
+            <lcards-ha-labels .hass=${editor.hass} .entity=${editor.config?.entity || ''}></lcards-ha-labels>
         `;
     }
 }

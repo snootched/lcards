@@ -934,7 +934,7 @@ export const tagsSchema = {
         type: 'string',
         pattern: '^[a-zA-Z0-9_-]+$'
     },
-    description: 'Tags for bulk rule targeting and grouping. Allows applying rules to multiple cards at once using tag selectors.',
+    description: 'LCARdS tags for rules: a rule on tag:<name> targets every card with the tag. Labels set in Home Assistant are separate; rules target those with ha_label:<label_id>.',
     examples: [['navigation', 'primary'], ['control', 'lights']]
 };
 

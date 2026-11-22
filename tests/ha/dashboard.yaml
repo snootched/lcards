@@ -650,6 +650,61 @@ views:
           - { type: grid, shape: plane, size: [240, 160], line_spacing: 20 }
 
   # S2 regressions: entity_attr rules, `condition: |` rules, mixed templates.
+  # Home Assistant labels (reports/ha-labels-plan.md): ha_label: targets and target conditions,
+  # on the labels tests/ha/labels.spec.js creates (ensureLabels)
+  - title: Labels
+    path: labels
+    cards:
+      - type: custom:lcards-button
+        id: test_label_target
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        text:
+          label:
+            content: LABEL TARGET
+            show: true
+        style:
+          card:
+            color:
+              background: "#333366"
+        rules:
+          - id: test-label-target
+            when:
+              entity: input_boolean.lcards_test_toggle
+              state: "on"
+            apply:
+              overlays:
+                ha_label:lcards_test_crew:
+                  style:
+                    card:
+                      color:
+                        background: "#cc0000"
+      - type: custom:lcards-button
+        id: test_label_condition
+        preset: lozenge
+        text:
+          label:
+            content: LABEL CONDITION
+            show: true
+        style:
+          card:
+            color:
+              background: "#333366"
+        rules:
+          - id: test-label-condition
+            when:
+              target:
+                label_id: lcards_test_crew
+              match: all
+              state: "on"
+            apply:
+              overlays:
+                test_label_condition:
+                  style:
+                    card:
+                      color:
+                        background: "#00aa00"
+
   - title: Rules
     path: rules
     cards:
