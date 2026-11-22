@@ -138,7 +138,7 @@ async function promptForOptions(initialCardType) {
     
     // Base template
     questions.push({
-        type: 'list',
+        type: 'select',
         name: 'template',
         message: 'Base template:',
         choices: [

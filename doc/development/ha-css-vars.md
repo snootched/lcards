@@ -233,7 +233,7 @@ HA-LCARS sets `ha-font-family-body: var(--font-family)`, its LCARS font stack, i
 | `--margin-title-ltr` / `--margin-title-rtl` | `0 0 0 24px` / `0 24px 0 0` | |
 | `--ha-dialog-scrim-backdrop-filter` | `brightness(68%)` (`:53`) | Modal backdrop |
 
-Content widths (HA 2026.12+, `core.globals.ts:48-50`):
+Content widths (Home Assistant 2026.12+, `core.globals.ts:48-50`):
 
 | Variable | Value | Use |
 |---|---|---|

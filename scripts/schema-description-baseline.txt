@@ -320,8 +320,6 @@ lcards-slider: style.gauge.progress_bar.radius
 lcards-slider: style.gauge.scale.labels
 lcards-slider: style.gauge.scale.labels.color
 lcards-slider: style.gauge.scale.labels.enabled
-lcards-slider: style.gauge.scale.labels.font_size
-lcards-slider: style.gauge.scale.labels.padding
 lcards-slider: style.gauge.scale.tick_marks
 lcards-slider: style.gauge.scale.tick_marks.major
 lcards-slider: style.gauge.scale.tick_marks.major.color
