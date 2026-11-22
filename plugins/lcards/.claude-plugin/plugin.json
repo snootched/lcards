@@ -1,0 +1,22 @@
+{
+  "name": "lcards",
+  "displayName": "LCARdS",
+  "version": "2026.11.0",
+  "description": "Writes, fixes and explains LCARdS configuration for Home Assistant: every card option, built-in name and docs page for this LCARdS version, the HA-LCARS theme and UIX references, and the config checker (run automatically on LCARdS YAML Claude writes).",
+  "author": {
+    "name": "Jason Weyermars"
+  },
+  "homepage": "https://lcards.unimatrix01.ca",
+  "repository": "https://github.com/snootched/lcards",
+  "license": "MIT",
+  "keywords": [
+    "home-assistant",
+    "lcars",
+    "ha-lcars",
+    "lovelace",
+    "dashboard",
+    "star-trek",
+    "uix"
+  ],
+  "icon": "./icon.png"
+}

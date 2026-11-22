@@ -193,6 +193,33 @@ test('each docs channel gets its own marketplace pointing at its own plugin zip'
     }
 });
 
+// The git marketplace at the repo root (claude.ai and Claude Code add it as
+// snootched/lcards): one plugin, a relative folder holding the unpacked plugin.
+test('the repo-root marketplace lists the committed plugin folder', () => {
+    const m = JSON.parse(readFileSync(join(ROOT, '.claude-plugin/marketplace.json'), 'utf8'));
+    assert.equal(m.name, 'lcards');
+    assert.ok(m.owner?.name && m.description && !/—/.test(m.description));
+    assert.deepEqual(m.plugins.map(p => [p.name, p.source, p.version]), [['lcards', './plugins/lcards', undefined]],
+        'a ./ relative source (what claude.ai accepts), no entry version (plugin.json owns it)');
+    const manifest = JSON.parse(readFileSync(join(ROOT, 'plugins/lcards/.claude-plugin/plugin.json'), 'utf8'));
+    assert.equal(manifest.name, 'lcards');
+    assert.ok(existsSync(join(ROOT, 'plugins/lcards', manifest.icon)), 'icon file');
+    assert.ok(readFileSync(join(ROOT, 'plugins/lcards/README.md'), 'utf8').split(/\s+/).length >= 40, 'directory README of 40+ words');
+});
+
+// The committed tree is what main serves, so a stable version (main, the release pull
+// request) must carry a fresh build; dev versions keep the last stable one.
+test('the committed plugin folder matches a fresh build on a stable version', { skip: /-/.test(version) && 'dev version: the tree holds the last stable build' }, () => {
+    const tree = join(ROOT, 'plugins/lcards');
+    const stale = 'plugins/lcards is out of date: run npm run plugin:tree and commit it';
+    assert.deepEqual(listFiles(tree), listFiles(plugin), stale);
+    const noDate = (s) => s.replace(/"generated_at": "[^"]*"/, '');
+    for (const f of listFiles(plugin)) {
+        const a = readFileSync(join(tree, f)), b = readFileSync(join(plugin, f));
+        if (!a.equals(b)) assert.equal(noDate(a.toString()), noDate(b.toString()), `${f}: ${stale}`);
+    }
+});
+
 test('HA-LCARS references: every --lcars-* name, every theme, every helper, attributed to a commit', () => {
     const { snapshot } = loadHaLcars();
     const read = (f) => readFileSync(join(skill, 'references/ha-lcars', f), 'utf8');

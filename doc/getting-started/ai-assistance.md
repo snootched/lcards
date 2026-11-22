@@ -22,10 +22,13 @@ moved_anchors:
 | Where you use Claude | How to add the skill |
 |---|---|
 | **Claude Code** | Run `/plugin marketplace add https://lcards.unimatrix01.ca/marketplace.json`, then `/plugin install lcards@lcards` |
-| **claude.ai or the Claude apps** | Download [`lcards-skill.zip`](/tools/lcards-skill.zip) and upload it as a custom skill under **Settings**. Turn on code execution |
+| **claude.ai or the Claude apps** | Open **Plugins**, choose **Add**, then **Marketplace** and **Repository**, and enter `snootched/lcards`. Install **lcards** from it. Turn on code execution |
 
 ::: details More about setup
 - **Pictures in claude.ai:** to see pictures of gallery screens while you plan, allow network access to `lcards.unimatrix01.ca` in the code execution settings (add it to the allowed domains, or allow all domains). Without it, Claude gives you the links instead.
+- **Updating on claude.ai:** the marketplace follows LCARdS releases. Open it under **Plugins** and check for updates after a release.
+- **claude.ai without the marketplace:** download [`lcards-plugin.zip`](/tools/lcards-plugin.zip) and upload it under **Plugins** (**Add**, then **Upload plugin**). You upload the new zip yourself after each release. The skill alone, [`lcards-skill.zip`](/tools/lcards-skill.zip), also uploads as a custom skill, without the slash commands.
+- **Claude Code from the repository:** `/plugin marketplace add snootched/lcards` adds the same marketplace claude.ai uses. The command in the table above follows the docs site instead, which also has the dev channel. Add one of them, not both: both are named **lcards**.
 - **Updating the Claude Code plugin:** each LCARdS release comes with a new version. Run `/plugin marketplace update lcards`, or open `/plugin`, go to **Marketplaces**, select **lcards** and turn on **Enable auto-update**. Then run `/reload-plugins` or start a new session. The plugin needs Claude Code 2.1.224 or newer.
 - **Installed the skill by hand before?** Delete `~/.claude/skills/lcards/` first, so only the plugin copy loads.
 - **Manual install in Claude Code:** unzip [`lcards-skill.zip`](/tools/lcards-skill.zip) into `~/.claude/skills/`, so you have `~/.claude/skills/lcards/SKILL.md`. It won't update itself.

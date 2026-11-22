@@ -41,10 +41,13 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: none
-          # Test code never ships; scripts/ (build and release tooling) stays in
+          # Test code never ships; scripts/ (build and release tooling) stays in. plugins/ is
+          # the generated Claude plugin (scripts/build-user-skill.js): its bundled checker is
+          # built from src/ and scripts/, which are scanned
           config: |
             paths-ignore:
               - tests
+              - plugins
 
       - uses: github/codeql-action/analyze@v4
         with:
