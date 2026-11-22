@@ -284,6 +284,28 @@ jobs:
           body_path: ${{ steps.notes.outputs.body }}
           generate_release_notes: true
 
+      # ── Claude plugin branch ──────────────────────────────────────────────────
+      # Anthropic's plugin directory reads the claude-plugin branch: the plugin alone
+      # at its root (this repository's own archive is over the directory's size limit).
+      # A stable release puts the released plugins/lcards/ there as a new commit;
+      # unchanged, nothing is pushed. The claude.ai repository marketplace reads
+      # plugins/lcards/ on main and needs nothing here.
+      - name: Update the claude-plugin branch
+        if: steps.prerelease.outputs.is_prerelease != 'true'
+        run: |
+          TREE=$(git rev-parse "HEAD:plugins/lcards")
+          if git fetch --quiet origin claude-plugin 2>/dev/null; then
+            PARENT=$(git rev-parse FETCH_HEAD)
+            if [ "$(git rev-parse "${PARENT}^{tree}")" = "$TREE" ]; then
+              echo "claude-plugin already holds this plugin"; exit 0
+            fi
+            COMMIT=$(git commit-tree "$TREE" -p "$PARENT" -m "LCARdS plugin ${{ steps.version.outputs.version }}")
+          else
+            COMMIT=$(git commit-tree "$TREE" -m "LCARdS plugin ${{ steps.version.outputs.version }}")
+          fi
+          git push origin "${COMMIT}:refs/heads/claude-plugin"
+          echo "📦 claude-plugin -> ${COMMIT} (LCARdS ${{ steps.version.outputs.version }})"
+
   # ── Docs archive ──────────────────────────────────────────────────────────────
   # A stable release's docs are built from its tag into /v/<version>/ and frozen
   # (docs.yml; the version switcher lists it). Pre-releases are not archived.
