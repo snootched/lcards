@@ -129,6 +129,7 @@ A missing `when` compiles to `{ type: 'always' }`. `compileNode()` checks keys i
 | 6 | `jinja2` | `jinja2` | Explicit form |
 | 7 | `javascript` or `js` | `javascript` | Explicit form; `js` is an alias |
 | 8 | `map_range_cond` | `map_range_cond` | The object's own keys (`entity`, `input`, `output`, `clamp`, comparison keys) |
+| 8b | `target` (an object) | `target` | Home Assistant's target object kept as `target`; `match` (`any` unless `all`); the rest (comparison keys, `attribute`) in `c`, `state` normalised to `equals` |
 | 9 | `entity_attr`, or `entity` with `attribute` | `entity_attr` | `entity_attr: light.x` copies into `entity`; `state` becomes `equals` |
 | 10 | `entity` | `entity` | `state` is normalised to `equals` |
 | 11 | `time_between` | `time_between` | `"HH:MM-HH:MM"`, may wrap past midnight |
@@ -145,6 +146,7 @@ A missing `when` compiles to `{ type: 'always' }`. `compileNode()` checks keys i
 
 - `entity`, `entity_attr`, `map_range_cond`: `c.entity`;
 - `sun_elevation`: `sun.sun`;
+- `target`: only the ids in `target.entity_id`. The rest depend on the registries: `extractEntityReferences()` resolves every target from `targetsOf(tree)` with `resolveTarget()` against the systems manager's hass and sets `_hasTargetConditions`; `ingestHass()` then rebuilds the index when the registries first arrive and whenever one is replaced, which re-syncs the watched entities;
 - `jinja2`: entity ids found by `TemplateParser.extractJinja2Entities()`;
 - `javascript`: every literal `states['domain.object']` (or `hass.states[...]`) in the code.
 
@@ -189,6 +191,7 @@ The condition editor's "between" / "between (exclusive)" operators write two of 
 | `all` / `any` / `not` | every child / some child / not the child |
 | `entity` | the entity exists and `compareValue(state, c)` |
 | `entity_attr` | the entity exists, `attribute` is set, and `compareValue(attributes[attribute], c)` |
+| `target` | `resolveTarget(ctx.hass, target)` gives at least one entity, and `compareValue(state or attributes[attribute], c)` holds for one of them (`match: any`) or all of them (`match: all`) |
 | `map_range_cond` | the state is a finite number, `input` and `output` are two finite numbers each, and `compareValue(linearMap(state, in0, in1, out0, out1, clamp !== false), c)` (numbers only; colour outputs are for animation params, see [map_range in rule animations](#map-range-in-rule-animations)) |
 | `time_between` | local time of `ctx.now` is inside the range (inclusive) |
 | `weekday_in` | today's weekday (`ctx.now`) is in the list |

@@ -323,6 +323,25 @@ test('rules: ha_label: targets the card whose entity carries the Home Assistant 
     await expectNoErrors(page);
 });
 
+test('rules: a target condition checks every labelled entity (match: all), and follows a label change', async ({ page }) => {
+    await mountCase(page, 'button-rule-target');
+    await expectNoErrors(page);
+    await page.evaluate(() => { window.__setState('input_boolean.lcards_test_lights', 'on'); window.__setState('input_boolean.lcards_test_doors', 'off'); });
+    await expect.poll(() => bgFill(page)).toBe('rgb(51, 51, 102)');
+    await page.evaluate(() => window.__setState('input_boolean.lcards_test_doors', 'on'));
+    await expect.poll(() => bgFill(page), { message: 'both labelled entities on' }).toBe('rgb(204, 0, 0)');
+    await page.evaluate(() => window.__setState('input_boolean.lcards_test_lights', 'off'));
+    await expect.poll(() => bgFill(page)).toBe('rgb(51, 51, 102)');
+    // the label taken off the lights helper: only the doors are left, and they are on
+    await page.evaluate(() => {
+        const entities = { ...window.__hass.entities };
+        entities['input_boolean.lcards_test_lights'] = { ...entities['input_boolean.lcards_test_lights'], labels: [] };
+        window.__setRegistries({ entities });
+    });
+    await expect.poll(() => bgFill(page), { message: 'the lights no longer count' }).toBe('rgb(204, 0, 0)');
+    await expectNoErrors(page);
+});
+
 test('rules: a rule added to a live card\'s frozen config loads (editor change)', async ({ page }) => {
     await mountCase(page, 'button-rule');
     // Regression: setConfig passed HA's frozen config to the rule loader, which wrote

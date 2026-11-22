@@ -3,6 +3,7 @@ import { TemplateDetector } from '../templates/TemplateDetector.js';
 import { TemplateParser } from '../templates/TemplateParser.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { compareNumericBounds } from '../../utils/comparison-utils.js';
+import { resolveTarget } from '../../utils/ha-targets.js';
 
 export function compileRule(rule, issues) {
   const raw = rule.when;
@@ -102,6 +103,19 @@ function compileNode(node, issues, ruleId) {
     const c = { ...node.map_range_cond };
     return { type: 'map_range_cond', c };
   }
+  // Entities picked in Home Assistant's terms (labels, areas, devices, floors,
+  // entities), each compared like an entity condition; match: any (default) or all.
+  // The entities are resolved when the rule is evaluated, so a label change applies.
+  if (node.target && typeof node.target === 'object' && !Array.isArray(node.target)) {
+    const c = { ...node };
+    delete c.target;
+    delete c.match;
+    if (c.state !== undefined && c.equals === undefined) {
+      c.equals = c.state;
+      delete c.state;
+    }
+    return { type: 'target', target: node.target, match: node.match === 'all' ? 'all' : 'any', c };
+  }
   if (node.entity || node.entity_attr) {
     // ✨ FIXED: Normalize 'state' property to 'equals' for comparison
     const c = { ...node };
@@ -156,6 +170,13 @@ function collectDeps(node, deps) {
     case 'sun_elevation':
       deps.entities.add('sun.sun');
       break;
+    case 'target': {
+      // entities named directly; the rest depend on the registries and are added by
+      // the engine (targetsOf + resolveTarget against its current hass)
+      const named = node.target.entity_id;
+      for (const id of Array.isArray(named) ? named : named ? [named] : []) deps.entities.add(id);
+      break;
+    }
     // ✨ NEW: Extract dependencies from template conditions
     case 'jinja2':
       // Extract entity IDs from Jinja2 templates
@@ -174,6 +195,20 @@ function collectDeps(node, deps) {
       }
       break;
   }
+}
+
+/**
+ * The Home Assistant target objects of a compiled tree's `target` conditions.
+ * @param {any} node
+ * @param {any[]} [out]
+ * @returns {any[]}
+ */
+export function targetsOf(node, out = []) {
+  if (!node) return out;
+  if (node.type === 'target') out.push(node.target);
+  else if (node.type === 'not') targetsOf(node.node, out);
+  else if (Array.isArray(node.nodes)) node.nodes.forEach(n => targetsOf(n, out));
+  return out;
 }
 
 function alwaysTrueNode() {
@@ -326,6 +361,8 @@ export async function evalCompiled(tree, ctx) {
       return evalEntityAttr(tree.c, ctx);
     case 'map_range_cond':
       return evalMapRangeCond(tree.c, ctx);
+    case 'target':
+      return evalTarget(tree, ctx);
     case 'time_between':
       return evalTimeBetween(tree.range, ctx);
     case 'weekday_in':
@@ -359,6 +396,24 @@ function evalEntityAttr(c, ctx) {
   if (!attrName) return false;
   const valRaw = ent.attributes ? ent.attributes[attrName] : undefined;
   return compareValue(valRaw, c);
+}
+
+/**
+ * A `target` condition: every entity the target resolves to is compared like an
+ * entity condition (its state, or `attribute`). `match: any` needs one, `all` every
+ * one; a target that resolves to no entity is false either way.
+ */
+function evalTarget(node, ctx) {
+  const ids = resolveTarget(ctx.hass, node.target);
+  if (!ids.length) return false;
+  const c = node.c;
+  const test = (id) => {
+    const ent = ctx.getEntity?.(id) || ctx.hass?.states?.[id];
+    if (!ent) return false;
+    const value = c.attribute != null ? ent.attributes?.[c.attribute] : ent.state;
+    return compareValue(value, c);
+  };
+  return node.match === 'all' ? ids.every(test) : ids.some(test);
 }
 
 function evalMapRangeCond(c, ctx) {

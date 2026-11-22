@@ -1002,11 +1002,12 @@ export const rulesSchema = {
             },
             when: {
                 type: 'object',
-                description: 'Condition(s) that must be met for rule to apply: entity state and attributes, map_range_cond, time_between, weekday_in, sun_elevation, JavaScript and Jinja2 conditions, and logical composition (all/any/not). Numeric comparisons accept above/below (strict) and at_least/at_most (inclusive).',
+                description: 'Condition(s) that must be met for rule to apply: entity state and attributes, target (the entities of a Home Assistant label, area, device or floor, with match: any or all), map_range_cond, time_between, weekday_in, sun_elevation, JavaScript and Jinja2 conditions, and logical composition (all/any/not). Numeric comparisons accept above/below (strict) and at_least/at_most (inclusive).',
                 additionalProperties: true,
                 examples: [
                     { entity: 'sensor.temperature', above: 25 },
                     { entity: 'sensor.temperature', at_least: 25 },
+                    { target: { label_id: 'low_battery' }, below: 20 },
                     { all: [{ entity: 'light.bedroom', state: 'on' }, { time_between: '22:00-06:00' }] },
                     { sun_elevation: { below: 0 } }
                 ]

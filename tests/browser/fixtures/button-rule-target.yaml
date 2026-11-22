@@ -1,0 +1,24 @@
+# A rule condition on Home Assistant labelled entities (target + match): every entity
+# with lcards_test_crew (the lights helper itself, the doors helper through its device)
+type: custom:lcards-button
+id: target_button
+entity: input_boolean.lcards_test_doors
+preset: lozenge
+style:
+  card:
+    color:
+      background: "#333366"
+rules:
+  - id: rule-target
+    when:
+      target:
+        label_id: lcards_test_crew
+      match: all
+      state: "on"
+    apply:
+      overlays:
+        target_button:
+          style:
+            card:
+              color:
+                background: "#cc0000"

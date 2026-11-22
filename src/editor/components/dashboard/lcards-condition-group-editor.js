@@ -17,7 +17,8 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
 const CONDITION_TYPES = [
     { category: 'Entity', items: [
         { value: 'entity',      label: 'Entity State' },
-        { value: 'entity_attr', label: 'Entity Attribute' }
+        { value: 'entity_attr', label: 'Entity Attribute' },
+        { value: 'target',      label: 'Entities by label, area or device' }
     ]},
     { category: 'Template', items: [
         { value: 'jinja2',      label: 'Jinja2 Template' },
@@ -191,6 +192,12 @@ export class LCARdSConditionGroupEditor extends LitElement {
         if (cond.any) return { _type: 'any', any: cond.any };
         if (cond.not !== undefined) return { _type: 'not', not: cond.not };
 
+        // Home Assistant target (labels, areas, devices, floors, entities)
+        if (cond.target !== undefined) {
+            const op = this._detectOperator(cond);
+            return { _type: 'target', target: cond.target || {}, match: cond.match === 'all' ? 'all' : 'any', attribute: cond.attribute || '', operator: op.key, value: op.value };
+        }
+
         // entity_attr (has attribute key)
         if ((cond.entity_attr !== undefined || (cond.entity !== undefined && cond.attribute !== undefined))) {
             const op = this._detectOperator(cond);
@@ -287,6 +294,20 @@ export class LCARdSConditionGroupEditor extends LitElement {
                 }
                 const val = cond.value !== undefined ? cond.value : '';
                 return { entity: cond.entity || '', attribute: cond.attribute || '', [op]: val };
+            }
+            case 'target': {
+                const op = cond.operator || 'equals';
+                const combo = COMBO_OPERATOR_BOUNDS[op];
+                const out = {
+                    target: cond.target || {},
+                    ...(cond.match === 'all' ? { match: 'all' } : {}),
+                    ...(cond.attribute ? { attribute: cond.attribute } : {})
+                };
+                if (combo) {
+                    const v = cond.value || {};
+                    return { ...out, [combo.loKey]: Number(v.lo ?? 0), [combo.hiKey]: Number(v.hi ?? 100) };
+                }
+                return { ...out, [op]: cond.value !== undefined ? cond.value : '' };
             }
             case 'jinja2':
                 return { condition: cond.template || '' };
@@ -431,6 +452,7 @@ export class LCARdSConditionGroupEditor extends LitElement {
         if (cond.all) return 'all';
         if (cond.any) return 'any';
         if (cond.not) return 'not';
+        if (cond.target !== undefined) return 'target';
         if (cond.entity !== undefined && cond.attribute !== undefined) return 'entity_attr';
         if (cond.entity !== undefined) return 'entity';
         if (cond.template !== undefined && cond.template_type === 'javascript') return 'javascript';
@@ -511,6 +533,8 @@ export class LCARdSConditionGroupEditor extends LitElement {
                 return this._renderEntityFields(cond, index, false);
             case 'entity_attr':
                 return this._renderEntityFields(cond, index, true);
+            case 'target':
+                return this._renderTargetFields(cond, index);
             case 'jinja2':
                 return html`
                     <ha-selector
@@ -727,6 +751,17 @@ export class LCARdSConditionGroupEditor extends LitElement {
                         </ha-selector>`
                 }
             ` : ''}
+            ${this._renderOperatorFields(cond, index)}
+        `;
+    }
+
+    /**
+     * Operator and value fields, shared by entity, attribute and target conditions.
+     * @param {any} cond @param {number} index
+     */
+    _renderOperatorFields(cond, index) {
+        const set = (field, val) => this._handleConditionFieldChange(index, field, val);
+        return html`
             <ha-selector
                 .hass=${this.hass}
                 .label=${'Operator'}
@@ -758,6 +793,44 @@ export class LCARdSConditionGroupEditor extends LitElement {
                     @value-changed=${(e) => set('value', e.detail.value)}>
                 </ha-selector>
             `}
+        `;
+    }
+
+    /**
+     * Entities picked in Home Assistant's terms: labels, areas, devices, floors or
+     * entities (Home Assistant's own target selector), each compared with the operator.
+     * @param {any} cond @param {number} index
+     */
+    _renderTargetFields(cond, index) {
+        const set = (field, val) => this._handleConditionFieldChange(index, field, val);
+        return html`
+            <ha-selector
+                .hass=${this.hass}
+                .label=${'Entities'}
+                .helper=${'Pick a label, area, device or entities: every entity they include is checked'}
+                .selector=${{ target: {} }}
+                .value=${cond.target || {}}
+                @value-changed=${(e) => set('target', e.detail.value || {})}>
+            </ha-selector>
+            <ha-selector
+                .hass=${this.hass}
+                .label=${'Match'}
+                .selector=${{ select: { mode: 'dropdown', options: [
+                    { value: 'any', label: 'Any entity matches' },
+                    { value: 'all', label: 'Every entity matches' }
+                ] } }}
+                .value=${cond.match || 'any'}
+                @value-changed=${(e) => set('match', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+                .hass=${this.hass}
+                .label=${'Attribute'}
+                .helper=${'Leave empty to compare the state'}
+                .selector=${{ text: {} }}
+                .value=${cond.attribute || ''}
+                @value-changed=${(e) => set('attribute', e.detail.value)}>
+            </ha-selector>
+            ${this._renderOperatorFields(cond, index)}
         `;
     }
 }

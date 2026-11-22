@@ -33,6 +33,7 @@ moved_anchors:
 |-----------|-----|----------------|
 | [Entity state](#entity) | `entity` | The entity's state against a [comparison](#comparison-operators) |
 | [Entity attribute](#entity-attr) | `entity_attr` | One attribute of an entity against a comparison |
+| [Labels, areas, devices](#target) | `target` | Every entity a Home Assistant label, area, device or floor includes, compared one by one |
 | [Map range](#map-range-cond) | `map_range_cond` | The state mapped onto a new scale, then compared |
 | [All, any, not](#all-any-and-not) | `all`, `any`, `not` | Every, at least one, or none of the conditions inside |
 | [Time range](#time-between) | `time_between` | The time is inside a `"HH:MM-HH:MM"` window |
@@ -170,6 +171,56 @@ rules:
 | `entity_attr` | string | required | The entity whose attribute is tested |
 | `attribute` | string | required | The attribute's name. Without it the condition is false |
 | [Comparison operators](#comparison-operators) | | | Applied to the attribute's value |
+
+## target
+
+**`target` tests the entities you picked in Home Assistant's terms, such as every entity with a label or in an area, so the rule follows what you label in Home Assistant.** Add a [comparison](#comparison-operators); `match` says whether one entity is enough or every entity must pass.
+
+- `target` is Home Assistant's own target object, the one actions take: `label_id`, `area_id`, `device_id`, `floor_id` and `entity_id`, each one id or a list.
+- A label counts on the entity, on its device or on its area. An area takes the entities in it, also through their device. Hidden entities and configuration or diagnostic entities are left out unless named in `entity_id`, as in Home Assistant's own sections.
+- When the target includes no entity at all, the condition is false, with `match: any` and `match: all` alike.
+- The entities are found again when labels, areas or devices change in Home Assistant, and a change to any of them makes the rule check again.
+- Here the label is on the lights helper (on) and on the doors helper's device (off): with `match: all` the card turns red once both are on. Tap to switch the doors.
+
+```yaml live controls
+type: custom:lcards-button
+id: docs-cond-target-btn
+preset: lozenge
+entity: input_boolean.lcards_test_doors
+tap_action:
+  action: toggle
+text:
+  name:
+    content: DOORS
+    show: true
+rules:
+  - id: docs-cond-target
+    when:
+      target:
+        label_id: lcards_test_crew
+      match: all
+      state: "on"
+    apply:
+      overlays:
+        docs-cond-target-btn:
+          style:
+            card:
+              color:
+                background: var(--lcars-alert-red)
+```
+
+::: details More about target
+- **Label ids:** the condition uses the label's id, not its name (`Low battery` is `low_battery`). A card's editor lists its entity's labels with their ids.
+- **An attribute:** add `attribute: <name>` to compare that attribute of each entity instead of its state.
+- **The editor:** the condition editor's "Entities by label, area or device" type has Home Assistant's own target picker.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `target` | object | required | Home Assistant's target: `label_id`, `area_id`, `device_id`, `floor_id`, `entity_id` (each an id or a list) |
+| `match` | string | `any` | `any`: at least one entity passes. `all`: every entity passes |
+| `attribute` | string | - | Compare this attribute of each entity instead of its state |
+| [Comparison operators](#comparison-operators) | | | Applied to each entity's state (or attribute) |
 
 ## map_range_cond
 

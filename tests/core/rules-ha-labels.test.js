@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RulesEngine } from '../../src/core/rules/RulesEngine.js';
 import { CoreSystemsManager } from '../../src/core/systems-manager/index.js';
+import { compileRule, evalCompiled, targetsOf } from '../../src/core/rules/compileConditions.js';
 
 function makeHass() {
     return {
@@ -117,4 +118,51 @@ test('a replaced registry marks every rule dirty and re-runs the callbacks; the 
     engine.ingestHass({ ...hass, entities: { ...hass.entities, 'light.lamp': { ...hass.entities['light.lamp'], labels: ['low_battery'] } } });
     assert.equal(engine.dirtyRules.size, 1);
     assert.equal(calls, before + 1, 'the cards re-evaluate');
+});
+
+// ── target conditions (1c): entities picked by label, area, device ────────────
+
+const cond = async (when, hass = makeHass()) => {
+    const { tree } = compileRule({ id: 'c', when }, []);
+    return evalCompiled(tree, { hass, getEntity: (id) => hass.states[id] });
+};
+
+test('target condition: any (default) and all over the labelled entities', async () => {
+    // low_battery: the door (12) and the window through its device (80)
+    assert.equal(await cond({ target: { label_id: 'low_battery' }, below: 20 }), true, 'any: the door is below 20');
+    assert.equal(await cond({ target: { label_id: 'low_battery' }, match: 'all', below: 20 }), false, 'all: the window is not');
+    assert.equal(await cond({ target: { label_id: 'low_battery' }, match: 'all', below: 90 }), true);
+    assert.equal(await cond({ target: { area_id: 'bridge' }, state: 'on' }), true, 'state is equals, as for an entity condition');
+});
+
+test('target condition: no entities is false for any and all; an attribute is compared when given', async () => {
+    assert.equal(await cond({ target: { label_id: 'nope' }, below: 100 }), false);
+    assert.equal(await cond({ target: { label_id: 'nope' }, match: 'all', below: 100 }), false);
+    const hass = makeHass();
+    hass.states['light.lamp'] = { state: 'on', attributes: { brightness: 200 } };
+    assert.equal(await cond({ target: { label_id: 'command' }, attribute: 'brightness', above: 150 }, hass), true);
+    assert.equal(await cond({ target: { label_id: 'command' }, attribute: 'brightness', above: 250 }, hass), false);
+    assert.equal(await cond({ not: { target: { label_id: 'command' }, state: 'off' } }, hass), true, 'inside not');
+});
+
+test('targetsOf finds target conditions in nested groups', () => {
+    const { tree } = compileRule({ id: 'c', when: { all: [{ entity: 'light.lamp', state: 'on' }, { any: [{ target: { label_id: 'a' }, state: 'on' }] }, { not: { target: { area_id: 'b' }, state: 'on' } }] } }, []);
+    assert.deepEqual(targetsOf(tree), [{ label_id: 'a' }, { area_id: 'b' }]);
+});
+
+test('a target condition watches its resolved entities, and follows a registry change', async () => {
+    const hass = makeHass();
+    const engine = new RulesEngine([], null);
+    engine._systemsManager = { getAllTargetableOverlays: () => overlays, getHass: () => hass, getOverlayRegistry: () => new Map() };
+    engine.hassUnsubscribe = () => {};
+    engine.rules = [{ id: 'battery', when: { target: { label_id: 'low_battery' }, below: 20 }, apply: { overlays: { door: { style: { color: 'red' } } } } }];
+    engine.buildDependencyIndex();
+    const watched = () => [...engine.dependencyIndex.entityToRules.keys()].sort();
+    assert.deepEqual(watched(), ['sensor.door_battery', 'sensor.window_battery']);
+
+    engine.ingestHass(hass); // first registries
+    const next = { ...hass, entities: { ...hass.entities, 'light.lamp': { ...hass.entities['light.lamp'], labels: ['low_battery'] } } };
+    engine._systemsManager.getHass = () => next;
+    engine.ingestHass(next);
+    assert.deepEqual(watched(), ['light.lamp', 'sensor.door_battery', 'sensor.window_battery'], 'the newly labelled lamp is watched');
 });

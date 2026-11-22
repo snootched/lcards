@@ -233,6 +233,8 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
     }
 
     const states = Object.fromEntries(SAMPLE_ENTITIES.map(id => [id, sampleState(id)]));
+    // every entity in the sample registries has a state from the start, as in Home Assistant
+    for (const id of Object.keys(SAMPLE_REGISTRIES.entities)) states[id] ??= sampleState(id);
     Object.assign(states, {
         'switch.demo_switch': { state: 'off', attributes: { friendly_name: 'Demo Switch' } },
         'input_boolean.demo_toggle': { state: 'on', attributes: { friendly_name: 'Demo Toggle' } },

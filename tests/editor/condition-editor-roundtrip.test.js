@@ -25,3 +25,18 @@ test('map_range_cond keeps its comparison and clamp through the editor', () => {
     const back = p._serializeCondition.call(p, p._deserializeCondition.call(p, original));
     assert.deepEqual(back, original);
 });
+
+test('a target condition (Home Assistant labels, areas) keeps its target, match, attribute and comparison', () => {
+    const p = Editor.prototype;
+    const round = (c) => p._serializeCondition.call(p, p._deserializeCondition.call(p, c));
+    for (const original of [
+        { target: { label_id: 'low_battery' }, below: 20 },
+        { target: { label_id: ['a', 'b'], area_id: 'bridge' }, match: 'all', state: 'off' },
+        { target: { area_id: 'bridge' }, attribute: 'brightness', above: 100 },
+    ]) {
+        const expected = { ...original };
+        if (expected.state !== undefined) { expected.equals = expected.state; delete expected.state; }
+        assert.deepEqual(round(original), expected);
+    }
+    assert.equal(p._getConditionType.call(p, { target: {} }), 'target');
+});

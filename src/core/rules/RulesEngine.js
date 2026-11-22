@@ -8,10 +8,10 @@ import { globalTraceBuffer } from './RuleTraceBuffer.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { onStateChanged } from '../state-change-hub.js';
 import { BaseService } from '../../core/BaseService.js';
-import { compileRule, evalCompiled } from './compileConditions.js';  // ✨ NEW
+import { compileRule, evalCompiled, targetsOf } from './compileConditions.js';  // ✨ NEW
 import { UnifiedTemplateEvaluator } from '../templates/UnifiedTemplateEvaluator.js';  // ✨ NEW
 import { resolveAnimParam, resolveAnimCommandParams } from '../animation/resolveAnimParams.js';
-import { hasLabel, registryKey, sameRegistries } from '../../utils/ha-targets.js';
+import { hasLabel, registryKey, sameRegistries, resolveTarget } from '../../utils/ha-targets.js';
 
 /** Rules that read the clock (time_between, weekday_in, random_chance) are checked again every minute, on the minute. */
 export const TIME_REFRESH_MS = 60000;
@@ -453,6 +453,9 @@ export class RulesEngine extends BaseService {
   buildDependencyIndex() {
     const entityToRules = new Map();
     const ruleToEntities = new Map();
+    // Set by extractEntityReferences() when a rule has a target condition: its
+    // entities come from the registries, so the index is rebuilt when they change
+    this._hasTargetConditions = false;
 
     this.rules.forEach(rule => {
       const entities = this.extractEntityReferences(rule);
@@ -538,8 +541,17 @@ export class RulesEngine extends BaseService {
     // Jinja2 ({{ states('x') }}) and JavaScript (states['x']) conditions; without
     // them such rules never re-evaluated when those entities changed.
     try {
-      for (const entityId of compileRule(rule, []).deps.entities) {
+      const compiled = compileRule(rule, []);
+      for (const entityId of compiled.deps.entities) {
         if (/^[a-z_]+\.[\w-]+$/.test(entityId)) entities.add(entityId);
+      }
+      // target conditions (labels, areas, devices): their entities as the
+      // registries stand now; ingestHass() rebuilds the index when those change
+      const targets = targetsOf(compiled.tree);
+      if (targets.length) {
+        this._hasTargetConditions = true;
+        const hass = this.systemsManager?.getHass?.();
+        for (const target of targets) resolveTarget(hass, target).forEach(id => entities.add(id));
       }
     } catch (_) {
       // Compilation problems are reported by _compileRules().
@@ -834,8 +846,12 @@ export class RulesEngine extends BaseService {
     // rule resolves its ha_label: targets again. Home Assistant replaces a registry
     // object when it changes, so identity is enough.
     const registries = registryKey(hass);
-    const registriesChanged = !!this._registryKey && !sameRegistries(this._registryKey, registries);
+    const firstRegistries = !this._registryKey;
+    const registriesChanged = !firstRegistries && !sameRegistries(this._registryKey, registries);
     this._registryKey = registries;
+    // Target conditions watch the entities their target resolves to: resolve again
+    // (and follow the new set) once the registries are there, and on every change
+    if ((firstRegistries || registriesChanged) && this._hasTargetConditions) this.buildDependencyIndex();
     if (registriesChanged) {
       lcardsLog.debug('[RulesEngine] Home Assistant registries changed, marking all rules dirty');
       this.markAllDirty();
