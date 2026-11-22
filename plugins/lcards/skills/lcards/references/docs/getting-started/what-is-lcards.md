@@ -1,0 +1,31 @@
+# What is LCARdS?
+
+<video class="doc-video" src="/img/lcards-banner.mp4" poster="/img/lcards-banner.webp" title="LCARdS: LCARS cards for Home Assistant. A wormhole opens in a live astrometrics scene beside the title, spins, and closes again." autoplay loop muted playsinline></video>
+
+**LCARdS builds Star Trek LCARS-style dashboards in Home Assistant: a set of cards and services that work together as one system.** It includes buttons, elbows, sliders, charts, data grids, ship displays and more, designed to pair with the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars).
+
+## How it works
+
+**Three layers, plus a small integration running inside Home Assistant.**
+
+## What that gives you
+
+**One system instead of separate cards, so the whole screen reacts together.**
+
+- **Colours that follow state:** a button lights up when its light is on, a reading turns red past a threshold. No automations needed.
+- **One look everywhere:** every card takes its colours, fonts and sizes from the same theme, so the whole screen matches.
+- **Screen-wide reactions:** [rules](../core/rules/) restyle many cards at once, and [alert mode](../core/alert-mode) repaints the whole dashboard.
+- **Live values anywhere:** put a sensor value, a smoothed reading or a [template](../core/templates/) in any label.
+- **Motion and sound:** [animations](../core/animations) and LCARS [sounds](../core/sounds) on taps and state changes.
+- **Control from automations:** [actions](../configuration/ha-actions) like `lcards.red_alert` work from scripts, automations and voice.
+
+## Next steps
+
+1. **[Install LCARdS](installation)**: from the Home Assistant Marketplace, then a quick setup.
+2. **[Build a dashboard](building-dashboards)**: generate one, add LCARS sections, design one with Claude, borrow a sample layout or lay out a screen by hand.
+3. **[Browse the gallery](dashboard-gallery)**: copy a complete dashboard and make it yours.
+4. **[Get AI help](ai-assistance)**: let an assistant write the YAML for you.
+
+::: info A hobby project
+LCARdS is a fan-made hobby project, not a fully commissioned Starfleet product: expect the occasional tribble. If something in these docs doesn't match what you see, please [open an issue](https://github.com/snootched/lcards/issues).
+:::

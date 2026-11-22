@@ -27,6 +27,7 @@
  *   lcards-plugin.zip    .claude-plugin/plugin.json (version = package.json) + skills/lcards/,
  *                        plus hooks/ (run the checker on LCARdS YAML Claude writes) and
  *                        commands/ (/lcards:check, /lcards:dashboard) from skills/lcards/plugin/
+ *                        plus icon.png (the integration's brand icon) and a README
  *   marketplace.json     one plugin entry with an `archive` source: <site><DOCS_BASE>tools/lcards-plugin.zip.
  *                        Named per docs channel (DOCS_BASE / -> lcards, /dev/ -> lcards-dev,
  *                        /v/<version>/ -> lcards-<version>), so channels can sit side by side.
@@ -34,11 +35,17 @@
  *   node scripts/build-user-skill.js [--out=<file.zip>] [--plugin-out=<file.zip>] [--marketplace-out=<file.json>]
  *     defaults: doc/public/tools/lcards-skill.zip, doc/public/tools/lcards-plugin.zip,
  *               doc/public/marketplace.json
+ *   node scripts/build-user-skill.js --plugin-dir=plugins/lcards     (npm run plugin:tree)
+ *     writes only the unpacked plugin, the same files as the plugin zip, for the git
+ *     marketplace at the repo root (.claude-plugin/marketplace.json, source ./plugins/lcards:
+ *     claude.ai and Claude Code add it as snootched/lcards). Built for the stable docs
+ *     channel; rebuilt in the release steps after the stable bump, checked on stable versions by
+ *     tests/docs/user-skill.test.js.
  *
  * Published on the docs site (docs:build) and attached to each GitHub release.
  * Zipped with Python's zipfile module (no zip binary needed).
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync, copyFileSync, cpSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync, copyFileSync, cpSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
@@ -58,6 +65,11 @@ const arg = (name, fallback) => {
 const OUT = arg('out', 'doc/public/tools/lcards-skill.zip');
 const PLUGIN_OUT = arg('plugin-out', 'doc/public/tools/lcards-plugin.zip');
 const MARKETPLACE_OUT = arg('marketplace-out', 'doc/public/marketplace.json');
+const PLUGIN_DIR = process.argv.some(a => a.startsWith('--plugin-dir=')) ? arg('plugin-dir', '') : null;
+if (PLUGIN_DIR && (process.env.DOCS_BASE ?? '/') !== '/') {
+  console.error('❌ --plugin-dir builds the stable channel: unset DOCS_BASE');
+  process.exit(1);
+}
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 const { version } = pkg;
 
@@ -86,6 +98,13 @@ for (const name of readdirSync(handRefs).filter(f => f.endsWith('.md'))) {
 // Schemas and registries.
 const { files, index } = buildSchemaSet(getSchemaEntries(), { version });
 index.registries = { file: 'registries.json' };
+// The committed plugin tree keeps its old date when the schemas haven't changed, so a
+// rebuild with nothing new leaves the folder as it is.
+const indexFile = PLUGIN_DIR && join(PLUGIN_DIR, 'skills/lcards/references/schema/index.json');
+if (indexFile && existsSync(indexFile)) {
+  const old = JSON.parse(readFileSync(indexFile, 'utf8'));
+  if (JSON.stringify({ ...old, generated_at: null }) === JSON.stringify({ ...index, generated_at: null })) index.generated_at = old.generated_at;
+}
 write('references/schema/index.json', JSON.stringify(index, null, 1));
 for (const [rel, doc] of files) write(`references/schema/${rel}`, JSON.stringify(doc));
 write('references/schema/registries.json', JSON.stringify(await buildRegistries(), null, 1));
@@ -143,7 +162,7 @@ const zipDir = (cwd, out, ...entries) => {
 const shown = (file) => file.startsWith(ROOT) ? relative(ROOT, file) : file;
 
 // The skill zip: lcards/SKILL.md at the top (claude.ai upload, ~/.claude/skills/).
-zipDir(work, OUT, 'lcards');
+if (!PLUGIN_DIR) zipDir(work, OUT, 'lcards');
 
 // The Claude Code plugin: plugin root at the top of the zip, the skill under skills/.
 const description = 'Writes, fixes and explains LCARdS configuration for Home Assistant: every card option, built-in name and docs page for this LCARdS version, the HA-LCARS theme and UIX references, and the config checker (run automatically on LCARdS YAML Claude writes).';
@@ -163,8 +182,50 @@ writeFileSync(join(plugin, '.claude-plugin/plugin.json'), JSON.stringify({
   repository: 'https://github.com/snootched/lcards',
   license: pkg.license,
   keywords: ['home-assistant', 'lcars', 'ha-lcars', 'lovelace', 'dashboard', 'star-trek', 'uix'],
+  // shown by Anthropic's plugin directory (Claude Code ignores it)
+  icon: './icon.png',
 }, null, 2) + '\n');
-zipDir(plugin, PLUGIN_OUT, '.claude-plugin', 'skills', 'hooks', 'commands');
+copyFileSync(join(ROOT, 'custom_components/lcards/brand/icon@2x.png'), join(plugin, 'icon.png'));
+writeFileSync(join(plugin, 'README.md'), `# LCARdS for Claude
+
+The LCARdS skill as a Claude plugin, built for LCARdS ${version}. Claude uses it to write, fix and explain
+[LCARdS](${SITE_URL}/) configuration for Home Assistant: LCARS-style cards, views and dashboards. It carries
+every card option and built-in name for this version, the user docs, the dashboard gallery, the HA-LCARS
+theme and UIX styling references, and the config checker.
+
+- \`skills/lcards/\`: the skill (SKILL.md, references, scripts)
+- \`hooks/\`: in Claude Code, runs the checker on any LCARdS YAML file Claude writes
+- \`commands/\`: \`/lcards:check\`, \`/lcards:dashboard\` and \`/lcards:issue\`
+
+## Install
+
+- **claude.ai:** **Plugins**, then **Add**, **Marketplace**, **Repository**: \`snootched/lcards\`. Install **lcards** from it.
+- **Claude Code:**
+
+  \`\`\`
+  /plugin install lcards --marketplace snootched/lcards
+  \`\`\`
+
+More, including updates and the dev channel: ${SITE_URL}/getting-started/ai-assistance
+
+This folder is generated by \`scripts/build-user-skill.js\` in https://github.com/snootched/lcards; don't edit it by hand.
+`);
+const PLUGIN_ENTRIES = ['.claude-plugin', 'skills', 'hooks', 'commands', 'icon.png', 'README.md'];
+if (PLUGIN_DIR) {
+  // it replaces the folder: only ever one that holds a plugin (or nothing yet)
+  if (relative(PLUGIN_DIR, ROOT) === '' || !relative(PLUGIN_DIR, ROOT).startsWith('..') ||
+      (existsSync(PLUGIN_DIR) && readdirSync(PLUGIN_DIR).length && !existsSync(join(PLUGIN_DIR, '.claude-plugin/plugin.json')))) {
+    console.error(`❌ --plugin-dir=${shown(PLUGIN_DIR)} is not a plugin folder; refusing to replace it`);
+    process.exit(1);
+  }
+  rmSync(PLUGIN_DIR, { recursive: true, force: true });
+  mkdirSync(PLUGIN_DIR, { recursive: true });
+  for (const e of PLUGIN_ENTRIES) cpSync(join(plugin, e), join(PLUGIN_DIR, e), { recursive: true });
+  rmSync(work, { recursive: true, force: true });
+  console.log(`✅ Wrote ${shown(PLUGIN_DIR)} (the plugin for LCARdS ${version}, unpacked)`);
+  process.exit(0);
+}
+zipDir(plugin, PLUGIN_OUT, ...PLUGIN_ENTRIES);
 
 // The marketplace for this docs channel, pointing at the channel's own plugin zip.
 // No entry version: plugin.json owns it (users update when the LCARdS version changes).
