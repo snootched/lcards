@@ -39,6 +39,7 @@ jobs:
     uses: ./.github/workflows/validate-integration.yml
     permissions:
       contents: read
+      actions: read   # its changes job reads past runs (only on the nightly schedule)
 
   release:
     name: Build and Release

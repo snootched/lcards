@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * npm run test:browser:changed [-- --base <ref>] [--dry-run] [--all] [playwright args...]
+ * npm run test:browser:changed [-- --base <ref>] [--dry-run] [--all] [--github-output] [playwright args...]
  *
  * Runs only the browser tests (Playwright component project) that the changed
  * files need; shared code runs the full suite. The map is
@@ -9,9 +9,12 @@
  * committed or not, plus untracked files. Run `npm run build` first: the tests
  * use the built bundle. Other arguments go to Playwright (--workers=2,
  * --reporter=dot, ...).
+ *
+ * --github-output (CI): run nothing; write the choice to $GITHUB_OUTPUT as
+ * `browser=all|some|none` and `grep=<pattern>` (validate-integration.yml).
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { selectBrowserTests, grepFor, NOT_COMPONENT } from './lib/browser-test-select.js';
 
@@ -25,6 +28,7 @@ const take = (flag) => {
 const baseArg = take('--base');
 const dryRun = take('--dry-run');
 const forceAll = take('--all');
+const githubOutput = take('--github-output');
 
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8' }).trim();
 const refExists = (ref) => { try { git('rev-parse', '--verify', '--quiet', `${ref}^{commit}`); return true; } catch { return false; } };
@@ -51,6 +55,15 @@ const sel = forceAll ? { all: true, specs: [], cards: [], fixtures: [], reasons:
 console.log(`[test:browser:changed] ${changed.length} changed file(s) since ${base} (${mergeBase.slice(0, 8)})`);
 for (const r of sel.reasons.slice(0, 20)) console.log(`  ${r}`);
 if (sel.reasons.length > 20) console.log(`  ... and ${sel.reasons.length - 20} more`);
+
+if (githubOutput) {
+    const out = process.env.GITHUB_OUTPUT;
+    const grep = sel.all ? '' : (grepFor(sel) ?? '');
+    const mode = sel.all ? 'all' : grep ? 'some' : 'none';
+    console.log(`[test:browser:changed] CI: ${mode}${grep ? ` (${sel.specs.length} spec file(s)${sel.cards.length || sel.fixtures.length ? ' and part of cards.spec.js' : ''})` : ''}`);
+    if (out) appendFileSync(out, `browser=${mode}\ngrep<<LCARDS_GREP_EOF\n${grep}\nLCARDS_GREP_EOF\n`);
+    process.exit(0);
+}
 
 const pw = ['playwright', 'test', '--project=component'];
 if (sel.all) {
