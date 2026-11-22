@@ -9,6 +9,26 @@ theme and UIX styling references, and the config checker.
 - `hooks/`: in Claude Code, runs the checker on any LCARdS YAML file Claude writes
 - `commands/`: `/lcards:check`, `/lcards:dashboard` and `/lcards:issue`
 
+## What runs on your computer
+
+The plugin is mostly text Claude reads. These parts run code, all with Node.js (Python for one), all offline:
+
+- **The hook** (Claude Code only): after Claude writes or edits a file, `hooks/check-lcards-yaml.mjs` looks at it. If it is a YAML
+  file with LCARdS config, it runs the config checker on it and hands the result back to Claude: errors must be fixed, warnings are
+  hints. Any other file is left alone. It reads only that file.
+- **The config checker,** `skills/lcards/scripts/lcards-validate.mjs`: checks a YAML file against this version's schemas and
+  built-in names. Claude runs it on each draft (and `/lcards:check` on a file you name). It reads the file and prints a report.
+- **The starter tool,** `skills/lcards/scripts/lcards-starter.mjs`: prints the YAML of an astrometrics starter with your settings.
+- **The preview link,** `skills/lcards/scripts/lcards-preview-link.mjs` (or `.py`): builds a link to the docs site's preview
+  page with your YAML packed into the part after `#`, which browsers never send to a server; it can also write a small HTML file
+  that opens the link.
+
+None of them connect to the internet, install anything, or read files you didn't point them at. The checker and starter tool are
+built from the LCARdS sources in one file each (they include the YAML and JSON Schema libraries they use; their licences are at
+the top of each file). In claude.ai these run in Claude's code execution sandbox, not on your computer. The only network use is
+Claude itself opening links to the LCARdS docs site (gallery pictures, docs pages) when your settings allow it. No data about you
+or your setup is sent anywhere.
+
 ## Install
 
 - **claude.ai:** **Plugins**, then **Add**, **Marketplace**, **Repository**: `snootched/lcards`. Install **lcards** from it.
