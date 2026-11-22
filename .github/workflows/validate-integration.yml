@@ -3,6 +3,12 @@ name: Validate
 # No push trigger on main: a change reaches main through a pull request from dev,
 # which already ran this workflow on the same tree, and Release runs it again as
 # its gate. The nightly run covers main between releases (see the changes job).
+#
+# Browser tests: a push to dev runs the ones its changes need (the
+# test:browser:changed picker, against the last dev commit this workflow passed
+# on); shared code runs them all. Pull requests (the release PR included), the
+# Release gate, manual runs and a nightly run with new commits run them all.
+# Either way they are split over 4 runners (Playwright shards).
 on:
   push:
     branches: [ "dev" ]
@@ -29,13 +35,19 @@ jobs:
   # so Hassfest and HACS always run. Everything else runs nightly only when main
   # has moved since the last scheduled run; every other trigger runs it all.
   changes:
-    name: New commits since last nightly
+    name: What to run
     runs-on: ubuntu-latest
     permissions:
       actions: read
     outputs:
       run: ${{ steps.check.outputs.run }}
+      browser: ${{ steps.browser.outputs.browser }}
+      grep: ${{ steps.browser.outputs.grep }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       - id: check
         env:
           GH_TOKEN: ${{ github.token }}
@@ -52,6 +64,28 @@ jobs:
             echo "📌 main moved (${LAST:-none} to ${{ github.sha }}): full run."
             echo "run=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # Which browser tests. On a dev push: what changed since the last dev commit this
+      # workflow passed on (not just the previous push: a newer push cancels an older
+      # run, whose changes must still be tested). No such commit: all of them.
+      - id: browser
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.check.outputs.run }}" != "true" ]; then
+            echo "browser=none" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "browser=all" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          BASE=$(gh api "repos/${{ github.repository }}/actions/workflows/validate-integration.yml/runs?branch=dev&event=push&status=success&per_page=1" \
+            --jq '.workflow_runs[0].head_sha // ""')
+          if [ -z "$BASE" ] || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo "::notice::No passed dev run to compare with: every browser test."
+            echo "browser=all" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "📌 browser tests for the changes since ${BASE}"
+          node scripts/test-browser-changed.mjs --base "$BASE" --github-output
 
   validate-hassfest:
     name: Hassfest Validation
@@ -128,10 +162,6 @@ jobs:
     needs: changes
     if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
-    env:
-      # The release pull request (this repo's dev into main) gets the quick checks:
-      # the browser suite already ran on the dev push of the same commits.
-      BROWSER_TESTS: ${{ !(github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.head.repo.full_name == github.repository) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -151,19 +181,45 @@ jobs:
       - name: Typecheck (zero TypeScript errors)
         run: npm run typecheck
 
+  browser:
+    name: Browser tests (${{ matrix.shard }}/4)
+    needs: changes
+    if: needs.changes.outputs.run == 'true' && needs.changes.outputs.browser != 'none'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
       # Browser component tests run against the built bundle. Visual baselines
       # (test:visual) and real-HA tests (test:ha) stay local-only.
       - name: Build bundle for browser tests
-        if: env.BROWSER_TESTS == 'true'
         run: npm run build:integration
 
       - name: Install Playwright Chromium
-        if: env.BROWSER_TESTS == 'true'
         run: npx playwright install --with-deps chromium
 
-      - name: Browser component tests
-        if: env.BROWSER_TESTS == 'true'
-        run: npm run test:browser
+      - name: Browser component tests (${{ needs.changes.outputs.browser }})
+        env:
+          GREP: ${{ needs.changes.outputs.grep }}
+        run: |
+          if [ "${{ needs.changes.outputs.browser }}" = "all" ]; then
+            npx playwright test --project=component --shard=${{ matrix.shard }}/4 --pass-with-no-tests
+          else
+            npx playwright test --project=component --grep "$GREP" --shard=${{ matrix.shard }}/4 --pass-with-no-tests
+          fi
 
   validate-build:
     name: Validate Build

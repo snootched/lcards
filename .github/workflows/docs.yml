@@ -62,6 +62,7 @@ jobs:
     name: Build Docs
     runs-on: ubuntu-latest
     outputs:
+      site_tests: ${{ steps.site.outputs.run }}
       channel: ${{ steps.channel.outputs.channel }}
       base: ${{ steps.channel.outputs.base }}
       version: ${{ steps.channel.outputs.version }}
@@ -127,18 +128,26 @@ jobs:
             exit 1
           fi
 
-      # Live card demos, galleries, playgrounds and processor labs, on this
-      # channel's base: a failure stops the deploy below. Pull requests build only:
-      # the push run of the same commits runs these tests.
-      - name: Install Playwright Chromium
-        if: github.event_name != 'pull_request'
-        run: npx playwright install --with-deps chromium
-
-      - name: Docs site tests
-        if: github.event_name != 'pull_request'
-        env:
-          DOCS_BASE: ${{ steps.channel.outputs.base }}
-        run: npm run test:docs
+      # Whether the docs site tests run (the site-tests job): on the release pull
+      # request (dev into main), on a manual run of a branch, and on a push that
+      # changes the docs site itself (its theme and components, its tests, the demo
+      # environment). A card change shows on /dev/ and is tested on the release PR.
+      - name: Site tests needed?
+        id: site
+        run: |
+          RUN=false
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "main" ]; then RUN=true; fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -z "${{ inputs.archive_tag }}" ]; then RUN=true; fi
+          if [ "${{ github.event_name }}" = "push" ]; then
+            BEFORE="${{ github.event.before }}"
+            if [ -z "$BEFORE" ] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+              RUN=true
+            elif git diff --name-only "$BEFORE" HEAD | grep -Eq '^(doc/\.vitepress/|tests/docs-site/|playwright\.docs\.config\.js$|tests/helpers/(card-env|demo-states|ha-jinja)\.js$)'; then
+              RUN=true
+            fi
+          fi
+          echo "run=${RUN}" >> "$GITHUB_OUTPUT"
+          echo "📌 docs site tests: ${RUN}"
 
       - name: Keep the build for the deploy job
         if: steps.channel.outputs.channel != 'none'
@@ -148,10 +157,48 @@ jobs:
           path: doc/.vitepress/dist
           retention-days: 1
 
+  # Live card demos, galleries, playgrounds and processor labs on this channel's
+  # base, split over 3 runners; a failure stops the deploy.
+  site-tests:
+    name: Docs site tests (${{ matrix.shard }}/3)
+    needs: build
+    if: needs.build.outputs.site_tests == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.build.outputs.ref }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build docs
+        env:
+          DOCS_BASE: ${{ needs.build.outputs.base }}
+        run: npm run docs:build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Docs site tests
+        env:
+          DOCS_BASE: ${{ needs.build.outputs.base }}
+        run: npm run test:docs -- --shard=${{ matrix.shard }}/3 --pass-with-no-tests
+
   deploy:
     name: Deploy to GitHub Pages
-    needs: build
-    if: needs.build.outputs.channel != 'none'
+    needs: [build, site-tests]
+    # after the site tests when they ran; straight after the build when they were skipped
+    if: always() && needs.build.result == 'success' && needs.build.outputs.channel != 'none' && (needs.site-tests.result == 'success' || needs.site-tests.result == 'skipped')
     runs-on: ubuntu-latest
     # One deploy at a time: each merges into the latest gh-pages tree.
     concurrency:
