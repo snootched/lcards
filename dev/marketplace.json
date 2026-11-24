@@ -1,0 +1,18 @@
+{
+  "name": "lcards-dev",
+  "description": "LCARdS for Claude Code (dev channel): the LCARdS skill for writing and checking LCARS-style Home Assistant dashboards.",
+  "owner": {
+    "name": "Jason Weyermars",
+    "url": "https://lcards.unimatrix01.ca"
+  },
+  "plugins": [
+    {
+      "name": "lcards",
+      "description": "Writes, fixes and explains LCARdS configuration for Home Assistant: every card option, built-in name and docs page for this LCARdS version, the HA-LCARS theme and UIX references, and the config checker (run automatically on LCARdS YAML Claude writes).",
+      "source": {
+        "source": "archive",
+        "url": "https://lcards.unimatrix01.ca/dev/tools/lcards-plugin.zip"
+      }
+    }
+  ]
+}

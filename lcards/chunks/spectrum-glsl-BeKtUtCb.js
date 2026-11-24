@@ -1,0 +1,31 @@
+const t=`
+// red at 0 to violet at 1 (hue 0 to 0.8)
+vec3 spectral( float x ) {
+  vec3 k = abs( mod( 0.8 * x * 6.0 + vec3( 0.0, 4.0, 2.0 ), 6.0 ) - 3.0 ) - 1.0;
+  return clamp( k, 0.0, 1.0 );
+}
+
+// Where a colour sits on the ramp: its hue (magenta counts as violet), white and greys in the middle
+float spectralPos( vec3 c ) {
+  float mx = max( c.r, max( c.g, c.b ) );
+  float mn = min( c.r, min( c.g, c.b ) );
+  float d = mx - mn;
+  if ( mx <= 0.0 || d <= 1e-4 ) return 0.5;
+  float h;
+  if ( mx == c.r ) h = mod( ( c.g - c.b ) / d, 6.0 );
+  else if ( mx == c.g ) h = ( c.b - c.r ) / d + 2.0;
+  else h = ( c.r - c.g ) / d + 4.0;
+  h /= 6.0;
+  float pos = h > 0.9 ? 0.0 : clamp( h / 0.8, 0.0, 1.0 );
+  return mix( 0.5, pos, d / mx );
+}
+
+// A star's colour at 'along' its streak (0 tail, 1 head), Doppler shifted;
+// .a is how much of it is still visible light
+vec4 warpSpectrum( vec3 star, float along, float dir ) {
+  float x = spectralPos( star ) + ( 0.5 - along ) * dir;
+  float out_ = max( -x, x - 1.0 );
+  return vec4( spectral( clamp( x, 0.0, 1.0 ) ), 1.0 - smoothstep( 0.0, 0.3, out_ ) );
+}
+`;export{t as S};
+//# sourceMappingURL=spectrum-glsl-BeKtUtCb.js.map
