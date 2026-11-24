@@ -15,8 +15,13 @@
  *     // set up CSS / start rAF loop
  *     return () => { /* cleanup *\/ }; // returned fn stops the effect
  *   },
+ *   preload() { ... },                 // optional: fetch what enter() loads lazily
  * }
  * ```
+ *
+ * A preset whose `enter()` loads code or files lazily declares `preload()`
+ * (returning a promise): the connection overlay runs it while Home Assistant
+ * is reachable, since the effect may first start when it is not.
  *
  * @module core/screen-effects/ScreenEffectPresetRegistry
  */
@@ -25,7 +30,7 @@ import { StaticEffect            } from './effects/StaticEffect.js';
 import { PixelateEffect          } from './effects/PixelateEffect.js';
 import { GlitchEffect            } from './effects/GlitchEffect.js';
 import { ScanlineEffect          } from './effects/ScanlineEffect.js';
-import { BorgAssimilationEffect  } from './effects/BorgAssimilationEffect.js';
+import { BorgAssimilationEffect, preloadBorgIntro } from './effects/BorgAssimilationEffect.js';
 import { lcardsLog               } from '../../utils/lcards-logging.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -316,5 +321,6 @@ screenEffectPresetRegistry.register('borg-assimilation', {
     // The effect runs until BorgAssimilationManager dismisses it (click or timeout).
     // Do not pass a duration here — use sem.apply() not sem.play() for this preset.
     enter: BorgAssimilationEffect,
+    preload: preloadBorgIntro,
 });
 

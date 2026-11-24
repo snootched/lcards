@@ -14,7 +14,9 @@
  * Without WebGL2, or when the GL worker reports a failure, the classic one runs.
  *
  * The worker sources are `?raw` strings in a lazy chunk (borg-worker-sources.js),
- * loaded when the effect starts.
+ * loaded when the effect starts, or ahead of time by preloadBorgIntro() (the
+ * preset's `preload`): the connection overlay plays the intro when Home
+ * Assistant is unreachable, so the chunk can't be fetched then.
  *
  * The SEM-provided canvas is never transferred so it remains usable by
  * other effects (GlitchEffect, etc.) after the Borg sequence finishes.
@@ -59,6 +61,22 @@ function colorFloats(value, fallback) {
  * @param {number}  [params.seed]                 - WebGL: the same layout every time.
  * @returns {() => void} Cleanup function — stops the worker and removes the sibling canvas.
  */
+/** @type {Promise<typeof import('./borg-worker-sources.js')> | null} */
+let sourcesLoad = null;
+
+/**
+ * Load the intro's worker sources once and keep them (a failed load is tried
+ * again on the next call). The effect and the connection overlay's warm-up share it.
+ * @returns {Promise<typeof import('./borg-worker-sources.js')>}
+ */
+export function preloadBorgIntro() {
+    sourcesLoad ??= import('./borg-worker-sources.js').catch((err) => {
+        sourcesLoad = null;
+        throw err;
+    });
+    return sourcesLoad;
+}
+
 /** True when this browser can draw the intro (OffscreenCanvas and Worker). */
 export function borgIntroSupported() {
     return typeof HTMLCanvasElement !== 'undefined'
@@ -171,7 +189,7 @@ export function BorgAssimilationEffect(canvas, params = {}) {
     };
 
     const renderer = params.renderer === 'canvas' ? 'canvas' : 'webgl';
-    import('./borg-worker-sources.js').then((mod) => {
+    preloadBorgIntro().then((mod) => {
         if (stopped) return;
         sources = mod;
         launch(renderer === 'webgl' && webglAvailable() ? 'webgl' : 'canvas');

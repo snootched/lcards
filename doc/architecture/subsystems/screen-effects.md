@@ -71,8 +71,11 @@ Each slot keeps `{ el, cleanup, active, timer, resolve }` in `sem._slots` (`Map`
     // element itself (see Implementation notes)
     return () => { /* cleanup */ };
   },
+  preload() { /* optional: return a promise that loads what enter() fetches lazily */ },
 }
 ```
+
+A preset whose `enter()` loads code or files on demand declares `preload()`: `screenEffectManager.preloadPreset(name)` runs it (resolves at once for a preset without one, rejects when the load failed). The connection overlay calls it while Home Assistant is reachable, since its effects first start when it is not ([Connection Overlay: Warm-up](connection-overlay.md#warm-up)). `borg-assimilation`'s is `preloadBorgIntro()`.
 
 `color-text` params are resolved to concrete colours before `enter()` is called; see [Implementation notes](#implementation-notes). The registry (`ScreenEffectPresetRegistry`, module singleton `screenEffectPresetRegistry`) has `register(name, preset)`, `get(name)`, `has(name)` and `list()`; registering an existing name replaces it.
 
@@ -109,7 +112,7 @@ All five come from one factory, `_backdropFilterPreset()`, which sets `backdrop-
 | `scanlines` | `lineHeight: 4, opacity: 0.25, scroll: 0` | CRT line overlay (`effects/ScanlineEffect.js`); `scroll` in px/s; redraws only on resize while still |
 | `borg-assimilation` | `siteCount: 7, tendrilsPerSite: 8, tendrilLength: 600, particleCount: 2, color: '#00cc44', glowColor: '#00ff66', renderer: 'auto', cube: true, cubeStyle: 'detailed', corruption: 0.5, overrun: 0.65` | Borg assimilation intro (`effects/BorgAssimilationEffect.js`); runs until cleared, so use `apply()` / `applySlot()`, not `play()`. See below |
 
-**`borg-assimilation` renderers.** `BorgAssimilationEffect` creates its own canvas next to the SEM canvas slot (`pointer-events: none`, so clicks still reach the slot) and transfers it to a worker with `transferControlToOffscreen()`. With `renderer: auto` or `webgl` it runs the WebGL2 worker (`BorgAssimilationGLWorker.js`), which draws the layout computed on the main thread by `borg-layout.js` (seeded): pass 1 adds tendril strips, site glows and the Borg cube's edges into a framebuffer, pass 2 draws the assimilation front with procedural circuitry behind it, then the pass 1 picture with signal corruption. With `renderer: canvas`, no WebGL2 or a failed context, it runs the classic Canvas2D worker (`BorgAssimilationWorker.js`). Both worker sources are `?raw` strings in a lazy chunk (`borg-worker-sources.js`). The running canvas carries `data-lcards-renderer` (`webgl` or `canvas`). `borgIntroSupported()` (exported) reports whether `OffscreenCanvas` transfer and `Worker` exist; `BorgAssimilationManager` skips its intro when they don't.
+**`borg-assimilation` renderers.** `BorgAssimilationEffect` creates its own canvas next to the SEM canvas slot (`pointer-events: none`, so clicks still reach the slot) and transfers it to a worker with `transferControlToOffscreen()`. With `renderer: auto` or `webgl` it runs the WebGL2 worker (`BorgAssimilationGLWorker.js`), which draws the layout computed on the main thread by `borg-layout.js` (seeded): pass 1 adds tendril strips, site glows and the Borg cube's edges into a framebuffer, pass 2 draws the assimilation front with procedural circuitry behind it, then the pass 1 picture with signal corruption. With `renderer: canvas`, no WebGL2 or a failed context, it runs the classic Canvas2D worker (`BorgAssimilationWorker.js`). Both worker sources are `?raw` strings in a lazy chunk (`borg-worker-sources.js`), loaded once by `preloadBorgIntro()` (the preset's `preload()`; a failed load is tried again on the next call), which the effect awaits. The running canvas carries `data-lcards-renderer` (`webgl` or `canvas`). `borgIntroSupported()` (exported) reports whether `OffscreenCanvas` transfer and `Worker` exist; `BorgAssimilationManager` skips its intro when they don't.
 
 ---
 

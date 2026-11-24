@@ -51,6 +51,7 @@ ConnectionOverlayService (BaseService singleton)
 | File | Purpose |
 |------|---------|
 | `src/core/services/ConnectionOverlayService.js` | Core singleton service |
+| `src/core/services/connection-overlay-warmup.js` | Loads what the overlay needs while Home Assistant is reachable ([Warm-up](#warm-up)) |
 | `src/core/services/PortalOverlayManager.js` | Shared portal DOM lifecycle engine ([Portal Overlay Manager](portal-overlay-manager.md)) |
 | `src/core/borg/BorgAssimilationManager.js` | Borg mode display ([Borg Assimilation](borg-assimilation.md)) |
 | `src/core/services/storage-permissions.js` | `canWriteGlobalStorage()`, `defaultSettingsScope()`: who may write the global scope |
@@ -308,6 +309,31 @@ Instead of the standard portal overlay, a disconnect hands over to `BorgAssimila
 - **Forced hide and reconnect.** `hide()` and `simulateReconnect()` call `_deassimilate()` in Borg mode (`deassimilate()` when `isAssimilated`), and `simulateReconnect()` then only fires `lcards-connection-overlay-dismissed`: no banner, as on a real reconnect. The connectivity tab's Borg-mode Test buttons call `BorgAssimilationManager` directly and do not go through these methods.
 - **Options.** `borgOptsFromLayers()` (exported, `:165-172`) turns `borgLayers` into options: `paletteHue` (when not `null`) and `fontSwap` (default `true`) become options of their own, the remaining keys (`canvas`, `backdrop`, `color`) become `intro`. The connectivity tab's Test button calls the same function, so a test and a real disconnect behave the same.
 - **Reconnect.** After the 1 second debounce, `_doReconnected()` calls `_deassimilate()` (`deassimilate()` when `isAssimilated` is true) (the palette goes back to the alert mode from before the assimilation), then runs `_loadConfigWithRetry()` as in the other modes and returns: the `reconnected.*` banner is not used.
+
+---
+
+## Warm-up {#warm-up}
+
+The overlay shows when the browser has lost Home Assistant, and Home Assistant is also the server LCARdS loads from. Anything the overlay fetches on demand fails at that moment. Issue #424: a kiosk that had never played the Borg intro showed only the Borg colours on a real disconnect, because the intro's lazy chunk and the Borg font could not be fetched (the connectivity tab's Test had cached them on other browsers).
+
+So every `loadConfig()` (startup, a saved or broadcast change, each reconnect) schedules `warmUp()` after `WARMUP_DELAY_MS` (4 s, restarted by a newer load). `warmUp()` does nothing with the overlay off, before the first `hass`, or while disconnected, and warms the saved config during a `showWith()` preview. When something failed it runs again after `WARMUP_RETRY_MS` (60 s), up to `WARMUP_MAX_RETRIES` (5) times per config load.
+
+`collectOverlayNeeds(cfg)` (pure) lists what the resolved config uses for its mode, on the disconnect and the reconnect after it:
+
+| Mode | Presets | Fonts | Sound events | Cards |
+|------|---------|-------|--------------|-------|
+| Borg | `borg-assimilation`, `borgLayers.backdrop` / `.color` | `lcards_borg` (unless `fontSwap: false`) | `borg_assimilate`, `borg_deassimilate` | none |
+| Text | `layers.*` | `message.font`, `reconnected.font` (banner on) | none | none |
+| Card | `layers.*` | as text (a card that fails to mount falls back to it) | `card_tap`, `card_hold`, `card_double_tap` (with a card) | `content`, `reconnected.content` (banner on) |
+
+`OverlayWarmup.warm()` loads them and keeps them in memory, so nothing depends on the HTTP cache (which a release's new chunk names, or a small kiosk cache, empties):
+
+- **Presets:** `screenEffectManager.preloadPreset(name)` runs the preset's `preload()` ([Screen Effects](screen-effects.md#preset-api-shape)); the imported module stays loaded.
+- **Fonts:** `assetManager.preloadFont(key)` links the stylesheet and downloads the face (`document.fonts.load()`), which the browser otherwise does only when text is drawn in it.
+- **Sounds:** `soundManager.preloadEvent(event)` buffers the sound the event plays now ([Sound System](sound-system.md#audio-asset-resolution)); a silent event loads nothing.
+- **Cards:** each card is mounted once in an invisible, inert host near `<home-assistant>` (inside the viewport, since some cards wait until they are on screen) for 3 s, then removed. Its code (Home Assistant's lazy card modules, LCARdS lazy chunks such as ApexCharts), fonts and files load. A card config is mounted once per page; a failed one is tried again.
+
+Runs never overlap (a call during a run waits, then runs on the newer config). Repeats are cheap: loaded presets, fonts and buffered sounds return at once. Not covered: a `media-source://` sound's signed URL expires, so offline it plays the copy the warm-up buffered (`_playMediaSourceAsset()` falls back to it), and a sound scheme changed after the last config load warms on the next one. Tests: `tests/core/connection-overlay-warmup.test.js`, and `tests/browser/connection-overlay-offline.spec.js`, which blocks `/lcards/` after the warm-up (Playwright turns the HTTP cache off while a route is set) and runs the disconnect, with a control per mode that fails without the warm-up.
 
 ---
 

@@ -768,6 +768,49 @@ export class AssetManager extends BaseService {
   }
 
   /**
+   * Load a font and download its face now, not when text first uses it.
+   * loadFont() only links the stylesheet: the browser fetches a font file when
+   * something on the page is drawn in it, which for the connection overlay can be
+   * after Home Assistant became unreachable. A name that isn't in the registry
+   * (a theme's own font) is still asked for through document.fonts.
+   *
+   * @param {string} fontKey - Font key or CSS family name
+   * @returns {Promise<boolean>} true when the face is ready (false: try again later)
+   */
+  async preloadFont(fontKey) {
+    if (!fontKey || typeof document === 'undefined') return false;
+    const key = this._migrateLegacyFontName(fontKey);
+    const asset = this.getRegistry('font').assets.get(key);
+    if (asset) {
+      await this.loadFont(key);
+      const link = /** @type {HTMLLinkElement|null} */ (document.getElementById(`lcards-font-${key}`));
+      if (link && !link.sheet) {
+        // A link that failed before never fires again: give up after a while.
+        const loaded = await new Promise((resolve) => {
+          const timer = setTimeout(() => resolve(false), 15000);
+          const done = (/** @type {boolean} */ ok) => { clearTimeout(timer); resolve(ok); };
+          link.addEventListener('load', () => done(true), { once: true });
+          link.addEventListener('error', () => done(false), { once: true });
+        });
+        if (!loaded) {
+          // Drop the failed link so the next loadFont() adds it again.
+          link.remove();
+          return false;
+        }
+      }
+    }
+    if (!document.fonts?.load) return true;
+    const family = String(asset?.metadata?.family ?? key).replace(/["\\]/g, '');
+    try {
+      const faces = await document.fonts.load(`16px "${family}"`);
+      return faces.length > 0;
+    } catch (error) {
+      lcardsLog.debug(`[AssetManager] Font face did not load: ${key}`, error);
+      return false;
+    }
+  }
+
+  /**
    * Migrate legacy CB-LCARS font names to new lcards_ prefix
    * @private
    * @param {string} fontKey - Font key (may be legacy name)

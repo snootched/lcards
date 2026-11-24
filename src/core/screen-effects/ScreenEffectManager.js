@@ -378,6 +378,19 @@ export class ScreenEffectManager extends BaseService {
     }
 
     /**
+     * Load what a preset's effect would fetch when it starts (its `preload()`),
+     * so it can start while Home Assistant is unreachable. Resolves when nothing
+     * is left to load; rejects when the load failed (try again later).
+     *
+     * @param {string} presetName
+     * @returns {Promise<void>}
+     */
+    async preloadPreset(presetName) {
+        const preset = screenEffectPresetRegistry.get(presetName);
+        if (typeof preset?.preload === 'function') await preset.preload();
+    }
+
+    /**
      * Resolve any `color-text` params in a preset's params_schema to concrete
      * CSS colour strings before they are handed to `el.style.*`. Read at call
      * time (resolveColor's concrete mode never caches), so a palette change

@@ -174,6 +174,7 @@ card config: source = 'media-source://media_source/local/bedroom.jpg'
 | `resolveModelUrl(key)` | `string\|null` | Model URL (no I/O) |
 | `resolveMediaSourceUrl(mediaContentId)` | `Promise<string\|null>` | `media_source/resolve_media`, cached 15 minutes |
 | `loadFont(fontKey)` | `Promise<void>` | Inject the font's CSS `<link>` once; accepts legacy names |
+| `preloadFont(fontKey)` | `Promise<boolean>` | `loadFont()`, wait for the stylesheet, then download the face (`document.fonts.load()`); a name outside the registry is still asked for. `false` when it failed (a failed `<link>` is removed so the next call adds it again). Used by the [connection overlay warm-up](connection-overlay.md#warm-up) |
 | `listFonts()` | `Object[]` | `{ key, displayName, category, legacyName, description, pack }` per font |
 | `getFontsByCategory()` | `Object` | `listFonts()` grouped by `category` (`'Other'` when missing) |
 | `listImages()` | `string[]` | Image keys, sorted |

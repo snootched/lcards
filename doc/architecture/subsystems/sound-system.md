@@ -221,11 +221,11 @@ So a scheme value, an override, `lcards.play_sound`'s `asset_key` and the Borg `
 2. `audio.currentTime = 0` (allows rapid re-trigger)
 3. `audio.play()`: `.catch(() => {})` suppresses `AbortError` from fast replays
 
-No async preloading is required; the browser fetches the URL on first play.
+Normally nothing is preloaded: the browser fetches the URL on first play. The connection overlay plays its sounds when Home Assistant may be unreachable, so its [warm-up](connection-overlay.md#warm-up) calls `preloadEvent(eventType)`: `_resolveEventAsset()` (the lookup `play()` uses, so both pick the same sound and a silent event loads nothing), then `preloadSource(source)`, which puts a `preload = 'auto'` element in `_audioCache` and waits for `canplaythrough` (a failed one is dropped).
 
 ### Home Assistant Media Library Sounds
 
-Any `assetKey` value may instead be a `media-source://…` content ID picked via the Home Assistant media library; the per-card and Config Panel sound-override pickers offer a **Browse Home Assistant Media** mode alongside bundled assets (see [Asset Manager: Media Source Resolution Flow](asset-manager#media-source-resolution-flow)). `_playAsset()` detects the `media-source://` prefix and routes to `_playMediaSourceAsset()` instead of the synchronous registry lookup. Unlike bundled assets, the cached `Audio` element is rebuilt whenever the resolved URL differs from what's cached, since `AssetManager.resolveMediaSourceUrl()` may return a different signed URL after its own 15-minute cache window expires.
+Any `assetKey` value may instead be a `media-source://…` content ID picked via the Home Assistant media library; the per-card and Config Panel sound-override pickers offer a **Browse Home Assistant Media** mode alongside bundled assets (see [Asset Manager: Media Source Resolution Flow](asset-manager#media-source-resolution-flow)). `_playAsset()` detects the `media-source://` prefix and routes to `_playMediaSourceAsset()` instead of the synchronous registry lookup. Unlike bundled assets, the cached `Audio` element is rebuilt whenever the resolved URL differs from what's cached, since `AssetManager.resolveMediaSourceUrl()` may return a different signed URL after its own 15-minute cache window expires. When the id can't be resolved (Home Assistant unreachable), the cached element plays if there is one.
 
 ---
 

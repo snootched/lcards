@@ -81,6 +81,13 @@ import {
     CONN_OVERLAY_DISCONNECT_DELAY,
     CONN_OVERLAY_ALL_KEYS,
 } from './ScopedSettingsConstants.js';
+import { OverlayWarmup } from './connection-overlay-warmup.js';
+
+/** Wait after a config load before warming, so page start isn't slowed. */
+const WARMUP_DELAY_MS = 4000;
+/** Try a failed warm-up again after this long, up to WARMUP_MAX_RETRIES times. */
+const WARMUP_RETRY_MS = 60000;
+const WARMUP_MAX_RETRIES = 5;
 
 // ---------------------------------------------------------------------------
 // Built-in defaults
@@ -236,6 +243,15 @@ export class ConnectionOverlayService extends BaseService {
         try { localStorage.removeItem('lcards_connection_overlay_config'); } catch (_) {}
         /** Config saved before a showWith() preview call; restored on hide(). */
         this._previewConfig = null;
+
+        // ── Warm-up ───────────────────────────────────────────────────────
+        // What the overlay fetches on demand can't be fetched once Home Assistant
+        // is unreachable (#424), so it is loaded after every config load.
+        this._warmup = new OverlayWarmup();
+        /** @type {ReturnType<typeof setTimeout>|null} */
+        this._warmupTimer = null;
+        /** Retries left after a warm-up that didn't load everything. */
+        this._warmupRetries = WARMUP_MAX_RETRIES;
 
         lcardsLog.debug('[ConnectionOverlayService] Created (config seeded from defaults)');
     }
@@ -413,6 +429,8 @@ export class ConnectionOverlayService extends BaseService {
         };
 
         this._config = resolved;
+        this._warmupRetries = WARMUP_MAX_RETRIES;
+        this._scheduleWarmup(WARMUP_DELAY_MS);
 
         // Re-render immediately if the overlay is currently visible so remote-broadcast
         // config updates (font, colour, etc.) take effect without a page reload.
@@ -704,7 +722,48 @@ export class ConnectionOverlayService extends BaseService {
     /**
      * Destroy the service: unsubscribe connection events, tear down portal.
      */
+    /**
+     * Load what the overlay will need (fonts, sounds, effect code, cards) while
+     * Home Assistant is reachable. Resolves to what loaded and what failed; does
+     * nothing while disconnected or with the overlay off.
+     * @returns {Promise<{ loaded: string[], failed: string[] }>}
+     */
+    async warmUp() {
+        // A showWith() preview is temporary: warm what is saved.
+        const cfg = this._previewConfig ?? this._config;
+        if (!cfg.enabled || !this._hass || !this._isConnected || this._isDisconnected) return { loaded: [], failed: [] };
+        return this._warmup.warm(cfg, { hass: this._hass });
+    }
+
+    /**
+     * Run warmUp() after `delayMs` (a new call restarts the wait); when something
+     * failed, again after WARMUP_RETRY_MS, a few times.
+     * @param {number} delayMs
+     * @private
+     */
+    _scheduleWarmup(delayMs) {
+        if (this._warmupTimer !== null) clearTimeout(this._warmupTimer);
+        this._warmupTimer = setTimeout(async () => {
+            this._warmupTimer = null;
+            try {
+                const { failed } = await this.warmUp();
+                if (failed.length && this._warmupRetries > 0) {
+                    this._warmupRetries--;
+                    this._scheduleWarmup(WARMUP_RETRY_MS);
+                }
+            } catch (err) {
+                lcardsLog.debug('[ConnectionOverlayService] Warm-up failed:', err);
+            }
+        }, delayMs);
+        // node (tests): a pending warm-up must not keep the process alive
+        /** @type {any} */ (this._warmupTimer).unref?.();
+    }
+
     destroy() {
+        if (this._warmupTimer !== null) {
+            clearTimeout(this._warmupTimer);
+            this._warmupTimer = null;
+        }
         this._clearDisconnectDelayTimer();
         if (this._reconnectDebounceTimer !== null) {
             clearTimeout(this._reconnectDebounceTimer);

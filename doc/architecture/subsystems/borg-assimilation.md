@@ -153,6 +153,8 @@ The defaults (`DEFAULTS`, `:38-71`):
 
 `!important` beats the HA-LCARS theme's own values. Text in a font other than these two variables keeps its font. The call is idempotent (one style tag at most); `revertBorgFont()` removes it.
 
+`loadFont()` only links the stylesheet, and the face downloads when text is first drawn in it. When the overlay assimilates on a disconnect, neither can be fetched, so its warm-up downloads the font and the intro chunk beforehand ([Connection Overlay: Warm-up](connection-overlay.md#warm-up)). An `assimilate()` from an action or the console runs while connected and needs none of that.
+
 ---
 
 ## Disconnect tolerance

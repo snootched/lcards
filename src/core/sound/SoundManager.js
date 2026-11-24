@@ -791,15 +791,28 @@ export class SoundManager extends BaseService {
    * @param {string|null} [context.cardOverride] - Card-level override (null silences)
    */
   play(eventType, context = {}) {
-    if (!this._isEnabled()) return;
+    const assetKey = this._resolveEventAsset(eventType, context);
+    if (assetKey) this._playAsset(assetKey);
+  }
+
+  /**
+   * The sound an event would play now (see play() for the order), or null when
+   * it stays silent: sounds off, its category off, muted or nothing mapped.
+   * @param {string} eventType
+   * @param {Object} [context={}] - as for play()
+   * @returns {string|null}
+   * @private
+   */
+  _resolveEventAsset(eventType, context = {}) {
+    if (!this._isEnabled()) return null;
     const category = EVENT_CATEGORY[eventType];
-    if (category && !this._isCategoryEnabled(category)) return;
+    if (category && !this._isCategoryEnabled(category)) return null;
 
     let assetKey;
 
     // 1. Card-level override
     if ('cardOverride' in context) {
-      if (context.cardOverride === null) return;
+      if (context.cardOverride === null) return null;
       assetKey = context.cardOverride;
     }
 
@@ -807,7 +820,7 @@ export class SoundManager extends BaseService {
     if (!assetKey) {
       const overrides = this._getOverrides();
       if (eventType in overrides) {
-        if (overrides[eventType] === null) return;
+        if (overrides[eventType] === null) return null;
         assetKey = overrides[eventType] || null;
       }
     }
@@ -816,12 +829,77 @@ export class SoundManager extends BaseService {
     if (!assetKey) {
       const scheme = this._getActiveScheme();
       const schemeValue = scheme[eventType];
-      if (schemeValue === null) return;
+      if (schemeValue === null) return null;
       assetKey = schemeValue || null;
     }
 
-    if (!assetKey) return;
-    this._playAsset(assetKey);
+    return assetKey || null;
+  }
+
+  /**
+   * Download the sound an event would play, so it can play while Home Assistant
+   * is unreachable (the connection overlay's warm-up). No-op when the event is silent.
+   * @param {string} eventType
+   * @returns {Promise<boolean>} false when the download failed (try again later)
+   */
+  preloadEvent(eventType) {
+    const assetKey = this._resolveEventAsset(eventType);
+    return assetKey ? this.preloadSource(assetKey) : Promise.resolve(true);
+  }
+
+  /**
+   * Download a sound (an asset key, a `media-source://` id or a URL) into the
+   * audio cache play() uses, and wait until it can play through.
+   * @param {string} source
+   * @returns {Promise<boolean>} false when the download failed (try again later)
+   */
+  async preloadSource(source) {
+    if (!source || typeof Audio === 'undefined') return false;
+    let url;
+    if (source.startsWith('media-source://')) {
+      url = await this._core?.assetManager?.resolveMediaSourceUrl?.(source);
+    } else {
+      url = this._assetUrl(source);
+      if (url) url = bundleUrl(url);
+    }
+    if (!url) return false;
+
+    let audio = this._audioCache.get(source);
+    if (!audio || audio.src !== new URL(url, location.href).href) {
+      audio = new Audio(url);
+      audio.preload = 'auto';
+      this._audioCache.set(source, audio);
+    }
+    if (audio.readyState >= 4) return true; // HAVE_ENOUGH_DATA
+    const el = audio;
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => finish(false), 20000);
+      const finish = (/** @type {boolean} */ ok) => {
+        clearTimeout(timer);
+        el.removeEventListener('canplaythrough', onReady);
+        el.removeEventListener('error', onError);
+        // A failed element is dropped so play() and the next preload start over.
+        if (!ok && this._audioCache.get(source) === el) this._audioCache.delete(source);
+        resolve(ok);
+      };
+      const onReady = () => finish(true);
+      const onError = () => finish(false);
+      el.addEventListener('canplaythrough', onReady);
+      el.addEventListener('error', onError);
+      el.load();
+    });
+  }
+
+  /**
+   * The URL of a sound that isn't a media-source id: a URL as is, else a
+   * registry key's URL (null when unknown).
+   * @param {string} assetKey
+   * @returns {string|null}
+   * @private
+   */
+  _assetUrl(assetKey) {
+    if (/^(\/|https?:\/\/)/.test(assetKey)) return assetKey;
+    return this._core?.assetManager?.getRegistry('audio')?.assets?.get(assetKey)?.url ?? null;
   }
 
   /**
@@ -1306,9 +1384,7 @@ export class SoundManager extends BaseService {
     }
 
     // A URL plays as is; anything else is a registry key (read from its metadata, no async)
-    const isUrl = typeof assetKey === 'string' && /^(\/|https?:\/\/)/.test(assetKey);
-    const registry = isUrl ? null : this._core?.assetManager?.getRegistry('audio');
-    const url = isUrl ? assetKey : registry?.assets?.get(assetKey)?.url;
+    const url = typeof assetKey === 'string' ? this._assetUrl(assetKey) : null;
 
     if (!url) {
       lcardsLog.warn(`[SoundManager] No audio URL for asset key: ${assetKey}`);
@@ -1343,17 +1419,20 @@ export class SoundManager extends BaseService {
    */
   async _playMediaSourceAsset(mediaContentId) {
     const url = await this._core?.assetManager?.resolveMediaSourceUrl?.(mediaContentId);
-    if (!url) {
+    const cached = this._audioCache.get(mediaContentId);
+    if (!url && !cached) {
       lcardsLog.warn(`[SoundManager] Failed to resolve media source: ${mediaContentId}`);
       return;
     }
 
     try {
-      let audio = this._audioCache.get(mediaContentId);
-      if (!audio || audio.src !== url) {
+      let audio = cached;
+      // Unresolved (Home Assistant unreachable): play the copy a preload kept.
+      if (url && (!audio || audio.src !== url)) {
         audio = new Audio(url);
         this._audioCache.set(mediaContentId, audio);
       }
+      if (!audio) return;
       audio.volume = this._getVolume();
       audio.currentTime = 0;
       audio.play().catch(() => {}); // Suppress AbortError from rapid replays
